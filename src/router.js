@@ -5,7 +5,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import AboutUs from './pages/about-us.vue'
 import Home from './pages/Home.vue'
-import CHRISData from './pages/chris-data.vue'
+import CHRISDataIntro from './pages/chris-data-intro.vue'
+import DataOverview from './pages/data-overview.vue'
 
 
 const routes = [
@@ -15,15 +16,21 @@ const routes = [
       component: Home
     },
     {
-      path: '/about-us',
-      name: 'AboutUs',
-      component: AboutUs
+      path: '/about-us', // file path
+      name: 'AboutUs', //name in the file for exporting
+      component: AboutUs //component name
     }
     ,
     {
-      path: '/CHRIS-Data',
-      name: 'CHRISData',
-      component: CHRISData
+      path: '/data-introduction',
+      name: 'CHRISDataIntro',
+      component: CHRISDataIntro
+    }
+    ,
+    {
+      path: '/data-overview',
+      name: 'DataOverview',
+      component: DataOverview
     }
   ]
 
