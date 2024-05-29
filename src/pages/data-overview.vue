@@ -34,9 +34,18 @@
                     <v-card-text>
                       <!-- Content for first tab -->
                       <template v-if="tab.value === 1">
+                        <!--Chart-->
+                        <div style="height: 300px; width: 500px">
+                          <Bar
+                            :data="chartConfig"
+                            :options="{ responsive: true }"
+                          />
+                        </div>
+
                         <!-- Figures -->
+                        <!--
                         <v-row>
-                          <!--link figure-->
+                          
                           <v-col cols="6">
                             <figure>
                               <img
@@ -48,7 +57,6 @@
                             </figure>
                           </v-col>
                           
-                          <!--recht figure-->
                           <v-col cols="6">
                             <figure>
                               <img
@@ -59,12 +67,13 @@
                               />
                             </figure>
                           </v-col>
-                        </v-row>
+                        </v-row>-->
 
                         <!--Table with search-->
                         <r-row>
                           <v-col cols="12">
                             <!--search field-->
+                            <!--
                             <v-text-field
                               v-model="search"
                               label="Search"
@@ -72,12 +81,11 @@
                               variant="outlined"
                               hide-details
                               single-line
-                            ></v-text-field>
+                            ></v-text-field>-->
                             <!--table content-->
                             <v-data-table
                               :headers="columns"
                               :items="rows"
-                              :search="search"
                             ></v-data-table>
                           </v-col>
                         </r-row>
@@ -122,6 +130,50 @@
 </template>
 
 <script>
+import { Bar } from "vue-chartjs";
+import bardata from "../data/test_barplotData.json";
+import data from "../data/test_table.json";
+
+import {
+  Chart as ChartJS,
+  Title,
+  Tooltip,
+  Legend,
+  BarElement,
+  CategoryScale,
+  LinearScale,
+} from "chart.js";
+
+ChartJS.register(
+  Title,
+  Tooltip,
+  Legend,
+  BarElement,
+  CategoryScale,
+  LinearScale
+);
+
+export default {
+  name: "DataOverview",
+  components: { Bar },
+  data() {
+    return {
+      model: "tab-2",
+      //tab names
+      tabs: [
+        { name: "Participiants", value: 1 },
+        { name: "Extension1", value: 2 },
+        { name: "Extension2", value: 3 },
+      ],
+      chartConfig: { ...bardata },
+      ...data,
+    };
+  },
+};
+</script>
+
+<!--
+<script>
 export default {
   // don't forget to export the about us file
   name: "DataOverview",
@@ -135,39 +187,35 @@ export default {
         { name: "Extension2", value: 3 },
       ],
       //data for data table
-      search: "",
       columns: [
         {
           align: "start",
           key: "name",
           sortable: false,
-          title: "Name",
+          title: "",
         },
-        { key: "column1", title: "Column1" },
-        { key: "column2", title: "Column2" },
-        { key: "column3", title: "Column3" },
+        { key: "column1", title: "Values" },
+  
       ],
       rows: [
         {
           name: "Row1",
           column1: 1,
-          column2: 1,
-          column3: 1,
+        
         },
         {
           name: "Row2",
-          column1: 1,
-          column2: 1,
-          column3: 1,
+          column1: 2,
+       
         },
         {
           name: "Row3",
-          column1: 1,
-          column2: 1,
-          column3: 1,
+          column1: 3,
+          
         },
       ],
     };
   },
 };
 </script>
+-->
