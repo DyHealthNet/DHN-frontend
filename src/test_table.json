@@ -1,0 +1,11 @@
+{
+    "columns": [
+      { "align": "start", "key": "name", "sortable": false, "title": "" },
+      { "key": "column1", "title": "Values" }
+    ],
+    "rows": [
+      { "name": "Row1", "column1": 1 },
+      { "name": "Row2", "column1": 2 },
+      { "name": "Row3", "column1": 3 }
+    ]
+}
