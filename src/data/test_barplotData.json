@@ -1,0 +1,10 @@
+{
+    "labels": [ "female", "male"],
+    "datasets": [
+      {
+        "label": "# of participants",
+        "backgroundColor": "#f87979",
+        "data": [40, 20]
+      }
+    ]
+}

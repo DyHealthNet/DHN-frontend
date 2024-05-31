@@ -1,0 +1,13 @@
+{
+    "discrete": [
+      "age",
+      "sex"
+    ],
+    "continuous": [
+      "# of participants",
+      "bmi"
+    ],
+    "categorical": [
+      "sex"
+    ]
+}
