@@ -18,18 +18,24 @@
           <v-col cols="12">
             <v-row justify="center" class="fill-height">
               <v-col cols="12" sm="6" md="4" class="text-center">
-                <a href="/CHRIS-Data" target="_blank">
-                  <v-btn color="primary">CHRIS Data</v-btn>
+                <a href="/data-introduction" target="_blank">
+                  <v-btn color="primary">Data Introduction</v-btn>
                 </a>
               </v-col>
               <v-col cols="12" sm="6" md="4" class="text-center">
-                <v-btn color="primary">NETWORK</v-btn>
+                <a href="/data-overview" target="_blank">
+                  <v-btn color="primary">Data Overview</v-btn>
+                </a>
               </v-col>
+              <v-col cols="12" sm="6" md="4" class="text-center">
+                <v-btn color="primary">Network</v-btn>
+              </v-col>
+              <!-- commented about us button
               <v-col cols="12" sm="6" md="4" class="text-center">
                 <a href="/about-us" target="_blank">
                   <v-btn color="primary">About Us</v-btn>
                 </a>
-              </v-col>
+              </v-col>-->
             </v-row>
           </v-col>
 
@@ -51,7 +57,7 @@
                       <v-img
                         class="align-end text-white"
                         height="200"
-                        src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Logo_of_the_Technical_University_of_Munich.svg/1200px-Logo_of_the_Technical_University_of_Munich.svg.png"
+                        src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQWhsocA3fpJeajwKnYZL8RMOPHLAkEJ47wQQ&s"
                         cover
                       >
                       </v-img>
@@ -94,7 +100,8 @@
                       <v-img
                         class="align-end text-white"
                         height="200"
-                        src="https://www.tf.fau.de/files/2022/10/FAU-Logo.png"
+                        aspect-ratio="1"
+                        src="https://www.uni-wuerzburg.de/fileadmin/99122200/news/fau.png"
                         cover
                       >
                       </v-img>
@@ -125,8 +132,8 @@
                         <div>
                           Institute for Biomedicine <br />
                           Dr. Christian Fuchsberger <br />
-                          <br>
-                          <br>
+                          <br />
+                          <br />
                         </div>
                       </v-card-text>
                     </v-card>
@@ -149,7 +156,6 @@
               </v-col>
             </v-row>
           </v-col>
-        
         </v-row>
       </v-container>
     </v-main>

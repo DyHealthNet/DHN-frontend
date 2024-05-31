@@ -34,61 +34,72 @@
                     <v-card-text>
                       <!-- Content for first tab -->
                       <template v-if="tab.value === 1">
-                        <!--Chart-->
-                        <div style="height: 300px; width: 500px">
-                          <Bar
-                            :data="chartConfig"
-                            :options="{ responsive: true }"
-                          />
-                        </div>
-
-                        <!-- Figures -->
-                        <!--
                         <v-row>
-                          
-                          <v-col cols="6">
-                            <figure>
-                              <img
-                                src="https://blogs.sas.com/content/graphicallyspeaking/files/2019/02/nc_population_age_gender.png"
-                                alt="Population"
-                                width="500"
-                                height="500"
-                              />
-                            </figure>
-                          </v-col>
-                          
-                          <v-col cols="6">
-                            <figure>
-                              <img
-                                src="https://static.packt-cdn.com/products/9781788295260/graphics/5a534f47-8593-4fd1-bbbe-e3c801a7b8ad.png"
-                                alt="Population"
-                                width="500"
-                                height="300"
-                              />
-                            </figure>
-                          </v-col>
-                        </v-row>-->
+                          <!--Drop Down list-->
+                          <v-col cols="12" align="center">
+                            <div class="d-flex justify-space-around">
+                              <v-menu transition="scroll-x-transition">
+                                <template v-slot:activator="{ props }">
+                                  <v-btn color="indigo-darken-1" v-bind="props">
+                                    Select X Variables
+                                  </v-btn>
+                                </template>
 
-                        <!--Table with search-->
-                        <r-row>
-                          <v-col cols="12">
-                            <!--search field-->
-                            <!--
-                            <v-text-field
-                              v-model="search"
-                              label="Search"
-                              prepend-inner-icon="mdi-magnify"
-                              variant="outlined"
-                              hide-details
-                              single-line
-                            ></v-text-field>-->
-                            <!--table content-->
-                            <v-data-table
-                              :headers="columns"
-                              :items="rows"
-                            ></v-data-table>
+                                <v-list>
+                                  <v-list-item
+                                    v-for="(item, i) in xItems"
+                                    :key="i"
+                                    :title = item
+                                  >
+                                  </v-list-item>
+                                </v-list>
+                              </v-menu>
+
+                              <v-menu transition="scroll-x-transition">
+                                <template v-slot:activator="{ props }">
+                                  <v-btn color="indigo-darken-1" v-bind="props">
+                                    Select Y Variables
+                                  </v-btn>
+                                </template>
+                                <v-list>
+                                  <v-list-item
+                                    v-for="(item, i) in yItems"
+                                    :key="i"
+                                    :title = item
+                                  >
+                                  </v-list-item>
+                                </v-list>
+                              </v-menu>
+
+                              <v-menu transition="scroll-x-transition">
+                                <template v-slot:activator="{ props }">
+                                  <v-btn color="indigo-darken-1" v-bind="props">
+                                    Colored By
+                                  </v-btn>
+                                </template>
+
+                                <v-list>
+                                  <v-list-item
+                                    v-for="(item, i) in colorItems"
+                                    :key="i"
+                                    :title = item
+                                  >
+                                  </v-list-item>
+                                </v-list>
+                              </v-menu>
+                            </div>
                           </v-col>
-                        </r-row>
+
+                          <!--Chart-->
+                          <v-col cols="12" align="center">
+                            <div style="height: 300px; width: 500px">
+                              <Bar
+                                :data="chartConfig"
+                                :options="{ responsive: true }"
+                              />
+                            </div>
+                          </v-col>
+                        </v-row>
                       </template>
 
                       <!-- Content for second tab -->
@@ -97,9 +108,6 @@
                         <figure>
                           <img src="" alt="Figure related to Extension1" />
                         </figure>
-                        <table>
-                          <!-- Table -->
-                        </table>
                       </template>
 
                       <!-- Content for the last tab -->
@@ -108,9 +116,6 @@
                         <figure>
                           <img src="" alt="Figure related to the Extension 2" />
                         </figure>
-                        <table>
-                          <!-- Table -->
-                        </table>
                       </template>
                     </v-card-text>
                   </v-card>
@@ -120,7 +125,17 @@
           </v-col>
 
           <!--Data Tables-->
-          <v-col cols="12"> </v-col>
+          <v-col cols="12">
+            <!--Table with search-->
+            <r-row class="fill-height" justify="center">
+              <v-col cols="12" align="center">
+                <h2>Overview of Data</h2>
+              </v-col>
+              <v-col cols="12">
+                <v-data-table :headers="columns" :items="rows"></v-data-table>
+              </v-col>
+            </r-row>
+          </v-col>
 
           <!--End of the content-->
         </v-row>
@@ -131,8 +146,9 @@
 
 <script>
 import { Bar } from "vue-chartjs";
-import bardata from "../data/test_barplotData.json";
-import data from "../data/test_table.json";
+import barData from "../data/test_barplotData.json";
+import tableData from "../data/test_table.json";
+import * as dropdownData from "../data/test_dropData.json";
 
 import {
   Chart as ChartJS,
@@ -161,12 +177,20 @@ export default {
       model: "tab-2",
       //tab names
       tabs: [
-        { name: "Participiants", value: 1 },
-        { name: "Extension1", value: 2 },
-        { name: "Extension2", value: 3 },
+        { name: "Bar Plot", value: 1 },
+        { name: "Line Plot", value: 2 },
+        { name: "Extension1", value: 3 },
       ],
-      chartConfig: { ...bardata },
-      ...data,
+      items: [
+        { title: 'Click Me' },
+        { title: 'Click Me' },
+        { title: 'Click Me' },
+      ],
+      chartConfig: { ...barData },
+      ...tableData,
+      xItems: dropdownData.XItems,
+      yItems: dropdownData.YItems,
+      colorItems: dropdownData.ColorItems,
     };
   },
 };
