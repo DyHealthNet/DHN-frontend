@@ -8,7 +8,7 @@
           <v-col cols="12">
             <v-card>
               <!--Tab bar name-->
-              <v-toolbar color="indigo-darken-1">
+              <v-toolbar color="#104D63">
                 <v-toolbar-title>Data Overview</v-toolbar-title>
                 <v-spacer></v-spacer>
                 <template v-slot:extension>
@@ -40,8 +40,8 @@
                             <div class="d-flex justify-space-around">
                               <v-menu transition="scroll-x-transition">
                                 <template v-slot:activator="{ props }">
-                                  <v-btn color="indigo-darken-1" v-bind="props">
-                                    Select X Variables
+                                  <v-btn color="#A5BFDC" v-bind="props">
+                                    Select X Variable
                                   </v-btn>
                                 </template>
 
@@ -57,8 +57,8 @@
 
                               <v-menu transition="scroll-x-transition">
                                 <template v-slot:activator="{ props }">
-                                  <v-btn color="indigo-darken-1" v-bind="props">
-                                    Select Y Variables
+                                  <v-btn color="#A5BFDC" v-bind="props">
+                                    Select Y Variable
                                   </v-btn>
                                 </template>
                                 <v-list>
@@ -73,7 +73,7 @@
 
                               <v-menu transition="scroll-x-transition">
                                 <template v-slot:activator="{ props }">
-                                  <v-btn color="indigo-darken-1" v-bind="props">
+                                  <v-btn color="#A5BFDC" v-bind="props">
                                     Colored By
                                   </v-btn>
                                 </template>
