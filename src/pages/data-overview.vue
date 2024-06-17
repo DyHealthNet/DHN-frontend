@@ -65,24 +65,18 @@
                                 :items="colorItemsBar"
                                 style="max-width: 350px; color: #104d63"
                               ></v-autocomplete>
-
-                              <!-- Button to generate figure -->
-                              <v-btn
-                                color="#A5BFDC"
-                                @click="updateChart"
-                                class="center"
-                                >Generate</v-btn
-                              >
                             </div>
                           </v-col>
 
                           <!--Chart-->
                           <v-col cols="12" align="center">
                             <div style="height: 300px; width: 500px">
-                              <Bar
-                                :data="chartConfig"
-                                :options="{ responsive: true }"
-                              />
+                              <!-- CustomBar component, pass the selected variables to make API call -->
+                              <CustomBar
+                                :x-var="selectedXvariable"
+                                :y-var="selectedYvariable"
+                                :c-var="selectedColorvariable"
+                                />
                             </div>
                           </v-col>
                         </v-row>
@@ -113,7 +107,7 @@
           <!--Data Tables-->
           <v-col cols="12">
             <!--Table with search-->
-            <r-row class="fill-height" justify="center">
+            <v-row class="fill-height" justify="center">
               <v-col cols="12" align="center">
                 <h2>Overview of Data</h2>
               </v-col>
@@ -133,7 +127,7 @@
                   ></v-data-table>
                 </v-col>
               </v-row>
-            </r-row>
+            </v-row>
           </v-col>
 
           <!--End of the content-->
@@ -145,9 +139,8 @@
 
 <script>
 import { Bar } from "vue-chartjs";
-import barData1 from "../data/test_barplotData1.json";
-import * as dropdownData from "../data/test_dropData.json";
 import * as dataVariables from "../data/test_variables.json";
+import CustomBar from "../components/BarPlot.vue";
 
 import {
   Chart as ChartJS,
@@ -170,7 +163,7 @@ ChartJS.register(
 
 export default {
   name: "DataOverview",
-  components: { Bar },
+  components: { Bar, CustomBar },
   data() {
     return {
       model: "tab-2",
@@ -205,11 +198,6 @@ export default {
       rows2: [],
     };
   },
-  watch: {
-    selectedXVariable: "updateChart",
-    selectedYVariable: "updateChart",
-    selectedColorVariable: "updateChart",
-  },
 
   // +++++++++++  Table Data  ++++++++++++++
   // Get the data for the table
@@ -219,27 +207,6 @@ export default {
 
   // +++++++++++ Methods ++++++++++++++
   methods: {
-    updateChart() {
-      // Logic to update chart based on selected variables
-      this.chartConfig.data = this.transformData();
-    },
-    transformData() {
-      console.log(
-        "Generating figure with:",
-        this.selectedXvariable,
-        ", ",
-        this.selectedYvariable,
-        ", ",
-        this.selectedColorvariable
-      );
-      // Transform your dataset based on the selected variables
-      // This is a placeholder, implement according to your data structure and requirements
-      return {
-        barData1
-      };
-    },
-    
-
     //function to get the data from the json file
     splitRows(tableData) {
       this.columns = tableData.columns;

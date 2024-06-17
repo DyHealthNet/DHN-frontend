@@ -28,7 +28,7 @@ const routes = [
     }
     ,
     {
-      path: '/data-overview',
+      path: '/overview',
       name: 'DataOverview',
       component: DataOverview
     }
