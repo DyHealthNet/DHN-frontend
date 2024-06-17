@@ -1,11 +1,8 @@
 {
-    "columns": [
-      { "align": "start", "key": "name", "sortable": false, "title": "" },
-      { "key": "column1"}
-    ],
     "rows": [
       { "name": "# Participants", "column1": 1 },
       { "name": "# NaN values", "column1": 2 },
       { "name": "# Variables", "column1": 3 }
     ]
 }
+

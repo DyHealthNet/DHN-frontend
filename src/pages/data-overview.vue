@@ -34,59 +34,45 @@
                     <v-card-text>
                       <!-- Content for first tab -->
                       <template v-if="tab.value === 1">
+                        <!--Bar Plot-->
                         <v-row>
                           <!--Drop Down list-->
                           <v-col cols="12" align="center">
                             <div class="d-flex justify-space-around">
-                              <v-menu transition="scroll-x-transition">
-                                <template v-slot:activator="{ props }">
-                                  <v-btn color="#A5BFDC" v-bind="props">
-                                    Select X Variable
-                                  </v-btn>
-                                </template>
+                              <!--Select X variables-->
+                              <v-autocomplete
+                                v-model="selectedXvariable"
+                                clearable
+                                label="Select X Variable"
+                                :items="xItemsBar"
+                                style="max-width: 350px; color: #104d63"
+                              ></v-autocomplete>
 
-                                <v-list>
-                                  <v-list-item
-                                    v-for="(item, i) in xItems"
-                                    :key="i"
-                                    :title = item
-                                  >
-                                  </v-list-item>
-                                </v-list>
-                              </v-menu>
+                              <!--Select Y variables-->
+                              <v-autocomplete
+                                v-model="selectedYvariable"
+                                clearable
+                                label="Select Y Variable"
+                                :items="yItemsBar"
+                                style="max-width: 350px; color: #104d63"
+                              ></v-autocomplete>
 
-                              <v-menu transition="scroll-x-transition">
-                                <template v-slot:activator="{ props }">
-                                  <v-btn color="#A5BFDC" v-bind="props">
-                                    Select Y Variable
-                                  </v-btn>
-                                </template>
-                                <v-list>
-                                  <v-list-item
-                                    v-for="(item, i) in yItems"
-                                    :key="i"
-                                    :title = item
-                                  >
-                                  </v-list-item>
-                                </v-list>
-                              </v-menu>
+                              <!--Colored by which variables-->
+                              <v-autocomplete
+                                v-model="selectedColorvariable"
+                                clearable
+                                label="Colored by"
+                                :items="colorItemsBar"
+                                style="max-width: 350px; color: #104d63"
+                              ></v-autocomplete>
 
-                              <v-menu transition="scroll-x-transition">
-                                <template v-slot:activator="{ props }">
-                                  <v-btn color="#A5BFDC" v-bind="props">
-                                    Colored By
-                                  </v-btn>
-                                </template>
-
-                                <v-list>
-                                  <v-list-item
-                                    v-for="(item, i) in colorItems"
-                                    :key="i"
-                                    :title = item
-                                  >
-                                  </v-list-item>
-                                </v-list>
-                              </v-menu>
+                              <!-- Button to generate figure -->
+                              <v-btn
+                                color="#A5BFDC"
+                                @click="updateChart"
+                                class="center"
+                                >Generate</v-btn
+                              >
                             </div>
                           </v-col>
 
@@ -131,9 +117,22 @@
               <v-col cols="12" align="center">
                 <h2>Overview of Data</h2>
               </v-col>
-              <v-col cols="12">
-                <v-data-table :headers="columns" :items="rows"></v-data-table>
-              </v-col>
+              <v-row justify="center">
+                <v-col cols="5">
+                  <v-data-table
+                    :headers="columns"
+                    :items="rows1"
+                    hide-default-footer
+                  ></v-data-table>
+                </v-col>
+                <v-col cols="5">
+                  <v-data-table
+                    :headers="columns"
+                    :items="rows2"
+                    hide-default-footer
+                  ></v-data-table>
+                </v-col>
+              </v-row>
             </r-row>
           </v-col>
 
@@ -146,9 +145,9 @@
 
 <script>
 import { Bar } from "vue-chartjs";
-import barData from "../data/test_barplotData.json";
-import tableData from "../data/test_table.json";
+import barData1 from "../data/test_barplotData1.json";
 import * as dropdownData from "../data/test_dropData.json";
+import * as dataVariables from "../data/test_variables.json";
 
 import {
   Chart as ChartJS,
@@ -175,71 +174,107 @@ export default {
   data() {
     return {
       model: "tab-2",
-      //tab names
+
+      //Tab names
       tabs: [
         { name: "Bar Plot", value: 1 },
         { name: "Line Plot", value: 2 },
         { name: "Extension1", value: 3 },
       ],
-      items: [
-        { title: 'Click Me' },
-        { title: 'Click Me' },
-        { title: 'Click Me' },
-      ],
-      chartConfig: { ...barData },
-      ...tableData,
-      xItems: dropdownData.XItems,
-      yItems: dropdownData.YItems,
-      colorItems: dropdownData.ColorItems,
-    };
-  },
-};
-</script>
 
-<!--
-<script>
-export default {
-  // don't forget to export the about us file
-  name: "DataOverview",
-  data() {
-    return {
-      model: "tab-2",
-      //tab names
-      tabs: [
-        { name: "Population", value: 1 },
-        { name: "Extension1", value: 2 },
-        { name: "Extension2", value: 3 },
-      ],
-      //data for data table
-      columns: [
-        {
-          align: "start",
-          key: "name",
-          sortable: false,
-          title: "",
-        },
-        { key: "column1", title: "Values" },
-  
-      ],
-      rows: [
-        {
-          name: "Row1",
-          column1: 1,
-        
-        },
-        {
-          name: "Row2",
-          column1: 2,
-       
-        },
-        {
-          name: "Row3",
-          column1: 3,
-          
-        },
-      ],
+      //Different variables for the dropdown list
+      xItemsBar: dataVariables.discrete,
+      yItemsBar: dataVariables.discrete.concat(dataVariables.continuous),
+      colorItemsBar: dataVariables.categorical,
+
+      //initialized selected variables
+      selectedXvariable: null,
+      selectedYvariable: null,
+      selectedColorvariable: null,
+
+      //initialize the data for the chart
+      //chartConfig: { ...barData1 },
+      chartConfig: {
+        labels: [],
+        datasets: [],
+      },
+
+      //table data initialization
+      columns: [],
+      rows1: [],
+      rows2: [],
     };
+  },
+  watch: {
+    selectedXVariable: "updateChart",
+    selectedYVariable: "updateChart",
+    selectedColorVariable: "updateChart",
+  },
+
+  // +++++++++++  Table Data  ++++++++++++++
+  // Get the data for the table
+  created() {
+    this.splitRows(this.getTableData());
+  },
+
+  // +++++++++++ Methods ++++++++++++++
+  methods: {
+    updateChart() {
+      // Logic to update chart based on selected variables
+      this.chartConfig.data = this.transformData();
+    },
+    transformData() {
+      console.log(
+        "Generating figure with:",
+        this.selectedXvariable,
+        ", ",
+        this.selectedYvariable,
+        ", ",
+        this.selectedColorvariable
+      );
+      // Transform your dataset based on the selected variables
+      // This is a placeholder, implement according to your data structure and requirements
+      return {
+        barData1
+      };
+    },
+    
+
+    //function to get the data from the json file
+    splitRows(tableData) {
+      this.columns = tableData.columns;
+      // split the rows into two halves so that they can be displayed in two tables
+      const midpoint = Math.ceil(tableData.rows.length / 2);
+      this.rows1 = tableData.rows.slice(0, midpoint);
+      this.rows2 = tableData.rows.slice(midpoint);
+    },
+    getTableData() {
+      // return simulated data
+      return {
+        // this part here stays static, you don't need to change this
+        columns: [
+          { align: "start", key: "name", sortable: false, title: "" },
+          { key: "column1" },
+        ],
+        // this is the part where in the future will get the data from the server using the API endpoint
+        // you can then do something like
+        // fetch('http://api-endpoint.com/overviewData')
+        //  .then(response => response.json())
+        //  .then(data => {
+        //    this.rows = data.keys.map((key, i) => ({
+        //      name: key,
+        //      column1: data.value[i]
+        //    }));
+        //  });
+        // since the format will look something like this:
+        // { keys: ['key1', 'key2', 'key3'], values: [1, 2, 3] }
+        rows: [
+          { name: "# Participants", column1: 1 },
+          { name: "# NaN values", column1: 2 },
+          { name: "# Variables", column1: 3 },
+        ],
+      };
+    },
   },
 };
 </script>
--->

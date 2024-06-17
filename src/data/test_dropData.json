@@ -1,5 +1,5 @@
 {
-    "XItems": [ "sex", "age"],
+    "XItems": [ "sex", "age group"],
     "YItems": [ "# of participants","BMI"],
-    "ColorItems": [ "sex"]
+    "ColorItems": [ "sex", "age group"]
 }

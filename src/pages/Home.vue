@@ -48,7 +48,7 @@
                     height="200"
                   />
                 </v-img>
-                <a href="/data-overview" target="_blank">
+                <a href="/overview">
                   <v-btn color="#A5BFDC">Data Overview</v-btn>
                 </a>
               </v-col>
@@ -69,7 +69,7 @@
                     height="200"
                   />
                 </v-img>
-                <a href="/about-us" target="_blank">
+                <a href="/about">
                   <v-btn color="#A5BFDC">About Us</v-btn>
                 </a>
               </v-col>
@@ -89,150 +89,61 @@
                   Collaborators
                 </h1>
               </v-col>
-              <!--Card components-->
-              <v-col cols="12">
-                <v-row>
-                  <!--TUM-->
-                  <v-col cols="12" md="6" lg="3">
-                    <v-card class="mx-auto" max-width="400">
-                      <v-img
-                        class="align-end text-white"
-                        height="200"
-                        src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQWhsocA3fpJeajwKnYZL8RMOPHLAkEJ47wQQ&s"
-                        cover
-                      >
-                      </v-img>
-                      <!--TEXT 
-                      <v-card-text>
-                        <div><strong>Technical University Munich</strong></div>
-                        <div>
-                          Data Science in Systems Biology (DaiSyBio) <br />
-                          Prof. Dr.Markus List <br />
-                          PhD Student Lis Arend
-                        </div>
-                      </v-card-text>-->
-                    </v-card>
-                  </v-col>
-
-                  <!--UNIBZ-->
-                  <v-col cols="12" md="6" lg="3">
-                    <v-card class="mx-auto" max-width="400">
-                      <v-img
-                        class="align-end text-white"
-                        height="200"
-                        src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Free_University_of_Bozen-Bolzano_logo.svg/1200px-Free_University_of_Bozen-Bolzano_logo.svg.png"
-                        cover
-                      >
-                      </v-img>
-                      <!--TEXT
-                      <v-card-text>
-                        <div><strong>unibz</strong></div>
-                        <div>
-                          Database Systems Group at the Faculty of Engineering
-                          <br />
-                          Prof. Dr. Johann Gamper <br />
-                          RTD Researcher Anton Dignös
-                        </div>
-                      </v-card-text>-->
-                    </v-card>
-                  </v-col>
-
-                  <!--FAU-->
-                  <v-col cols="12" md="6" lg="3">
-                    <v-card class="mx-auto" max-width="400">
-                      <v-img
-                        class="align-end text-white"
-                        height="200"
-                        aspect-ratio="1"
-                        src="https://www.uni-wuerzburg.de/fileadmin/99122200/news/fau.png"
-                        cover
-                      >
-                      </v-img>
-                      <!--TEXT
-                      <v-card-text>
-                        <div><strong>FAU</strong></div>
-                        <div>
-                          Biomedical Network Science (BIONETS) <br />
-                          Prof. Dr. David Blumenthal <br />
-                          PhD Student Fabian Woller <br />
-                          <br />
-                        </div>
-                      </v-card-text>-->
-                    </v-card>
-                  </v-col>
-
-                  <!--EURAC RESEARCH-->
-                  <v-col cols="12" md="6" lg="3">
-                    <v-card class="mx-auto" max-width="400">
-                      <v-img
-                        class="align-end text-white"
-                        height="200"
-                        src="https://pilatus-project.eu/wp-content/uploads/sites/5/2023/02/6.-EURAC-Logo-JPEG-zonder-witruimte_700x400.jpg"
-                        cover
-                      >
-                      </v-img>
-                      <!--TEXT
-                      <v-card-text>
-                        <div><strong>eurac research</strong></div>
-                        <div>
-                          Institute for Biomedicine <br />
-                          Dr. Christian Fuchsberger <br />
-                          <br />
-                          <br />
-                        </div>
-                      </v-card-text>-->
-                    </v-card>
-                  </v-col>
-                </v-row>
-              </v-col>
 
               <!--Nicht Karten Komponenten-->
               <v-row>
                 <v-col cols="12" md="3" lg="3" class="text-center">
                   <!-- TUM -->
-                  <v-img>
-                    <img
-                      :src="tum_logo"
-                      alt=""
-                      style="width: 225px; height: auto;"
-                    />
-                  </v-img>
+                  <a href="https://www.tum.de/" target="_blank">
+                    <v-img>
+                      <img
+                        :src="tum_logo"
+                        alt=""
+                        style="width: 225px; height: auto"
+                      />
+                    </v-img>
+                  </a>
                 </v-col>
 
                 <v-col cols="12" md="3" lg="3" class="text-center">
                   <!-- Unibz -->
-                  <v-img>
-                    <img
-                      :src="unibz_logo"
-                      alt="Unibz"
-                      style="width: 225px; height: auto;"
-                    />
-                  </v-img>
+                  <a href="https://www.unibz.it/" target="_blank">
+                    <v-img>
+                      <img
+                        :src="unibz_logo"
+                        alt="Unibz"
+                        style="width: 225px; height: auto"
+                      />
+                    </v-img>
+                  </a>
                 </v-col>
 
                 <v-col cols="12" md="3" lg="3" class="text-center">
                   <!-- fau -->
-                  <v-img>
-                    <img
-                      :src="fau_logo"
-                      alt="FAU"
-                      style="width: 225px; height: auto;"
-                    />
-                  </v-img>
+                  <a href="https://www.fau.de/" target="_blank">
+                    <v-img>
+                      <img
+                        :src="fau_logo"
+                        alt="FAU"
+                        style="width: 225px; height: auto"
+                      />
+                    </v-img>
+                  </a>
                 </v-col>
 
                 <v-col cols="12" md="3" lg="3" class="text-center">
                   <!-- Eurac -->
-                  <v-img>
-                    <img
-                      :src="eurac_logo"
-                      alt="Eurac"
-                      style="width: 225px; height: auto;"
-                    />
-                  </v-img>
+                  <a href="https://www.eurac.edu/en" target="_blank">
+                    <v-img>
+                      <img
+                        :src="eurac_logo"
+                        alt="Eurac"
+                        style="width: 225px; height: auto"
+                      />
+                    </v-img>
+                  </a>
                 </v-col>
               </v-row>
-
             </v-row>
           </v-col>
         </v-row>
