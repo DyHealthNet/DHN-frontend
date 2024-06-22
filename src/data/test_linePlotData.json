@@ -1,0 +1,18 @@
+{
+    "labels": [
+      "18:00","18:30","19:00","19:30","20:00","20:30","21:00"
+    ],
+    "datasets": [
+      {
+        "label": "Iboprofen",
+        "backgroundColor": "pink",
+        "data": [0, 20,40, 65, 70, 75, 80]
+      },
+      
+      {
+        "label": "Aspirin",
+        "backgroundColor": "blue",
+        "data": [0, 10,20, 30, 40, 45, 50]
+      }
+    ]
+}
