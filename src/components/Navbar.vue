@@ -1,5 +1,5 @@
 <template>
-  <v-app-bar height="110" color="#FAFAFA" scroll-behavior="elevate" app>
+  <v-app-bar class="page-borders-nav" height="110" color="#FAFAFA" scroll-behavior="elevate" app>
     <v-image>
       <img src="../assets/figures/DyHealthNet_Logo.png" width="270" height="140"/>
     </v-image>
@@ -31,11 +31,18 @@
     </v-menu>
     <v-menu transition="slide-x-transition">
       <template v-slot:activator="{ props }">
-        <a href="/about-us" target="_blank">
+        <a href="/about" target="_blank">
           <v-btn color="#104D63" v-bind="props"> About Us</v-btn>
         </a>
       </template>
     </v-menu>
   </v-app-bar>
+
 </template>
 
+<style>
+.page-borders-nav {
+  border-left: 50px solid #FAFAFA; /* Change the color and size as needed */
+  border-right: 50px solid #FAFAFA; /* Change the color and size as needed */
+}
+</style>
