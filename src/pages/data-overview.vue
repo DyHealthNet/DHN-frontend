@@ -65,12 +65,17 @@
                                 :items="colorItemsBar"
                                 style="max-width: 350px; color: #104d63"
                               ></v-autocomplete>
+
                             </div>
                           </v-col>
 
                           <!--Chart-->
                           <v-col cols="12" align="center">
                             <div style="height: 300px; width: 500px">
+                              <!--<Bar
+                                :data="chartConfig"
+                                :options="{ responsive: true }"
+                              />-->
                               <!-- CustomBar component, pass the selected variables to make API call -->
                               <CustomBar
                                 :x-var="selectedXvariable"
@@ -84,10 +89,52 @@
 
                       <!-- Content for second tab -->
                       <template v-else-if="tab.value === 2">
-                        <!--Figure-->
-                        <figure>
-                          <img src="" alt="Figure related to Extension1" />
-                        </figure>
+                        <!--Line Plot-->
+                        <v-row>
+                          <!--Drop Down list-->
+                          <v-col cols="12" align="center">
+                            <div class="d-flex justify-space-around">
+                              <!--Select X variables-->
+                              <v-autocomplete
+                                v-model="selectedXvariable"
+                                clearable
+                                label="Select X Variable"
+                                :items="xItemsLine"
+                                style="max-width: 350px; color: #104d63"
+                              ></v-autocomplete>
+
+                              <!--Select Y variables-->
+                              <v-autocomplete
+                                v-model="selectedYvariable"
+                                clearable
+                                label="Select Y Variable"
+                                :items="yItemsLine"
+                                style="max-width: 350px; color: #104d63"
+                              ></v-autocomplete>
+
+                              <!--Colored by which variables-->
+                              <v-autocomplete
+                                v-model="selectedColorvariable"
+                                clearable
+                                label="Colored by"
+                                :items="colorItemsLine"
+                                style="max-width: 350px; color: #104d63"
+                              ></v-autocomplete>
+                              
+                            </div>
+                          </v-col>
+
+                          <!--Line Chart-->
+                          <v-col cols="12" align="center">
+                            <div style="height: 300px; width: 500px">
+                              <CustomLine
+                                :x-var="selectedXvariable"
+                                :y-var="selectedYvariable"
+                                :c-var="selectedColorvariable"
+                                />
+                            </div>
+                          </v-col>
+                        </v-row>
                       </template>
 
                       <!-- Content for the last tab -->
@@ -107,7 +154,7 @@
           <!--Data Tables-->
           <v-col cols="12">
             <!--Table with search-->
-            <v-row class="fill-height" justify="center">
+            <r-row class="fill-height" justify="center">
               <v-col cols="12" align="center">
                 <h2>Overview of Data</h2>
               </v-col>
@@ -127,7 +174,7 @@
                   ></v-data-table>
                 </v-col>
               </v-row>
-            </v-row>
+            </r-row>
           </v-col>
 
           <!--End of the content-->
@@ -138,9 +185,9 @@
 </template>
 
 <script>
-import { Bar } from "vue-chartjs";
+import CustomLine from '../components/CustomLine.vue';
+import CustomBar from "../components/CustomBar.vue";
 import * as dataVariables from "../data/test_variables.json";
-import CustomBar from "../components/BarPlot.vue";
 
 import {
   Chart as ChartJS,
@@ -163,7 +210,7 @@ ChartJS.register(
 
 export default {
   name: "DataOverview",
-  components: { Bar, CustomBar },
+  components: {CustomBar, CustomLine},
   data() {
     return {
       model: "tab-2",
@@ -174,23 +221,22 @@ export default {
         { name: "Line Plot", value: 2 },
         { name: "Extension1", value: 3 },
       ],
-
-      //Different variables for the dropdown list
+      //Bar Tab: Different variables for the dropdown list
       xItemsBar: dataVariables.discrete,
       yItemsBar: dataVariables.discrete.concat(dataVariables.continuous),
       colorItemsBar: dataVariables.categorical,
 
-      //initialized selected variables
+      //Line Tab: Different variables for the dropdown list
+      xItemsLine: [...new Set(dataVariables.discrete.concat(dataVariables.continuous))],
+      yItemsLine: dataVariables.continuous,
+      colorItemsLine: [...new Set(dataVariables.categorical.concat(dataVariables.discrete))],
+      
+
+      //initialized selected variables, currently they share the same selected variables
       selectedXvariable: null,
       selectedYvariable: null,
       selectedColorvariable: null,
 
-      //initialize the data for the chart
-      //chartConfig: { ...barData1 },
-      chartConfig: {
-        labels: [],
-        datasets: [],
-      },
 
       //table data initialization
       columns: [],
@@ -198,7 +244,7 @@ export default {
       rows2: [],
     };
   },
-
+  
   // +++++++++++  Table Data  ++++++++++++++
   // Get the data for the table
   created() {
@@ -218,7 +264,7 @@ export default {
     getTableData() {
       // return simulated data
       return {
-        // this part here stays static, you don't need to change this
+        // this part here stays static, don't need to change this
         columns: [
           { align: "start", key: "name", sortable: false, title: "" },
           { key: "column1" },
