@@ -57,7 +57,10 @@
                 <v-img>
                   <img :src="network" alt="Network" width="200" height="200" />
                 </v-img>
-                <v-btn color="#A5BFDC">Network</v-btn>
+                
+                <a href="/network">
+                  <v-btn color="#A5BFDC">Network</v-btn>
+                </a>
               </v-col>
               <!--Button: About Us-->
               <v-col cols="12" sm="6" md="4" class="text-center">
