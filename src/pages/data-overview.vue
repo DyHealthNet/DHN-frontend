@@ -41,7 +41,7 @@
                             <div class="d-flex justify-space-around">
                               <!--Select X variables-->
                               <v-autocomplete
-                                v-model="selectedXvariable"
+                                v-model="selectedXvariableBar"
                                 clearable
                                 label="Select X Variable"
                                 :items="xItemsBar"
@@ -50,7 +50,7 @@
 
                               <!--Select Y variables-->
                               <v-autocomplete
-                                v-model="selectedYvariable"
+                                v-model="selectedYvariableBar"
                                 clearable
                                 label="Select Y Variable"
                                 :items="yItemsBar"
@@ -59,13 +59,12 @@
 
                               <!--Colored by which variables-->
                               <v-autocomplete
-                                v-model="selectedColorvariable"
+                                v-model="selectedCvariableBar"
                                 clearable
-                                label="Colored by"
+                                label="Colored by (optional)"
                                 :items="colorItemsBar"
                                 style="max-width: 350px; color: #104d63"
                               ></v-autocomplete>
-
                             </div>
                           </v-col>
 
@@ -78,10 +77,10 @@
                               />-->
                               <!-- CustomBar component, pass the selected variables to make API call -->
                               <CustomBar
-                                :x-var="selectedXvariable"
-                                :y-var="selectedYvariable"
-                                :c-var="selectedColorvariable"
-                                />
+                                :x-var="selectedXvariableBar"
+                                :y-var="selectedYvariableBar"
+                                :c-var="selectedCvariableBar"
+                              />
                             </div>
                           </v-col>
                         </v-row>
@@ -96,7 +95,7 @@
                             <div class="d-flex justify-space-around">
                               <!--Select X variables-->
                               <v-autocomplete
-                                v-model="selectedXvariable"
+                                v-model="selectedXvariableLine"
                                 clearable
                                 label="Select X Variable"
                                 :items="xItemsLine"
@@ -105,7 +104,7 @@
 
                               <!--Select Y variables-->
                               <v-autocomplete
-                                v-model="selectedYvariable"
+                                v-model="selectedYvariableLine"
                                 clearable
                                 label="Select Y Variable"
                                 :items="yItemsLine"
@@ -114,13 +113,12 @@
 
                               <!--Colored by which variables-->
                               <v-autocomplete
-                                v-model="selectedColorvariable"
+                                v-model="selectedCvariableLine"
                                 clearable
-                                label="Colored by"
+                                label="Colored by (optional)"
                                 :items="colorItemsLine"
                                 style="max-width: 350px; color: #104d63"
                               ></v-autocomplete>
-                              
                             </div>
                           </v-col>
 
@@ -128,10 +126,10 @@
                           <v-col cols="12" align="center">
                             <div style="height: 300px; width: 500px">
                               <CustomLine
-                                :x-var="selectedXvariable"
-                                :y-var="selectedYvariable"
-                                :c-var="selectedColorvariable"
-                                />
+                                :x-var="selectedXvariableLine"
+                                :y-var="selectedYvariableLine"
+                                :c-var="selectedCvariableLine"
+                              />
                             </div>
                           </v-col>
                         </v-row>
@@ -185,9 +183,9 @@
 </template>
 
 <script>
-import CustomLine from '../components/CustomLine.vue';
+import CustomLine from "../components/CustomLine.vue";
 import CustomBar from "../components/CustomBar.vue";
-import * as dataVariables from "../data/test_variables.json";
+//import * as dataVariables from "../data/test_variables.json";
 
 import {
   Chart as ChartJS,
@@ -210,7 +208,7 @@ ChartJS.register(
 
 export default {
   name: "DataOverview",
-  components: {CustomBar, CustomLine},
+  components: { CustomBar, CustomLine },
   data() {
     return {
       model: "tab-2",
@@ -222,21 +220,29 @@ export default {
         { name: "Extension1", value: 3 },
       ],
       //Bar Tab: Different variables for the dropdown list
-      xItemsBar: dataVariables.discrete,
-      yItemsBar: dataVariables.discrete.concat(dataVariables.continuous),
-      colorItemsBar: dataVariables.categorical,
+      //xItemsBar: dataVariables.discrete,
+      //yItemsBar: dataVariables.discrete.concat(dataVariables.continuous),
+      //colorItemsBar: dataVariables.categorical,
+      xItemsBar: [],
+      yItemsBar: [],
+      colorItemsBar: [],
 
       //Line Tab: Different variables for the dropdown list
-      xItemsLine: [...new Set(dataVariables.discrete.concat(dataVariables.continuous))],
-      yItemsLine: dataVariables.continuous,
-      colorItemsLine: [...new Set(dataVariables.categorical.concat(dataVariables.discrete))],
-      
+      //xItemsLine: [...new Set(dataVariables.discrete.concat(dataVariables.continuous)),],
+      //yItemsLine: dataVariables.continuous,
+      //colorItemsLine: [...new Set(dataVariables.categorical.concat(dataVariables.discrete)),],
+      xItemsLine: [],
+      yItemsLine: [],
+      colorItemsLine: [],
 
       //initialized selected variables, currently they share the same selected variables
-      selectedXvariable: null,
-      selectedYvariable: null,
-      selectedColorvariable: null,
+      selectedXvariableBar: null,
+      selectedYvariableBar: null,
+      selectedCvariableBar: null,
 
+      selectedXvariableLine: null,
+      selectedYvariableLine: null,
+      selectedCvariableLine: null,
 
       //table data initialization
       columns: [],
@@ -244,16 +250,20 @@ export default {
       rows2: [],
     };
   },
-  
+
   // +++++++++++  Table Data  ++++++++++++++
   // Get the data for the table
   created() {
     this.splitRows(this.getTableData());
+    this.getVariableDataBar();
+    this.getVariableDataLine();
+    
   },
 
   // +++++++++++ Methods ++++++++++++++
   methods: {
-    //function to get the data from the json file
+    //functions to get the data from the json file
+    
     splitRows(tableData) {
       this.columns = tableData.columns;
       // split the rows into two halves so that they can be displayed in two tables
@@ -261,6 +271,48 @@ export default {
       this.rows1 = tableData.rows.slice(0, midpoint);
       this.rows2 = tableData.rows.slice(midpoint);
     },
+
+    // Bar Plot Data Fetch
+    async getVariableDataBar() {
+      try {
+        const response = await fetch(
+          "http://localhost:8000/network/variables/"
+        );
+        const data = await response.json();
+        this.rows = Object.keys(data).map((key, i) => ({
+          name: key,
+          column1: data[key],
+        }))
+        //[...new Set(data.nonbinaryCategorical.concat(data.binaryCategorical))]
+        this.xItemsBar = data.nonbinaryCategorical
+        this.yItemsBar = data.nonbinaryCategorical
+        this.colorItemsBar = data.binaryCategorical;
+
+      } catch (error) {
+        console.error("Error fetching variable data:", error);
+      }
+    },
+
+    // Line Plot Data Fetch
+    async getVariableDataLine() {
+      try {
+        const response = await fetch(
+          "http://localhost:8000/network/variables/"
+        );
+        const data = await response.json();
+        this.rows = Object.keys(data).map((key, i) => ({
+          name: key,
+          column1: data[key],
+        }))
+        this.xItemsLine = [...new Set(data.nonbinaryCategorical.concat(data.continuous))]
+        this.yItemsLine = [...new Set(data.nonbinaryCategorical.concat(data.continuous))]
+        this.colorItemsLine = data.binaryCategorical;
+
+      } catch (error) {
+        console.error("Error fetching variable data:", error);
+      }
+    },
+
     getTableData() {
       // return simulated data
       return {
