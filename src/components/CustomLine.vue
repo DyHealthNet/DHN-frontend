@@ -1,5 +1,5 @@
 <template>
-      <Line ref="lineComponent" :data="computedChartData" :options="computedChartOptions" />
+      <Line ref="lineComponent" :data="chartData" :options="computedChartOptions" />
   </template>
   
   <script>
@@ -45,7 +45,7 @@
       console.log('this.xVar: ', this.xVar)
       console.log('this.yVar: ', this.yVar)
       console.log('this.cVar: ', this.cVar)
-      if (!this.xVar || !this.yVar || !this.cVar) {
+      if (!this.xVar || !this.yVar) {
         return {
           datasets: []
         }
@@ -99,7 +99,7 @@
         return;
       }
       try {
-        const url = new URL("http://localhost:8000/network/plotData/");
+        const url = new URL("http://localhost:8000/network/api/plotData/");
         url.searchParams.append("x", this.xVar);
         url.searchParams.append("y", this.yVar);
         if (this.cVar) {
@@ -112,8 +112,11 @@
           name: key,
           column1: data[key],
         })) 
-        //this.chartData = data;
-        this.chartData = linePlot1;
+
+        this.chartData = data;
+        //this.chartData = linePlot1;
+        console.log('this.chartData: ', this.chartData)
+
         return this.chartData;
       } catch (error) {
         console.error("Error fetching variable data:", error);

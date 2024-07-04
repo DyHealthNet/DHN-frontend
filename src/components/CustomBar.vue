@@ -91,7 +91,7 @@ export default {
         return;
       }
       try {
-        const url = new URL("http://localhost:8000/network/plotData/");
+        const url = new URL("http://localhost:8000/network/api/plotData/");
         url.searchParams.append("x", this.xVar);
         url.searchParams.append("y", this.yVar);
         if (this.cVar) {
@@ -104,8 +104,12 @@ export default {
           name: key,
           column1: data[key],
         })) 
-        //this.chartData = data;
-        this.chartData = barPlot1;
+
+        //Update data
+        this.chartData = data;
+        console.log('this.chartData: ', this.chartData)
+        //this.chartData = barPlot1;
+
         return this.chartData;
       } catch (error) {
         console.error("Error fetching variable data:", error);
