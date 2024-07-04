@@ -276,7 +276,7 @@ export default {
     async getVariableDataBar() {
       try {
         const response = await fetch(
-          "http://localhost:8000/network/variables/"
+          "http://localhost:8000/network/api/variables/"
         );
         const data = await response.json();
         this.rows = Object.keys(data).map((key, i) => ({
@@ -297,15 +297,15 @@ export default {
     async getVariableDataLine() {
       try {
         const response = await fetch(
-          "http://localhost:8000/network/variables/"
+          "http://localhost:8000/network/api/variables/"
         );
         const data = await response.json();
         this.rows = Object.keys(data).map((key, i) => ({
           name: key,
           column1: data[key],
         }))
-        this.xItemsLine = [...new Set(data.nonbinaryCategorical.concat(data.continuous))]
-        this.yItemsLine = [...new Set(data.nonbinaryCategorical.concat(data.continuous))]
+        this.xItemsLine = data.nonbinaryCategorical.concat(data.continuous)
+        this.yItemsLine = data.nonbinaryCategorical.concat(data.continuous)
         this.colorItemsLine = data.binaryCategorical;
 
       } catch (error) {
