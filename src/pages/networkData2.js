@@ -1,12 +1,4 @@
-export const groups = {
-  Protein: { shape: 'circle', color: '#1d4cc2', size: 30 },
-  Metabolites: { shape: 'box', color: '#c2220a', size: 30 },
-  Phenotypes: { shape: 'triangle', color: '#166105', size: 30 },
-  Disorder: { shape: 'diamond', color: '#480561', size: 30 },
-  Genes: { shape: 'square', color: '#d4cd19', size: 30 }
-};
-
-export const nodeData = [
+export const nodeSelData = [
   { id: 1, label: 'EGFR', group: 'Protein' },
   { id: 2, label: 'TP53', group: 'Protein' },
   { id: 3, label: 'Glucose', group: 'Metabolites' },
@@ -103,77 +95,6 @@ export const nodeData = [
   { id: 94, label: 'Ulcerative Colitis', group: 'Disorder' },
   { id: 95, label: 'APC', group: 'Genes' },
   { id: 96, label: 'KRAS', group: 'Genes' },
-  { id: 97, label: 'Thyroxine', group: 'Metabolites' }]
-
-
-
-  export const edgeData = [
-    { from: 1, to: 2, p_value: 0.01 },
-    { from: 1, to: 3, p_value: 0.03 },
-    { from: 2, to: 4, p_value: 0.02 },
-    { from: 1, to: 5, p_value: 0.015 },
-    { from: 5, to: 6, p_value: 0.025 },
-    { from: 7, to: 8, p_value: 0.05 },
-    { from: 9, to: 10, p_value: 0.04 },
-    { from: 11, to: 12, p_value: 0.03 },
-    { from: 13, to: 14, p_value: 0.02 },
-    { from: 15, to: 16, p_value: 0.01 },
-    { from: 17, to: 18, p_value: 0.03 },
-    { from: 19, to: 20, p_value: 0.02 },
-    { from: 21, to: 22, p_value: 0.04 },
-    { from: 23, to: 24, p_value: 0.05 },
-    { from: 25, to: 26, p_value: 0.01 },
-    { from: 27, to: 28, p_value: 0.02 },
-    { from: 29, to: 30, p_value: 0.03 },
-    { from: 31, to: 32, p_value: 0.04 },
-    { from: 33, to: 34, p_value: 0.05 },
-    { from: 35, to: 36, p_value: 0.01 },
-    { from: 37, to: 38, p_value: 0.02 },
-    { from: 39, to: 40, p_value: 0.03 },
-    { from: 41, to: 42, p_value: 0.04 },
-    { from: 43, to: 44, p_value: 0.05 },
-    { from: 45, to: 46, p_value: 0.01 },
-    { from: 47, to: 48, p_value: 0.02 },
-    { from: 49, to: 50, p_value: 0.03 },
-    { from: 51, to: 52, p_value: 0.04 },
-    { from: 53, to: 54, p_value: 0.05 },
-    { from: 55, to: 56, p_value: 0.01 },
-    { from: 57, to: 58, p_value: 0.02 },
-    { from: 59, to: 60, p_value: 0.03 },
-    { from: 61, to: 62, p_value: 0.04 },
-    { from: 63, to: 64, p_value: 0.05 },
-    { from: 65, to: 66, p_value: 0.01 },
-    { from: 67, to: 68, p_value: 0.02 },
-    { from: 69, to: 70, p_value: 0.03 },
-    { from: 71, to: 72, p_value: 0.04 },
-    { from: 73, to: 74, p_value: 0.05 },
-    { from: 75, to: 76, p_value: 0.01 },
-    { from: 77, to: 78, p_value: 0.02 },
-    { from: 79, to: 80, p_value: 0.03 },
-    { from: 81, to: 82, p_value: 0.04 },
-    { from: 83, to: 84, p_value: 0.05 },
-    { from: 85, to: 86, p_value: 0.01 },
-    { from: 87, to: 88, p_value: 0.02 },
-    { from: 89, to: 90, p_value: 0.03 },
-    { from: 91, to: 92, p_value: 0.04 },
-    { from: 93, to: 94, p_value: 0.05 },
-    { from: 95, to: 96, p_value: 0.01 },
-    { from: 97, to: 1, p_value: 0.02 }, // Linking to an existing node
-  ];
-
-export const options = {
-  interaction: {
-    multiselect: false,
-    selectConnectedEdges: false,
-    dragView: true,
-    dragNodes: true
-  },
-  nodes: {
-    font: { size: 12, color: '#ffffff' },
-    borderWidth: 2,
-    widthConstraint: 40,
-    heightConstraint: 40,
-  },
-  edges: { width: 2 }
-};
+  { id: 97, label: 'Thyroxine', group: 'Metabolites' }
+  ]
 

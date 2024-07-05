@@ -67,7 +67,7 @@
       </div>
 
       <!-- Button to display selected nodes text -->
-      <button @click="showSelectedNodesText">Update Network</button>
+      <button @click="showSelectedNodesText">Show Selected Nodes Text</button>
       
       <!-- Display selected nodes text for 5 seconds -->
       <div v-if="displaySelectedNodesText" class="selected-nodes-text">
@@ -75,84 +75,22 @@
       </div>
     </div>
   </div>
-  <div class="network-container">
-    <!-- Network Visualization -->
-    <div ref="network" id="network"></div>
-  </div>
-
-    <!-- Legend -->
-    <div class="legend">
-      <div v-for="(group, key) in groups" :key="key" class="legend-item">
-        <div class="legend-color" :style="getShapeStyle(group.shape, group.color)"></div>
-        <span>&nbsp;&nbsp;{{ key }}</span>
-      </div>
-    </div>
-
-    <!-- Info Panel -->
-    <div class="info-panel">
-      <h2 v-if="selectedElement">Selected Element</h2>
-      <template v-if="selectedElement">
-        <!-- Display selected node or edge details -->
-        <p v-if="selectedElement.type === 'node'">Label: {{ selectedElement.label }}</p>
-        <p v-if="selectedElement.type === 'node'">Type: {{ selectedElement.nodeType }}</p>
-        <template v-else>
-          <p>Connected Nodes: {{ selectedElement.nodeA }} - {{ selectedElement.nodeB }}</p>
-          <p>Edge P-value: {{ selectedElement.p_value.toFixed(3) }}</p>
-        </template>
-      </template>
-      <!-- No element selected message -->
-      <p v-else>No element selected</p>
-    </div>
-
-    <div class="panel">
-        <div class="panel-header" @click="togglePanel('selectedNetNodes')">
-          <h2>{{ selectedNetNodesCollapsed ? 'Selected Net Nodes ▶' : 'Selected Net Nodes ▼' }}</h2>
-        </div>
-        <div v-show="!selectedNetNodesCollapsed" class="panel-content">
-          <div class="selected-nodes">
-            <div class="selected-node-list">
-              <ul>
-                <li v-for="selectedNetNode in sortedSelectedNetNodes" :key="selectedNetNode.id" class="selected-node">
-                  {{ selectedNetNode.label }}
-                  <span class="remove-node" @click="toggleNetSelect(selectedNetNode)">✖</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-
-
-
 </template>
 
 <script>
-import { DataSet, Network } from 'vis-network/standalone/esm/vis-network';
-import { nodeSelData } from './networkData2';
-import { groups, nodeData, edgeData, options } from './networkData';
+import { nodeData } from './networkData'; // Adjust the path as per your project structure
 
 export default {
   data() {
     return {
-      nodes: nodeSelData,
+      nodes: nodeData,
       filterText: '',
       filterType: 'all',
       selectedNodes: [],
       nodeSelectionCollapsed: false,
       selectedNodesCollapsed: false,
-      selectedNetNodesCollapsed: false,
-      displaySelectedNodesText: '',
-      network: null,
-      net_nodes: [],
-      net_edges: [],
-      groups,
-      selectedElement: null,
-      isDragging: false,
-      selectedNetNodes: [],
+      displaySelectedNodesText: '', // Text to display for 5 seconds
     };
-  },
-  mounted() {
-    this.$nextTick(this.initializeNetwork);
   },
   computed: {
     filteredNodes() {
@@ -168,11 +106,6 @@ export default {
     },
     sortedSelectedNodes() {
       return this.selectedNodes.slice().sort((a, b) => {
-        return a.label.localeCompare(b.label); // Sort alphabetically by label
-      });
-    },
-    sortedSelectedNetNodes() {
-      return this.selectedNetNodes.slice().sort((a, b) => {
         return a.label.localeCompare(b.label); // Sort alphabetically by label
       });
     }
@@ -191,16 +124,6 @@ export default {
         this.selectedNodes.push(node);
       }
     },
-    toggleNetSelect(node) {
-      const index = this.selectedNetNodes.findIndex(n => n.id === node.id);
-      if (index !== -1) {
-        this.selectedNetNodes.splice(index, 1);
-      } else {
-        this.selectedNetNodes.push(node);
-      }
-      this.highlightNodes()
-    },
-
     isSelected(node) {
       return this.selectedNodes.some(n => n.id === node.id);
     },
@@ -217,8 +140,6 @@ export default {
         this.nodeSelectionCollapsed = !this.nodeSelectionCollapsed;
       } else if (panel === 'selectedNodes') {
         this.selectedNodesCollapsed = !this.selectedNodesCollapsed;
-      } else if (panel === 'selectedNetNodes') {
-        this.selectedNetNodesCollapsed = !this.selectedNetNodesCollapsed;
       }
     },
     showSelectedNodesText() {
@@ -229,106 +150,12 @@ export default {
       setTimeout(() => {
         this.displaySelectedNodesText = '';
       }, 5000); // Clear after 5 seconds
-    },
-    handleDoubleClick(event) {
-      if (event.nodes.length > 0) {
-        const nodeId = event.nodes[0];
-        const node = this.nodes.find((n) => n.id === nodeId);
-        const selectedIndex = this.selectedNetNodes.findIndex(n => n.id === nodeId);
-
-        if (selectedIndex === -1) {
-          // Node is not in the selected list, add it
-          this.selectedNetNodes.push(node);
-        } else {
-          // Node is in the selected list, remove it
-          this.selectedNetNodes.splice(selectedIndex, 1);
-        }
-        this.highlightNodes();
-        }
-      },
-    highlightNodes() {
-      const updateNodes = this.net_nodes.get().map(node => {
-        if (this.selectedNetNodes.some(n => n.id === node.id)) {
-          return { ...node, color: { border: 'black' }, borderWidth: 3 };
-        }
-        return { ...node, color: { border: null }, borderWidth: 0 };
-      });
-      this.net_nodes.update(updateNodes);
-    },
-
-
-    initializeNetwork() {
-      const container = this.$refs.network;
-      if (!container) return;
-
-      const annotated_nodes = nodeData.map(node => ({
-        ...node,
-        ...groups[node.group]
-      }));
-
-      this.net_nodes = new DataSet(annotated_nodes);
-      this.net_edges = new DataSet(edgeData);
-
-      const data = { nodes: this.net_nodes, edges: this.net_edges};
-
-      this.network = new Network(container, data, options);
-
-      this.network.on('selectNode', params => {
-          const selectedNode = this.net_nodes.get(params.nodes[0]);
-          this.selectedElement = { type: 'node', label: selectedNode.label, nodeType: selectedNode.group };
-          
-      }),
-      this.network.on('selectEdge', params => {
-        const edge = this.net_edges.get(params.edges[0]);
-        this.selectedElement = {type: 'edge',
-          nodeA: this.net_nodes.get(edge.from).label,
-          nodeB: this.net_nodes.get(edge.to).label,
-          p_value: edge.p_value
-        };
-      });
-      this.network.on('deselectNode', this.clearSelection);
-      this.network.on('deselectEdge', this.clearSelection);
-      this.network.on('doubleClick', this.handleDoubleClick);
-    },
-    clearSelection() {this.selectedElement = null},
-
-    getShapeStyle(shape, color) {
-      switch (shape) {
-        case 'circle':
-          return { backgroundColor: color, width: '20px', height: '20px', borderRadius: '50%' };
-        case 'box':
-        case 'square':
-          return { backgroundColor: color, width: '20px', height: '20px' };
-        case 'triangle':
-          return {
-            width: '0',
-            height: '0',
-            borderLeft: '10px solid transparent',
-            borderRight: '10px solid transparent',
-            borderBottom: `20px solid ${color}`
-          };
-        case 'diamond':
-          return {
-            backgroundColor: color,
-            width: '14px',
-            height: '14px',
-            transform: 'rotate(45deg)'
-          };
-        default:
-          return {};
-      }
     }
-
-  },
-  beforeDestroy() {
-    if (this.network) this.network.destroy();
-    this.nodes.off('*');
   }
 };
 </script>
 
 <style scoped>
-
 .outer-container {
   display: flex;
   justify-content: center;
@@ -476,63 +303,4 @@ li:not(.selected):hover {
   border: 1px solid #ccc;
   border-radius: 5px;
 }
-
-.network-container {
-  display: flex;
-  position: relative;
-}
-
-.overview-panel {
-  width: 200px;
-  padding: 20px;
-  background-color: #ffffff;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  z-index: 1;
-}
-
-.overview-panel h2 {
-  margin-top: 0;
-  color: #4CAF50;
-}
-
-#network {
-  flex: 1;
-  height: 600px;
-  width: 800px;
-  border: 6px solid lightgray;
-}
-
-.info-panel {
-  width: 200px;
-  height: 600px;
-  padding: 20px;
-  background-color: #f0f0f0;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  z-index: 1;
-}
-
-.legend {
-  position: absolute;
-  bottom: 350px;
-  left: 30%;
-  transform: translateX(-50%);
-  padding: 10px;
-  background-color: #ffffff;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  align-items: left;
-}
-
-.legend h3 {
-  margin: 0;
-}
-
-.legend-item {
-  display: flex;
-  align-items: left;
-  margin-top: 5px;
-  padding: 5px;
-}
-
 </style>

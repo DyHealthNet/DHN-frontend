@@ -15,6 +15,18 @@
             <span>{{ countMetabolites }}</span>
             <span> (Metabolites)</span>
           </div>
+          <div class="count-value">
+            <span>{{ countPhenotypes }}</span>
+            <span> (Phenotypes)</span>
+          </div>
+          <div class="count-value">
+            <span>{{ countDisorder }}</span>
+            <span> (Disorder)</span>
+          </div>
+          <div class="count-value">
+            <span>{{ countGenes }}</span>
+            <span> (Genes)</span>
+          </div>
         </div>
         <!-- Edges Count -->
         <div class="count-item">
@@ -27,12 +39,22 @@
     <!-- Network Visualization -->
     <div ref="network" id="network"></div>
 
+    <!-- Legend -->
+    <div class="legend">
+      <h3>Legend</h3>
+      <div v-for="(group, key) in groups" :key="key" class="legend-item">
+        <div class="legend-color" :style="getShapeStyle(group.shape, group.color)"></div>
+        <span>{{ key }}</span>
+      </div>
+    </div>
+
     <!-- Info Panel -->
     <div class="info-panel">
       <h2 v-if="selectedElement">Selected Element</h2>
       <template v-if="selectedElement">
         <!-- Display selected node or edge details -->
         <p v-if="selectedElement.type === 'node'">Label: {{ selectedElement.label }}</p>
+        <p v-if="selectedElement.type === 'node'">Type: {{ selectedElement.nodeType }}</p>
         <template v-else>
           <p>Connected Nodes: {{ selectedElement.nodeA }} - {{ selectedElement.nodeB }}</p>
           <p>Edge P-value: {{ selectedElement.p_value.toFixed(3) }}</p>
@@ -41,10 +63,8 @@
       <!-- No element selected message -->
       <p v-else>No element selected</p>
     </div>
-
   </div>
 </template>
-
 
 <script>
 import { DataSet, Network } from 'vis-network/standalone/esm/vis-network';
@@ -59,7 +79,8 @@ export default {
       edges: [],
       selectedElement: null,
       countProteins: 0,
-      countMetabolites: 0
+      countMetabolites: 0,
+      groups
     };
   },
   mounted() {
@@ -85,7 +106,7 @@ export default {
 
       this.network.on('selectNode', params => {
         const selectedNode = this.nodes.get(params.nodes[0]);
-        this.selectedElement = { type: 'node', label: selectedNode.label };
+        this.selectedElement = { type: 'node', label: selectedNode.label, nodeType: selectedNode.group };
       });
 
       this.network.on('selectEdge', params => {
@@ -105,19 +126,48 @@ export default {
       this.network.on('dragStart', params => {
         if (params.nodes.length > 0) {
           const selectedNode = this.nodes.get(params.nodes[0]);
-          this.selectedElement = { type: 'node', label: selectedNode.label };
+          this.selectedElement = { type: 'node', label: selectedNode.label, nodeType: selectedNode.group };
         }
       });
 
       this.nodes.on('*', this.updateNodeCounts);
     },
     updateNodeCounts() {
-      this.countProteins = this.nodes.get({ filter: node => node.shape === 'circle' }).length;
-      this.countMetabolites = this.nodes.get({ filter: node => node.shape === 'box' }).length;
+      this.countProteins = this.nodes.get({ filter: node => node.group === 'Protein' }).length;
+      this.countMetabolites = this.nodes.get({ filter: node => node.group === 'Metabolites' }).length;
+      this.countPhenotypes = this.nodes.get({ filter: node => node.group === 'Phenotypes' }).length;
+      this.countDisorder = this.nodes.get({ filter: node => node.group === 'Disorder' }).length;
+      this.countGenes = this.nodes.get({ filter: node => node.group === 'Genes' }).length;
       this.$forceUpdate();
     },
     clearSelection() {
       this.selectedElement = null;
+    },
+    getShapeStyle(shape, color) {
+      switch (shape) {
+        case 'circle':
+          return { backgroundColor: color, width: '20px', height: '20px', borderRadius: '50%' };
+        case 'box':
+        case 'square':
+          return { backgroundColor: color, width: '20px', height: '20px' };
+        case 'triangle':
+          return {
+            width: '0',
+            height: '0',
+            borderLeft: '10px solid transparent',
+            borderRight: '10px solid transparent',
+            borderBottom: `20px solid ${color}`
+          };
+        case 'diamond':
+          return {
+            backgroundColor: color,
+            width: '14px',
+            height: '14px',
+            transform: 'rotate(45deg)'
+          };
+        default:
+          return {};
+      }
     }
   },
   beforeDestroy() {
@@ -158,6 +208,35 @@ export default {
   background-color: #f0f0f0;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   z-index: 1;
+}
+
+.legend {
+  position: absolute;
+  bottom: 10px;
+  left: 20%;
+  transform: translateX(-50%);
+  padding: 10px;
+  background-color: #ffffff;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.legend h3 {
+  margin: 0;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  margin-top: 5px;
+}
+
+.legend-color {
+  width: 20px;
+  height: 20px;
+  margin-right: 10px;
 }
 
 .count-box {
