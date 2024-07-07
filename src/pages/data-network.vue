@@ -123,8 +123,7 @@
 
   <button class="btn-update-network" @click="showSelectedNodesText">Update Network</button>
   <button class="btn-update-network2" @click="deselectAllNetNodes">Deselect all</button>
-  <button class="btn-update-network3" @click="toggleSelect(this.selectedElement)">Remove Node</button>
-  <button class="btn-update-network4" @click="toggleNetSelect(this.selectedElement)">Change Selection</button>
+  <button class="btn-update-network3" @click="toggleSelectButton(this.selectedElement)">Remove Node</button>
   <button class="btn-update-network5" @click="AddEgdes(this.selectedElement)">Add Edges</button>
   <button class="btn-update-network6" @click="toggleSelect2()">Remove sel. Nodes</button>
   <button class="btn-update-network7" @click="">G-Profiler</button>
@@ -132,7 +131,6 @@
   
   <!-- Display selected nodes text for 5 seconds -->
   <div v-if="displaySelectedNodesText" class="selected-nodes-text">
-    Selected Nodes: {{ displaySelectedNodesText }}
   </div>
 </template>
 
@@ -196,7 +194,22 @@ export default {
       this.showSelectedNodesText();
       this.highlightNodes()
     },
+
     toggleSelect(node) {
+      const index = this.selectedNodes.findIndex(n => n.id === node.id);
+      if (index !== -1) {
+        this.selectedNodes.splice(index, 1);
+      } else {
+        this.selectedNodes.push(node);
+      };
+      const index2 = this.selectedNetNodes.findIndex(n => n.id === node.id);
+      if (index2 !== -1) {
+        this.selectedNetNodes.splice(index2, 1);
+      } ;
+      this.selectedElement = null;
+      this.showSelectedNodesText();
+      this.highlightNodes()},
+    toggleSelectButton(node) {
       if (node !== null && node.type === 'node') {
       const index = this.selectedNodes.findIndex(n => n.id === node.id);
       if (index !== -1) {
@@ -243,6 +256,9 @@ export default {
     },
 
     AddEgdes (selectedElement){
+      if (selectedElement !== null && selectedElement.type === 'node') {
+
+
       if (selectedElement.type === 'node') {
     // Find edges connected to the selected node
     const new_edges = edgeData.filter(edge => edge.from === selectedElement.id || edge.to === selectedElement.id);
@@ -263,7 +279,7 @@ export default {
     this.initializeNetwork()
     this.highlightNodes()
   }
-  },
+  }},
 
 
 
@@ -619,7 +635,8 @@ li:not(.selected):hover {
   background-color: #f0f0f0;
   border: 0px solid #ccc;
   border-radius: 0px;
-  width: 200px;
+  width: 0px;
+  height: 0px;
 }
 
 /* The Legend */
@@ -651,7 +668,7 @@ li:not(.selected):hover {
 
 /* The Network */
 .network-container {
-  height: 500px; /* Make sure the container has a height */
+  height: 550px; /* Make sure the container has a height */
   width: 50%; /* Ensure it takes up the full width */
   padding: 5px;
   border-radius: 10px;
@@ -739,24 +756,9 @@ li:not(.selected):hover {
 .btn-update-network3:hover {background-color: #173a96}
 .btn-update-network3:active {transform: scale(0.95)}
 
-.btn-update-network4 {
-  position: absolute;
-  top:450px;
-  left:260px;
-  background-color: #1d4cc2;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  font-size: 16px;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.3s, transform 0.2s;}
-.btn-update-network4:hover {background-color: #173a96}
-.btn-update-network4:active {transform: scale(0.95)}
-
 .btn-update-network5 {
   position: absolute;
-  top:400px;
+  top:450px;
   left:260px;
   background-color: #1d4cc2;
   color: white;
@@ -771,7 +773,7 @@ li:not(.selected):hover {
 
 .btn-update-network6 {
   position: absolute;
-  top:350px;
+  top:400px;
   left:260px;
   background-color: #1d4cc2;
   color: white;
@@ -786,7 +788,7 @@ li:not(.selected):hover {
 
 .btn-update-network7 {
   position: absolute;
-  top:300px;
+  top:350px;
   left:260px;
   background-color: #1d4cc2;
   color: white;
