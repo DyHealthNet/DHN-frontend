@@ -174,13 +174,11 @@
                           <!--Box Plot-->
                           <v-col cols="12" align="center">
                             <div style="height: 300px; width: 800px">
-                              <BoxTest />
-                            <!--
-                              <CustomLine
-                                :x-var="selectedXvariableLine"
-                                :y-var="selectedYvariableLine"
-                                :c-var="selectedCvariableLine"
-                              />-->
+
+                              <CustomBox
+                                :x-var="selectedXvariableBox"
+                                :y-var="selectedYvariableBox"
+                                :c-var="selectedCvariableBox" />
                             </div>
                           </v-col>
                         </v-row>
@@ -236,9 +234,10 @@
 <script>
 import CustomLine from "../components/CustomLine.vue";
 import CustomBar from "../components/CustomBar.vue";
+import CustomBox   from "@/components/CustomBox.vue";
 
 // text boxplot component
-import BoxTest from "@/pages/test.vue";
+//import BoxTest from "@/pages/test.vue";
 //import * as dataVariables from "../data/test_variables.json";
 
 import {
@@ -262,8 +261,8 @@ ChartJS.register(
 
 export default {
   name: "DataOverview",
-  components: { CustomBar, CustomLine, 
-    BoxTest },
+  components: {
+    CustomBox, CustomBar, CustomLine, },
   data() {
     return {
       model: "tab-2",

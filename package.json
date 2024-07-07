@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@sgratzl/chartjs-chart-boxplot": "^4.4.0",
     "chart.js": "^4.4.3",
     "vue": "^3.4.21",
     "vue-chartjs": "^5.3.1",
