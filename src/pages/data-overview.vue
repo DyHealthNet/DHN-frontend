@@ -70,7 +70,7 @@
 
                           <!--Chart-->
                           <v-col cols="12" align="center">
-                            <div style="height: 300px; width: 800px">
+                            <div style="height: 450px; width: 800px">
                               <!--<Bar
                                 :data="chartConfig"
                                 :options="{ responsive: true }"
@@ -124,7 +124,7 @@
 
                           <!--Line Chart-->
                           <v-col cols="12" align="center">
-                            <div style="height: 300px; width: 800px">
+                            <div style="height: 450px; width: 800px">
                               <CustomLine
                                 :x-var="selectedXvariableLine"
                                 :y-var="selectedYvariableLine"
@@ -173,8 +173,7 @@
 
                           <!--Box Plot-->
                           <v-col cols="12" align="center">
-                            <div style="height: 300px; width: 800px">
-
+                            <div style="height: 450px; width: 800px">
                               <CustomBox
                                 :x-var="selectedXvariableBox"
                                 :y-var="selectedYvariableBox"
@@ -234,7 +233,7 @@
 <script>
 import CustomLine from "../components/CustomLine.vue";
 import CustomBar from "../components/CustomBar.vue";
-import CustomBox   from "@/components/CustomBox.vue";
+import CustomBox   from "../components/CustomBox.vue";
 
 // text boxplot component
 //import BoxTest from "@/pages/test.vue";
@@ -261,8 +260,8 @@ ChartJS.register(
 
 export default {
   name: "DataOverview",
-  components: {
-    CustomBox, CustomBar, CustomLine, },
+  components: { CustomBar, CustomLine, 
+    CustomBox },
   data() {
     return {
       model: "tab-2",
@@ -275,17 +274,11 @@ export default {
         { name: "Extension1", value: 4 },
       ],
       //Bar Tab: Different variables for the dropdown list
-      //xItemsBar: dataVariables.discrete,
-      //yItemsBar: dataVariables.discrete.concat(dataVariables.continuous),
-      //colorItemsBar: dataVariables.categorical,
       xItemsBar: [],
       yItemsBar: [],
       colorItemsBar: [],
 
       //Line Tab: Different variables for the dropdown list
-      //xItemsLine: [...new Set(dataVariables.discrete.concat(dataVariables.continuous)),],
-      //yItemsLine: dataVariables.continuous,
-      //colorItemsLine: [...new Set(dataVariables.categorical.concat(dataVariables.discrete)),],
       xItemsLine: [],
       yItemsLine: [],
       colorItemsLine: [],
