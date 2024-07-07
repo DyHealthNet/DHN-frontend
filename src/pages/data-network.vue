@@ -197,6 +197,7 @@ export default {
       this.highlightNodes()
     },
     toggleSelect(node) {
+      if (node !== null && node.type === 'node') {
       const index = this.selectedNodes.findIndex(n => n.id === node.id);
       if (index !== -1) {
         this.selectedNodes.splice(index, 1);
@@ -210,7 +211,7 @@ export default {
       this.selectedElement = null;
       this.showSelectedNodesText();
       this.highlightNodes()
-    },
+    }},
     toggleSelect2() {
       const copy_of_NetNodes = [...this.selectedNetNodes];
       copy_of_NetNodes.forEach(node => {
