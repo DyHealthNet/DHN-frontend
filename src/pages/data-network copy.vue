@@ -68,6 +68,14 @@
           </div>
         </div>
       </div>
+
+      <!-- Button to display selected nodes text -->
+      <button @click="showSelectedNodesText">Update Network</button>
+      
+      <!-- Display selected nodes text for 5 seconds -->
+      <div v-if="displaySelectedNodesText" class="selected-nodes-text">
+        Selected Nodes: {{ displaySelectedNodesText }}
+      </div>
     </div>
   </div>
 
@@ -109,31 +117,20 @@
         <div class="selected-nodes2">
           <div class="selected-node-list2">
             <ul>
-                <li v-for="selectedNetNode in sortedSelectedNetNodes" :key="selectedNetNode.id" class="selected-node" 
-                ref="selectedNodeItem" @click="BoxClickEvent(selectedNetNode, $event)">
-                  {{ selectedNetNode.label }}
-                  <span class="remove-node" @click="toggleNetSelect(selectedNetNode)">✖</span>
-                </li>
-              </ul>
+              <li v-for="selectedNetNode in sortedSelectedNetNodes" :key="selectedNetNode.id" class="selected-node">
+                {{ selectedNetNode.label }}
+                <span class="remove-node" @click="toggleNetSelect(selectedNetNode)">✖</span>
+              </li>
+            </ul>
           </div>
         </div>
       </div>
   </div>
 
 
-  <button class="btn-update-network" @click="showSelectedNodesText">Update Network</button>
-  <button class="btn-update-network2" @click="deselectAllNetNodes">Deselect all</button>
-  <button class="btn-update-network3" @click="toggleSelect(this.selectedElement)">Remove Node</button>
-  <button class="btn-update-network4" @click="toggleNetSelect(this.selectedElement)">Change Selection</button>
-  <button class="btn-update-network5" @click="AddEgdes(this.selectedElement)">Add Edges</button>
-  <button class="btn-update-network6" @click="toggleSelect2()">Remove sel. Nodes</button>
-  <button class="btn-update-network7" @click="">G-Profiler</button>
+  <!-- Button to display selected nodes text -->
+  <button @click="deselectAllNetNodes">Deselect all</button>
 
-  
-  <!-- Display selected nodes text for 5 seconds -->
-  <div v-if="displaySelectedNodesText" class="selected-nodes-text">
-    Selected Nodes: {{ displaySelectedNodesText }}
-  </div>
 </template>
 
 <script>
@@ -186,15 +183,13 @@ export default {
       return this.selectedNetNodes.slice().sort((a, b) => {
         return a.label.localeCompare(b.label); // Sort alphabetically by label
       });
-    },
-},
+    }
+  },
   methods: {
     selectNode(node) {
       if (!this.isSelected(node)) {
         this.selectedNodes.push(node);
       }
-      this.showSelectedNodesText();
-      this.highlightNodes()
     },
     toggleSelect(node) {
       const index = this.selectedNodes.findIndex(n => n.id === node.id);
@@ -202,33 +197,12 @@ export default {
         this.selectedNodes.splice(index, 1);
       } else {
         this.selectedNodes.push(node);
-      };
-      const index2 = this.selectedNetNodes.findIndex(n => n.id === node.id);
-      if (index2 !== -1) {
-        this.selectedNetNodes.splice(index2, 1);
-      } ;
-      this.selectedElement = null;
-      this.showSelectedNodesText();
-      this.highlightNodes()
+      }
     },
-    toggleSelect2() {
-      const copy_of_NetNodes = [...this.selectedNetNodes];
-      copy_of_NetNodes.forEach(node => {
-      const index = this.selectedNetNodes.findIndex(n => n.id === node.id);
-      this.selectedNetNodes.splice(index, 1);
-      const index2 = this.selectedNodes.findIndex(n => n.id === node.id);
-      this.selectedNodes.splice(index2, 1);})
-      this.showSelectedNodesText();
-      this.highlightNodes()
-    },
-
-
 
     BoxClickEvent(node, event) {
       if (!event.target.classList.contains('remove-node')) {
-          this.selectedElement = { type: 'node', label: node.label, nodeType: node.group, id:node.id };
-          this.highlightNodes()
-      }
+          this.selectedElement = { type: 'node', label: node.label, nodeType: node.group };      }
     },
 
     toggleNetSelect(node) {
@@ -240,31 +214,6 @@ export default {
       }
       this.highlightNodes()
     },
-
-    AddEgdes (selectedElement){
-      if (selectedElement.type === 'node') {
-    // Find edges connected to the selected node
-    const new_edges = edgeData.filter(edge => edge.from === selectedElement.id || edge.to === selectedElement.id);
-    
-
-    // Extract unique node IDs from new_edges
-    const new_node_ids = [];
-    new_edges.forEach(edge => {
-      new_node_ids.push(edge.from);
-      new_node_ids.push(edge.to);
-      });
-
-    nodeData.forEach(node => {
-      if (new_node_ids.includes(node.id) && !this.selectedNodes.some(selectedNode => selectedNode.id === node.id)) {
-        this.selectedNodes.push(node)
-      }
-    });
-    this.initializeNetwork()
-    this.highlightNodes()
-  }
-  },
-
-
 
     isSelected(node) {
       return this.selectedNodes.some(n => n.id === node.id);
@@ -289,16 +238,12 @@ export default {
     showSelectedNodesText() {
       this.displaySelectedNodesText = this.selectedNodes.map(node => node.label).join(', ');
       this.clearSelectedNodesText();
-      this.initializeNetwork()
     },
     clearSelectedNodesText() {
       setTimeout(() => {
         this.displaySelectedNodesText = '';
       }, 5000); // Clear after 5 seconds
     },
-
-
-
     handleDoubleClick(event) {
       if (event.nodes.length > 0) {
         const nodeId = event.nodes[0];
@@ -320,38 +265,24 @@ export default {
       const container = this.$refs.network;
       if (!container) return;
 
-      const filteredNodes = nodeData.filter(node =>
-        this.selectedNodes.some(selectedNode => selectedNode.id === node.id)
-      );
-
-      const annotated_nodes = filteredNodes.map(node => ({
+      const annotated_nodes = nodeData.map(node => ({
         ...node,
         ...groups[node.group]
       }));
 
-      const filteredEdges = edgeData.filter(edge =>
-        this.selectedNodes.some(selectedNode => selectedNode.id === edge.from) &&
-        this.selectedNodes.some(selectedNode => selectedNode.id === edge.to)
-      );
-
       this.net_nodes = new DataSet(annotated_nodes);
-      this.net_edges = new DataSet(filteredEdges);
+      this.net_edges = new DataSet(edgeData);
 
       const data = { nodes: this.net_nodes, edges: this.net_edges};
 
       this.network = new Network(container, data, options);
 
       this.network.on('selectNode', params => {
+          console.log('A')
           const selectedNode = this.net_nodes.get(params.nodes[0]);
           this.selectedElement = { type: 'node', label: selectedNode.label, nodeType: selectedNode.group, id:selectedNode.id };
           this.highlightNodes()
       }),
-      this.network.on("click", function (params) {
-        if (params.nodes.length === 0 && (params.edges === undefined || params.edges.length === 0)) {
-          this.selectedElement = null,
-          this.highlightNodes()}
-      }.bind(this));
-
       this.network.on('selectEdge', params => {
         const edge = this.net_edges.get(params.edges[0]);
         this.selectedElement = {type: 'edge',
@@ -359,76 +290,34 @@ export default {
           nodeB: this.net_nodes.get(edge.to).label,
           p_value: edge.p_value
         };
-        this.highlightNodes()
       });
       this.network.on('deselectNode', () => {
         this.clearSelection();
-        this.highlightNodes();
+        //this.highlightNodes();
       });
       this.network.on('deselectEdge', this.clearSelection);
       this.network.on('doubleClick', this.handleDoubleClick);
-
-
-
     },
-
-
-    hexToRgb(hex) {
-      let bigint = parseInt(hex.slice(1), 16);
-      let r = (bigint >> 16) & 255;
-      let g = (bigint >> 8) & 255;
-      let b = bigint & 255;
-      return [r, g, b];
-    },
-    rgbToHex(r, g, b) {
-      return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
-    },
-    adjustBrightness(hex, factor) {
-      let [r, g, b] = this.hexToRgb(hex);
-      r = Math.min(255, Math.floor(r + (255 - r) * factor));
-      g = Math.min(255, Math.floor(g + (255 - g) * factor));
-      b = Math.min(255, Math.floor(b + (255 - b) * factor));
-      return this.rgbToHex(r, g, b);
-    },
-
-
     highlightNodes() {
         const selEl = this.selectedElement;
         if (selEl && selEl.type === "node") {
           const updateNodes = this.net_nodes.get().map(node => {
-            if (this.selectedNetNodes.some(n => n.id === node.id) && node.id === selEl.id) {
-              const localcolor = this.adjustBrightness(groups[node.group].color, 0.5);
-              return { ...node, size: 65, color:localcolor, shape: "diamond" };
-            } else if (node.id === selEl.id) {
-              const localcolor = this.adjustBrightness(groups[node.group].color, 0.5);
-              return { ...node, size: 45, color:localcolor, shape: "square" };
-            }else if (this.selectedNetNodes.some(n => n.id === node.id)) {
-              const localcolor = groups[node.group].color;
-              return { ...node, size: 50, color:localcolor, shape: "diamond" };
+            if (this.selectedNetNodes.some(n => n.id === node.id && n.id === selEl.id)) {
+              return { ...node, color: { border: 'black' }, borderWidth: 10 };
+            } else if (this.selectedNetNodes.some(n => n.id === node.id)) {
+              return { ...node, color: { border: 'black' }, borderWidth: 5 };
             } else {
-              const localcolor = groups[node.group].color;
-              return { ...node, size: 30, color:localcolor, shape: 'square' };
+              return { ...node, color: { border: 'black' }, borderWidth: 0 };
             }
-          })
+          });
           this.net_nodes.update(updateNodes);
-        } else {
-          const updateNodes =  this.net_nodes.get().map(node => {
-            if (this.selectedNetNodes.some(n => n.id === node.id)) {
-              const localcolor = groups[node.group].color;
-              return { ...node, size: 50, color:localcolor, shape: "diamond" };
-            } else {
-              const localcolor = groups[node.group].color;
-              return { ...node, size: 30, color:localcolor, shape:'square' };
-            }
-        })
-        this.net_nodes.update(updateNodes);
-      }
-    },
+          //console.log(this.network.getSelectedNodes())
+          //this.network.setSelection({nodes: [], edges: []})
+        }
+      },
 
 
-    clearSelection() {this.selectedElement = null,
-      this.highlightNodes()
-    },
+    clearSelection() {this.selectedElement = null},
 
     getShapeStyle(shape, color) {
       switch (shape) {
@@ -459,7 +348,6 @@ export default {
 
     deselectAllNetNodes() {
       this.selectedNetNodes = [];
-      this.selectedElement = null;
       this.highlightNodes()
     },
   },
@@ -628,12 +516,11 @@ li:not(.selected):hover {
   top: 130px;
   left: 260px;
   padding: 10px;
-  background-color: #cfcfcf8f;
+  background-color: #ffffff;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
   align-items: left;
-  border-radius: 10px;
 }
 
 .legend h3 {
@@ -691,111 +578,22 @@ li:not(.selected):hover {
   max-height: 400px;
 }
 
-
-
-.btn-update-network {
-  position: absolute;
-  top:600px;
-  left:260px;
-  background-color: #1d4cc2;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  font-size: 16px;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.3s, transform 0.2s;}
-.btn-update-network:hover {background-color: #173a96}
-.btn-update-network:active {transform: scale(0.95)}
-
-.btn-update-network2 {
-  position: absolute;
-  top:550px;
-  left:260px;
-  background-color: #1d4cc2;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  font-size: 16px;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.3s, transform 0.2s;}
-.btn-update-network2:hover {background-color: #173a96}
-.btn-update-network2:active {transform: scale(0.95)}
-
-.btn-update-network3 {
-  position: absolute;
-  top:500px;
-  left:260px;
-  background-color: #1d4cc2;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  font-size: 16px;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.3s, transform 0.2s;}
-.btn-update-network3:hover {background-color: #173a96}
-.btn-update-network3:active {transform: scale(0.95)}
-
-.btn-update-network4 {
-  position: absolute;
-  top:450px;
-  left:260px;
-  background-color: #1d4cc2;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  font-size: 16px;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.3s, transform 0.2s;}
-.btn-update-network4:hover {background-color: #173a96}
-.btn-update-network4:active {transform: scale(0.95)}
-
-.btn-update-network5 {
-  position: absolute;
-  top:400px;
-  left:260px;
-  background-color: #1d4cc2;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  font-size: 16px;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.3s, transform 0.2s;}
-.btn-update-network5:hover {background-color: #173a96}
-.btn-update-network5:active {transform: scale(0.95)}
-
-.btn-update-network6 {
-  position: absolute;
-  top:350px;
-  left:260px;
-  background-color: #1d4cc2;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  font-size: 16px;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.3s, transform 0.2s;}
-.btn-update-network6:hover {background-color: #173a96}
-.btn-update-network6:active {transform: scale(0.95)}
-
-.btn-update-network7 {
-  position: absolute;
-  top:300px;
-  left:260px;
-  background-color: #1d4cc2;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  font-size: 16px;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.3s, transform 0.2s;}
-.btn-update-network7:hover {background-color: #173a96}
-.btn-update-network7:active {transform: scale(0.95)}
-
 </style>
+
+
+
+
+
+
+
+
+
+
+
+
+const updateNodes =  this.net_nodes.get().map(node => {
+  if (this.selectedNetNodes.some(n => n.id === node.id)) {
+    return { ...node, color: { border: 'black' }, size: 50, shape: "diamond" };
+  } else {
+    return { ...node, color: { border: 'black' }, size: 30, shape: "square" };
+  }});
