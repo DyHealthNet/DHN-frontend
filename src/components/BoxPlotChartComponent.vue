@@ -38,11 +38,4 @@ export default {
 };
 </script>
 
-// Not sure if this can be done in a better way
-<style scoped>
-.chart-container {
-  position: relative;
-  width: 500px;
-  height: 300px;
-}
-</style>
+
