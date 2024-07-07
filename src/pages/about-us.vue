@@ -16,6 +16,9 @@
 </template>
 
 <script>
+
+
+
 export default {
   // don't forget to export the about us file
   name: "AboutUs",

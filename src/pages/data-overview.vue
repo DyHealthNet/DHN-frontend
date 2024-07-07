@@ -70,7 +70,7 @@
 
                           <!--Chart-->
                           <v-col cols="12" align="center">
-                            <div style="height: 300px; width: 500px">
+                            <div style="height: 300px; width: 800px">
                               <!--<Bar
                                 :data="chartConfig"
                                 :options="{ responsive: true }"
@@ -124,12 +124,63 @@
 
                           <!--Line Chart-->
                           <v-col cols="12" align="center">
-                            <div style="height: 300px; width: 500px">
+                            <div style="height: 300px; width: 800px">
                               <CustomLine
                                 :x-var="selectedXvariableLine"
                                 :y-var="selectedYvariableLine"
                                 :c-var="selectedCvariableLine"
                               />
+                            </div>
+                          </v-col>
+                        </v-row>
+                      </template>
+
+                      <!-- Content for third tab -->
+                      <template v-else-if="tab.value === 3">
+                        <!--Line Plot-->
+                        <v-row>
+                          <!--Drop Down list-->
+                          <v-col cols="12" align="center">
+                            <div class="d-flex justify-space-around">
+                              <!--Select X variables-->
+                              <v-autocomplete
+                                v-model="selectedXvariableBox"
+                                clearable
+                                label="Select X Variable"
+                                :items="xItemsBox"
+                                style="max-width: 350px; color: #104d63"
+                              ></v-autocomplete>
+
+                              <!--Select Y variables-->
+                              <v-autocomplete
+                                v-model="selectedYvariableBox"
+                                clearable
+                                label="Select Y Variable"
+                                :items="yItemsBox"
+                                style="max-width: 350px; color: #104d63"
+                              ></v-autocomplete>
+
+                              <!--Colored by which variables-->
+                              <v-autocomplete
+                                v-model="selectedCvariableBox"
+                                clearable
+                                label="Colored by (optional)"
+                                :items="colorItemsBox"
+                                style="max-width: 350px; color: #104d63"
+                              ></v-autocomplete>
+                            </div>
+                          </v-col>
+
+                          <!--Box Plot-->
+                          <v-col cols="12" align="center">
+                            <div style="height: 300px; width: 800px">
+                              <BoxTest />
+                            <!--
+                              <CustomLine
+                                :x-var="selectedXvariableLine"
+                                :y-var="selectedYvariableLine"
+                                :c-var="selectedCvariableLine"
+                              />-->
                             </div>
                           </v-col>
                         </v-row>
@@ -185,6 +236,9 @@
 <script>
 import CustomLine from "../components/CustomLine.vue";
 import CustomBar from "../components/CustomBar.vue";
+
+// text boxplot component
+import BoxTest from "@/pages/test.vue";
 //import * as dataVariables from "../data/test_variables.json";
 
 import {
@@ -208,7 +262,8 @@ ChartJS.register(
 
 export default {
   name: "DataOverview",
-  components: { CustomBar, CustomLine },
+  components: { CustomBar, CustomLine, 
+    BoxTest },
   data() {
     return {
       model: "tab-2",
@@ -217,7 +272,8 @@ export default {
       tabs: [
         { name: "Bar Plot", value: 1 },
         { name: "Line Plot", value: 2 },
-        { name: "Extension1", value: 3 },
+        { name: "Box Plot", value: 3 },
+        { name: "Extension1", value: 4 },
       ],
       //Bar Tab: Different variables for the dropdown list
       //xItemsBar: dataVariables.discrete,
@@ -235,6 +291,10 @@ export default {
       yItemsLine: [],
       colorItemsLine: [],
 
+      xItemsBox: [],
+      yItemsBox: [],
+      colorItemsBox: [],
+
       //initialized selected variables, currently they share the same selected variables
       selectedXvariableBar: null,
       selectedYvariableBar: null,
@@ -243,6 +303,10 @@ export default {
       selectedXvariableLine: null,
       selectedYvariableLine: null,
       selectedCvariableLine: null,
+
+      selectedXvariableBox: null,
+      selectedYvariableBox: null,
+      selectedCvariableBox: null,
 
       //table data initialization
       columns: [],
@@ -257,6 +321,7 @@ export default {
     this.splitRows(this.getTableData());
     this.getVariableDataBar();
     this.getVariableDataLine();
+    this.getVariableDataBox();
     
   },
 
@@ -305,8 +370,29 @@ export default {
           column1: data[key],
         }))
         this.xItemsLine = data.nonbinaryCategorical.concat(data.continuous)
-        this.yItemsLine = data.nonbinaryCategorical.concat(data.continuous)
+        this.yItemsLine = data.nonbinaryCategorical
         this.colorItemsLine = data.binaryCategorical;
+
+      } catch (error) {
+        console.error("Error fetching variable data:", error);
+      }
+    },
+
+    // Box Plot Data Fetch
+    async getVariableDataBox() {
+      try {
+        const response = await fetch(
+          "http://localhost:8000/network/api/variables/"
+        );
+        const data = await response.json();
+        this.rows = Object.keys(data).map((key, i) => ({
+          name: key,
+          column1: data[key],
+        }))
+        //##############Have to change the Box Variable Data#########
+        this.xItemsBox = data.nonbinaryCategorical.concat(data.continuous)
+        this.yItemsBox = data.nonbinaryCategorical
+        this.colorItemsBox = data.binaryCategorical;
 
       } catch (error) {
         console.error("Error fetching variable data:", error);
@@ -334,9 +420,17 @@ export default {
         // since the format will look something like this:
         // { keys: ['key1', 'key2', 'key3'], values: [1, 2, 3] }
         rows: [
-          { name: "# Participants", column1: 1 },
-          { name: "# NaN values", column1: 2 },
-          { name: "# Variables", column1: 3 },
+          { name: "# Participants", column1: 13000 },
+          { name: "# Male (1?)", column1: 6545 },
+          { name: "# Female (2?)", column1: 6455 },
+          { name: "# Phenotypes", column1: 1284},
+          { name: "# Proteins", column1: 7300},
+          { name: "# Metabolites", column1: 175},
+          { name: "# Boolean variables", column1: 26 },
+          { name: "# Categorical variables", column1: 1234 },
+          { name: "# Float variables", column1: 0 },
+          { name: "# Integer variables", column1: 7 },
+          { name: "# Time variables", column1: 17 },
         ],
       };
     },
