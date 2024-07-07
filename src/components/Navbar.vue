@@ -16,7 +16,9 @@
     </v-menu>
     <v-menu transition="slide-x-transition">
       <template v-slot:activator="{ props }">
-        <v-btn color="#104D63" v-bind="props">Data Overview</v-btn>
+        <a href="/overview" >
+          <v-btn color="#104D63" v-bind="props">Data Overview</v-btn>
+        </a>
       </template>
     </v-menu>
     <v-menu transition="slide-x-transition">
@@ -31,7 +33,7 @@
     </v-menu>
     <v-menu transition="slide-x-transition">
       <template v-slot:activator="{ props }">
-        <a href="/about" target="_blank">
+        <a href="/about">
           <v-btn color="#104D63" v-bind="props"> About Us</v-btn>
         </a>
       </template>

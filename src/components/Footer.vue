@@ -24,7 +24,7 @@
 export default {
   data() {
     return {
-      links: ["Home", "Visualization", "Network", "API", "Contact"],
+      links: ["Home", "Data Overview", "Network", "API", "Contact"],
     };
   },
   methods: {
@@ -32,8 +32,8 @@ export default {
       // Define the URL for each link
       if (link === "Home") {
         return "/";
-      } else if (link === "Visualization") {
-        return "/";
+      } else if (link === "Data Overview") {
+        return "/overview";
       } else if (link === "Network") {
         return "/";
       } else if (link === "API") {
