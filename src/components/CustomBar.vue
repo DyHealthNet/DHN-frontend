@@ -3,6 +3,7 @@
 </template>
 
 <script>
+const BASE_URL = BACKEND_URL || `${window.location.origin}`;
 import { Bar } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js'
 import barPlot1 from '../data/test_barplotData1.json'
@@ -91,7 +92,8 @@ export default {
         return;
       }
       try {
-        const url = new URL("http://localhost:8000/network/api/plotData/");
+        const url = new URL("/network/api/plotData/", BASE_URL);
+        //const url = new URL("http://localhost:8000/network/api/plotData/");
         url.searchParams.append("x", this.xVar);
         url.searchParams.append("y", this.yVar);
         if (this.cVar) {

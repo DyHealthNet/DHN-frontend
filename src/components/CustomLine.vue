@@ -1,8 +1,9 @@
 <template>
       <Line ref="lineComponent" :data="chartData" :options="computedChartOptions" />
-  </template>
+</template>
   
   <script>
+  const BASE_URL = BACKEND_URL || `${window.location.origin}`;
   import linePlot1 from '../data/test_linePlotData.json'
   import { Line } from 'vue-chartjs';
   import { Chart as ChartJS, Title, Tooltip, Legend, LineElement, LinearScale, CategoryScale, PointElement } from 'chart.js';
@@ -99,7 +100,8 @@
         return;
       }
       try {
-        const url = new URL("http://localhost:8000/network/api/plotData/");
+        const url = new URL("/network/api/plotData/", BASE_URL);
+        //const url = new URL("http://localhost:8000/network/api/plotData/");
         url.searchParams.append("x", this.xVar);
         url.searchParams.append("y", this.yVar);
         if (this.cVar) {

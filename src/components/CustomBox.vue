@@ -8,6 +8,7 @@
 </template>
 
 <script>
+const BASE_URL = BACKEND_URL || `${window.location.origin}`;
 import BoxPlotChartComponent from "@/components/BoxPlotChartComponent.vue";
 
 export default {
@@ -27,86 +28,99 @@ export default {
       required: false,
     },
   },
-  data() {
+
+  data(){
     return {
-      chartData: {// Initial data
-        labels: ["Category 1", "Category 2", "Category 3"],
-        datasets: [
-          {
-            label: "BoxPlot Dataset1",
-            backgroundColor: "#42A5F5",
-            borderColor: "#1E88E5",
-            borderWidth: 1,
-            outlierColor: "#E53935",
-            padding: 10,
-            itemRadius: 0,
-            data: [
-              {
-                min: 1,
-                q1: 2,
-                median: 3,
-                q3: 4,
-                max: 5,
-                outliers: [0.5, 5.5],
-              },
-              {
-                min: 2,
-                q1: 3,
-                median: 4,
-                q3: 5,
-                max: 6,
-                outliers: [1.5, 6.5],
-              },
-              {
-                min: 3,
-                q1: 4,
-                median: 5,
-                q3: 6,
-                max: 7,
-                outliers: [2.5, 7.5],
-              },
-            ],
-          },
-          
-          {
-            label: "BoxPlot Dataset2",
-            backgroundColor: "#42A5F6",
-            borderColor: "#1E88E5",
-            borderWidth: 1,
-            outlierColor: "#E53935",
-            padding: 10,
-            itemRadius: 0,
-            data: [
-              {
-                min: 1,
-                q1: 2,
-                median: 3,
-                q3: 4,
-                max: 5,
-                outliers: [0.5, 5.5],
-              },
-              {
-                min: 2,
-                q1: 3,
-                median: 4,
-                q3: 5,
-                max: 6,
-                outliers: [1.5, 6.5],
-              },
-              {
-                min: 3,
-                q1: 4,
-                median: 5,
-                q3: 6,
-                max: 7,
-                outliers: [2.5, 7.5],
-              },
-            ],
-          },
-        ],
+      chartData: {
+        datasets: [],
       },
     };
   },
+
+  // Innitial data
+  
+  // data() {
+  //   return {
+  //     chartData: {// Initial data
+  //       labels: ["Category 1", "Category 2", "Category 3"],
+  //       datasets: [
+  //         {
+  //           label: "BoxPlot Dataset1",
+  //           backgroundColor: "#42A5F5",
+  //           borderColor: "#1E88E5",
+  //           borderWidth: 1,
+  //           outlierColor: "#E53935",
+  //           padding: 10,
+  //           itemRadius: 0,
+  //           data: [
+  //             {
+  //               min: 1,
+  //               q1: 2,
+  //               median: 3,
+  //               q3: 4,
+  //               max: 5,
+  //               outliers: [0.5, 5.5],
+  //             },
+  //             {
+  //               min: 2,
+  //               q1: 3,
+  //               median: 4,
+  //               q3: 5,
+  //               max: 6,
+  //               outliers: [1.5, 6.5],
+  //             },
+  //             {
+  //               min: 3,
+  //               q1: 4,
+  //               median: 5,
+  //               q3: 6,
+  //               max: 7,
+  //               outliers: [2.5, 7.5],
+  //             },
+  //           ],
+  //         },
+          
+  //         {
+  //           label: "BoxPlot Dataset2",
+  //           backgroundColor: "#42A5F6",
+  //           borderColor: "#1E88E5",
+  //           borderWidth: 1,
+  //           outlierColor: "#E53935",
+  //           padding: 10,
+  //           itemRadius: 0,
+  //           data: [
+  //             {
+  //               min: 1,
+  //               q1: 2,
+  //               median: 3,
+  //               q3: 4,
+  //               max: 5,
+  //               outliers: [0.5, 5.5],
+  //             },
+  //             {
+  //               min: 2,
+  //               q1: 3,
+  //               median: 4,
+  //               q3: 5,
+  //               max: 6,
+  //               outliers: [1.5, 6.5],
+  //             },
+  //             {
+  //               min: 3,
+  //               q1: 4,
+  //               median: 5,
+  //               q3: 6,
+  //               max: 7,
+  //               outliers: [2.5, 7.5],
+  //             },
+  //           ],
+  //         },
+  //       ],
+  //     },
+      
+  //   };
+  // },
+  
   computed: {
     computedChartData() {
       console.log("this.xVar: ", this.xVar);
@@ -129,14 +143,14 @@ export default {
         maintainAspectRatio: false,
         scales: {
           x: {
-            beginAtZero: true,
+            //beginAtZero: true,
             title: {
               display: true,
               text: this.xVar,
             },
           },
           y: {
-            beginAtZero: true,
+            //beginAtZero: true,
             title: {
               display: true,
               text: this.yVar,
@@ -168,7 +182,8 @@ export default {
         return;
       }
       try {
-        const url = new URL("http://localhost:8000/network/api/plotData/");
+        const url = new URL("/network/api/plotData/", BASE_URL);
+        //const url = new URL("http://localhost:8000/network/api/plotData/");
         url.searchParams.append("x", this.xVar);
         url.searchParams.append("y", this.yVar);
         if (this.cVar) {
