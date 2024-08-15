@@ -177,7 +177,8 @@
                               <CustomBox
                                 :x-var="selectedXvariableBox"
                                 :y-var="selectedYvariableBox"
-                                :c-var="selectedCvariableBox" />
+                                :c-var="selectedCvariableBox"
+                              />
                             </div>
                           </v-col>
                         </v-row>
@@ -231,9 +232,10 @@
 </template>
 
 <script>
+const BASE_URL = BACKEND_URL || `${window.location.origin}`;
 import CustomLine from "../components/CustomLine.vue";
 import CustomBar from "../components/CustomBar.vue";
-import CustomBox   from "../components/CustomBox.vue";
+import CustomBox from "../components/CustomBox.vue";
 
 // text boxplot component
 //import BoxTest from "@/pages/test.vue";
@@ -260,8 +262,7 @@ ChartJS.register(
 
 export default {
   name: "DataOverview",
-  components: { CustomBar, CustomLine, 
-    CustomBox },
+  components: { CustomBar, CustomLine, CustomBox },
   data() {
     return {
       model: "tab-2",
@@ -273,16 +274,17 @@ export default {
         { name: "Box Plot", value: 3 },
         { name: "Extension1", value: 4 },
       ],
-      //Bar Tab: Different variables for the dropdown list
+      //Bar Plot: Different variables for the dropdown list
       xItemsBar: [],
       yItemsBar: [],
       colorItemsBar: [],
 
-      //Line Tab: Different variables for the dropdown list
+      //Line Plot: Different variables for the dropdown list
       xItemsLine: [],
       yItemsLine: [],
       colorItemsLine: [],
 
+      //Box Plot: Different variables for the dropdown list
       xItemsBox: [],
       yItemsBox: [],
       colorItemsBox: [],
@@ -314,13 +316,12 @@ export default {
     this.getVariableDataBar();
     this.getVariableDataLine();
     this.getVariableDataBox();
-    
   },
 
   // +++++++++++ Methods ++++++++++++++
   methods: {
     //functions to get the data from the json file
-    
+
     splitRows(tableData) {
       this.columns = tableData.columns;
       // split the rows into two halves so that they can be displayed in two tables
@@ -332,19 +333,19 @@ export default {
     // Bar Plot Data Fetch
     async getVariableDataBar() {
       try {
-        const response = await fetch(
-          "http://localhost:8000/network/api/variables/"
-        );
+        //const response = await fetch(
+         // "http://localhost:8000/network/api/variables/"
+        //);
+        const response = await fetch(`${BASE_URL}/network/api/variables/`);
         const data = await response.json();
         this.rows = Object.keys(data).map((key, i) => ({
           name: key,
           column1: data[key],
-        }))
+        }));
         //[...new Set(data.nonbinaryCategorical.concat(data.binaryCategorical))]
-        this.xItemsBar = data.nonbinaryCategorical
-        this.yItemsBar = data.nonbinaryCategorical
+        this.xItemsBar = data.nonbinaryCategorical;
+        this.yItemsBar = data.nonbinaryCategorical;
         this.colorItemsBar = data.binaryCategorical;
-
       } catch (error) {
         console.error("Error fetching variable data:", error);
       }
@@ -353,18 +354,18 @@ export default {
     // Line Plot Data Fetch
     async getVariableDataLine() {
       try {
-        const response = await fetch(
-          "http://localhost:8000/network/api/variables/"
-        );
+        //const response = await fetch(
+         // "http://localhost:8000/network/api/variables/"
+        //);
+        const response = await fetch(`${BASE_URL}/network/api/variables/`);
         const data = await response.json();
         this.rows = Object.keys(data).map((key, i) => ({
           name: key,
           column1: data[key],
-        }))
-        this.xItemsLine = data.nonbinaryCategorical.concat(data.continuous)
-        this.yItemsLine = data.nonbinaryCategorical
+        }));
+        this.xItemsLine = data.nonbinaryCategorical.concat(data.continuous);
+        this.yItemsLine = data.nonbinaryCategorical;
         this.colorItemsLine = data.binaryCategorical;
-
       } catch (error) {
         console.error("Error fetching variable data:", error);
       }
@@ -373,24 +374,25 @@ export default {
     // Box Plot Data Fetch
     async getVariableDataBox() {
       try {
-        const response = await fetch(
-          "http://localhost:8000/network/api/variables/"
-        );
+        //const response = await fetch(
+        //  "http://localhost:8000/network/api/variables/"
+        //);
+        const response = await fetch(`${BASE_URL}/network/api/variables/`);
         const data = await response.json();
         this.rows = Object.keys(data).map((key, i) => ({
           name: key,
           column1: data[key],
-        }))
+        }));
         //##############Have to change the Box Variable Data#########
-        this.xItemsBox = data.nonbinaryCategorical.concat(data.continuous)
-        this.yItemsBox = data.nonbinaryCategorical
+        this.xItemsBox = data.nonbinaryCategorical.concat(data.continuous);
+        this.yItemsBox = data.nonbinaryCategorical;
         this.colorItemsBox = data.binaryCategorical;
-
       } catch (error) {
         console.error("Error fetching variable data:", error);
       }
     },
 
+    // Table Daten
     getTableData() {
       // return simulated data
       return {
@@ -415,9 +417,9 @@ export default {
           { name: "# Participants", column1: 13000 },
           { name: "# Male (1?)", column1: 6545 },
           { name: "# Female (2?)", column1: 6455 },
-          { name: "# Phenotypes", column1: 1284},
-          { name: "# Proteins", column1: 7300},
-          { name: "# Metabolites", column1: 175},
+          { name: "# Phenotypes", column1: 1284 },
+          { name: "# Proteins", column1: 7300 },
+          { name: "# Metabolites", column1: 175 },
           { name: "# Boolean variables", column1: 26 },
           { name: "# Categorical variables", column1: 1234 },
           { name: "# Float variables", column1: 0 },
