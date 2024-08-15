@@ -32,6 +32,7 @@
                 >
                   <v-card>
                     <v-card-text>
+
                       <!-- Content for first tab -->
                       <template v-if="tab.value === 1">
                         <!--Bar Plot-->
@@ -232,7 +233,7 @@
 </template>
 
 <script>
-const BASE_URL = BACKEND_URL || `${window.location.origin}`;
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || `${window.location.protocol}//${window.location.host}`;
 import CustomLine from "../components/CustomLine.vue";
 import CustomBar from "../components/CustomBar.vue";
 import CustomBox from "../components/CustomBox.vue";
@@ -415,8 +416,8 @@ export default {
         // { keys: ['key1', 'key2', 'key3'], values: [1, 2, 3] }
         rows: [
           { name: "# Participants", column1: 13000 },
-          { name: "# Male (1?)", column1: 6545 },
-          { name: "# Female (2?)", column1: 6455 },
+          { name: "# Male", column1: 6545 },
+          { name: "# Female", column1: 6455 },
           { name: "# Phenotypes", column1: 1284 },
           { name: "# Proteins", column1: 7300 },
           { name: "# Metabolites", column1: 175 },
