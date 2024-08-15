@@ -3,7 +3,7 @@
 </template>
   
   <script>
-  const BASE_URL = BACKEND_URL || `${window.location.origin}`;
+  const BASE_URL = import.meta.env.VITE_BACKEND_URL || `${window.location.protocol}//${window.location.host}`;
   import linePlot1 from '../data/test_linePlotData.json'
   import { Line } from 'vue-chartjs';
   import { Chart as ChartJS, Title, Tooltip, Legend, LineElement, LinearScale, CategoryScale, PointElement } from 'chart.js';

@@ -3,7 +3,7 @@
 </template>
 
 <script>
-const BASE_URL = BACKEND_URL || `${window.location.origin}`;
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || `${window.location.protocol}//${window.location.host}`;
 import { Bar } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js'
 import barPlot1 from '../data/test_barplotData1.json'

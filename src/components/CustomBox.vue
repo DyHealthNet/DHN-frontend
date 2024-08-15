@@ -8,7 +8,7 @@
 </template>
 
 <script>
-const BASE_URL = BACKEND_URL || `${window.location.origin}`;
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || `${window.location.protocol}//${window.location.host}`;
 import BoxPlotChartComponent from "@/components/BoxPlotChartComponent.vue";
 
 export default {
