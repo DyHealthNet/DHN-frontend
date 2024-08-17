@@ -16,10 +16,6 @@ export default {
       type: Object,
       required: true
     },
-    chartOptions: {
-      type: Object,
-      required: true
-    }
   },
   mounted() {
     Chart.register(BoxPlotController, BoxAndWiskers, LinearScale, CategoryScale);
@@ -27,13 +23,16 @@ export default {
   },
   methods: {
     renderChart() {
-      const ctx = this.$refs.canvas.getContext('2d');
-      new Chart(ctx, {
-        type: 'boxplot',
-        data: this.chartData,
-        options: this.chartOptions
-      });
-    }
+     if (this.chartInstance) {
+       this.chartInstance.destroy(); // Destroy the existing chart instance
+     }
+
+     const ctx = this.$refs.canvas.getContext('2d');
+     this.chartInstance = new Chart(ctx, {
+       type: 'boxplot',
+       data: this.chartData,
+     });
+   },
   }
 };
 </script>

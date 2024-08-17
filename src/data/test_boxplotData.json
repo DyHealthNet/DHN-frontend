@@ -1,0 +1,97 @@
+{
+    "labels": [
+        "Category 1",
+        "Category 2",
+        "Category 3"
+    ],
+    "datasets": [
+        {
+            "label": "Binary 1",
+            "backgroundColor": "Blue",
+            "borderColor": "#1E88E5",
+            "borderWidth": 1,
+            "outlierColor": "#E53935",
+            "padding": 10,
+            "itemRadius": 0,
+            "data": [
+                {
+                    "min": 1,
+                    "q1": 2,
+                    "median": 3,
+                    "q3": 4,
+                    "max": 5,
+                    "outliers": [
+                        0.5,
+                        5.5
+                    ]
+                },
+                {
+                    "min": 2,
+                    "q1": 3,
+                    "median": 4,
+                    "q3": 5,
+                    "max": 6,
+                    "outliers": [
+                        1.5,
+                        6.5
+                    ]
+                },
+                {
+                    "min": 3,
+                    "q1": 4,
+                    "median": 5,
+                    "q3": 6,
+                    "max": 7,
+                    "outliers": [
+                        2.5,
+                        7.5
+                    ]
+                }
+            ]
+        },
+        {
+            "label": "Binary 2",
+            "backgroundColor": "Green",
+            "borderColor": "#1E88E5",
+            "borderWidth": 1,
+            "outlierColor": "#E53935",
+            "padding": 10,
+            "itemRadius": 0,
+            "data": [
+                {
+                    "min": 1,
+                    "q1": 2,
+                    "median": 3,
+                    "q3": 4,
+                    "max": 5,
+                    "outliers": [
+                        0.5,
+                        5.5
+                    ]
+                },
+                {
+                    "min": 2,
+                    "q1": 3,
+                    "median": 4,
+                    "q3": 5,
+                    "max": 6,
+                    "outliers": [
+                        1.5,
+                        6.5
+                    ]
+                },
+                {
+                    "min": 3,
+                    "q1": 4,
+                    "median": 5,
+                    "q3": 6,
+                    "max": 7,
+                    "outliers": [
+                        2.5,
+                        7.5
+                    ]
+                }
+            ]
+        }
+    ]
+}

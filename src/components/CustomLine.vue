@@ -8,6 +8,7 @@
   import { Line } from 'vue-chartjs';
   import { Chart as ChartJS, Title, Tooltip, Legend, LineElement, LinearScale, CategoryScale, PointElement } from 'chart.js';
   
+  
   // Register the components globally
   ChartJS.register(Title, Tooltip, Legend, LineElement, LinearScale, CategoryScale, PointElement);
   

@@ -1,14 +1,17 @@
 {
     "discrete": [
       "age group",
-      "sex"
+      "sex",
+      "time"
     ],
     "continuous": [
       "# of participants",
-      "bmi"
+      "bmi", 
+      "concentration of medication (%)"
     ],
     "categorical": [
       "sex",
-      "age group"
+      "age group",
+      "medication"
     ]
 }
