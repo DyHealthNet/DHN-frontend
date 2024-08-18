@@ -20,16 +20,15 @@
                   South Tyrol Study Data via Multi-Level Network Medicine
                 </h1>
                 <p style="color: #104d63">
-                  Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed
-                  diam nonumy eirmod tempor invidunt ut labore et dolore magna
-                  aliquyam erat, sed diam voluptua. At vero eos et accusam et
-                  justo duo dolores et ea rebum. Stet clita kasd gubergren, no
-                  sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem
-                  ipsum dolor sit amet, consetetur sadipscing elitr, sed diam
-                  nonumy eirmod tempor invidunt ut labore et dolore magna
-                  aliquyam erat, sed diam voluptua. At vero eos et accusam et
-                  justo duo dolores et ea rebum. Stet clita kasd gubergren, no
-                  sea takimata sanctus est Lorem ipsum dolor sit amet
+                  DyHealthNet is a platform that addresses the dynamic
+                  exploration of epidemiological population cohorts via
+                  multi-level network medicine. This platform is connected to a
+                  open-source backend and a multi-omics database comprising
+                  knowledge from other reliable databases as well as various
+                  association scores among genetic variants, metabolites, and
+                  additional information from CHRIS data.
+                  In this first developed prototype, we mainly focus on the visualization of
+                  phenotype data and the network-based data correlation.
                 </p>
               </v-col>
             </v-row>
@@ -51,6 +50,11 @@
                 <a href="/overview">
                   <v-btn color="#A5BFDC">Data Overview</v-btn>
                 </a>
+                <p class="description-text">
+                  This page provides a comprehensive summary of data variables
+                  and visualises phenotype data through diverse methods to
+                  accommodate different analytical requirements.
+                </p>
               </v-col>
               <!--Button: Network-->
               <v-col cols="12" sm="6" md="4" class="text-center">
@@ -58,6 +62,11 @@
                   <img :src="network" alt="Network" width="200" height="200" />
                 </v-img>
                 <v-btn color="#A5BFDC">Network</v-btn>
+                <p class="description-text">
+                  This page visualizes correlations between various variables
+                  sourced from different databases, facilitating a deeper
+                  understanding of data relationships.
+                </p>
               </v-col>
               <!--Button: About Us-->
               <v-col cols="12" sm="6" md="4" class="text-center">
@@ -72,6 +81,10 @@
                 <a href="/about">
                   <v-btn color="#A5BFDC">About Us</v-btn>
                 </a>
+                <p class="description-text">
+                  More information about the research group and collaborators
+                  you can find here
+                </p>
               </v-col>
             </v-row>
           </v-col>
@@ -172,3 +185,11 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.description-text {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #666;
+}
+</style>

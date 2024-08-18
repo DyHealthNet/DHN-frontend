@@ -2,20 +2,22 @@
 
 <template>
   <v-app>
-    <Navbar />
 
-    <v-main>
-      <v-container fluid>
-        <v-row>
+      <Navbar />
+    
+      <v-main>
+        <v-container fluid class="page-borders">
+          <v-row>
 
-          <!--Hier show the pages that  defines in the router-->
-          <router-view />
-          
-        </v-row>
-      </v-container>
-    </v-main>
+            <!--Hier show the pages that  defines in the router-->
+            <router-view />
+            
+          </v-row>
+        </v-container>
+      </v-main>
 
-    <Footer />
+      <!--<Footer />-->
+   
   </v-app>
 </template>
 
@@ -32,23 +34,9 @@ export default {
 };
 </script>
 
-<!--
-<template>
-  <h1>Welcome to DyHealthNet!</h1>
-  <h2>Master praktikum group members:</h2>
-  <p>{{ memberNames }}</p>
-  <h2>Supervisors:</h2>
-  <p>{{ supervisors }}</p>
-  <AboutUsButton />
-</template>
-
-<script setup>
-import { ref } from 'vue'
-import AboutUsButton from '@/components/AboutUsButton.vue'
-
-const memberNames = ref("Andrea, Bastinne, Leo, Manuel, Elias, Grace")
-const supervisors = ref('Lis, Farbi and Prof. List')
-</script>
 <style>
+.page-borders {
+  border-left: 50px solid white; /* Change the color and size as needed */
+  border-right: 50px solid white; /* Change the color and size as needed */
+}
 </style>
--->

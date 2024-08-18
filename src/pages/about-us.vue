@@ -7,6 +7,11 @@
         <v-row>
           <v-col cols="12" class="text-center">
             <h1 class="title1" style="color: #104d63">About Us</h1>
+            <h3 style="color: #104d63">
+              This project is a collaborative effort among students and
+              supervisors for the Bioinformatics Master Practicum 2024. Learn
+              more about our team, supervisors, and project collaborators.
+            </h3>
           </v-col>
           <v-col cols="12">
             <div style="color: #104d63">
@@ -27,7 +32,7 @@
               <h2>Project Partners</h2>
             </div>
           </v-col>
-          
+
           <v-row style="color: #104d63">
             <v-col cols="12" md="3" lg="3">
               <!-- TUM -->

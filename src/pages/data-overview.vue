@@ -501,8 +501,10 @@ export default {
         //const response = await fetch(
         // "http://localhost:8000/network/api/variables/"
         //);
+        console.log(`${BASE_URL}/network/api/variables/`);
         const response = await fetch(`${BASE_URL}/network/api/variables/`);
         const data = await response.json();
+        console.log(data);
         this.rows = Object.keys(data).map((key, i) => ({
           name: key,
           column1: data[key],
