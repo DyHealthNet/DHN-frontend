@@ -1,11 +1,8 @@
 <template>
   <v-app-bar class="page-borders-nav" height="110" color="#FAFAFA" scroll-behavior="elevate" app>
-  <a href="/">
-    <v-img>
-      <img src="../assets/figures/DyHealthNet_Logo.png" width="270" height="140" alt="DyHealthNet Logo"/>
-    </v-img>
-  </a>
-
+    <v-image>
+      <img src="../assets/figures/DyHealthNet_Logo.png" width="270" height="140"/>
+    </v-image>
     <v-app-bar-title class="text-indigo"
       ></v-app-bar-title
     >
@@ -26,14 +23,17 @@
     </v-menu>
     <v-menu transition="slide-x-transition">
       <template v-slot:activator="{ props }">
-        <a href="/network" >
-          <v-btn color="#104D63" v-bind="props">Network</v-btn>
-        </a>
+        <v-btn color="#104D63" v-bind="props">Network</v-btn>
       </template>
     </v-menu>
+    <!--<v-menu transition="slide-x-transition">
+      <template v-slot:activator="{ props }">
+        <v-btn color="#104D63" v-bind="props">API</v-btn>
+      </template>
+    </v-menu>-->
     <v-menu transition="slide-x-transition">
       <template v-slot:activator="{ props }">
-        <a href="/about-us">
+        <a href="/about">
           <v-btn color="#104D63" v-bind="props"> About Us</v-btn>
         </a>
       </template>

@@ -56,20 +56,16 @@ export default {
       try {
         console.log('this.xVar: ', this.xVar)
         console.log('this.yVar: ', this.yVar)
-        const url = new URL("/network/api/plotData/", BASE_URL);
+        const url = new URL("/network/api/plotDataHeatmap/", BASE_URL);
         url.searchParams.append("x", this.xVar);
         url.searchParams.append("y", this.yVar);
-        //const response = await fetch(url);
-        //const data = await response.json();
-        //this.rows = Object.keys(data).map((key) => ({
-        //  name: key,
-        //  column1: data[key],
-        //}));
-        //this.chartData = data;
+        const response = await fetch(url);
+        const data = await response.json();
+        this.chartData = data;
 
         // Simulating an API call with the imported test data
-        console.log("testheatmap: ", testheatmap);
-        this.chartData = testheatmap;
+        //console.log("testheatmap: ", testheatmap);
+        //this.chartData = testheatmap;
         console.log("this.chartData: ", this.chartData);
 
         return this.chartData;

@@ -1,16 +1,15 @@
 <template>
   <div>
-    <BoxPlotChartComponent
-      :chartData="chartData"
-      ref="boxplotchartComponent"
-    />
+    <BoxPlotChartComponent :chartData="chartData" ref="boxplotchartComponent" />
   </div>
 </template>
 
 <script>
-const BASE_URL = import.meta.env.VITE_BACKEND_URL || `${window.location.protocol}//${window.location.host}`;
+const BASE_URL =
+  import.meta.env.VITE_BACKEND_URL ||
+  `${window.location.protocol}//${window.location.host}`;
 import BoxPlotChartComponent from "@/components/BoxPlotChartComponent.vue";
-import testbox from '../data/test_boxplotData.json';
+import testbox from "../data/test_boxplotData.json";
 
 export default {
   name: "CustomBox",
@@ -20,67 +19,78 @@ export default {
       type: String,
       required: true,
     },
+    yVar: {
+      type: String,
+      required: true,
+    },
     cVar: {
       type: String,
       required: false,
     },
   },
-  
+
   data() {
     return {
       chartData: {
-        labels: [], // Initialize with empty labels or any default values
+        labels: [],
         datasets: [],
       },
     };
   },
 
   watch: {
-    xVar: 'fetchAndUpdateChart',
-    cVar: 'fetchAndUpdateChart',
+    xVar: "fetchAndUpdateChart",
+    yVar: "fetchAndUpdateChart",
+    cVar: "fetchAndUpdateChart",
   },
 
   methods: {
-   async fetchAndUpdateChart() {
-     await this.fetchChartData();
-     this.updateChart();
-   },
+    async fetchAndUpdateChart() {
+      await this.fetchChartData();
+      this.updateChart();
+    },
 
-   async fetchChartData() {
-     if (!this.xVar) {
-       this.chartData = { datasets: [] };
-       return;
-     }
-     try {
-       const url = new URL("/network/api/plotDataBoxPlot/", BASE_URL);
-       url.searchParams.append("x", this.xVar);
-       if (this.cVar) {
-         url.searchParams.append("c", this.cVar);
-       }
-       // const response = await fetch(url);
-       // const data = await response.json();
-       // this.chartData = data;
-       
-       this.chartData = testbox;
+    async fetchChartData() {
+      console.log("this.xVar: ", this.xVar);
+      console.log("this.yVar: ", this.yVar);
+      console.log("this.cVar: ", this.cVar);
+      if (!this.xVar || !this.yVar) {
+        this.chartData = { datasets: [] };
+        return;
+      }
+      console.log("this.xVar: ", this.xVar);
+      console.log("this.yVar: ", this.yVar);
+      console.log("this.cVar: ", this.cVar);
+      try {
+        const url = new URL("/network/api/plotDataBoxPlot/", BASE_URL);
+        url.searchParams.append("x", this.xVar);
+        url.searchParams.append("y", this.yVar);
+        if (this.cVar) {
+          url.searchParams.append("c", this.cVar);
+        }
 
-     } catch (error) {
-       console.error("Error fetching variable data:", error);
-       this.chartData = { datasets: [] };
-     }
-   },
+        const response = await fetch(url);
+        const data = await response.json();
+        this.chartData = data;
+        
+        //this.chartData = testbox;
+      } catch (error) {
+        console.error("Error fetching variable data:", error);
+        this.chartData = { datasets: [] };
+      }
+    },
 
-   updateChart() {
-     this.$nextTick(() => {
-       if (this.$refs.boxplotchartComponent) {
-         this.$refs.boxplotchartComponent.renderChart();
-       }
-     });
-   }
-},
+    updateChart() {
+      this.$nextTick(() => {
+        if (this.$refs.boxplotchartComponent) {
+          this.$refs.boxplotchartComponent.renderChart();
+        }
+      });
+    },
+  },
 
-mounted() {
-  this.fetchAndUpdateChart();
-}
-
+  mounted() {
+    this.fetchAndUpdateChart();
+  },
 };
 </script>
