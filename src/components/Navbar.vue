@@ -1,8 +1,11 @@
 <template>
   <v-app-bar class="page-borders-nav" height="110" color="#FAFAFA" scroll-behavior="elevate" app>
+  <a href="/">
     <v-img>
-      <img src="../assets/figures/DyHealthNet_Logo.png" width="270" height="140"/>
+      <img src="../assets/figures/DyHealthNet_Logo.png" width="270" height="140" alt="DyHealthNet Logo"/>
     </v-img>
+  </a>
+
     <v-app-bar-title class="text-indigo"
       ></v-app-bar-title
     >
