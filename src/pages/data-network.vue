@@ -174,6 +174,8 @@
 
 
 <script>
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || `${window.location.protocol}//${window.location.host}`;
+console.log(BASE_URL)
 import { DataSet, Network } from 'vis-network/standalone/esm/vis-network';
 import axios from 'axios';
 import { groups } from './networkData';
@@ -199,7 +201,6 @@ export default {
       allExternalEdges : [],
       externalNetworkNodes : [],
       groups : groups,
-      backendUrl: import.meta.env.VITE_BACKEND_URL,
     };
   },
   methods: {
@@ -219,8 +220,7 @@ export default {
     async fetchData() {
       if (this.searchText) {
         try {
-          console.log(this.backendUrl)
-          const response = await axios.get(this.backendUrl+`/network/api/getTypeaheadResults/?s=${encodeURIComponent(this.searchText)}`);
+          const response = await axios.get(BASE_URL+`/network/api/getTypeaheadResults/?s=${encodeURIComponent(this.searchText)}`);
           const items = Object.entries(response.data).map(([id, details]) => ({
             id,
             display_name: details.display_name,
@@ -288,7 +288,7 @@ export default {
       const nodeID = node.id;
       const source_table = node.source_table;
       const type = source_table.split('_')[1];
-      const api_string = this.backendUrl+'/network/api/getNetwork/?q='+nodeID+'&t='+type+'&l='+this.l
+      const api_string = BASE_URL+'/network/api/getNetwork/?q='+nodeID+'&t='+type+'&l='+this.l
       try {
           const response = await axios.get(api_string);
 
