@@ -1,8 +1,8 @@
 <template>
   <v-app-bar class="page-borders-nav" height="110" color="#FAFAFA" scroll-behavior="elevate" app>
-    <v-image>
+    <v-img>
       <img src="../assets/figures/DyHealthNet_Logo.png" width="270" height="140"/>
-    </v-image>
+    </v-img>
     <v-app-bar-title class="text-indigo"
       ></v-app-bar-title
     >
@@ -30,7 +30,7 @@
     </v-menu>
     <v-menu transition="slide-x-transition">
       <template v-slot:activator="{ props }">
-        <a href="/about">
+        <a href="/about-us">
           <v-btn color="#104D63" v-bind="props"> About Us</v-btn>
         </a>
       </template>

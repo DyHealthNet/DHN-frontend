@@ -24,7 +24,7 @@
                 Raithel, Bastienne Rehor, Leo Sprengel
               </p>
               <h3>Supervisors:</h3>
-              <p>Prof.Dr.Markus List, Lis Arend, Fabian Woller</p>
+              <p>Prof. Dr. Markus List, Lis Arend, Fabian Woller</p>
             </div>
           </v-col>
           <v-col cols="12">

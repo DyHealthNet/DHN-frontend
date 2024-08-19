@@ -88,7 +88,7 @@
             <span v-if="displayedElement.xrefs">
               <span v-for="(xref, index) in displayedElement.xrefs.split(';')" :key="index">
                 <a :href="generateLink(xref.trim())" target="_blank" style="color: darkblue;">{{ xref.trim() }}</a>
-                <span v-if="index < displayedElement.xrefs.split(';').length - 1">, </span>
+                <span v-if="index < displayedElement.xrefs.split(';').length - 1">,&#8203;</span>
               </span>
             </span>
             <span v-else> none</span>
@@ -175,7 +175,6 @@
 
 <script>
 const BASE_URL = import.meta.env.VITE_BACKEND_URL || `${window.location.protocol}//${window.location.host}`;
-console.log(BASE_URL)
 import { DataSet, Network } from 'vis-network/standalone/esm/vis-network';
 import axios from 'axios';
 import { groups } from './networkData';
@@ -549,7 +548,7 @@ export default {
 }
 .panel-container2 {
   position: absolute;
-  left: 1030px;
+  left: 1080px;
   width: 200px;
   height: 100%;
   display: flex;
@@ -719,7 +718,7 @@ li:not(.selected):hover {
 .legend {
   position: absolute;
   top: 155px;
-  left: 245px;
+  left: 295px;
   padding: 10px;
   background-color: #cfcfcf8f;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
@@ -739,7 +738,7 @@ li:not(.selected):hover {
 .legend2 {
   position: absolute;
   top: 255px;
-  left: 245px;
+  left: 295px;
   padding: 10px;
   background-color: #cfcfcf8f;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);

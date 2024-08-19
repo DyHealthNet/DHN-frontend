@@ -80,7 +80,7 @@
                     height="200"
                   />
                 </v-img>
-                <a href="/about">
+                <a href="/about-us">
                   <v-btn color="#A5BFDC">About Us</v-btn>
                 </a>
                 <p class="description-text">
