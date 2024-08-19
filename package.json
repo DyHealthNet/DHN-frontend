@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@sgratzl/chartjs-chart-boxplot": "^4.4.0",
+    "axion": "^0.1.0",
     "axios": "^1.7.4",
     "chart.js": "^4.4.3",
     "echarts": "^5.5.1",
