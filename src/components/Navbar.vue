@@ -23,12 +23,9 @@
     </v-menu>
     <v-menu transition="slide-x-transition">
       <template v-slot:activator="{ props }">
-        <v-btn color="#104D63" v-bind="props">Network</v-btn>
-      </template>
-    </v-menu>
-    <v-menu transition="slide-x-transition">
-      <template v-slot:activator="{ props }">
-        <v-btn color="#104D63" v-bind="props">API</v-btn>
+        <a href="/network" >
+          <v-btn color="#104D63" v-bind="props">Network</v-btn>
+        </a>
       </template>
     </v-menu>
     <v-menu transition="slide-x-transition">

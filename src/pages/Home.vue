@@ -61,7 +61,9 @@
                 <v-img>
                   <img :src="network" alt="Network" width="200" height="200" />
                 </v-img>
-                <v-btn color="#A5BFDC">Network</v-btn>
+                <a href="/network">
+                  <v-btn color="#A5BFDC">Network</v-btn>
+                </a>
                 <p class="description-text">
                   This page visualizes correlations between various variables
                   sourced from different databases, facilitating a deeper

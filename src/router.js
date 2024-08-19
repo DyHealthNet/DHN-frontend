@@ -7,7 +7,7 @@ import AboutUs from './pages/about-us.vue'
 import Home from './pages/Home.vue'
 import CHRISDataIntro from './pages/chris-data-intro.vue'
 import DataOverview from './pages/data-overview.vue'
-
+import YourComponentName from './pages/data-network.vue'
 
 const routes = [
     {
@@ -31,6 +31,12 @@ const routes = [
       path: '/overview',
       name: 'DataOverview',
       component: DataOverview
+    }
+    ,
+    {
+      path: '/network',
+      name: 'Network',
+      component: YourComponentName
     }
   ]
 
