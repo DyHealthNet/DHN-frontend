@@ -83,14 +83,14 @@ export default {
         maintainAspectRatio: false,
         scales: {
           x: {
-            beginAtZero: true,
+            beginAtZero: false,
             title: {
               display: true,
               text: this.xVar || "Default X",
             },
           },
           y: {
-            beginAtZero: true,
+            beginAtZero: false,
             title: {
               display: true,
               text: this.yVar || "Default Y",

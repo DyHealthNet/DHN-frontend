@@ -1,21 +1,44 @@
 <template>
   <div>
     <!-- BoxPlotChartComponent anzeigen -->
-    <BoxPlotChartComponent :chartData="chartData" :xLabel="this.xVar" 
-    :yLabel="this.yVar" ref="boxplotchartComponent" />
+    <BoxPlotChartComponent
+      :chartData="chartData"
+      :xLabel="this.xVar"
+      :yLabel="this.yVar"
+      ref="boxplotchartComponent"
+    />
     <!-- Overlay anzeigen, wenn Daten entfernt wurden -->
     <!--<div v-if="showPopup" class="popup popup-text">
       Some of the data is not displayed due to a small number of patients.
       <button @click="closePopup" style="border: 2px solid #000">OK</button>
     </div>-->
-   
+
     <div class="popup">
-      <v-alert v-if="showPopup" color="error" icon="$warning" >
+      <v-alert v-if="showPopup" color="error" icon="$warning">
         <div class="popup-text">
-          Some groups don't have enough members and due to privacy issues some data is not displayed.
+          Some groups don't have enough members and due to privacy issues some
+          data is not displayed.
         </div>
         <v-btn color="primary" @click="closePopup">OK</v-btn>
       </v-alert>
+    </div>
+
+    <!-- Container für Buttons und Text -->
+    <div class="button-text-container">
+      <div class="button-group">
+        <v-btn @click="showExample" style="background-color: #f1f1f1">
+          Show Example with Popup
+        </v-btn>
+        <v-space></v-space>
+        <v-btn @click="closeExample" style="background-color: #f1f1f1">
+          Close Example
+        </v-btn>
+      </div>
+
+      <p class="centered-text">
+        Click this button to see a special case with a popup. Don't forget to
+        close the example first if you want to return to the original data.
+      </p>
     </div>
   </div>
 </template>
@@ -26,6 +49,7 @@ const BASE_URL =
   `${window.location.protocol}//${window.location.host}`;
 import BoxPlotChartComponent from "@/components/BoxPlotChartComponent.vue";
 import testbox from "../data/test_boxplotData.json";
+//import testbox from "../data/test_boxPlotWithTimeAsX.json";
 
 export default {
   name: "CustomBox",
@@ -52,6 +76,7 @@ export default {
         datasets: [],
       },
       showPopup: false, // Popup-Status
+      useExampleData: false,
     };
   },
 
@@ -62,37 +87,46 @@ export default {
   },
 
   methods: {
+    showExample() {
+      this.useExampleData = true;
+      this.fetchAndUpdateChart();
+    },
+    closeExample() {
+      this.useExampleData = false;
+      this.fetchAndUpdateChart();
+    },
+
     async fetchAndUpdateChart() {
       await this.fetchChartData();
       this.updateChart();
     },
 
     async fetchChartData() {
-      console.log("this.xVar: ", this.xVar);
-      console.log("this.yVar: ", this.yVar);
-      console.log("this.cVar: ", this.cVar);
-      if (!this.xVar || !this.yVar) {
-        this.chartData = { datasets: [] };
-        return;
-      }
       try {
-        const url = new URL("/network/api/plotDataBoxPlot/", BASE_URL);
-        url.searchParams.append("x", this.xVar);
-        url.searchParams.append("y", this.yVar);
-        if (this.cVar) {
-          url.searchParams.append("c", this.cVar);
+        let data;
+        if (this.useExampleData) {
+          // Verwende die Beispiel-Daten
+          data = testbox;
+        } else {
+          console.log("this.xVar: ", this.xVar);
+          console.log("this.yVar: ", this.yVar);
+          console.log("this.cVar: ", this.cVar);
+          if (!this.xVar || !this.yVar) {
+            this.chartData = { datasets: [] };
+            return;
+          }
+          // Daten von der API abrufen
+          const url = new URL("/network/api/plotDataBoxPlot/", BASE_URL);
+          url.searchParams.append("x", this.xVar);
+          url.searchParams.append("y", this.yVar);
+          if (this.cVar) {
+            url.searchParams.append("c", this.cVar);
+          }
+          console.log("url: ", url);
+          const response = await fetch(url);
+          data = await response.json();
         }
-        console.log("url: ", url);
-        const response = await fetch(url);
-        const data = await response.json();
-        //this.rows = Object.keys(data).map((key) => ({
-        //  name: key,
-        //  column1: data[key],
-        //}))
-
-        // Original JSON-Daten
-        //const data = testbox;
-
+        console.log("data: ", data);
         // Neue Datenstruktur für gefilterte Boxplots
         const filteredData = {
           labels: [],
@@ -188,12 +222,32 @@ export default {
   max-width: 100%;
   width: 80%;
   padding: 20px;
-  border-radius: 8px; 
+  border-radius: 8px;
   z-index: 1000;
 }
 .popup-text {
   color: white;
   font-size: 18px;
   text-align: center;
+}
+.button-text-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.button-group {
+  display: flex;
+  gap: 10px; /* Abstand zwischen den Buttons */
+  width: 100%; /* Buttons über die gesamte Breite strecken */
+  justify-content: center; /* Buttons zentrieren */
+}
+
+.centered-text {
+  text-align: center;
+  margin-top: 10px;
+  max-width: 100%;
+  width: calc(100% - 20px); /* Gleiche Breite wie die Button-Gruppe */
 }
 </style>

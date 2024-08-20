@@ -45,13 +45,15 @@ export default {
               title: {
                 display: true,
                 text: this.xLabel || 'Default X Label'  // X-axis label
-              }
+              },
+             
             },
             y: {
               title: {
                 display: true,
                 text: this.yLabel || 'Default Y Label'  // Y-axis label
-              }
+              },
+              
             }
           }
         }
