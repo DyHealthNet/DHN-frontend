@@ -42,6 +42,14 @@ export default {
   },
 
   methods: {
+    checkVariableConflict() {
+      // Check if xVar and yVar or xVar and cVar are the same
+      if (this.xVar === this.yVar) {
+        alert("Two selected Variables are same. Please choose different variables.");
+        return true;
+      }
+      return false;
+    },
     async fetchAndUpdateChart() {
       await this.fetchChartData();
       this.updateChart();
@@ -50,7 +58,7 @@ export default {
     async fetchChartData() {
       console.log('this.xVar: ', this.xVar)
       console.log('this.yVar: ', this.yVar)
-      if (!this.xVar || !this.yVar) {
+      if (!this.xVar || !this.yVar ||this.checkVariableConflict()) {
         this.chartData = { xCategories: [], yCategories: [], datasets: [] };
         return this.chartData;
       }

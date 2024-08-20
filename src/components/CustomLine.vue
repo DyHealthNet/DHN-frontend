@@ -65,7 +65,7 @@ export default {
       console.log("this.xVar: ", this.xVar);
       console.log("this.yVar: ", this.yVar);
       console.log("this.cVar: ", this.cVar);
-      if (!this.xVar || !this.yVar) {
+      if (!this.xVar || !this.yVar || this.checkVariableConflict()) {
         return {
           datasets: [],
         };
@@ -111,6 +111,14 @@ export default {
           this.$refs.lineComponent.lineInstance.update();
         }
       });
+    },
+    checkVariableConflict() {
+      // Check if xVar and yVar or xVar and cVar are the same
+      if (this.xVar === this.yVar || this.xVar === this.cVar|| this.yVar === this.cVar) {
+        alert("The selected variabels are same. Please choose different variables.");
+        return true;
+      }
+      return false;
     },
 
     async fetchChartData() {

@@ -37,7 +37,7 @@ export default {
       console.log('this.xVar: ', this.xVar)
       console.log('this.cVar: ', this.cVar)
 
-      if (!this.xVar) {
+      if (!this.xVar || this.checkVariableConflict()) {
         return {
           labels: [],
           datasets: []
@@ -73,6 +73,14 @@ export default {
     cVar: 'fetchChartData'
   },
   methods: {
+    checkVariableConflict() {
+      // Check if xVar and yVar or xVar and cVar are the same
+      if ( this.xVar === this.cVar) {
+        alert("The selected variabels are same. Please choose different variables.");
+        return true;
+      }
+      return false;
+    },
     updateChart() {
       this.$nextTick(() => {
         if (this.$refs.chartComponent && this.$refs.chartComponent.chartInstance) {
