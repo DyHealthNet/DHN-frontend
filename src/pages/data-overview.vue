@@ -13,14 +13,14 @@
                   <v-toolbar color="#104D63">
                     <v-toolbar-title
                       >Overview of data
-                      <!--<v-tooltip bottom>
+                      <v-tooltip bottom>
                         <template v-slot:activator="{ props }">
                           <v-icon v-bind="props">mdi-information</v-icon>
                         </template>
                         <span
                           >Overview of data that involved in this project.</span
                         >
-                      </v-tooltip>-->
+                      </v-tooltip>
                     </v-toolbar-title>
                   </v-toolbar>
                   <v-spacer></v-spacer>
@@ -38,20 +38,25 @@
                             v-for="(item, index) in rows1"
                             :key="index"
                           >
-                            <v-card>
+                            <v-card class="mx-auto">
                               <v-row>
                                 <v-col cols="12">
-                                  <v-img>
-                                    <img
-                                      :src="about_us"
-                                      alt="about us"
-                                      width="100"
-                                      height="100"
-                                    />
-                                  </v-img>
+                                  <v-col cols="12">
+                                    <v-img>
+                                      <!-- Assign different images based on index -->
+                                      <img
+                                        :src="getImageForCard(item.name)"
+                                        :alt="item.name"
+                                        width="80"
+                                        height="80"
+                                      />
+                                    </v-img>
+                                  </v-col>
                                 </v-col>
                                 <v-col cols="12">
-                                  <v-card-title>{{ item.name }}</v-card-title>
+                                  <v-card-title class="small-title">{{
+                                    item.name
+                                  }}</v-card-title>
                                   <v-card-text>{{ item.column1 }}</v-card-text>
                                 </v-col>
                               </v-row>
@@ -309,7 +314,7 @@
                                     v-model="selectedVariableHeatmap1"
                                     clearable
                                     label="Select category variable 1"
-                                    :items="itemHeatmap1"
+                                    :items="itemtest"
                                     style="max-width: 300px; color: #104d63"
                                     v-bind="props"
                                   ></v-autocomplete>
@@ -324,7 +329,7 @@
                                     v-model="selectedVariableHeatmap2"
                                     clearable
                                     label="Select category variable 2"
-                                    :items="itemHeatmap2"
+                                    :items="itemtest"
                                     style="max-width: 300px; color: #104d63"
                                     v-bind="props"
                                   ></v-autocomplete>
@@ -460,6 +465,7 @@ import CustomHeatmap from "../components/CustomHeatMap.vue";
 // text boxplot component
 //import BoxTest from "@/pages/test.vue";
 //import * as dataVariables from "../data/test_variables.json";
+import test_table from "../data/test_dataTableOverview.json";
 
 import {
   Chart as ChartJS,
@@ -485,7 +491,6 @@ export default {
   components: { CustomBar, CustomLine, CustomBox, CustomHeatmap },
   data() {
     return {
-      about_us: new URL("../assets/figures/About_Us.png", import.meta.url).href,
       model: "tab-2",
 
       //Tab names
@@ -547,7 +552,7 @@ export default {
   // +++++++++++  Table Data  ++++++++++++++
   // Get the data for the table
   created() {
-    this.splitRows(this.getTableData());
+    this.splitRows(this.getTableData(test_table));
     this.getVariableDataBar();
     this.getVariableDataLine();
     this.getVariableDataBox();
@@ -562,8 +567,51 @@ export default {
       this.columns = tableData.columns;
       // split the rows into two halves so that they can be displayed in two tables
       const midpoint = Math.ceil(tableData.rows.length / 2);
-      this.rows1 = tableData.rows.slice(0, midpoint - 1);
-      this.rows2 = tableData.rows.slice(midpoint - 1);
+      this.rows1 = tableData.rows.slice(0, midpoint);
+      this.rows2 = tableData.rows.slice(midpoint);
+    },
+    getImageForCard(name) {
+      const images = [
+        {
+          name: "Participants",
+          imagepath: new URL(
+            "../assets/figures/participants.png",
+            import.meta.url
+          ).href,
+        },
+        {
+          name: "Phenotypes",
+          imagepath: new URL(
+            "../assets/figures/phenotypes.png",
+            import.meta.url
+          ).href,
+        },
+        {
+          name: "Proteins",
+          imagepath: new URL("../assets/figures/proteins.png", import.meta.url)
+            .href,
+        },
+        {
+          name: "Metabolites",
+          imagepath: new URL(
+            "../assets/figures/metabolites.png",
+            import.meta.url
+          ).href,
+        },
+        {
+          name: "Genetic Variants",
+          imagepath: new URL(
+            "../assets/figures/genetic_variants.png",
+            import.meta.url
+          ).href,
+        },
+      ];
+      for (let i = 0; i < images.length; i++) {
+        if (name === images[i].name) {
+          return images[i].imagepath;
+        }
+      }
+      return new URL("../assets/figures/About_Us.png", import.meta.url).href;
     },
 
     // Bar Plot Data Fetch
@@ -624,10 +672,9 @@ export default {
           column1: data[key],
         }));
         //##############Have to change the Box Variable Data#########
-        this.xItemsBox = data.nonbinaryCategorical.concat(
-          data.binaryCategorical
-        );
-        //.concat(data.continuous);
+        this.xItemsBox = data.nonbinaryCategorical
+          .concat(data.binaryCategorical)
+          .concat(data.continuous);
         this.yItemsBox = data.nonbinaryCategorical
           .concat(data.binaryCategorical)
           .concat(data.continuous);
@@ -662,7 +709,10 @@ export default {
     },
 
     // Table Daten
-    getTableData() {
+    getTableData(imported_json) {
+      const rows = Object.entries(imported_json).map(([key, value]) => {
+        return { name: key, column1: value };
+      });
       // return simulated data
       return {
         // this part here stays static, don't need to change this
@@ -670,19 +720,21 @@ export default {
           { align: "start", key: "name", sortable: false, title: "" },
           { key: "column1" },
         ],
-        rows: [
-          { name: "Participants", column1: 13000 },
-          //{ name: "Male", column1: 6545 },
-          //{ name: "Female", column1: 6455 },
-          { name: "Phenotypes", column1: 1284 },
-          { name: "Proteins", column1: 7300 },
-          { name: "Metabolites", column1: 175 },
-          { name: "Phenotype-Boolean", column1: 26 },
-          { name: "Phenotype-Categorical", column1: 1234 },
-          { name: "Phenotype-Float", column1: 0 },
-          { name: "Phenotype-Integer", column1: 7 },
-          { name: "Phenotype-Time", column1: 17 },
-        ],
+        rows: rows,
+        //rows: [
+        //  { name: "Participants", column1: 13000 },
+        //{ name: "Male", column1: 6545 },
+        //{ name: "Female", column1: 6455 },
+        //  { name: "Phenotypes", column1: 1284 },
+        //  { name: "Proteins", column1: 7300 },
+        //  { name: "Metabolites", column1: 175 },
+        //  { name: "Gene Variants", column1: 20000 },
+        //  { name: "Phenotype-Boolean", column1: 26 },
+        //  { name: "Phenotype-Categorical", column1: 1234 },
+        //  { name: "Phenotype-Float", column1: 0 },
+        //  { name: "Phenotype-Integer", column1: 7 },
+        //  { name: "Phenotype-Time", column1: 17 },
+        //],
       };
     },
   },
@@ -696,5 +748,8 @@ export default {
 
 .second-column {
   padding-left: 10px;
+}
+.small-title {
+  font-size: 18px;
 }
 </style>
