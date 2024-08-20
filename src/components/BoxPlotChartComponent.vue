@@ -16,6 +16,14 @@ export default {
       type: Object,
       required: true
     },
+    xLabel: {
+      type: String,
+      required: true,
+    },
+    yLabel: {
+      type: String,
+      required: true,
+    }
   },
   mounted() {
     Chart.register(BoxPlotController, BoxAndWiskers, LinearScale, CategoryScale);
@@ -31,6 +39,22 @@ export default {
      this.chartInstance = new Chart(ctx, {
        type: 'boxplot',
        data: this.chartData,
+       options: {
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: this.xLabel || 'Default X Label'  // X-axis label
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: this.yLabel || 'Default Y Label'  // Y-axis label
+              }
+            }
+          }
+        }
      });
    },
   }

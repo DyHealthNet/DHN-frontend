@@ -12,16 +12,27 @@ export default {
       type: Object,
       required: true,
     },
+    xLabel: {
+      type: String,
+      required: true,
+    },
+    yLabel: {
+      type: String,
+      required: true,
+    },
   },
   mounted() {
     this.createHeatmap();
   },
   methods: {
     createHeatmap() {
+      const xCategoriesAsString = this.chartData.xCategories.map(String);
+      const yCategoriesAsString = this.chartData.yCategories.map(String);
+
       const trace = {
+        x: xCategoriesAsString,
+        y: yCategoriesAsString,
         z: this.chartData.datasets,
-        x: this.chartData.xCategories,
-        y: this.chartData.yCategories,
         type: "heatmap",
         colorscale: [
           [0, "rgb(209,229,240)"], // Lightest color
@@ -30,7 +41,20 @@ export default {
         ],
       };
 
-      const layout = {};
+      const layout = {
+        xaxis: {
+          type: "category",
+          title: {
+            text: this.xLabel || 'Default X Label'
+          }
+        },
+        yaxis: {
+          type: "category",
+          title: {
+            text:this.yLabel || 'Default Y Label'
+          }
+        },
+      };
 
       Plotly.newPlot("heatmap", [trace], layout);
     },

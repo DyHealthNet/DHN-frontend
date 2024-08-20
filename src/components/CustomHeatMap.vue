@@ -1,6 +1,7 @@
 <template>
   <div>
-    <HeatmapChartComponent :chartData="chartData" ref="heatmapComponent" />
+    <HeatmapChartComponent :chartData="chartData" :xLabel="this.xVar" 
+    :yLabel="this.yVar" ref="heatmapComponent" />
   </div>
 </template>
 
@@ -59,8 +60,14 @@ export default {
         const url = new URL("/network/api/plotDataHeatmap/", BASE_URL);
         url.searchParams.append("x", this.xVar);
         url.searchParams.append("y", this.yVar);
+        console.log('url: ', url)
         const response = await fetch(url);
         const data = await response.json();
+        this.rows = Object.keys(data).map((key) => ({
+          name: key,
+          column1: data[key],
+        })) 
+        
         this.chartData = data;
 
         // Simulating an API call with the imported test data

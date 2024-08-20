@@ -1,63 +1,81 @@
 <template>
-      <Line ref="lineComponent" :data="chartData" :options="computedChartOptions" />
+  <Line ref="lineComponent" :data="chartData" :options="computedChartOptions" />
 </template>
-  
-  <script>
-  const BASE_URL = import.meta.env.VITE_BACKEND_URL || `${window.location.protocol}//${window.location.host}`;
-  import linePlot1 from '../data/test_linePlotData.json'
-  import { Line } from 'vue-chartjs';
-  import { Chart as ChartJS, Title, Tooltip, Legend, LineElement, LinearScale, CategoryScale, PointElement } from 'chart.js';
-  
-  
-  // Register the components globally
-  ChartJS.register(Title, Tooltip, Legend, LineElement, LinearScale, CategoryScale, PointElement);
-  
-  export default {
-    name: 'CustomLine',
 
-    components: {
-      Line
-    },
-    
-    props: {
+<script>
+const BASE_URL =
+  import.meta.env.VITE_BACKEND_URL ||
+  `${window.location.protocol}//${window.location.host}`;
+import linePlot1 from "../data/test_linePlotData.json";
+import { Line } from "vue-chartjs";
+import {
+  Chart as ChartJS,
+  Title,
+  Tooltip,
+  Legend,
+  LineElement,
+  LinearScale,
+  CategoryScale,
+  PointElement,
+} from "chart.js";
+
+// Register the components globally
+ChartJS.register(
+  Title,
+  Tooltip,
+  Legend,
+  LineElement,
+  LinearScale,
+  CategoryScale,
+  PointElement
+);
+
+export default {
+  name: "CustomLine",
+
+  components: {
+    Line,
+  },
+
+  props: {
     xVar: {
       type: String,
-      required: true
+      required: true,
     },
     yVar: {
       type: String,
-      required: true
+      required: true,
     },
     cVar: {
       type: String,
-      required: false
-    }
+      required: false,
+    },
   },
 
   data() {
     return {
       chartData: {
-        datasets: []
-      }
-    }
+        datasets: [],
+      },
+    };
   },
 
   computed: {
     computedChartData() {
-      console.log('this.xVar: ', this.xVar)
-      console.log('this.yVar: ', this.yVar)
-      console.log('this.cVar: ', this.cVar)
+      console.log("this.xVar: ", this.xVar);
+      console.log("this.yVar: ", this.yVar);
+      console.log("this.cVar: ", this.cVar);
       if (!this.xVar || !this.yVar) {
         return {
-          datasets: []
-        }
+          datasets: [],
+        };
       }
       // Add your stuff here. I.e. the api call or other data manipulation. If you create a function, just add it
       // in the methods section and call it here using this.functionName()
-      console.log('this.xVar: ', this.xVar)
-      console.log('this.yVar: ', this.yVar)
-      console.log('this.cVar: ', this.cVar)
-      return this.fetchChartData()
+      console.log("this.xVar: ", this.xVar);
+      console.log("this.yVar: ", this.yVar);
+      console.log("this.cVar: ", this.cVar);
+      return this.fetchChartData();
     },
     computedChartOptions() {
       return {
@@ -66,33 +84,33 @@
         scales: {
           x: {
             beginAtZero: true,
-            title:{
+            title: {
               display: true,
-              text: this.xVar
-            }
+              text: this.xVar || "Default X",
+            },
           },
           y: {
             beginAtZero: true,
-            title:{
+            title: {
               display: true,
-              text: this.yVar
-            }
-          }
-        }
-      }
-    }
+              text: this.yVar || "Default Y",
+            },
+          },
+        },
+      };
+    },
   },
   watch: {
-    computedChartData: 'updateChart',
-    computedChartOptions: 'updateChart'
+    computedChartData: "updateChart",
+    computedChartOptions: "updateChart",
   },
   methods: {
     updateChart() {
       this.$nextTick(() => {
         if (this.$refs.lineComponent && this.$refs.lineComponent.lineInstance) {
-          this.$refs.lineComponent.lineInstance.update()
+          this.$refs.lineComponent.lineInstance.update();
         }
-      })
+      });
     },
 
     async fetchChartData() {
@@ -108,28 +126,28 @@
         if (this.cVar) {
           url.searchParams.append("c", this.cVar);
         }
-        console.log('url: ', url)
+        console.log("url: ", url);
         const response = await fetch(url);
         const data = await response.json();
         this.rows = Object.keys(data).map((key) => ({
           name: key,
           column1: data[key],
-        })) 
+        }));
 
         this.chartData = data;
         //this.chartData = linePlot1;
-        console.log('this.chartData: ', this.chartData)
+        console.log("this.chartData: ", this.chartData);
 
         return this.chartData;
       } catch (error) {
         console.error("Error fetching variable data:", error);
         this.chartData = { datasets: [] };
       }
-    }
+    },
   },
 
   mounted() {
-    this.updateChart()
-  }
-}
+    this.updateChart();
+  },
+};
 </script>

@@ -1,18 +1,22 @@
 <template>
   <div>
     <!-- BoxPlotChartComponent anzeigen -->
-    <BoxPlotChartComponent :chartData="chartData" ref="boxplotchartComponent" />
+    <BoxPlotChartComponent :chartData="chartData" :xLabel="this.xVar" 
+    :yLabel="this.yVar" ref="boxplotchartComponent" />
     <!-- Overlay anzeigen, wenn Daten entfernt wurden -->
     <!--<div v-if="showPopup" class="popup popup-text">
       Some of the data is not displayed due to a small number of patients.
       <button @click="closePopup" style="border: 2px solid #000">OK</button>
     </div>-->
-    <v-alert v-if="showPopup" color="error" icon="$warning" class="popup">
-      <div class="popup-text">
-        Some of the data is not displayed due to a small number of patients.
-      </div>
-      <v-btn color="primary" @click="closePopup">OK</v-btn>
-    </v-alert>
+   
+    <div class="popup">
+      <v-alert v-if="showPopup" color="error" icon="$warning" >
+        <div class="popup-text">
+          Some groups don't have enough members and due to privacy issues some data is not displayed.
+        </div>
+        <v-btn color="primary" @click="closePopup">OK</v-btn>
+      </v-alert>
+    </div>
   </div>
 </template>
 
@@ -79,15 +83,15 @@ export default {
           url.searchParams.append("c", this.cVar);
         }
         console.log("url: ", url);
-        //const response = await fetch(url);
-        //const data = await response.json();
+        const response = await fetch(url);
+        const data = await response.json();
         //this.rows = Object.keys(data).map((key) => ({
         //  name: key,
         //  column1: data[key],
         //}))
 
         // Original JSON-Daten
-        const data = testbox;
+        //const data = testbox;
 
         // Neue Datenstruktur für gefilterte Boxplots
         const filteredData = {
@@ -107,7 +111,7 @@ export default {
 
           // Prüfen, ob alle Boxplots für diesen Index ungültig sind
           const allBoxplotsInvalid = data.datasets.every(
-            (dataset) => dataset.data[i].min === -1
+            (dataset) => dataset.data[i].min === -100
           );
 
           // Wenn nicht alle Boxplots ungültig sind, dann Label beibehalten
@@ -118,7 +122,7 @@ export default {
             data.datasets.forEach((dataset, datasetIndex) => {
               const boxplot = dataset.data[i];
 
-              if (boxplot.min !== -1) {
+              if (boxplot.min !== -100) {
                 filteredData.datasets[datasetIndex].data.push(boxplot);
               } else {
                 // In den anderen Gruppen einen Platzhalter einfügen
@@ -178,15 +182,17 @@ export default {
 <style>
 .popup {
   position: fixed;
-  top: 100%;
+  top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  max-width: 400px;
-  width: 100%;
+  max-width: 100%;
+  width: 80%;
+  padding: 20px;
+  border-radius: 8px; 
   z-index: 1000;
 }
 .popup-text {
-  color: #333;
+  color: white;
   font-size: 18px;
   text-align: center;
 }

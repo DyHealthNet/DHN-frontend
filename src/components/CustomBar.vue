@@ -54,7 +54,7 @@ export default {
             beginAtZero: true,
             title: {
               display: true,
-              text: this.xVar
+              text: this.xVar || "Default X"
             }
           },
           y: {
