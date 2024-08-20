@@ -218,7 +218,7 @@
 
                           <!--Box Plot-->
                           <v-col cols="12" align="center">
-                            <div style="height: 450px; width: 800px">
+                            <div style="height: 500px; width: 800px">
                               <CustomBox
                                 :x-var="selectedXvariableBox"
                                 :y-var="selectedYvariableBox"
@@ -314,7 +314,7 @@
                                     v-model="selectedVariableHeatmap1"
                                     clearable
                                     label="Select category variable 1"
-                                    :items="itemtest"
+                                    :items="itemHeatmap1"
                                     style="max-width: 300px; color: #104d63"
                                     v-bind="props"
                                   ></v-autocomplete>
@@ -329,7 +329,7 @@
                                     v-model="selectedVariableHeatmap2"
                                     clearable
                                     label="Select category variable 2"
-                                    :items="itemtest"
+                                    :items="itemHeatmap2"
                                     style="max-width: 300px; color: #104d63"
                                     v-bind="props"
                                   ></v-autocomplete>
@@ -476,6 +476,7 @@ import {
   CategoryScale,
   LinearScale,
 } from "chart.js";
+import { helper } from "echarts";
 
 ChartJS.register(
   Title,
