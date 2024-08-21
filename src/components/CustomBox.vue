@@ -7,12 +7,8 @@
       :yLabel="this.yVar"
       ref="boxplotchartComponent"
     />
-    <!-- Overlay anzeigen, wenn Daten entfernt wurden -->
-    <!--<div v-if="showPopup" class="popup popup-text">
-      Some of the data is not displayed due to a small number of patients.
-      <button @click="closePopup" style="border: 2px solid #000">OK</button>
-    </div>-->
 
+    <!--PopUp Alert-->
     <div class="popup">
       <v-alert v-if="showPopup" color="error" icon="$warning">
         <div class="popup-text">
@@ -23,7 +19,7 @@
       </v-alert>
     </div>
 
-    <!-- Container für Buttons und Text -->
+    <!-- Special cases as Example -->
     <div class="button-text-container">
       <div class="button-group">
         <v-btn @click="showExample" style="background-color: #f1f1f1">
@@ -113,7 +109,7 @@ export default {
       try {
         let data;
         if (this.useExampleData) {
-          // Verwende die Beispiel-Daten
+          // Verwende die Beispiel-Daten 
           data = testbox;
         } else {
           console.log("this.xVar: ", this.xVar);

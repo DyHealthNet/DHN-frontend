@@ -1,46 +1,67 @@
 <template>
-  <Bar ref="chartComponent" :data="computedChartData" :options="computedChartOptions" />
+  <Bar
+    ref="chartComponent"
+    :data="computedChartData"
+    :options="computedChartOptions"
+  />
 </template>
 
 <script>
-const BASE_URL = import.meta.env.VITE_BACKEND_URL || `${window.location.protocol}//${window.location.host}`;
-import { Bar } from 'vue-chartjs'
-import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js'
-import barPlot1 from '../data/test_countBar.json'
-import text from '../data/test_popup.json'
+const BASE_URL =
+  import.meta.env.VITE_BACKEND_URL ||
+  `${window.location.protocol}//${window.location.host}`;
+import { Bar } from "vue-chartjs";
+import {
+  Chart as ChartJS,
+  Title,
+  Tooltip,
+  Legend,
+  BarElement,
+  CategoryScale,
+  LinearScale,
+} from "chart.js";
+import barPlot1 from "../data/test_countBar.json";
+import text from "../data/test_popup.json";
 
-ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale)
+ChartJS.register(
+  Title,
+  Tooltip,
+  Legend,
+  BarElement,
+  CategoryScale,
+  LinearScale
+);
 
 export default {
-  name: 'CustomBar',
+  name: "CustomBar",
   components: { Bar },
   props: {
     xVar: {
       type: String,
-      required: true
+      required: true,
     },
     cVar: {
       type: String,
-      required: false
-    }
+      required: false,
+    },
   },
   data() {
     return {
       chartData: {
         labels: [],
-        datasets: []
-      }
-    }
+        datasets: [],
+      },
+    };
   },
   computed: {
     computedChartData() {
-      console.log('this.xVar: ', this.xVar)
-      console.log('this.cVar: ', this.cVar)
+      console.log("this.xVar: ", this.xVar);
+      console.log("this.cVar: ", this.cVar);
 
       if (!this.xVar || this.checkVariableConflict()) {
         return {
           labels: [],
-          datasets: []
+          datasets: [],
         };
       }
       return this.chartData;
@@ -54,36 +75,44 @@ export default {
             beginAtZero: true,
             title: {
               display: true,
-              text: this.xVar || "Default X"
-            }
+              text: this.xVar || "X Label",
+            },
+            ticks: {
+              minRotation: 25, 
+              maxRotation: 25, 
+            },
           },
           y: {
             beginAtZero: true,
             title: {
               display: true,
-              text: "Counts"
-            }
-          }
-        }
-      }
-    }
+              text: "Counts",
+            },
+          },
+        },
+      };
+    },
   },
   watch: {
-    xVar: 'fetchChartData',
-    cVar: 'fetchChartData'
+    xVar: "fetchChartData",
+    cVar: "fetchChartData",
   },
   methods: {
     checkVariableConflict() {
-      // Check if xVar and yVar or xVar and cVar are the same
-      if ( this.xVar === this.cVar) {
-        alert("The selected variabels are same. Please choose different variables.");
+      if (this.xVar === this.cVar) {
+        alert(
+          "The selected variabels are same. Please choose different variables."
+        );
         return true;
       }
       return false;
     },
     updateChart() {
       this.$nextTick(() => {
-        if (this.$refs.chartComponent && this.$refs.chartComponent.chartInstance) {
+        if (
+          this.$refs.chartComponent &&
+          this.$refs.chartComponent.chartInstance
+        ) {
           this.$refs.chartComponent.chartInstance.update();
         }
       });
@@ -102,26 +131,26 @@ export default {
           url.searchParams.append("c", this.cVar);
         }
 
-        console.log('url: ', url);
+        console.log("url: ", url);
         const response = await fetch(url);
         const data = await response.json();
         this.rows = Object.keys(data).map((key) => ({
           name: key,
           column1: data[key],
-        })) 
+        }));
 
         this.chartData = data;
         //this.chartData = text;
-        
+
         this.updateChart();
       } catch (error) {
         console.error("Error fetching variable data:", error);
         this.chartData = { labels: [], datasets: [] };
       }
-    }
+    },
   },
   mounted() {
     this.fetchChartData();
-  }
-}
+  },
+};
 </script>

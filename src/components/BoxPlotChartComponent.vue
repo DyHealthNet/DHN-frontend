@@ -44,14 +44,18 @@ export default {
             x: {
               title: {
                 display: true,
-                text: this.xLabel || 'Default X Label'  // X-axis label
+                text: this.xLabel || 'X Label'  
               },
+              ticks: {
+              minRotation: 25, 
+              maxRotation: 25, 
+            },
              
             },
             y: {
               title: {
                 display: true,
-                text: this.yLabel || 'Default Y Label'  // Y-axis label
+                text: this.yLabel || 'Y Label'  // Y-axis label
               },
               
             }

@@ -86,14 +86,18 @@ export default {
             beginAtZero: false,
             title: {
               display: true,
-              text: this.xVar || "Default X",
+              text: this.xVar || "X Label",
+            },
+            ticks: {
+              minRotation: 25, 
+              maxRotation: 25, 
             },
           },
           y: {
             beginAtZero: false,
             title: {
               display: true,
-              text: this.yVar || "Default Y",
+              text: this.yVar || "Y Label",
             },
           },
         },
@@ -113,7 +117,6 @@ export default {
       });
     },
     checkVariableConflict() {
-      // Check if xVar and yVar or xVar and cVar are the same
       if (this.xVar === this.yVar || this.xVar === this.cVar|| this.yVar === this.cVar) {
         alert("The selected variabels are same. Please choose different variables.");
         return true;

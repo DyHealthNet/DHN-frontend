@@ -43,7 +43,6 @@ export default {
 
   methods: {
     checkVariableConflict() {
-      // Check if xVar and yVar or xVar and cVar are the same
       if (this.xVar === this.yVar) {
         alert("Two selected Variables are same. Please choose different variables.");
         return true;
@@ -77,10 +76,6 @@ export default {
         })) 
         
         this.chartData = data;
-
-        // Simulating an API call with the imported test data
-        //console.log("testheatmap: ", testheatmap);
-        //this.chartData = testheatmap;
         console.log("this.chartData: ", this.chartData);
 
         return this.chartData;

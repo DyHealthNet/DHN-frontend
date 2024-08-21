@@ -45,14 +45,20 @@ export default {
         xaxis: {
           type: "category",
           title: {
-            text: this.xLabel || 'Default X Label'
-          }
+            text: this.xLabel || 'X Label',
+            standoff: 20, // Abstand zwischen Achsentitel und Achse
+          },
+          tickangle: -20, // Labels um drehen
+          automargin: true, 
         },
         yaxis: {
           type: "category",
           title: {
-            text:this.yLabel || 'Default Y Label'
-          }
+            text: this.yLabel || 'Y Label',
+            standoff: 20, // Abstand zwischen Achsentitel und Achse
+          },
+          tickangle: 0, 
+          automargin: true, 
         },
       };
 
