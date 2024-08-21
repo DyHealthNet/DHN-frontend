@@ -40,19 +40,49 @@
                           >
                             <v-card class="mx-auto">
                               <v-row>
+                                <!-- Check if it's the last card -->
+                                <!--<v-col
+                                  cols="12"
+                                  v-if="index === rows1.length - 1"
+                                >-->
+                                <!-- Render table for the last card -->
+                                <!--<v-card-title class="small-title"
+                                    >Summary Table</v-card-title
+                                  >
+                                  <v-card-text>
+                                    <v-simple-table>
+                                      <thead>
+                                        <tr>
+                                          <th class="text-left">Name</th>
+                                          <th class="text-left">Value</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        <tr
+                                          v-for="(row, rowIndex) in rows2"
+                                          :key="rowIndex"
+                                        >
+                                          <td>{{ row.name }}</td>
+                                          <td>{{ row.value }}</td>
+                                        </tr>
+                                      </tbody>
+                                    </v-simple-table>
+                                  </v-card-text>
+                                </v-col>-->
+                                <!-- Render regular card for other items -->
+                                <!--<v-col cols="12" v-else>-->
                                 <v-col cols="12">
-                                  <v-col cols="12">
-                                    <v-img>
-                                      <!-- Assign different images based on index -->
-                                      <img
-                                        :src="getImageForCard(item.name)"
-                                        :alt="item.name"
-                                        width="80"
-                                        height="80"
-                                      />
-                                    </v-img>
-                                  </v-col>
+                                  <v-img>
+                                    <!-- Assign different images based on index -->
+                                    <img
+                                      :src="getImageForCard(item.name)"
+                                      :alt="item.name"
+                                      width="80"
+                                      height="80"
+                                    />
+                                  </v-img>
                                 </v-col>
+                                <!--</v-col>-->
                                 <v-col cols="12">
                                   <v-card-title class="small-title">{{
                                     item.name
@@ -492,6 +522,8 @@ export default {
   components: { CustomBar, CustomLine, CustomBox, CustomHeatmap },
   data() {
     return {
+      data_table: null,
+
       model: "tab-2",
 
       //Tab names
@@ -528,20 +560,20 @@ export default {
       itemHeatmap2: [],
 
       //initialized selected variables, currently they share the same selected variables
-      selectedXvariableBar: null,
+      selectedXvariableBar: "Food frequency: Meat (x0fd01)",
       //selectedYvariableBar: null,
-      selectedCvariableBar: null,
+      selectedCvariableBar: "Sex (x0_sex)",
 
-      selectedXvariableLine: null,
-      selectedYvariableLine: null,
-      selectedCvariableLine: null,
+      selectedXvariableLine: "Food frequency: Meat (x0fd01)",
+      selectedYvariableLine: "GOSR2 (x0so0116)",
+      selectedCvariableLine: "Sex (x0_sex)",
 
-      selectedXvariableBox: null,
-      selectedYvariableBox: null,
-      selectedCvariableBox: null,
+      selectedXvariableBox: "Food frequency: Meat (x0fd01)",
+      selectedYvariableBox: "Body Mass Index category, 12 classes (x0an03c)",
+      selectedCvariableBox: "Sex (x0_sex)",
 
-      selectedVariableHeatmap1: null,
-      selectedVariableHeatmap2: null,
+      selectedVariableHeatmap1: "Alcohol consumption (last 12 months) (x0al01)",
+      selectedVariableHeatmap2: "PSQI #13 (trouble sleeping: i) have pain) (x0sq13)",
 
       //table data initialization
       columns: [],
@@ -553,7 +585,9 @@ export default {
   // +++++++++++  Table Data  ++++++++++++++
   // Get the data for the table
   created() {
-    this.splitRows(this.getTableData(test_table));
+    //this.data_table = this.getTableDataFromApi()
+    //this.splitRows(this.getTableData(this.data_table));
+    this.loadData();
     this.getVariableDataBar();
     this.getVariableDataLine();
     this.getVariableDataBox();
@@ -563,13 +597,49 @@ export default {
   // +++++++++++ Methods ++++++++++++++
   methods: {
     //functions to get the data from the json file
+    async getTableDataFromApi() {
+      try {
+        const response = await fetch(`${BASE_URL}/network/api/table/`);
+        if (!response.ok) {
+          throw new Error("Network response was not ok");
+        }
+        const data = await response.json(); // Daten im JSON-Format abrufen
+
+        console.log("Overview of Data: ", data);
+
+        //return data;
+
+        const rows = Object.entries(data).map(([key, value]) => {
+          return { name: key, column1: value };
+        });
+        // return simulated data
+        return {
+          // this part here stays static, don't need to change this
+          columns: [
+            { align: "start", key: "name", sortable: false, title: "" },
+            { key: "column1" },
+          ],
+          rows: rows,
+        };
+      } catch (error) {
+        console.error("There was a problem with the fetch operation:", error);
+      }
+    },
+    async loadData() {
+      const data_table = await this.getTableDataFromApi();
+      if (data_table) {
+        this.splitRows(data_table);
+      } else {
+        console.error("Data table is null or undefined");
+      }
+    },
 
     splitRows(tableData) {
       this.columns = tableData.columns;
       // split the rows into two halves so that they can be displayed in two tables
-      const midpoint = Math.ceil(tableData.rows.length / 2);
-      this.rows1 = tableData.rows.slice(0, midpoint);
-      this.rows2 = tableData.rows.slice(midpoint);
+      //const midpoint = Math.ceil(tableData.rows.length / 2);
+      this.rows1 = tableData.rows.slice(0, tableData.rows.length - 5);
+      this.rows2 = tableData.rows.slice(tableData.rows.length - 5);
     },
     getImageForCard(name) {
       const images = [
@@ -628,9 +698,10 @@ export default {
           column1: data[key],
         }));
         //[...new Set(data.nonbinaryCategorical.concat(data.binaryCategorical))]
-        this.xItemsBar = data.nonbinaryCategorical;
+        this.xItemsBar = data.nonbinaryCategorical
+          .concat(data.binaryCategorical);
         //this.yItemsBar = data.nonbinaryCategorical;
-        this.colorItemsBar = data.binaryCategorical;
+        this.colorItemsBar = data.binaryCategorical.concat(data.nonbinaryCategorical);
       } catch (error) {
         console.error("Error fetching variable data:", error);
       }
@@ -651,7 +722,7 @@ export default {
           column1: data[key],
         }));
         this.xItemsLine = data.nonbinaryCategorical.concat(data.continuous);
-        this.yItemsLine = data.nonbinaryCategorical.concat(data.continuous);
+        this.yItemsLine = data.continuous;
         this.colorItemsLine = data.binaryCategorical.concat(
           data.nonbinaryCategorical
         );
@@ -677,7 +748,6 @@ export default {
           .concat(data.binaryCategorical)
           .concat(data.continuous);
         this.yItemsBox = data.nonbinaryCategorical
-          .concat(data.binaryCategorical)
           .concat(data.continuous);
         this.colorItemsBox = data.binaryCategorical.concat(
           data.nonbinaryCategorical
