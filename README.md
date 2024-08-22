@@ -14,7 +14,7 @@ Frontend is developed with Vue 3 in Vite.
   npm install vuetify
   npm install router
   npm install vis-network
-  npm install axion
+  npm install axios
   ```
 
 ### Compile and Hot-Reload for Development
