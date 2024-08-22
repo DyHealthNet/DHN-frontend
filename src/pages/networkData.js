@@ -1,7 +1,10 @@
 export const groups = {
-  cohort_protein: {color: '#1d4cc2'},
-  cohort_metabolite: {color: '#c2220a'},
-  cohort_phenotype: {color: '#166105'},
+  protein: {color: '#6b6acf'},
+  metabolite: {color: '#c84d4c'},
+  phenotype: {color: '#ce9a28'},
+  variant: {color: '#44a043'},
+  gene: {color: '#28827a'},
+  disorder: {color: '#d37538'},
 };
 
 export const options = {

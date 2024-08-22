@@ -55,7 +55,7 @@
               type="text"
               v-model="searchText"
               @input="fetchData"
-              placeholder="Type something..."
+              placeholder="Search"
               style="width: 175px"
             />
             <ul v-if="dropdownNodes.length" class="dropdown" ref="dropdown">
@@ -114,7 +114,7 @@
       <!-- Legend -->
       <div class="legend">
         <h2>
-          Total Nodes: <span>{{ this.network_nodes.length }}</span>
+          Total Nodes:<span>{{ this.network_nodes.length }}</span>
         </h2>
         <div v-for="(group, key) in groups" :key="key" class="legend-item">
           <div
@@ -122,7 +122,7 @@
             :style="getShapeStyle(group.color, key)"
           ></div>
           <span
-            >&nbsp;&nbsp;{{ this.capitalizeFirstLetter(key) }}s:
+            >&nbsp;&nbsp;{{ this.capitalizeFirstLetter(key.split("_")[1]) }}s:
             {{ this.getNodesCount(key) }}</span
           >
         </div>
@@ -155,7 +155,9 @@
           </template>
           <span></span>
           <v-list-tile-avatar slot="activator">
-            <img src="../pages/legend.png" />
+            <img
+              src="../pages/legend.png"
+            />
           </v-list-tile-avatar>
           <span></span>
         </v-tooltip>
@@ -181,6 +183,103 @@
       >
         Only keep highlighted
       </button>
+
+      <button
+        @click="showOverlay"
+        title="Modify the type and number of added nodes"
+        class="icon-button"
+      >
+        <img
+          src="@/pages/gear-solid.svg"
+          alt="Clear Network Icon"
+          class="icon"
+        />
+      </button>
+      <!-- Overlay with radio button selection -->
+      <div v-if="isOverlayVisible" class="overlay">
+        <div class="overlay-content">
+          <h3>Amount of added CHRIS nodes:</h3>
+          <div class="checkbox-group">
+            <label>
+              <input
+                type="checkbox"
+                v-model="isProteinsChecked"
+                @change="updateProteinAmount"
+              />
+              <span class="bold-large-text">Proteins</span>
+            </label>
+            <input
+              type="number"
+              v-model="proteinAmount"
+              :disabled="!isProteinsChecked"
+              placeholder="Enter amount"
+              max="10"
+              min="0"
+            />
+          </div>
+
+          <div class="checkbox-group">
+            <label>
+              <input
+                type="checkbox"
+                v-model="isMetabolitesChecked"
+                @change="updateMetaboliteAmount"
+              />
+              <span class="bold-large-text">Metabolites</span>
+            </label>
+            <input
+              type="number"
+              v-model="metaboliteAmount"
+              :disabled="!isMetabolitesChecked"
+              placeholder="Enter amount"
+              max="10"
+              min="0"
+            />
+          </div>
+          <!-- Phenotypes Checkbox Group -->
+          <div class="checkbox-group">
+            <label>
+              <input
+                type="checkbox"
+                v-model="isPhenotypesChecked"
+                @change="updatePhenotypeAmount"
+              />
+              <span class="bold-large-text">Phenotypes</span>
+            </label>
+            <input
+              type="number"
+              v-model="phenotypeAmount"
+              :disabled="!isPhenotypesChecked"
+              placeholder="Enter amount"
+              max="10"
+              min="0"
+            />
+          </div>
+
+          <!-- Variants Checkbox Group -->
+          <div class="checkbox-group">
+            <label>
+              <input
+                type="checkbox"
+                v-model="isVariantsChecked"
+                @change="updateVariantAmount"
+              />
+              <span class="bold-large-text">Variants</span>
+            </label>
+            <input
+              type="number"
+              v-model="variantAmount"
+              :disabled="!isVariantsChecked"
+              placeholder="Enter amount"
+              max="10"
+              min="0"
+            />
+          </div>
+
+          <button @click="handleSubmit">Submit</button>
+          <button @click="hideOverlay">Cancel</button>
+        </div>
+      </div>
     </div>
     <!-- Info Panel -->
     <div class="info-panel">
@@ -204,115 +303,18 @@
           >
             Add Connected Nodes
           </button>
-          <button
-            @click="showOverlay"
-            title="Modify the type and number of added nodes"
-            class="icon-button"
-          >
-            <img
-              src="@/pages/gear-solid.svg"
-              alt="Clear Network Icon"
-              class="icon"
-            />
-          </button>
-          <!-- Overlay with radio button selection -->
-          <div v-if="isOverlayVisible" class="overlay">
-            <div class="overlay-content">
-              <h3>Amount of added CHRIS nodes:</h3>
-              <div class="checkbox-group">
-                <label>
-                  <input
-                    type="checkbox"
-                    v-model="isProteinsChecked"
-                    @change="updateProteinAmount"
-                  />
-                  <span class="bold-large-text">Proteins</span>
-                </label>
-                <input
-                  type="number"
-                  v-model="proteinAmount"
-                  :disabled="!isProteinsChecked"
-                  placeholder="Enter amount"
-                  max="10"
-                  min="0"
-                />
-              </div>
-
-              <div class="checkbox-group">
-                <label>
-                  <input
-                    type="checkbox"
-                    v-model="isMetabolitesChecked"
-                    @change="updateMetaboliteAmount"
-                  />
-                  <span class="bold-large-text">Metabolites</span>
-                </label>
-                <input
-                  type="number"
-                  v-model="metaboliteAmount"
-                  :disabled="!isMetabolitesChecked"
-                  placeholder="Enter amount"
-                  max="10"
-                  min="0"
-                />
-              </div>
-              <!-- Phenotypes Checkbox Group -->
-              <div class="checkbox-group">
-                <label>
-                  <input
-                    type="checkbox"
-                    v-model="isPhenotypesChecked"
-                    @change="updatePhenotypeAmount"
-                  />
-                  <span class="bold-large-text">Phenotypes</span>
-                </label>
-                <input
-                  type="number"
-                  v-model="phenotypeAmount"
-                  :disabled="!isPhenotypesChecked"
-                  placeholder="Enter amount"
-                  max="10"
-                  min="0"
-                />
-              </div>
-
-              <!-- Variants Checkbox Group -->
-              <div class="checkbox-group">
-                <label>
-                  <input
-                    type="checkbox"
-                    v-model="isVariantsChecked"
-                    @change="updateVariantAmount"
-                  />
-                  <span class="bold-large-text">Variants</span>
-                </label>
-                <input
-                  type="number"
-                  v-model="variantAmount"
-                  :disabled="!isVariantsChecked"
-                  placeholder="Enter amount"
-                  max="10"
-                  min="0"
-                />
-              </div>
-
-              <button @click="handleSubmit">Submit</button>
-              <button @click="hideOverlay">Cancel</button>
-            </div>
-          </div>
-
           <div id="messageContainer" style="position: absolute"></div>
           <button
             class="btn-show-external"
             @click="showExternals(this.displayedElement)"
-            title="Add connections from external databases, can take a few seconds for some protein"
+            title="Add external nodes"
           >
             Add external nodes
           </button>
 
           <p>&nbsp;</p>
-          <p title="CHRIS ID or display Name for external nodes">
-            <strong>ID:</strong> {{ displayedElement.id }}
+          <p title="CHRIS ID">
+            <strong>CHRIS ID:</strong> {{ displayedElement.id }}
           </p>
           <p title="Node label">
             <strong>Display Name:</strong> {{ displayedElement.display_name }}
@@ -334,15 +336,9 @@
             title="We use Uniprot for proteins, HMDB for metabolites and SNOMED for phenotypes"
           >
             <strong>Reference:</strong>
-            <span
-              v-if="
-                displayedElement.xrefs &&
-                displayedElement.xrefs[displayedElement.xrefs.length - 1] !==
-                  '.'
-              "
-            >
+            <span v-if="displayedElement.xrefs">
               <span
-                v-for="(xref, index) in displayedElement.xrefs.split('|')"
+                v-for="(xref, index) in displayedElement.xrefs.split(';')"
                 :key="index"
               >
                 <a
@@ -352,7 +348,7 @@
                   >{{ xref.trim() }}</a
                 >
                 <span
-                  v-if="index < displayedElement.xrefs.split('|').length - 1"
+                  v-if="index < displayedElement.xrefs.split(';').length - 1"
                   >,&#8203;</span
                 >
               </span>
@@ -507,7 +503,6 @@ export default {
       l: "10",
       allInternalEdges: [],
       allExternalEdges: [],
-      localExternals: [],
       groups: groups,
       isOverlayVisible: false,
       selectedOption: "", // To hold the value of the selected radio button
@@ -583,17 +578,15 @@ export default {
     getNodesCount(type) {
       if (
         this.network_nodes.length > 0 &&
-        (type === "protein" ||
-          type === "phenotype" ||
-          type === "metabolite" ||
-          type === "variant" ||
-          type === "gene" ||
-          type === "disorder")
+        (type === "cohort_protein" ||
+          type === "cohort_phenotype" ||
+          type === "cohort_metabolite" ||
+          type === "cohort_variant")
       ) {
         let count = 0;
         // If using a DataSet or similar that doesn't have filter but does have forEach:
         this.network_nodes.forEach((node) => {
-          if (node.source_table.split("_")[1] === type) {
+          if (node.source_table === type) {
             count++;
           }
         });
@@ -623,103 +616,8 @@ export default {
       this.isExpanded = !this.isExpanded;
     },
 
-    async showExternals(node) {
-      const ret = await this.doExternals(node);
-      const to_fetch = ret[0];
-      const refresh = ret[1];
-      console.log(to_fetch);
-      if (refresh) {
-        this.initializeNetwork();
-        this.updateHighlighting();
-      } else {
-        alert("No external edges found!");
-      }
-      if (to_fetch.length > 0) {
-        to_fetch.forEach((node) => this.fetchNodesAndEdges(node));
-      }
-      console.log("done");
-    },
-
-    async doExternals(node) {
-      const response = await axios.get(
-        BASE_URL + `/network/api/getAllExternals/?q=${node.id}`
-      );
-      console.log(response.data);
-
-      // add all edges to the network:
-      const ex_edges = response.data["External Edges"];
-
-      console.log(ex_edges);
-
-      ex_edges.forEach((edge) => {
-        // Iterate over mapping_source_id
-        edge.mapping_source_id.forEach((chris0) => {
-          // Iterate over mapping_target_id
-          edge.mapping_target_id.forEach((chris1) => {
-            // Push to allExternalEdges array
-            this.allExternalEdges.push({
-              ...edge,
-              set: "external",
-              to: chris0,
-              from: chris1,
-            });
-          });
-        });
-      });
-
-      let refresh = false;
-      // add all Chris nodes to the display panel
-      const chris_nodes = response.data["Chris Nodes"];
-      const fetchPromises = [];
-      let to_fetch = [];
-      for (const key in chris_nodes) {
-        if (Array.isArray(chris_nodes[key])) {
-          for (const node of chris_nodes[key]) {
-            if (!this.networkNodes.some((locnode) => locnode.id === node.id)) {
-              // Add the promise to the array
-              to_fetch.push(node);
-              node.set = "???";
-              this.networkNodes.push(node);
-              // fetchPromises.push(this.fetchNodesAndEdges(node));
-              this.displayedNodes.push(node);
-              refresh = true;
-            }
-          }
-        }
-      }
-      // Wait for all fetchNodesAndEdges calls to complete
-      await Promise.all(fetchPromises);
-
-      // add all external nodes to the nodes and display panel
-      // add all Chris nodes to the display panel
-      const ex_node = response.data["External Nodes"];
-      for (const key in ex_node) {
-        if (Array.isArray(ex_node[key])) {
-          for (const node of ex_node[key]) {
-            if (!this.networkNodes.some((locnode) => locnode.id === node.id)) {
-              if (key === "external_protein") {
-                node.id = node.uniprot_id;
-              } else if (key == "external_metabolite") {
-                node.id = node.hmdb_id;
-              } else if (key === "external_phenotype") {
-                node.id = node.hpo_id;
-              } else if (key === "external_variant") {
-                node.id = node.clinvar_id;
-              } else if (key === "external_gene") {
-                node.id = node.entrez_id;
-              } else if (key === "external_disorder") {
-                node.id = node.mondo_id;
-              }
-              node.set = "external";
-              node.source_table = key;
-              this.networkNodes.push(node);
-              this.displayedNodes.push(node);
-              refresh = true;
-            }
-          }
-        }
-      }
-      return { 0: to_fetch, 1: refresh };
+    showExternals(node) {
+      console.log(node);
     },
 
     clearNetwork() {
@@ -735,7 +633,6 @@ export default {
       this.displayedElementType = null;
       this.allInternalEdges = [];
       this.allExternalEdges = [];
-      this.localExternals = [];
       this.initializeNetwork();
       this.updateHighlighting();
     },
@@ -764,35 +661,19 @@ export default {
         link.click();
         // Remove the link from the document
         document.body.removeChild(link);
-
-        this.initializeNetwork();
-        this.updateHighlighting();
       } else {
         console.log("No network displayed");
       }
     },
 
     generateLink(xref) {
-      switch (xref.split(".")[0]) {
-        case "uniprot":
-          return `https://www.uniprot.org/uniprotkb/${xref.split(".")[1]}`;
-        case "hmdb":
-          return `https://hmdb.ca/metabolites/${xref.split(".")[1]}`;
-        case "snomedct":
-          return `https://browser.ihtsdotools.org/?perspective=full&conceptId1=${
-            xref.split(".")[1]
-          }`;
-        case "mondo":
-          return `https://monarchinitiative.org/MONDO:${xref.split(".")[1]}`;
-        case "umls":
-          return `https://www.ncbi.nlm.nih.gov/medgen/${xref.split(".")[1]}`;
-        case "omim":
-          return `https://omim.org/entry/${xref.split(".")[1]}`;
-        case "orpha":
-          return `https://www.orpha.net/en/disease/detail/${
-            xref.split(".")[1]
-          }`;
-
+      switch (this.displayedElement.source_table) {
+        case "cohort_protein":
+          return `https://www.uniprot.org/uniprotkb/${xref}`;
+        case "cohort_metabolite":
+          return `https://hmdb.ca/metabolites/${xref}`;
+        case "cohort_phenotype":
+          return `https://browser.ihtsdotools.org/?perspective=full&conceptId1=${xref}`;
         default:
           return "#"; // default case if source_table doesn't match
       }
@@ -856,76 +737,45 @@ export default {
         (locnode) => locnode.id === node.id
       );
       this.displayNode(locnode);
-      this.updateHighlighting();
     },
 
     async addConnectedNodes() {
       if (this.displayedElementType === "node") {
-        if (this.displayedElement.set === "CHRIS") {
-          const selID = this.displayedElement.id;
-          const connected_edges = this.allInternalEdges.filter(
-            (edge) => edge.from === selID || edge.to === selID
+        const selID = this.displayedElement.id;
+        const connected_edges = this.allInternalEdges.filter(
+          (edge) => edge.from === selID || edge.to === selID
+        );
+
+        // Use a for...of loop to await each asynchronous operation
+        const justAddedNodes = [];
+        for (const connected_edge of connected_edges) {
+          const node0 = this.networkNodes.find(
+            (node) => node.id === connected_edge.from
           );
-
-          // Object to keep track of how many nodes of each type have been added
-          const limits = {
-            cohort_protein: this.proteinAmount,
-            cohort_metabolite: this.metaboliteAmount,
-            cohort_phenotype: this.phenotypeAmount,
-            cohort_variant: this.variantAmount,
-          };
-          // Object to keep count of added nodes per type
-          const addedCounts = {
-            cohort_protein: 0,
-            cohort_metabolite: 0,
-            cohort_phenotype: 0,
-            cohort_variant: 0,
-          };
-
-          // Array to store nodes that will be added
-          const nodesToAdd = [];
-
-          // Loop through each connected edge
-          for (const connected_edge of connected_edges) {
-            const node0 = this.networkNodes.find(
-              (node) => node.id === connected_edge.from
-            );
-            const node1 = this.networkNodes.find(
-              (node) => node.id === connected_edge.to
-            );
-            nodesToAdd.push(node0);
-            nodesToAdd.push(node1);
+          const node1 = this.networkNodes.find(
+            (node) => node.id === connected_edge.to
+          );
+          if (
+            node0 &&
+            !this.displayedNodes.some((lno) => lno.id === node0.id)
+          ) {
+            this.displayedNodes.push(node0);
+            justAddedNodes.push(node0);
           }
-
-          // Sort nodes by p-value in descending order
-          nodesToAdd.sort((a, b) => b.pvalue - a.pvalue);
-
-          const justAddedNodes = [];
-          // Add nodes to displayedNodes and update the count
-          for (const node of nodesToAdd) {
-            if (
-              addedCounts[node.source_table] < limits[node.source_table] &&
-              !this.displayedNodes.some((n) => n.id === node.id)
-            ) {
-              this.displayedNodes.push(node);
-              addedCounts[node.source_table] =
-                addedCounts[node.source_table] + 1;
-              justAddedNodes.push(node);
-            }
+          if (
+            node1 &&
+            !this.displayedNodes.some((lno) => lno.id === node1.id)
+          ) {
+            this.displayedNodes.push(node1);
+            justAddedNodes.push(node1);
           }
-
-          if (justAddedNodes.length > 0) {
-            this.initializeNetwork();
-            this.updateHighlighting();
-            justAddedNodes.forEach((node) => {
-              this.fetchNodesAndEdges(node);
-            });
-          } else {
-            alert("No nodes added");
-          }
-        } else {
-          alert("Only possible for CHRIS nodes!!!");
         }
+
+        await this.initializeNetwork();
+        await this.updateHighlighting();
+        await justAddedNodes.forEach((node) => {
+          this.fetchNodesAndEdges(node);
+        });
       } else {
         // Display the message on the webpage
         const messageContainer = document.getElementById("messageContainer");
@@ -976,7 +826,6 @@ export default {
               if (
                 !this.networkNodes.some((locnode) => locnode.id === node.id)
               ) {
-                node.set = "CHRIS";
                 this.networkNodes.push(node);
               }
             });
@@ -1061,7 +910,6 @@ export default {
             const clickedNode = this.networkNodes.find(
               (currentNode) => currentNode.id === params.nodes[0]
             );
-            console.log(clickedNode);
             this.displayNode(clickedNode);
           } else if (params.edges.length === 1) {
             const clickedEdge = this.networkEdges.find(
@@ -1227,7 +1075,7 @@ export default {
       const updateNodes = this.network_nodes.get().map((node) => {
         return {
           ...node,
-          color: groups[node.source_table.split("_")[1]].color,
+          color: groups[node.source_table].color,
           shape: "square",
           size: 15,
           borderWidth: 4,
@@ -1279,12 +1127,12 @@ export default {
       return this.rgbToHex(r, g, b);
     },
     getShapeStyle(color, key) {
-      if (key === "gene" || key === "disorder") {
+      if (key === "external_gene") {
         return {
           backgroundColor: color,
           width: "20px",
           height: "20px",
-          border: "3px dashed black",
+         border: "2px dashed #204945"
         };
       }
       return { backgroundColor: color, width: "20px", height: "20px" };
@@ -1497,7 +1345,7 @@ li:not(.selected):hover {
   transition: background-color 0.3s, transform 0.2s;
 }
 .btn-update-network:hover {
-  background-color: #cfcfcf8f;
+  background-color: #173a96;
 }
 .btn-update-network:active {
   transform: scale(0.95);
@@ -1517,7 +1365,7 @@ li:not(.selected):hover {
   transition: background-color 0.3s, transform 0.2s;
 }
 .btn-show-external:hover {
-  background-color: #cfcfcf8f;
+  background-color: #173a96;
 }
 .btn-show-external:active {
   transform: scale(0.95);
@@ -1538,7 +1386,7 @@ li:not(.selected):hover {
   transition: background-color 0.3s, transform 0.2s;
 }
 .btn-clear-network:hover {
-  background-color: #cfcfcf8f;
+  background-color: #173a96;
 }
 .btn-clear-network:active {
   transform: scale(0.95);
@@ -1559,7 +1407,7 @@ li:not(.selected):hover {
   transition: background-color 0.3s, transform 0.2s;
 }
 .btn-save-network:hover {
-  background-color: #cfcfcf8f;
+  background-color: #173a96;
 }
 .btn-save-network:active {
   transform: scale(0.95);
@@ -1579,8 +1427,8 @@ li:not(.selected):hover {
   cursor: pointer;
   transition: background-color 0.3s, transform 0.2s;
 }
-.btn-keep-highlighted:hover {
-  background-color: #cfcfcf8f;
+.btn-keep-highlightedhover {
+  background-color: #173a96;
 }
 .btn-keep-highlighted:active {
   transform: scale(0.95);
@@ -1612,7 +1460,7 @@ li:not(.selected):hover {
 
 .legend2 {
   position: absolute;
-  top: 230px;
+  top: 190px;
   left: 20px;
   width: 180px;
   padding: 10px;
