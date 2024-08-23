@@ -729,8 +729,10 @@ export default {
 
               node.set = "external";
               node.source_table = key;
-              this.networkNodes.push(node);
-              this.displayedNodes.push(node);
+              if(!this.networkNodes.some(n => n.id === node.id)){
+                this.networkNodes.push(node);
+                this.displayedNodes.push(node);
+              }
               refresh = true;
             }
           }
