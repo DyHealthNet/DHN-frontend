@@ -10,7 +10,7 @@ const BASE_URL =
   import.meta.env.VITE_BACKEND_URL ||
   `${window.location.protocol}//${window.location.host}`;
 import HeatmapChartComponent from "@/components/HeatmapChartComponent.vue";
-import testheatmap from "../data/test_heatmapData.json";
+//import testheatmap from "../data/test_heatmapData.json";
 
 export default {
   name: "CustomHeatmap",

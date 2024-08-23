@@ -84,7 +84,6 @@ export default {
 
   methods: {
     checkVariableConflict() {
-      // Check if xVar and yVar or xVar and cVar are the same
       if (this.xVar === this.yVar || this.xVar === this.cVar|| this.yVar === this.cVar) {
         alert("The selected variabels are same. Please choose different variables.");
         return true;
@@ -243,15 +242,15 @@ export default {
 
 .button-group {
   display: flex;
-  gap: 10px; /* Abstand zwischen den Buttons */
-  width: 100%; /* Buttons über die gesamte Breite strecken */
-  justify-content: center; /* Buttons zentrieren */
+  gap: 10px; 
+  width: 100%; 
+  justify-content: center; 
 }
 
 .centered-text {
   text-align: center;
   margin-top: 10px;
   max-width: 100%;
-  width: calc(100% - 20px); /* Gleiche Breite wie die Button-Gruppe */
+  width: calc(100% - 20px);
 }
 </style>

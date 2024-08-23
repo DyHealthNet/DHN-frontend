@@ -6,7 +6,7 @@
 const BASE_URL =
   import.meta.env.VITE_BACKEND_URL ||
   `${window.location.protocol}//${window.location.host}`;
-import linePlot1 from "../data/test_linePlotData.json";
+//import linePlot1 from "../data/test_linePlotData.json";
 import { Line } from "vue-chartjs";
 import {
   Chart as ChartJS,

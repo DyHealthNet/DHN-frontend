@@ -20,8 +20,8 @@ import {
   CategoryScale,
   LinearScale,
 } from "chart.js";
-import barPlot1 from "../data/test_countBar.json";
-import text from "../data/test_popup.json";
+//import barPlot1 from "../data/test_countBar.json";
+//import text from "../data/test_popup.json";
 
 ChartJS.register(
   Title,
