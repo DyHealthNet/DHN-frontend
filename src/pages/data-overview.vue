@@ -4,6 +4,45 @@
     <v-main>
       <!--main content-->
       <v-container fluid>
+        <!-- Clickable description with toggle functionality -->
+        <div class="overview-description" @click="toggleDescription">
+          <p v-if="!isExpanded">
+            <strong style="color: #104d63"
+              >Explore Data Overview and Visualizations:</strong
+            >
+            This page provides a comprehensive overview of the dataset,
+            showcasing key statistics and insights through a variety of
+            visualization methods.
+            <span
+              style="color: #104d63"
+              class="toggle-link"
+              v-if="!isExpanded"
+              @click.stop="toggleDescription"
+              >Read more</span
+            >
+          </p>
+          <p v-if="isExpanded">
+            <strong>Explore Data Overview and Visualizations:</strong>
+            This page provides a comprehensive overview of the dataset,
+            showcasing key statistics and insights through a variety of
+            visualization methods. <br/> 
+            The data is displayed using different charts
+            and graphs, such as box plots to highlight data distribution and
+            outliers, heatmaps to reveal
+            correlations and patterns. <br/>
+            These visualizations enable a deeper understanding of the dataset,
+            making it easier to identify significant relationships and trends.
+            Click on any visualization to explore the data in more detail and
+            customize your view.
+            <span
+              style="color: #104d63"
+              class="toggle-link"
+              @click.stop="toggleDescription"
+              >Read less</span
+            >
+          </p>
+        </div>
+        <v-divider></v-divider>
         <v-row>
           <!--Overview data table-->
           <v-col cols="4.5">
@@ -549,13 +588,13 @@ export default {
       selectedCvariableBox: "Sex (x0_sex)",
 
       selectedVariableHeatmap1: "Type of diabetes (x0dm02)",
-      selectedVariableHeatmap2:
-        "Diabetes treatment (x0dm03)",
+      selectedVariableHeatmap2: "Diabetes treatment (x0dm03)",
 
       //table data initialization
       columns: [],
       rows1: [],
       rows2: [],
+      isExpanded: false,
     };
   },
 
@@ -772,6 +811,9 @@ export default {
         rows: rows,
       };
     },
+    toggleDescription() {
+      this.isExpanded = !this.isExpanded;
+    },
   },
 };
 </script>
@@ -786,5 +828,30 @@ export default {
 }
 .small-title {
   font-size: 18px;
+}
+
+.overview-description {
+  cursor: pointer; /* Indicates that the element is clickable */
+  background-color: #f5f7fa; /* Light background color for contrast */
+  border-left: 5px solid #3498db; /* Accent border to the left */
+  padding: 15px 10px; /* Padding around the text */
+  margin-bottom: 0px; /* Spacing below the description */
+  border-radius: 4px; /* Rounded corners for a modern look */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+  font-family: "Arial", sans-serif; /* A clean, modern font */
+  width: 1445px; /* Fixed width of 1200px */
+}
+
+.toggle-link {
+  color: #3498db; /* Accent color for clickable text */
+  cursor: pointer; /* Indicates that the text is clickable */
+  text-decoration: underline; /* Underline to indicate link */
+  font-weight: bold; /* Make the link text bold */
+  padding: 0 5px; /* Add some padding for better spacing */
+}
+
+.toggle-link:hover {
+  color: #2980b9; /* Darker color on hover */
+  text-decoration: none; /* Remove underline on hover for cleaner look */
 }
 </style>

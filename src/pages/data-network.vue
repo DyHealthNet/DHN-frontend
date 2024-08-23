@@ -111,6 +111,8 @@
     </div>
 
     <div class="network-container">
+
+
       <!-- Legend -->
       <div class="legend">
         <h2>
@@ -147,9 +149,10 @@
 
       <!-- Network Visualization -->
       <div ref="network" id="network">
-        <v-tooltip bottom>
+      </div>
+      <v-tooltip bottom>
           <template v-slot:activator="{ props }">
-            <v-icon v-bind="props" style="color: #104d63; top: 10px; left: 10px"
+            <v-icon v-bind="props" style="color: #104d63; top: -530px; left: 10px"
               >mdi-information</v-icon
             >
           </template>
@@ -159,7 +162,6 @@
           </v-list-tile-avatar>
           <span></span>
         </v-tooltip>
-      </div>
       <button
         class="btn-save-network"
         @click="saveNetwork()"
@@ -394,7 +396,7 @@
           </p>
           <p>
             <strong>Adjusted P Value:</strong>
-            {{ displayedElement.adjusted_p_value.toPrecision(3) }}
+            {{ displayedElement.adjusted_p_value !== null ? displayedElement.adjusted_p_value.toPrecision(3) : 'null' }}
           </p>
           <p>
             <strong>Effect Size:</strong>
@@ -529,7 +531,7 @@ export default {
   methods: {
     showAlert(text) {
       Swal.fire({
-        title: 'Invalid Input',
+        title: '',
         text: text,
         icon: 'warning',
         confirmButtonText: 'Ok',
