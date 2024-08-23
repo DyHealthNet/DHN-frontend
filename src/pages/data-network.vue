@@ -317,6 +317,10 @@
           <p title="Node label">
             <strong>Display Name:</strong> {{ displayedElement.display_name }}
           </p>
+          <p title="Data set is either CHRIS or external">
+            <strong>Data set:</strong> {{ displayedElement.set }}
+          </p>
+
           <p title="Short node description">
             <strong>Description:</strong>
             {{ capitalizeFirstLetter(displayedElement.description) }}
@@ -485,6 +489,7 @@ const BASE_URL =
 import { DataSet, Network } from "vis-network/standalone/esm/vis-network";
 import axios from "axios";
 import { groups } from "./networkData";
+import Swal from 'sweetalert2';
 
 export default {
   data() {
@@ -522,6 +527,17 @@ export default {
     };
   },
   methods: {
+    showAlert(text) {
+      Swal.fire({
+        title: 'Invalid Input',
+        text: text,
+        icon: 'warning',
+        confirmButtonText: 'Ok',
+        customClass: {
+          confirmButton: 'my-custom-button'
+        }
+      });
+    },
     keepHighlighted() {
       // Filter displayed nodes to only include those present in selectedNodes
       this.displayedNodes = this.displayedNodes.filter((node) =>
@@ -569,7 +585,7 @@ export default {
         this.phenotypeAmount < 0 ||
         this.variantAmount < 0
       ) {
-        alert("The minimum value of added nodes is 0 and the maximum 10!!!");
+        this.showAlert("The minimum value of added nodes is 0 and the maximum 10!!!")
       }
       this.hideOverlay();
     },
@@ -632,7 +648,7 @@ export default {
         this.initializeNetwork();
         this.updateHighlighting();
       } else {
-        alert("No external edges found!");
+        this.showAlert("No external edges found!")
       }
       if (to_fetch.length > 0) {
         to_fetch.forEach((node) => this.fetchNodesAndEdges(node));
@@ -678,7 +694,7 @@ export default {
             if (!this.networkNodes.some((locnode) => locnode.id === node.id)) {
               // Add the promise to the array
               to_fetch.push(node);
-              node.set = "???";
+              node.set = "CHRIS";
               this.networkNodes.push(node);
               // fetchPromises.push(this.fetchNodesAndEdges(node));
               this.displayedNodes.push(node);
@@ -710,6 +726,7 @@ export default {
               } else if (key === "external_disorder") {
                 node.id = node.mondo_id;
               }
+
               node.set = "external";
               node.source_table = key;
               this.networkNodes.push(node);
@@ -789,9 +806,9 @@ export default {
         case "omim":
           return `https://omim.org/entry/${xref.split(".")[1]}`;
         case "orpha":
-          return `https://www.orpha.net/en/disease/detail/${
-            xref.split(".")[1]
-          }`;
+          return `https://www.orpha.net/en/disease/detail/${xref.split(".")[1]}`;
+        case "chemspider":
+          return `https://www.chemspider.com/Chemical-Structure.${xref.split(".")[1]}.html`;
 
         default:
           return "#"; // default case if source_table doesn't match
@@ -921,10 +938,10 @@ export default {
               this.fetchNodesAndEdges(node);
             });
           } else {
-            alert("No nodes added");
+            this.showAlert("No nodes added")
           }
         } else {
-          alert("Only possible for CHRIS nodes!!!");
+          this.showAlert("Only possible for CHRIS nodes!!!")
         }
       } else {
         // Display the message on the webpage
@@ -1220,42 +1237,39 @@ export default {
 
     updateHighlighting() {
       this.dropdownNodes = this.dropdownNodes.filter((value, index, self) => {
-        return index === self.findIndex((v) => v.id === value.id);
-      });
+        return index === self.findIndex((v) => v.id === value.id);});
+
 
       //this.network.selectNodes([])
-      const updateNodes = this.network_nodes.get().map((node) => {
-        return {
-          ...node,
-          color: groups[node.source_table.split("_")[1]].color,
-          shape: "square",
-          size: 15,
-          borderWidth: 4,
-          font: { size: 24, color: "black" },
-          label: node.display_name,
-          is_highlighted: false,
+      const updateNodes = this.network_nodes.get().map(node => {
+        return { ...node, color:groups[node.source_table.split('_')[1]].color, shape: "square", size:15,
+        borderWidth: 4, font: {size: 24, color: 'black'}, 
+        label: node.display_name, is_highlighted: false,
         };
       });
-      const updateNodes2 = updateNodes.map((node) => {
-        if (
-          this.displayedElementType === "node" &&
-          this.displayedElement.id === node.id
-        ) {
-          node.size = 22;
+      const updateNodes2 = updateNodes.map(node => {
+        if (this.displayedElementType === 'node' && this.displayedElement.id === node.id) {
+          node.size = 22
         }
-        return { ...node };
-      });
-      const updateNodes3 = updateNodes2.map((node) => {
-        if (this.selectedNodes.some((n) => n.id === node.id)) {
-          node.color = this.adjustBrightness(node.color, 0.5);
-          node.shape = "diamond";
-          node.size = node.size * 1.3;
-          node.is_highlighted = true;
-        }
-        return { ...node };
-      });
+        return { ...node};});
+      const updateNodes3 = updateNodes2.map(node => {
+        if (this.selectedNodes.some(n => n.id === node.id)) {
+            node.color = this.adjustBrightness(node.color, 0.5);
+            node.shape = 'diamond'
+            node.size = node.size*1.3
+            node.is_highlighted=true
+          };              
+        return { ...node};});
+      const updateNodes4 = updateNodes3.map(node => {
+        let color = {border : 'black',
+          background : node.color,
+          highlight:{border:'black',
+            background: node.color}}
+        if (node.set === 'external') {node.color = color}            
+        return { ...node};});
 
-      this.network_nodes.update(updateNodes3);
+
+      this.network_nodes.update(updateNodes4);
 
       if (this.displayedElementType === "node") {
         this.network.selectNodes([this.displayedElement.id]);
@@ -1284,7 +1298,7 @@ export default {
           backgroundColor: color,
           width: "20px",
           height: "20px",
-          border: "3px dashed black",
+          border: "3px solid black",
         };
       }
       return { backgroundColor: color, width: "20px", height: "20px" };
@@ -1294,6 +1308,21 @@ export default {
 </script>
 
 <style scoped>
+.my-custom-button {
+  background-color: #007BFF; /* You can set your preferred button background color */
+  color: #fff; /* Default text color */
+  padding: 10px 20px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.my-custom-button:hover {
+  color: white; /* Text color on hover */
+  background-color: #0056b3; /* Optional: Darken the background color on hover */
+}
+
 .outer-container {
   display: flex;
   justify-content: center;
@@ -1475,7 +1504,7 @@ li:not(.selected):hover {
   position: absolute;
   width: 290px;
   left: 980px;
-  height: 600px;
+  height: 550px;
   padding: 20px;
   background-color: #f0f0f0;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);

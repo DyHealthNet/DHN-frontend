@@ -5,27 +5,28 @@
       <!--main content-->
       <v-container fluid>
         <v-row>
-          <!--Data Tables 2-->
+          <!--Overview data table-->
           <v-col cols="4.5">
             <v-row>
               <v-col cols="12">
                 <v-card>
                   <v-toolbar color="#104D63">
                     <v-toolbar-title
-                      >Overview of data
+                      >Overview of Cohorts Data
                       <v-tooltip bottom>
                         <template v-slot:activator="{ props }">
                           <v-icon v-bind="props">mdi-information</v-icon>
                         </template>
                         <span
-                          >Overview of data that involved in this project.</span
+                          >Here is an overview of simulited cohorts subsets from
+                          CHRIS data</span
                         >
                       </v-tooltip>
                     </v-toolbar-title>
                   </v-toolbar>
                   <v-spacer></v-spacer>
 
-                  <!--Tab content-->
+                  <!--Overview cards in tabs-->
                   <v-tabs-window v-model="model">
                     <v-card>
                       <v-card-text>
@@ -73,7 +74,7 @@
                                 <!--<v-col cols="12" v-else>-->
                                 <v-col cols="12">
                                   <v-img>
-                                    <!-- Assign different images based on index -->
+                                    <!-- Assign different images im Vergleich zu den Name der daten-->
                                     <img
                                       :src="getImageForCard(item.name)"
                                       :alt="item.name"
@@ -98,29 +99,18 @@
                   </v-tabs-window>
                 </v-card>
               </v-col>
-              <v-cols cols="12">
+              <!--Overview of Phenotype data table-->
+              <!--<v-cols cols="12">
                 <v-card>
                   <v-toolbar color="#104D63">
                     <v-toolbar-title
                       >Overview of phenotype data
-                      <!--<v-tooltip bottom>
-                        <template v-slot:activator="{ props }">
-                          <v-icon v-bind="props">mdi-information</v-icon>
-                        </template>
-                        <span
-                          >This table show the number of pheno-variables from
-                          different data type</span
-                        >
-                      </v-tooltip>-->
                     </v-toolbar-title>
                   </v-toolbar>
                   <v-spacer></v-spacer>
-
-                  <!--Tab content-->
-                  <v-tabs-window v-model="model">
+                <v-tabs-window v-model="model">
                     <v-card>
                       <v-card-text>
-                        <!--Table without search-->
                         <r-row class="fill-height" justify="center">
                           <v-col cols="12" align="left">
                             <v-data-table>
@@ -149,7 +139,7 @@
                     </v-card>
                   </v-tabs-window>
                 </v-card>
-              </v-cols>
+              </v-cols>-->
             </v-row>
           </v-col>
 
@@ -159,18 +149,21 @@
               <!--Tab bar name-->
               <v-toolbar color="#104D63">
                 <v-toolbar-title
-                  >Phenotype - Data Overview
+                  >Data Overview
                   <v-tooltip bottom>
                     <template v-slot:activator="{ props }">
                       <v-icon v-bind="props">mdi-information</v-icon>
                     </template>
                     <span
-                      >here show different visualisation of interested phenotype
-                      variables and overview of the data. You can select
-                      variables for you own requirements</span
+                      >You can select and visualize variables for your own
+                      requirements</span
                     >
                   </v-tooltip>
                 </v-toolbar-title>
+                <v-toolbar-sub-title>
+                  Here you can visualize phenotypes, proteins as well as
+                  metabolimics data
+                </v-toolbar-sub-title>
                 <v-spacer></v-spacer>
                 <template v-slot:extension>
                   <v-tabs v-model="model" align-tabs="center">
@@ -205,13 +198,13 @@
                                   <v-autocomplete
                                     v-model="selectedXvariableBox"
                                     clearable
-                                    label="Select categorical variable"
+                                    label="X Variable"
                                     :items="xItemsBox"
                                     style="max-width: 250px; color: #104d63"
                                     v-bind="props"
                                   ></v-autocomplete>
                                 </template>
-                                <span>Select categorical variable</span>
+                                <span>Categorical variable possible</span>
                               </v-tooltip>
 
                               <!--Select Y variables-->
@@ -220,13 +213,13 @@
                                   <v-autocomplete
                                     v-model="selectedYvariableBox"
                                     clearable
-                                    label="Select categorical variable"
+                                    label="Y Variable"
                                     :items="yItemsBox"
                                     style="max-width: 250px; color: #104d63"
                                     v-bind="props"
                                   ></v-autocomplete>
                                 </template>
-                                <span>Select categorical variable</span>
+                                <span>Continous variable possible</span>
                               </v-tooltip>
 
                               <!--Colored by which variables-->
@@ -241,12 +234,12 @@
                                     v-bind="props"
                                   ></v-autocomplete>
                                 </template>
-                                <span>Select binary variable for coloring</span>
+                                <span>Categorical variable as grouping</span>
                               </v-tooltip>
                             </div>
                           </v-col>
 
-                          <!--Box Plot-->
+                          <!--Box Chart-->
                           <v-col cols="12" align="center">
                             <div style="height: 500px; width: 800px">
                               <CustomBox
@@ -271,15 +264,15 @@
                                   <v-autocomplete
                                     v-model="selectedXvariableLine"
                                     clearable
-                                    label="Select X Variable"
+                                    label="X Variable"
                                     :items="xItemsLine"
                                     style="max-width: 250px; color: #104d63"
                                     v-bind="props"
                                   ></v-autocomplete>
                                 </template>
                                 <span
-                                  >Select categorical/countinous variables of
-                                  interest as X</span
+                                  >Categorical and Countinous variable
+                                  possible</span
                                 >
                               </v-tooltip>
 
@@ -289,16 +282,13 @@
                                   <v-autocomplete
                                     v-model="selectedYvariableLine"
                                     clearable
-                                    label="Select Y Variable"
+                                    label="Y Variable"
                                     :items="yItemsLine"
                                     style="max-width: 250px; color: #104d63"
                                     v-bind="props"
                                   ></v-autocomplete>
                                 </template>
-                                <span
-                                  >Select categorical variables of interest as
-                                  Y</span
-                                >
+                                <span>Continous variable possible</span>
                               </v-tooltip>
 
                               <!--Colored by which variables-->
@@ -313,7 +303,7 @@
                                     v-bind="props"
                                   ></v-autocomplete>
                                 </template>
-                                <span>Select binary variables</span>
+                                <span>Categorical variable as grouping</span>
                               </v-tooltip>
                             </div>
                           </v-col>
@@ -343,13 +333,13 @@
                                   <v-autocomplete
                                     v-model="selectedVariableHeatmap1"
                                     clearable
-                                    label="Select category variable 1"
+                                    label="X Variable"
                                     :items="itemHeatmap1"
-                                    style="max-width: 300px; color: #104d63"
+                                    style="max-width: 350px; color: #104d63"
                                     v-bind="props"
                                   ></v-autocomplete>
                                 </template>
-                                <span>Select the first category variable</span>
+                                <span>Categorical variable possible</span>
                               </v-tooltip>
 
                               <!--Select variable 2-->
@@ -358,22 +348,20 @@
                                   <v-autocomplete
                                     v-model="selectedVariableHeatmap2"
                                     clearable
-                                    label="Select category variable 2"
+                                    label="Y Variable"
                                     :items="itemHeatmap2"
-                                    style="max-width: 300px; color: #104d63"
+                                    style="max-width: 350px; color: #104d63"
                                     v-bind="props"
                                   ></v-autocomplete>
                                 </template>
-                                <span
-                                  >Select the second catefory variable
-                                </span>
+                                <span>Categorical variable possible </span>
                               </v-tooltip>
                             </div>
                           </v-col>
 
                           <!--Heatmap-->
                           <v-col cols="12" align="center">
-                            <div style="height: 450px; width: 800px">
+                            <div style="height: 480px; width: 800px">
                               <CustomHeatmap
                                 :x-var="selectedVariableHeatmap1"
                                 :y-var="selectedVariableHeatmap2"
@@ -383,7 +371,7 @@
                         </v-row>
                       </template>
 
-                      <!-- Content for the counts tab -->
+                      <!-- Content for the variable counts tab -->
                       <template v-else-if="tab.value === 6">
                         <!--Bar Plot-->
                         <v-row>
@@ -396,43 +384,35 @@
                                   <v-autocomplete
                                     v-model="selectedXvariableBar"
                                     clearable
-                                    label="Select X Variable"
+                                    label="X Variable"
                                     :items="xItemsBar"
                                     style="max-width: 350px; color: #104d63"
                                     v-bind="props"
                                   ></v-autocomplete>
                                 </template>
-                                <span>Select variable of interest</span>
+                                <span>Categorical variable possible</span>
                               </v-tooltip>
 
-                              <!--Select Y variables-->
-                              <!--<v-autocomplete
-                                v-model="selectedYvariableBar"
-                                clearable
-                                label="Select Y Variable"
-                                :items="yItemsBar"
-                                style="max-width: 350px; color: #104d63"
-                              ></v-autocomplete>-->
-
                               <!--Colored by which variables-->
-                              <v-autocomplete
-                                v-model="selectedCvariableBar"
-                                clearable
-                                label="Colored by (optional)"
-                                :items="colorItemsBar"
-                                style="max-width: 350px; color: #104d63"
-                              ></v-autocomplete>
+                              <v-tooltip location="top" open-on-hover>
+                                <template v-slot:activator="{ props }">
+                                  <v-autocomplete
+                                    v-model="selectedCvariableBar"
+                                    clearable
+                                    label="Colored by (optional)"
+                                    :items="colorItemsBar"
+                                    style="max-width: 350px; color: #104d63"
+                                    v-bind="props"
+                                  ></v-autocomplete>
+                                </template>
+                                <span>Categorical variable as grouping</span>
+                              </v-tooltip>
                             </div>
                           </v-col>
 
-                          <!--Chart-->
+                          <!--Bar-->
                           <v-col cols="12" align="center">
                             <div style="height: 450px; width: 800px">
-                              <!--<Bar
-                                :data="chartConfig"
-                                :options="{ responsive: true }"
-                              />-->
-                              <!-- CustomBar component, pass the selected variables to make API call -->
                               <CustomBar
                                 :x-var="selectedXvariableBar"
                                 :c-var="selectedCvariableBar"
@@ -448,9 +428,8 @@
             </v-card>
           </v-col>
 
-          <!--Data Tables 1-->
-          <v-col cols="12">
-            <!--Table with search-->
+          <!--Commentierte Data Tables-->
+          <!--<v-col cols="12">
             <r-row class="fill-height" justify="center">
               <v-col cols="12" align="center">
                 <h2>Data Table</h2>
@@ -474,7 +453,7 @@
                 </v-col>
               </v-row>
             </r-row>
-          </v-col>
+          </v-col>-->
 
           <!--End of the content-->
         </v-row>
@@ -491,11 +470,8 @@ import CustomLine from "../components/CustomLine.vue";
 import CustomBar from "../components/CustomBar.vue";
 import CustomBox from "../components/CustomBox.vue";
 import CustomHeatmap from "../components/CustomHeatMap.vue";
-
-// text boxplot component
-//import BoxTest from "@/pages/test.vue";
-//import * as dataVariables from "../data/test_variables.json";
-import test_table from "../data/test_dataTableOverview.json";
+// Simulation of test data
+//import test_table from "../data/test_dataTableOverview.json";
 
 import {
   Chart as ChartJS,
@@ -564,16 +540,17 @@ export default {
       //selectedYvariableBar: null,
       selectedCvariableBar: "Sex (x0_sex)",
 
-      selectedXvariableLine: "Food frequency: Meat (x0fd01)",
-      selectedYvariableLine: "GOSR2 (x0so0116)",
+      selectedXvariableLine: "Type of diabetes (x0dm02)",
+      selectedYvariableLine: "NEIL2 / Protein (x0so3291)",
       selectedCvariableLine: "Sex (x0_sex)",
 
-      selectedXvariableBox: "Food frequency: Meat (x0fd01)",
-      selectedYvariableBox: "Body Mass Index category, 12 classes (x0an03c)",
+      selectedXvariableBox: "Type of diabetes (x0dm02)",
+      selectedYvariableBox: "NEIL2 / Protein (x0so3291)",
       selectedCvariableBox: "Sex (x0_sex)",
 
-      selectedVariableHeatmap1: "Alcohol consumption (last 12 months) (x0al01)",
-      selectedVariableHeatmap2: "PSQI #13 (trouble sleeping: i) have pain) (x0sq13)",
+      selectedVariableHeatmap1: "Type of diabetes (x0dm02)",
+      selectedVariableHeatmap2:
+        "Diabetes treatment (x0dm03)",
 
       //table data initialization
       columns: [],
@@ -582,8 +559,7 @@ export default {
     };
   },
 
-  // +++++++++++  Table Data  ++++++++++++++
-  // Get the data for the table
+  // Create the data
   created() {
     //this.data_table = this.getTableDataFromApi()
     //this.splitRows(this.getTableData(this.data_table));
@@ -698,10 +674,13 @@ export default {
           column1: data[key],
         }));
         //[...new Set(data.nonbinaryCategorical.concat(data.binaryCategorical))]
-        this.xItemsBar = data.nonbinaryCategorical
-          .concat(data.binaryCategorical);
+        this.xItemsBar = data.nonbinaryCategorical.concat(
+          data.binaryCategorical
+        );
         //this.yItemsBar = data.nonbinaryCategorical;
-        this.colorItemsBar = data.binaryCategorical.concat(data.nonbinaryCategorical);
+        this.colorItemsBar = data.binaryCategorical.concat(
+          data.nonbinaryCategorical
+        );
       } catch (error) {
         console.error("Error fetching variable data:", error);
       }
@@ -744,11 +723,11 @@ export default {
           column1: data[key],
         }));
         //##############Have to change the Box Variable Data#########
-        this.xItemsBox = data.nonbinaryCategorical
-          .concat(data.binaryCategorical)
-          .concat(data.continuous);
-        this.yItemsBox = data.nonbinaryCategorical
-          .concat(data.continuous);
+        this.xItemsBox = data.nonbinaryCategorical.concat(
+          data.binaryCategorical
+        );
+        //.concat(data.continuous);
+        this.yItemsBox = data.continuous;
         this.colorItemsBox = data.binaryCategorical.concat(
           data.nonbinaryCategorical
         );
@@ -779,12 +758,11 @@ export default {
       }
     },
 
-    // Table Daten
+    // Get table data
     getTableData(imported_json) {
       const rows = Object.entries(imported_json).map(([key, value]) => {
         return { name: key, column1: value };
       });
-      // return simulated data
       return {
         // this part here stays static, don't need to change this
         columns: [
@@ -792,20 +770,6 @@ export default {
           { key: "column1" },
         ],
         rows: rows,
-        //rows: [
-        //  { name: "Participants", column1: 13000 },
-        //{ name: "Male", column1: 6545 },
-        //{ name: "Female", column1: 6455 },
-        //  { name: "Phenotypes", column1: 1284 },
-        //  { name: "Proteins", column1: 7300 },
-        //  { name: "Metabolites", column1: 175 },
-        //  { name: "Gene Variants", column1: 20000 },
-        //  { name: "Phenotype-Boolean", column1: 26 },
-        //  { name: "Phenotype-Categorical", column1: 1234 },
-        //  { name: "Phenotype-Float", column1: 0 },
-        //  { name: "Phenotype-Integer", column1: 7 },
-        //  { name: "Phenotype-Time", column1: 17 },
-        //],
       };
     },
   },
