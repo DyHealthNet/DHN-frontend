@@ -7,7 +7,8 @@ import AboutUs from './pages/about-us.vue'
 import Home from './pages/Home.vue'
 import CHRISDataIntro from './pages/chris-data-intro.vue'
 import DataOverview from './pages/data-overview.vue'
-import YourComponentName from './pages/data-network.vue'
+import NetworkPage from './pages/data-network.vue'
+import ContextCreation from './pages/context-creation.vue'
 
 const routes = [
     {
@@ -36,7 +37,12 @@ const routes = [
     {
       path: '/network',
       name: 'Network',
-      component: YourComponentName
+      component: NetworkPage
+    },
+    {
+      path: '/context',
+      name: 'Context creation',
+      component: ContextCreation
     }
   ]
 
