@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mdi/js": "^7.4.47",
+    "@mdi/svg": "^7.4.47",
     "@sgratzl/chartjs-chart-boxplot": "^4.4.0",
     "axion": "^0.1.0",
     "axios": "^1.7.4",
@@ -21,7 +23,7 @@
     "vue-chartjs": "^5.3.1",
     "vue-echarts": "^6.7.3",
     "vue-router": "^4.3.2",
-    "vuetify": "^3.6.3"
+    "vuetify": "^3.7.3"
   },
   "devDependencies": {
     "@mdi/font": "^7.4.47",
