@@ -5,7 +5,7 @@
                 <v-text-field
                     label="Context Name"
                     outlined
-                    dense
+                    density="compact"
                     solo
                     v-model="contextName"
                     required
@@ -19,8 +19,7 @@
                 chips
                 label="Select layers"
                 multiple
-                solo
-                dense
+                density="compact"
               ></v-select>
             </v-col>
 
@@ -43,6 +42,27 @@
         </v-row>
 
         <v-row>
+          <div class="mx-3">
+            <p><b>Define Rules for Context</b></p>
+          </div>
+        </v-row>
+
+      <v-row align="center" >
+          <v-col cols="2">
+            <p>Inner Operator / Connector</p>
+          </v-col>
+          <v-col cols="1">
+            <ConnectorButton connection="AND"></ConnectorButton>
+          </v-col>
+          <v-col cols="2">
+            <p>Outer Operator / Connector</p>
+          </v-col>
+          <v-col cols="1">
+            <ConnectorButton connection="OR"></ConnectorButton>
+          </v-col>
+        </v-row>
+
+      <v-row>
             <v-col class="d-flex justify-center">
                 <v-divider class="my-4" style="width: 50%;"></v-divider>
             </v-col>
@@ -52,9 +72,10 @@
 
 <script>
 import StatusBox from "@/components/StatusBox.vue";
+import ConnectorButton from "@/components/ConnectorButton.vue";
 
 export default {
-  components: {StatusBox},
+  components: {ConnectorButton, StatusBox},
   props: {
     title: {
       type: String,
