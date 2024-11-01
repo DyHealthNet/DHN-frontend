@@ -86,7 +86,7 @@
       </v-row>
 
       <v-row class="my-1">
-        <FilterLine :connection="buttonDirection[2]" />
+        <FilterLine :connection="buttonDirection[2]" :first="true" />
       </v-row>
 
       <v-row class="my-0">

@@ -23,7 +23,7 @@
     variant="outlined"
     ></v-combobox>
 </v-col>
-  <v-col class="center-button filter-padding">
+  <v-col class="center-button">
     <v-btn
     :color="connectCol"
     @click="printValue"
@@ -37,7 +37,7 @@
     </v-btn>
   </v-col>
   <v-col>
-      <v-icon color="black" size="25" class="my-1 center-button" @click="printValue">mdi-close-circle-outline</v-icon>
+      <v-icon color="black" size="25" class="my-1 center-icon" @click="printValue">mdi-close-circle-outline</v-icon>
   </v-col>
 </template>
 
@@ -48,6 +48,10 @@ export default {
     connection: {
       type: String,
       default: 'AND'
+    },
+    first: {
+      type: Boolean,
+      default: false
     }
   },
   data() {
@@ -93,11 +97,15 @@ export default {
 <style scoped>
 
 .center-button {
-  padding-top: 8px;
+  padding-top: 21px;
+}
+.center-icon {
+  padding-top: 28px;
 }
 
 .filter-padding {
   padding-top: 24px;
   padding-bottom: 1px;
 }
+
 </style>
