@@ -24,31 +24,31 @@
             <v-card-text>
               <template v-if="tab.value === 1">
                 <v-row>
-                  <ContextSetup :title="tab.name" :content="tab.content" />
+                  <ContextSetup :title="tab.name" :content="tab.content" @data-changed="updateTabName" />
                 </v-row>
               </template>
 
               <template v-if="tab.value === 2">
                 <v-row>
-                  <ContextSetup :title="tab.name" :content="tab.content" />
+                  <ContextSetup :title="tab.name" :content="tab.content" @data-changed="updateTabName" />
                 </v-row>
               </template>
 
               <template v-if="tab.value === 3">
                 <v-row>
-                  <ContextSetup :title="tab.name" :content="tab.content" />
+                  <ContextSetup :title="tab.name" :content="tab.content" @data-changed="updateTabName" />
                 </v-row>
               </template>
 
               <template v-if="tab.value === 4">
                 <v-row>
-                  <ContextSetup :title="tab.name" :content="tab.content" />
+                  <ContextSetup :title="tab.name" :content="tab.content" @data-changed="updateTabName" />
                 </v-row>
               </template>
 
               <template v-if="tab.value === 5">
                 <v-row>
-                  <ContextSetup :title="tab.name" :content="tab.content" />
+                  <ContextSetup :title="tab.name" :content="tab.content" @data-changed="updateTabName" />
                 </v-row>
               </template>
             </v-card-text>
@@ -70,7 +70,7 @@ export default {
   },
   data() {
     return {
-      contextTab: "tab-2",
+      contextTab: 1,
       tabs: [
         { name: "Context 1", value: 1, content: { inside: 'or', outside: 'and' } },
         { name: "Context 2", value: 2, content: { inside: 'and', outside: 'or' } },
@@ -78,7 +78,13 @@ export default {
         { name: "Context 4", value: 4 },
         { name: "Context 5", value: 5 }],
     };
-  }
+  },
+  methods: {
+    updateTabName(tabName) {
+      console.log(this.contextTab);
+      this.tabs[this.contextTab - 1].name = tabName;
+    },
+  },
 };
 </script>
 

@@ -17,6 +17,7 @@
                     variant="outlined"
                     v-model="contextName"
                     required
+                    @change="sendContextName"
                 ></v-text-field>
             </v-col>
 
@@ -132,6 +133,9 @@ export default {
            this.buttonDirection[index] = "AND";
          }
        });
+    },
+    sendContextName() {
+       this.$emit('data-changed', this.contextName)
     }
   }
 };
