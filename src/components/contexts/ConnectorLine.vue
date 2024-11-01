@@ -28,6 +28,7 @@ export default {
       // add my-0 to button if inner is true
       btnClasses: {
         'my-0': this.inner,
+        'elevated-button': true
       }
 
     }
@@ -46,24 +47,26 @@ export default {
   padding-top: 1px;
   padding-bottom: 1px;
 }
-.position-relative {
+.elevated-button {
   position: relative;
+  top: -10px;
+  z-index: 2;
 }
 
 .vertical-line-bottom {
   width: 4px;
-  height: 29px;
+  height: 20px;
   background-color: #D8EBFF;
   position: absolute;
   left: 41%;
-  top: 98%;
+  top: 60%;
   transform: translateX(-50%);
   z-index: 1;
 }
 
 .vertical-line-top {
   width: 4px;
-  height: 28px;
+  height: 20px;
   background-color: #D8EBFF;
   position: absolute;
   left: 41%;

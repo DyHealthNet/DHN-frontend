@@ -77,35 +77,46 @@
         <v-col cols="3">
           <p><b>Variable</b></p>
         </v-col>
-        <v-col cols="3">
+        <v-col cols="2">
           <p><b>Operator</b></p>
         </v-col>
-        <v-col cols="3">
+        <v-col cols="4">
           <p><b>Value</b></p>
         </v-col>
       </v-row>
 
-      <v-row class="my-1">
-        <FilterLine :connection="buttonDirection[2]" :first="true" />
-      </v-row>
+      <div>
+        <v-row class="my-1">
+          <FilterLine :connection="buttonDirection[2]" :first="true" />
+        </v-row>
 
-      <v-row class="my-0">
-        <ConnectorLine :inner="true" :connection="buttonDirection[3]" />
-      </v-row>
+        <v-row class="my-0">
+          <ConnectorLine :inner="true" :connection="buttonDirection[3]" />
+        </v-row>
 
-      <v-row class="my-1">
-        <FilterLine :connection="buttonDirection[4]" />
-      </v-row>
+        <v-row class="my-1">
+          <FilterLine :connection="buttonDirection[4]" />
+        </v-row>
 
-      <v-row class="my-0">
-        <ConnectorLine :inner="false" :connection="buttonDirection[5]" />
-      </v-row>
+              <v-row class="my-0">
+          <ConnectorLine :inner="true" :connection="buttonDirection[5]" />
+        </v-row>
+
+        <v-row class="my-1">
+          <FilterLine :connection="buttonDirection[6]" />
+        </v-row>
+
+        <v-row class="my-0">
+          <ConnectorLine :inner="false" :connection="buttonDirection[7]" />
+        </v-row>
+      </div>
 
       <v-row>
             <v-col class="d-flex justify-center">
                 <v-divider class="my-4" style="width: 50%;"></v-divider>
             </v-col>
         </v-row>
+
     </v-container>
 </template>
 
@@ -130,11 +141,11 @@ export default {
   data() {
     return {
       contextName: "",
-      layers: ["Layer 1", "Layer 2", "Layer 3"],
+      layers: ["Phenomics", "Metabolomics", "Proteomics"],
       layerValues: ["Layer 1", "Layer 2", "Layer 3"],
       selectedLayers: [],
 
-      buttonDirection: ['AND', 'OR', "AND", "AND", 'AND', 'OR']
+      buttonDirection: ['AND', 'OR', "AND", "AND", 'AND', 'AND', 'AND', 'OR']
     };
   },
   methods: {

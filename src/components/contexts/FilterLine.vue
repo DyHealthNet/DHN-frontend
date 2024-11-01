@@ -7,7 +7,7 @@
     variant="outlined"
     ></v-autocomplete>
 </v-col>
-  <v-col cols="3" class="filter-padding">
+  <v-col cols="2" class="filter-padding">
   <v-select
     v-model="selectedOperator"
     :items="operators"
@@ -15,7 +15,7 @@
     variant="outlined"
     ></v-select>
 </v-col>
-  <v-col cols="3" class="filter-padding">
+  <v-col cols="4" class="filter-padding">
   <v-combobox
     v-model="selectedValue"
     :items="possibleValues"
@@ -25,18 +25,19 @@
 </v-col>
   <v-col class="center-button">
     <v-btn
+        class="center-button"
     :color="connectCol"
     @click="printValue"
     >
       <v-icon
           :color="iconCol"
           size="19"
-          class="justify-center my-1 mr-2"
+          class="justify-center my-0 mr-2"
       >mdi-plus-circle-outline</v-icon>
       {{ connection }}
     </v-btn>
   </v-col>
-  <v-col>
+  <v-col class="center-icon">
       <v-icon color="black" size="25" class="my-1 center-icon" @click="printValue">mdi-close-circle-outline</v-icon>
   </v-col>
 </template>
@@ -66,7 +67,7 @@ export default {
       ],
       selectedOperator: "",
       operators: [
-          'is (=)',
+          'equals (=)',
           'less than (<)',
           'greater than (>)',
           'in'
@@ -97,14 +98,18 @@ export default {
 <style scoped>
 
 .center-button {
-  padding-top: 21px;
+  padding-top: 0;
+  padding-bottom: 0;
+  margin-top: 1px;
 }
 .center-icon {
-  padding-top: 28px;
+  padding-top: 0;
+  padding-bottom: 0;
+  margin-top: 5px;
 }
 
 .filter-padding {
-  padding-top: 24px;
+  padding-top: 1px;
   padding-bottom: 1px;
 }
 
