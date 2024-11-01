@@ -61,7 +61,7 @@
 
 <script>
 
-import ContextSetup from "@/components/ContextSetup.vue";
+import ContextSetup from "@/components/contexts/ContextSetup.vue";
 
 export default {
   name: "ContextCreation",
