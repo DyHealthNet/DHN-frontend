@@ -82,7 +82,14 @@ export default {
   methods: {
     updateTabName(tabName) {
       console.log(this.contextTab);
-      this.tabs[this.contextTab - 1].name = tabName;
+      let newTabName = "";
+      if (tabName.length > 15) {
+        newTabName = tabName.substring(0, 15) + "...";
+      }
+      else {
+        newTabName = tabName;
+      }
+      this.tabs[this.contextTab - 1].name = newTabName;
     },
   },
 };
