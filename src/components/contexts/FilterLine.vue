@@ -29,11 +29,11 @@
     @click="printValue"
     >
       <v-icon
-          color="white"
+          :color="iconCol"
           size="19"
           class="justify-center my-1 mr-2"
       >mdi-plus-circle-outline</v-icon>
-      {{ connector }}
+      {{ connection }}
     </v-btn>
   </v-col>
   <v-col>
@@ -45,7 +45,7 @@
 export default {
   name: 'FilterLine',
   props: {
-    connector: {
+    connection: {
       type: String,
       default: 'AND'
     }
@@ -71,13 +71,20 @@ export default {
       possibleValues: [
           'Male',
           'Female'
-      ],
-      connectCol: this.connector === 'AND' ? '#adbfd3' : '#23425b'
+      ]
     };
   },
   methods: {
     printValue() {
       console.log(this.columnName, this.selectedOperator, this.selectedValue);
+    }
+  },
+  computed:{
+    connectCol() {
+      return this.connection === 'AND' ? '#adbfd3' : '#23425b';
+    },
+    iconCol() {
+      return this.connection === 'AND' ? 'black' : 'white';
     }
   }
 };

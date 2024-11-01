@@ -14,12 +14,10 @@ export default {
       required: true
     }
   },
-  data() {
-    return {
-      buttonColor: this.connection === 'AND' ? '#adbfd3' : '#23425b'
+  computed: {
+    buttonColor() {
+      return this.connection === 'AND' ? '#adbfd3' : '#23425b';
     }
-  },
-  methods: {
   }
 }
 </script>

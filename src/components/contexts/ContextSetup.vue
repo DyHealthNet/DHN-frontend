@@ -61,13 +61,13 @@
             <p>Inner Operator / Connector</p>
           </v-col>
           <v-col cols="1">
-            <ConnectorButton connection="AND"></ConnectorButton>
+            <ConnectorButton :connection="buttonDirection[0]" @click="changeButtonDirection"></ConnectorButton>
           </v-col>
           <v-col cols="2">
             <p>Outer Operator / Connector</p>
           </v-col>
           <v-col cols="1">
-            <ConnectorButton connection="OR"></ConnectorButton>
+            <ConnectorButton :connection="buttonDirection[1]" @click="changeButtonDirection"></ConnectorButton>
           </v-col>
         </v-row>
 
@@ -85,7 +85,7 @@
       </v-row>
 
       <v-row class="my-1">
-        <FilterLine />
+        <FilterLine :connection="buttonDirection[2]" />
       </v-row>
 
       <v-row>
@@ -118,10 +118,21 @@ export default {
       contextName: "",
       layers: ["Layer 1", "Layer 2", "Layer 3"],
       layerValues: ["Layer 1", "Layer 2", "Layer 3"],
-      selectedLayers: []
+      selectedLayers: [],
+
+      buttonDirection: ['AND', 'OR', "AND"]
     };
   },
   methods: {
+     changeButtonDirection() {
+       this.buttonDirection.forEach((button, index) => {
+         if (button === "AND") {
+           this.buttonDirection[index] = "OR";
+         } else if (button === "OR") {
+           this.buttonDirection[index] = "AND";
+         }
+       });
+    }
   }
 };
 </script>
