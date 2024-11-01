@@ -2,15 +2,15 @@
     <v-container>
       <!--First row (name & layers) -->
         <v-row class="py-1">
-          <v-col cols="3">
+          <v-col cols="3" class="no-bottom-padding">
             <p><b>Context name</b></p>
           </v-col>
-          <v-col cols="3">
+          <v-col cols="3" class="no-bottom-padding">
             <p><b>Select layers</b></p>
           </v-col>
         </v-row>
-        <v-row justify="space-between">
-            <v-col cols="3">
+        <v-row justify="space-between" class="filter-padding">
+            <v-col cols="3" class="filter-padding">
                 <v-text-field
                     outlined
                     :rules="contextNameMaxLength"
@@ -23,7 +23,7 @@
                 ></v-text-field>
             </v-col>
 
-            <v-col cols="3">
+            <v-col cols="3" class="filter-padding">
               <v-select
                 v-model="selectedLayers"
                 :items="layers"
@@ -36,14 +36,14 @@
 
           <v-spacer></v-spacer>
 
-          <v-col cols="auto">
+          <v-col cols="auto" class="filter-padding">
               <StatusBox
                   title="Completed"
                   subtitle="Progress"
                   icon="mdi-check-circle-outline" />
           </v-col>
 
-          <v-col cols="auto">
+          <v-col cols="auto" class="filter-padding">
             <StatusBox
             title="100"
             subtitle="Participants"
@@ -53,23 +53,23 @@
         </v-row>
 
       <!-- Second row (connectors) -->
-        <v-row>
+        <v-row class="no-bottom-padding">
           <div class="mx-3">
             <p><b>Define Rules for Context</b></p>
           </div>
         </v-row>
 
-      <v-row align="center" >
-          <v-col cols="2">
+      <v-row align="center" class="my-2">
+          <v-col cols="2" class="filter-padding">
             <p>Inner Operator / Connector</p>
           </v-col>
-          <v-col cols="1">
+          <v-col cols="1" class="filter-padding">
             <ConnectorButton :connection="buttonDirection[0]" @click="changeButtonDirection"></ConnectorButton>
           </v-col>
-          <v-col cols="2">
+          <v-col cols="2" class="filter-padding">
             <p>Outer Operator / Connector</p>
           </v-col>
-          <v-col cols="1">
+          <v-col cols="1" class="filter-padding">
             <ConnectorButton :connection="buttonDirection[1]" @click="changeButtonDirection"></ConnectorButton>
           </v-col>
         </v-row>
@@ -111,7 +111,7 @@
 
       <v-row>
         <v-col>
-        <v-btn color="#22425B">
+        <v-btn color="primary-darken-1">
           <v-icon color="white" class="my-0">mdi-check-outline</v-icon>
           Submit Context
         </v-btn>
@@ -173,3 +173,22 @@ export default {
   }
 };
 </script>
+
+<style scoped>
+
+.filter-padding {
+  padding-top: 1px;
+  padding-bottom: 1px;
+}
+
+.no-bottom-padding {
+  padding-bottom: 0;
+}
+
+.v-checkbox input[type="checkbox"] {
+  color: black !important;
+}
+.v-checkbox {
+  color: inherit !important; /* Make text color inherit from theme */
+}
+</style>

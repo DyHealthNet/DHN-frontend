@@ -47,7 +47,7 @@
                     height="200"
                   />
                 </v-img>
-                <v-btn to="/overview" color="#A5BFDC">Data Overview</v-btn>
+                <v-btn to="/overview" color="primary">Data Overview</v-btn>
                 <p class="description-text">
                   This page provides a comprehensive summary of data variables
                   and visualises phenotype data through diverse methods to
@@ -59,7 +59,7 @@
                 <v-img>
                   <img :src="network" alt="Network" width="200" height="200" />
                 </v-img>
-                <v-btn to="/network" color="#A5BFDC">Network</v-btn>
+                <v-btn to="/network" color="primary">Network</v-btn>
                 <p class="description-text">
                   This page visualizes correlations between various variables
                   sourced from different databases, facilitating a deeper
@@ -76,7 +76,7 @@
                     height="200"
                   />
                 </v-img>
-                <v-btn to="/about-us" color="#A5BFDC">About Us</v-btn>
+                <v-btn to="/about-us" color="primary">About Us</v-btn>
                 <p class="description-text">
                   More information about the research group and collaborators
                   you can find here

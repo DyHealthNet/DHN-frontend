@@ -49,7 +49,7 @@
             <v-row>
               <v-col cols="12">
                 <v-card>
-                  <v-toolbar color="#104D63">
+                  <v-toolbar color="primar-darken-1">
                     <v-toolbar-title
                       >Overview of Cohorts Data
                       <v-tooltip bottom>
@@ -186,7 +186,7 @@
           <v-col cols="8">
             <v-card>
               <!--Tab bar name-->
-              <v-toolbar color="#104D63">
+              <v-toolbar color="primary-darken-1">
                 <v-toolbar-title
                   >Data Overview
                   <v-tooltip bottom>

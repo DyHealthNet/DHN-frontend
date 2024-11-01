@@ -15,12 +15,12 @@
 
   <v-container class="d-flex justify-center mt-4">
     <v-card class="outlined-card">
-      <v-tabs v-model="contextTab" align-tabs="center" bg-color="#FAFAFA">
+      <v-tabs v-model="contextTab" align-tabs="center">
         <v-tab v-for="tab in tabs" :key="tab.value" :text="tab.name" :value="tab.value"></v-tab>
       </v-tabs>
       <v-tabs-window v-model="contextTab">
         <v-tabs-window-item v-for="tab in tabs" :key="tab.value" :value="tab.value">
-          <v-card>
+          <v-card color="background">
             <v-card-text>
               <template v-if="tab.value === 1">
                 <v-row>
@@ -111,8 +111,17 @@ export default {
   border-radius: 10px;
 }
 
-.tab-content-card {
-  border: 1px solid #ccc;
-  /* Adds outline to the content card */
+/* as something seems bugged with the default color of the tabs, we need to overwrite it */
+.v-tab:hover {
+  background-color: initial !important;
 }
+.v-tabs {
+  color: #22425B !important;
+}
+
+.v-tab--active {
+  background-color: #ffffff !important;
+  color: #000 !important;
+}
+
 </style>

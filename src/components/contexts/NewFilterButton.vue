@@ -31,7 +31,7 @@ export default {
   },
   computed: {
     connectCol() {
-      return this.connection === 'AND' ? '#adbfd3' : '#23425b';
+      return this.connection === 'AND' ? 'primary' : 'primary-darken-1';
     },
     iconCol() {
       return this.connection === 'AND' ? 'black' : 'white';

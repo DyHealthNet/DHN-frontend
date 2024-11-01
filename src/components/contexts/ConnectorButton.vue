@@ -16,7 +16,7 @@ export default {
   },
   computed: {
     buttonColor() {
-      return this.connection === 'AND' ? '#adbfd3' : '#23425b';
+      return this.connection === 'AND' ? 'primary' : 'primary-darken-1';
     }
   }
 }
