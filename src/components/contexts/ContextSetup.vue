@@ -89,6 +89,18 @@
         <FilterLine :connection="buttonDirection[2]" />
       </v-row>
 
+      <v-row class="my-0">
+        <ConnectorLine :inner="true" :connection="buttonDirection[3]" />
+      </v-row>
+
+      <v-row class="my-1">
+        <FilterLine :connection="buttonDirection[4]" />
+      </v-row>
+
+      <v-row class="my-0">
+        <ConnectorLine :inner="false" :connection="buttonDirection[5]" />
+      </v-row>
+
       <v-row>
             <v-col class="d-flex justify-center">
                 <v-divider class="my-4" style="width: 50%;"></v-divider>
@@ -101,9 +113,10 @@
 import StatusBox from "@/components/contexts/StatusBox.vue";
 import ConnectorButton from "@/components/contexts/ConnectorButton.vue";
 import FilterLine from "@/components/contexts/FilterLine.vue";
+import ConnectorLine from "@/components/contexts/ConnectorLine.vue";
 
 export default {
-  components: {FilterLine, ConnectorButton, StatusBox},
+  components: {ConnectorLine, FilterLine, ConnectorButton, StatusBox},
   props: {
     title: {
       type: String,
@@ -121,7 +134,7 @@ export default {
       layerValues: ["Layer 1", "Layer 2", "Layer 3"],
       selectedLayers: [],
 
-      buttonDirection: ['AND', 'OR', "AND"]
+      buttonDirection: ['AND', 'OR', "AND", "AND", 'AND', 'OR']
     };
   },
   methods: {
@@ -136,6 +149,11 @@ export default {
     },
     sendContextName() {
        this.$emit('data-changed', this.contextName)
+    }
+  },
+  computed: {
+    changeInner() {
+      return this.buttonDirection[0] === 'AND';
     }
   }
 };

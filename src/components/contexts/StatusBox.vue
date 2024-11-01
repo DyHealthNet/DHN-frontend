@@ -1,11 +1,17 @@
 <template>
   <div class="status-box">
-    <v-icon
-      :icon="icon"
-      size=50
-      color="black"
-      class=" justify-center my-1 mx-1"
-    ></v-icon>
+        <v-tooltip :text="tooltipText">
+      <template v-slot:activator="{ props }">
+          <v-icon
+              v-bind="props"
+            :icon="icon"
+            size=50
+            color="black"
+            class=" justify-center my-1 mx-1"
+          >
+          </v-icon>
+       </template>
+      </v-tooltip>
     <div class="text">
       <p class="title">{{ title }}</p>
       <p class="subtitle">{{ subtitle }}</p>
@@ -31,6 +37,23 @@ export default {
     },
   },
   name: 'StatusBox',
+  data() {
+    return {
+      tooltipText: 'Annette B., Thomas M., Werner H. and 97 more',
+
+    };
+  },
+  methods: {
+    disableTooltip() {
+      if (this.subtitle !== 'Participants') {
+        this.tooltipText = '';
+        console.log('Tooltip disabled');
+      }
+    },
+  },
+  created() {
+    this.disableTooltip();
+  }
 };
 </script>
 

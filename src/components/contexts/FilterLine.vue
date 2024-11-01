@@ -1,5 +1,5 @@
 <template>
-<v-col cols="3">
+<v-col cols="3" class="filter-padding">
   <v-autocomplete
     v-model="columnName"
     :items="columnItems"
@@ -7,7 +7,7 @@
     variant="outlined"
     ></v-autocomplete>
 </v-col>
-  <v-col cols="3">
+  <v-col cols="3" class="filter-padding">
   <v-select
     v-model="selectedOperator"
     :items="operators"
@@ -15,7 +15,7 @@
     variant="outlined"
     ></v-select>
 </v-col>
-  <v-col cols="3">
+  <v-col cols="3" class="filter-padding">
   <v-combobox
     v-model="selectedValue"
     :items="possibleValues"
@@ -23,7 +23,7 @@
     variant="outlined"
     ></v-combobox>
 </v-col>
-  <v-col class="center-button">
+  <v-col class="center-button filter-padding">
     <v-btn
     :color="connectCol"
     @click="printValue"
@@ -94,5 +94,10 @@ export default {
 
 .center-button {
   padding-top: 8px;
+}
+
+.filter-padding {
+  padding-top: 24px;
+  padding-bottom: 1px;
 }
 </style>
