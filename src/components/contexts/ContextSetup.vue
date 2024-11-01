@@ -13,6 +13,8 @@
             <v-col cols="3">
                 <v-text-field
                     outlined
+                    :rules="contextNameMaxLength"
+                    counter="40"
                     density="compact"
                     variant="outlined"
                     v-model="contextName"
@@ -98,24 +100,23 @@
           <FilterLine :connection="buttonDirection[4]" />
         </v-row>
 
-              <v-row class="my-0">
-          <ConnectorLine :inner="true" :connection="buttonDirection[5]" />
-        </v-row>
-
-        <v-row class="my-1">
-          <FilterLine :connection="buttonDirection[6]" />
-        </v-row>
-
-        <v-row class="my-0">
-          <ConnectorLine :inner="false" :connection="buttonDirection[7]" />
+        <v-row class="mt-0 mb-5">
+          <NewFilterButton :connection="buttonDirection[7]"  />
         </v-row>
       </div>
 
       <v-row>
-            <v-col class="d-flex justify-center">
-                <v-divider class="my-4" style="width: 50%;"></v-divider>
-            </v-col>
-        </v-row>
+        <AdvancedSettings />
+      </v-row>
+
+      <v-row>
+        <v-col>
+        <v-btn color="#22425B">
+          <v-icon color="white" class="my-0">mdi-check-outline</v-icon>
+          Submit Context
+        </v-btn>
+          </v-col>
+      </v-row>
 
     </v-container>
 </template>
@@ -125,9 +126,11 @@ import StatusBox from "@/components/contexts/StatusBox.vue";
 import ConnectorButton from "@/components/contexts/ConnectorButton.vue";
 import FilterLine from "@/components/contexts/FilterLine.vue";
 import ConnectorLine from "@/components/contexts/ConnectorLine.vue";
+import NewFilterButton from "@/components/contexts/NewFilterButton.vue";
+import AdvancedSettings from "@/components/contexts/AdvancedSettings.vue";
 
 export default {
-  components: {ConnectorLine, FilterLine, ConnectorButton, StatusBox},
+  components: {AdvancedSettings, NewFilterButton, ConnectorLine, FilterLine, ConnectorButton, StatusBox},
   props: {
     title: {
       type: String,
@@ -141,6 +144,7 @@ export default {
   data() {
     return {
       contextName: "",
+      contextNameMaxLength: [v => v.length <= 40 || 'Max 40 characters'],
       layers: ["Phenomics", "Metabolomics", "Proteomics"],
       layerValues: ["Layer 1", "Layer 2", "Layer 3"],
       selectedLayers: [],
