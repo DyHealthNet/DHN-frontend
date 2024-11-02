@@ -10,7 +10,7 @@ export default {
   name: 'ConnectorButton',
   props: {
     connection: {
-      type: Object,
+      type: String,
       required: true
     }
   },

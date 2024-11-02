@@ -1,9 +1,9 @@
 <template>
   <v-col>
   <v-btn
-          class="center-button"
+      class="center-button"
       :color="connectCol"
-      @click="printValue"
+      @click="$emit('addFilter')"
       >
         <v-icon
             :color="iconCol"
@@ -18,6 +18,7 @@
 <script>
 export default {
   name: "NewFilterButton",
+  emits: ['addFilter'],
   props: {
     connection: {
       type: String,

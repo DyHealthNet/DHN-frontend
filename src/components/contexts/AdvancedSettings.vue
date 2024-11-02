@@ -3,7 +3,7 @@
   <v-col>
     <v-expansion-panels>
       <v-expansion-panel>
-        <v-expansion-panel-title width="500px">
+        <v-expansion-panel-title>
           <div class="d-flex align-center">
             <v-icon color="black" size="30" class="mr-3 my-0">mdi-cog-outline</v-icon>
             <span>Advanced settings</span>

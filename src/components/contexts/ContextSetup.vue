@@ -38,14 +38,14 @@
 
           <v-col cols="auto" class="filter-padding">
               <StatusBox
-                  title="Completed"
+                  :title="progressStatus"
                   subtitle="Progress"
-                  icon="mdi-check-circle-outline" />
+                  :icon="progressIcon" />
           </v-col>
 
           <v-col cols="auto" class="filter-padding">
             <StatusBox
-            title="100"
+            :title="participantNumber"
             subtitle="Participants"
             icon="mdi-account-multiple-outline"
             />
@@ -64,13 +64,13 @@
             <p>Inner Operator / Connector</p>
           </v-col>
           <v-col cols="1" class="filter-padding">
-            <ConnectorButton :connection="buttonDirection[0]" @click="changeButtonDirection"></ConnectorButton>
+            <ConnectorButton :connection="innerConnection" @click="changeButtonDirection"></ConnectorButton>
           </v-col>
           <v-col cols="2" class="filter-padding">
             <p>Outer Operator / Connector</p>
           </v-col>
           <v-col cols="1" class="filter-padding">
-            <ConnectorButton :connection="buttonDirection[1]" @click="changeButtonDirection"></ConnectorButton>
+            <ConnectorButton :connection="outerConnection" @click="changeButtonDirection"></ConnectorButton>
           </v-col>
         </v-row>
 
@@ -87,22 +87,33 @@
         </v-col>
       </v-row>
 
-      <div>
-        <v-row class="my-1">
-          <FilterLine :connection="buttonDirection[2]" :first="true" />
-        </v-row>
+      <div id="allRules">
+        <template v-for="(outerRow, outerIndex) in outerRows" :key="outerRow.id">
+            <div>
+              <v-row class="my-1">
+                <FilterLine :connection="innerConnection"
+                            :first="outerIndex === 0"
+                            @button-clicked="(data) => newInnerGroupRule(data, outerIndex, 1)" />
+              </v-row>
+              <template
+                v-for="(innerRow, innerIndex) in innerRows[outerIndex].slice(1)"
+                :key="innerRow.id">
 
-        <v-row class="my-0">
-          <ConnectorLine :inner="true" :connection="buttonDirection[3]" />
-        </v-row>
+                <v-row class="my-0">
+                  <ConnectorLine :inner="true" :connection="innerConnection" />
+                </v-row>
 
-        <v-row class="my-1">
-          <FilterLine :connection="buttonDirection[4]" />
-        </v-row>
+                <v-row class="my-1">
+                  <FilterLine :connection="innerConnection"
+                              @button-clicked="(data) => newInnerGroupRule(data, outerIndex, innerIndex + 2)" />
+                </v-row>
+              </template>
+            </div>
+          <v-row class="mt-0 mb-5">
+           <NewFilterButton :connection="outerConnection" @addFilter="newOuterGroupRule" />
+          </v-row>
+        </template>
 
-        <v-row class="mt-0 mb-5">
-          <NewFilterButton :connection="buttonDirection[7]"  />
-        </v-row>
       </div>
 
       <v-row>
@@ -111,7 +122,7 @@
 
       <v-row>
         <v-col>
-        <v-btn color="primary-darken-1">
+        <v-btn color="primary-darken-1" @click="getProgressStatus">
           <v-icon color="white" class="my-0">mdi-check-outline</v-icon>
           Submit Context
         </v-btn>
@@ -131,6 +142,7 @@ import AdvancedSettings from "@/components/contexts/AdvancedSettings.vue";
 
 export default {
   components: {AdvancedSettings, NewFilterButton, ConnectorLine, FilterLine, ConnectorButton, StatusBox},
+  emits: ['data-changed'],
   props: {
     title: {
       type: String,
@@ -149,27 +161,76 @@ export default {
       layerValues: ["Layer 1", "Layer 2", "Layer 3"],
       selectedLayers: [],
 
-      buttonDirection: ['AND', 'OR', "AND", "AND", 'AND', 'AND', 'AND', 'OR']
+      outerRows: [0],
+      innerRows: {0: [0]},
+      outerConnection: "OR",
+      innerConnection: "AND",
+
+      progressIcon: "mdi-clock-outline",
+      progressStatus: "Waiting",
+      participantNumber: "100"
     };
   },
   methods: {
      changeButtonDirection() {
-       this.buttonDirection.forEach((button, index) => {
-         if (button === "AND") {
-           this.buttonDirection[index] = "OR";
-         } else if (button === "OR") {
-           this.buttonDirection[index] = "AND";
-         }
-       });
+       this.outerConnection = this.outerConnection === "OR" ? "AND" : "OR";
+        this.innerConnection = this.innerConnection === "AND" ? "OR" : "AND";
     },
+
     sendContextName() {
        this.$emit('data-changed', this.contextName)
+    },
+
+    newInnerGroupRule(action, outerIndex, innerIndex) {
+       console.log(`Action: ${action}, OuterIndex: ${outerIndex}, InnerIndex: ${innerIndex}`);
+      if (action === 'new') {
+        this.innerRows[outerIndex].push(innerIndex);
+      } else {
+        try {
+          if (this.innerRows[outerIndex].length === 1 && outerIndex !== 0) {
+            // delete outer row and inner row
+            this.outerRows.splice(outerIndex, 1);
+            delete this.innerRows[outerIndex];
+            console.log(`Deleted outer row ${outerIndex}`);
+            console.log(this.innerRows)
+          } else {
+            this.innerRows[outerIndex].splice(innerIndex - 1, 1);
+          }
+        } catch (e) {
+          console.log(e);
+          console.log(this.innerRows);
+        }
+      }
+    },
+
+    newOuterGroupRule() {
+      this.outerRows.push(this.outerRows.length);
+      this.innerRows[this.outerRows.length - 1] = [0];
+      console.log(this.innerRows);
+    },
+
+    fetchParticipants(params) {
+      // Fetch participants from API
+      this.participantNumber = "200";
+    },
+
+    async getProgressStatus() {
+      // sleep for 2 seconds
+      const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+      await sleep(2000);
+
+      const isDone = false;
+      if (isDone) {
+        this.progressStatus = "Completed";
+        this.progressIcon = "mdi-check-circle-outline";
+      } else {
+        this.progressStatus = "0% done lol";
+        this.progressIcon = "mdi-autorenew";
+      }
     }
   },
   computed: {
-    changeInner() {
-      return this.buttonDirection[0] === 'AND';
-    }
   }
 };
 </script>

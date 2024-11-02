@@ -7,7 +7,7 @@
             :icon="icon"
             size=50
             color="black"
-            class=" justify-center my-1 mx-1"
+            :class="iconClasses"
           >
           </v-icon>
        </template>
@@ -40,7 +40,7 @@ export default {
   data() {
     return {
       tooltipText: 'Annette B., Thomas M., Werner H. and 97 more',
-
+      // make the icon spin if the title is 'In Progress'
     };
   },
   methods: {
@@ -53,7 +53,17 @@ export default {
   },
   created() {
     this.disableTooltip();
-  }
+  },
+  computed: {
+    iconClasses() {
+      return {
+        'justify-center': true,
+        'my-1': true,
+        'mx-1': true,
+        'spin-animation': this.icon === 'mdi-autorenew',
+      };
+    },
+  },
 };
 </script>
 
@@ -79,5 +89,18 @@ export default {
   font-size: 12px;
   color: #888;
   margin: 0;
+}
+
+.spin-animation {
+    animation: spin 1.8s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 </style>

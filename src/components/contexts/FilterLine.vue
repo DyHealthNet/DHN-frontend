@@ -27,7 +27,7 @@
     <v-btn
         class="center-button"
     :color="connectCol"
-    @click="printValue"
+    @click="handleClick('new')"
     >
       <v-icon
           :color="iconCol"
@@ -38,13 +38,15 @@
     </v-btn>
   </v-col>
   <v-col class="center-icon">
-      <v-icon color="black" size="25" class="my-1 center-icon" @click="printValue">mdi-close-circle-outline</v-icon>
+      <v-icon v-if="!first" color="black" size="25" class="my-1 center-icon" @click="handleClick('delete')">
+        mdi-close-circle-outline</v-icon>
   </v-col>
 </template>
 
 <script>
 export default {
   name: 'FilterLine',
+  emits: ['button-clicked'],
   props: {
     connection: {
       type: String,
@@ -80,9 +82,9 @@ export default {
     };
   },
   methods: {
-    printValue() {
-      console.log(this.columnName, this.selectedOperator, this.selectedValue);
-    }
+    handleClick(action) {
+      this.$emit('button-clicked', action);
+    },
   },
   computed:{
     connectCol() {
