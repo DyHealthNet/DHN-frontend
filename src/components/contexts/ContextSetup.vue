@@ -88,29 +88,35 @@
       </v-row>
 
       <div id="allRules">
-        <template v-for="(outerRow, outerIndex) in outerRows" :key="outerRow.id">
+        <template v-for="(outerRow, outerIndex) in outerRows" :key="`group-${outerIndex}`">
             <div>
               <v-row class="my-1">
                 <FilterLine :connection="innerConnection"
                             :first="outerIndex === 0"
-                            @button-clicked="(data) => newInnerGroupRule(data, outerIndex, 1)" />
+                            :row-id="`group-${outerIndex}-rule-0`"
+                            @button-clicked="(data) => newInnerGroupRule(data)"
+                            @data-changed="addToRules"/>
               </v-row>
-              <template
-                v-for="(innerRow, innerIndex) in innerRows[outerIndex].slice(1)"
-                :key="innerRow.id">
+                <template
+                  v-if="innerRows[`group-${outerIndex}`]"
+                  v-for="(innerRow, innerIndex) in innerRows[`group-${outerIndex}`].slice(1)"
+                  :key="`group-${outerIndex}-rule-${innerIndex+1}`">
 
-                <v-row class="my-0">
-                  <ConnectorLine :inner="true" :connection="innerConnection" />
-                </v-row>
+                  <v-row class="my-0">
+                    <ConnectorLine :inner="true" :connection="innerConnection" />
+                  </v-row>
 
-                <v-row class="my-1">
-                  <FilterLine :connection="innerConnection"
-                              @button-clicked="(data) => newInnerGroupRule(data, outerIndex, innerIndex + 2)" />
-                </v-row>
-              </template>
+                  <v-row class="my-1">
+                    <FilterLine
+                      :connection="innerConnection"
+                      :row-id="`group-${outerIndex}-rule-${innerIndex+1}`"
+                      @button-clicked="(data) => newInnerGroupRule(data)"
+                    />
+                  </v-row>
+                </template>
             </div>
           <v-row class="mt-0 mb-5">
-           <NewFilterButton :connection="outerConnection" @addFilter="newOuterGroupRule" />
+           <NewFilterButton :connection="outerConnection" @addFilter="() => newOuterGroupRule(`group-${outerIndex+1}`)" />
           </v-row>
         </template>
 
@@ -157,18 +163,21 @@ export default {
     return {
       contextName: "",
       contextNameMaxLength: [v => v.length <= 40 || 'Max 40 characters'],
+
       layers: ["Phenomics", "Metabolomics", "Proteomics"],
       layerValues: ["Layer 1", "Layer 2", "Layer 3"],
       selectedLayers: [],
 
-      outerRows: [0],
-      innerRows: {0: [0]},
+      outerRows: ['group-0'],
+      innerRows: { 'group-0': ['group-0-rule-0'] },
       outerConnection: "OR",
       innerConnection: "AND",
 
       progressIcon: "mdi-clock-outline",
       progressStatus: "Waiting",
-      participantNumber: "100"
+      participantNumber: "100",
+
+      rules: {}
     };
   },
   methods: {
@@ -181,20 +190,30 @@ export default {
        this.$emit('data-changed', this.contextName)
     },
 
-    newInnerGroupRule(action, outerIndex, innerIndex) {
-       console.log(`Action: ${action}, OuterIndex: ${outerIndex}, InnerIndex: ${innerIndex}`);
-      if (action === 'new') {
-        this.innerRows[outerIndex].push(innerIndex);
+    newInnerGroupRule(action) {
+      console.log(`Action: ${action.action}, Id: ${action.id}`);
+
+      const group = `group-${action.id.split('-')[1]}`;
+      console.log(group)
+
+      if (action.action === 'new') {
+        try {
+          this.innerRows[group].push(action.id);
+        } catch (e) {
+          console.log(e);
+          console.log(this.innerRows);
+        }
       } else {
         try {
-          if (this.innerRows[outerIndex].length === 1 && outerIndex !== 0) {
-            // delete outer row and inner row
-            this.outerRows.splice(outerIndex, 1);
-            delete this.innerRows[outerIndex];
-            console.log(`Deleted outer row ${outerIndex}`);
+          if (this.innerRows[group].length === 1 && group !== 'group-0') {
+            // delete inner row
+            this.innerRows[group].splice(this.innerRows[group].indexOf(action.id), 1);
+            delete this.innerRows[group];
+            this.outerRows.slice(this.outerRows.indexOf(group), 1);
+            console.log(`Deleted inner row ${group}`);
             console.log(this.innerRows)
           } else {
-            this.innerRows[outerIndex].splice(innerIndex - 1, 1);
+            this.innerRows[group].splice(this.innerRows[group].indexOf(action.id), 1);
           }
         } catch (e) {
           console.log(e);
@@ -203,9 +222,9 @@ export default {
       }
     },
 
-    newOuterGroupRule() {
-      this.outerRows.push(this.outerRows.length);
-      this.innerRows[this.outerRows.length - 1] = [0];
+    newOuterGroupRule(groupName) {
+      this.outerRows.push(groupName);
+      this.innerRows[groupName] = [`${groupName}-rule-0`];
       console.log(this.innerRows);
     },
 
@@ -228,6 +247,10 @@ export default {
         this.progressStatus = "0% done lol";
         this.progressIcon = "mdi-autorenew";
       }
+    },
+
+    addToRules(data) {
+      this.rules = data;
     }
   },
   computed: {

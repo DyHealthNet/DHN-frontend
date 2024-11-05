@@ -22,7 +22,6 @@
     variant="outlined"
     density="compact"
     >
-
     </v-select>
   </v-col>
 </v-row>
@@ -54,14 +53,10 @@
 </template>
 
 <script>
-import {ca} from "vuetify/locale";
 
 export default {
   name: 'StatisticalTestLine',
   computed: {
-    ca() {
-      return ca
-    }
   },
   data() {
     return {
@@ -76,14 +71,14 @@ export default {
 
       contCatItemsB: [
         'ANOVA',
-          'Ttest',
-          'Kraskal-Wallis',
-          'Mann-Whitney U',
+        'Ttest',
+        'Kraskal-Wallis',
+        'Mann-Whitney U',
       ],
 
       contCatItemsM: [
         'Kruskal-Wallis',
-          'ANOVA'
+        'ANOVA'
       ]
     }
   }

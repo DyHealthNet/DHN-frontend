@@ -14,47 +14,21 @@
   </v-container>
 
   <v-container class="d-flex justify-center mt-4">
-    <v-card class="outlined-card">
-      <v-tabs v-model="contextTab" align-tabs="center">
+    <v-card width="80%" rounded="lg" elevation="5">
+      <v-tabs v-model="contextTab" align-tabs="center" bg-color="primary-darken-1" show-arrows slider-color="black">
         <v-tab v-for="tab in tabs" :key="tab.value" :text="tab.name" :value="tab.value"></v-tab>
       </v-tabs>
-      <v-tabs-window v-model="contextTab">
-        <v-tabs-window-item v-for="tab in tabs" :key="tab.value" :value="tab.value">
+      <v-window v-model="contextTab">
+        <v-window-item v-for="tab in tabs" :key="tab.value" :value="tab.value">
           <v-card color="background">
             <v-card-text>
-              <template v-if="tab.value === 1">
-                <v-row>
-                  <ContextSetup :title="tab.name" :content="tab.content" @data-changed="updateTabName" />
-                </v-row>
-              </template>
-
-              <template v-if="tab.value === 2">
-                <v-row>
-                  <ContextSetup :title="tab.name" :content="tab.content" @data-changed="updateTabName" />
-                </v-row>
-              </template>
-
-              <template v-if="tab.value === 3">
-                <v-row>
-                  <ContextSetup :title="tab.name" :content="tab.content" @data-changed="updateTabName" />
-                </v-row>
-              </template>
-
-              <template v-if="tab.value === 4">
-                <v-row>
-                  <ContextSetup :title="tab.name" :content="tab.content" @data-changed="updateTabName" />
-                </v-row>
-              </template>
-
-              <template v-if="tab.value === 5">
-                <v-row>
-                  <ContextSetup :title="tab.name" :content="tab.content" @data-changed="updateTabName" />
-                </v-row>
-              </template>
+              <v-row>
+                <ContextSetup :title="tab.name" :content="tab.content" @data-changed="updateTabName" />
+              </v-row>
             </v-card-text>
           </v-card>
-        </v-tabs-window-item>
-      </v-tabs-window>
+        </v-window-item>
+      </v-window>
     </v-card>
   </v-container>
 </template>
@@ -110,18 +84,4 @@ export default {
   width: 80%;
   border-radius: 10px;
 }
-
-/* as something seems bugged with the default color of the tabs, we need to overwrite it */
-.v-tab:hover {
-  background-color: initial !important;
-}
-.v-tabs {
-  color: #22425B !important;
-}
-
-.v-tab--active {
-  background-color: #ffffff !important;
-  color: #000 !important;
-}
-
 </style>

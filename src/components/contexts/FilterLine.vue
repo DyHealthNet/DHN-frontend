@@ -5,6 +5,7 @@
     :items="columnItems"
     density="compact"
     variant="outlined"
+    @change="updateData"
     ></v-autocomplete>
 </v-col>
   <v-col cols="2" class="filter-padding">
@@ -13,6 +14,7 @@
     :items="operators"
     density="compact"
     variant="outlined"
+    @change="updateData"
     ></v-select>
 </v-col>
   <v-col cols="4" class="filter-padding">
@@ -21,13 +23,14 @@
     :items="possibleValues"
     density="compact"
     variant="outlined"
+    @change="updateData"
     ></v-combobox>
 </v-col>
   <v-col class="center-button">
     <v-btn
         class="center-button"
     :color="connectCol"
-    @click="handleClick('new')"
+    @click="handleClick({action: 'new', id: rowId})"
     >
       <v-icon
           :color="iconCol"
@@ -38,7 +41,11 @@
     </v-btn>
   </v-col>
   <v-col class="center-icon">
-      <v-icon v-if="!first" color="black" size="25" class="my-1 center-icon" @click="handleClick('delete')">
+      <v-icon v-if="!first"
+              color="black"
+              size="25"
+              class="my-1 center-icon"
+              @click="handleClick({action: 'delete', id: rowId})">
         mdi-close-circle-outline</v-icon>
   </v-col>
 </template>
@@ -46,7 +53,7 @@
 <script>
 export default {
   name: 'FilterLine',
-  emits: ['button-clicked'],
+  emits: ['button-clicked', 'data-changed'],
   props: {
     connection: {
       type: String,
@@ -55,6 +62,10 @@ export default {
     first: {
       type: Boolean,
       default: false
+    },
+    rowId: {
+      type: String,
+      required: true
     }
   },
   data() {
@@ -85,6 +96,14 @@ export default {
     handleClick(action) {
       this.$emit('button-clicked', action);
     },
+    updateData() {
+      this.$emit('data-changed', {
+        ruleId: this.rowId,
+        columnName: this.columnName,
+        selectedOperator: this.selectedOperator,
+        selectedValue: this.selectedValue
+      });
+    }
   },
   computed:{
     connectCol() {
