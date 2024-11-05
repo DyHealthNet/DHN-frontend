@@ -49,7 +49,7 @@
             <v-row>
               <v-col cols="12">
                 <v-card>
-                  <v-toolbar color="primar-darken-1">
+                  <v-toolbar color="primary-darken-1">
                     <v-toolbar-title
                       >Overview of Cohorts Data
                       <v-tooltip bottom>
@@ -205,7 +205,7 @@
                 </v-toolbar-sub-title>
                 <v-spacer></v-spacer>
                 <template v-slot:extension>
-                  <v-tabs v-model="model" align-tabs="center">
+                  <v-tabs v-model="model" align-tabs="center" bg-color="primary-darken-1">
                     <v-tab
                       v-for="tab in tabs"
                       :key="tab.value"
@@ -237,6 +237,8 @@
                                   <v-autocomplete
                                     v-model="selectedXvariableBox"
                                     clearable
+                                    variant="outlined"
+                                    density="compact"
                                     label="X Variable"
                                     :items="xItemsBox"
                                     style="max-width: 250px; color: #104d63"
@@ -252,6 +254,8 @@
                                   <v-autocomplete
                                     v-model="selectedYvariableBox"
                                     clearable
+                                    variant="outlined"
+                                    density="compact"
                                     label="Y Variable"
                                     :items="yItemsBox"
                                     style="max-width: 250px; color: #104d63"
@@ -267,6 +271,8 @@
                                   <v-autocomplete
                                     v-model="selectedCvariableBox"
                                     clearable
+                                    variant="outlined"
+                                    density="compact"
                                     label="Colored by (optional)"
                                     :items="colorItemsBox"
                                     style="max-width: 250px; color: #104d63"
@@ -303,6 +309,8 @@
                                   <v-autocomplete
                                     v-model="selectedXvariableLine"
                                     clearable
+                                    variant="outlined"
+                                    density="compact"
                                     label="X Variable"
                                     :items="xItemsLine"
                                     style="max-width: 250px; color: #104d63"
@@ -321,6 +329,8 @@
                                   <v-autocomplete
                                     v-model="selectedYvariableLine"
                                     clearable
+                                    variant="outlined"
+                                    density="compact"
                                     label="Y Variable"
                                     :items="yItemsLine"
                                     style="max-width: 250px; color: #104d63"
@@ -336,6 +346,8 @@
                                   <v-autocomplete
                                     v-model="selectedCvariableLine"
                                     clearable
+                                    variant="outlined"
+                                    density="compact"
                                     label="Colored by (optional)"
                                     :items="colorItemsLine"
                                     style="max-width: 250px; color: #104d63"
@@ -372,6 +384,8 @@
                                   <v-autocomplete
                                     v-model="selectedVariableHeatmap1"
                                     clearable
+                                    variant="outlined"
+                                    density="compact"
                                     label="X Variable"
                                     :items="itemHeatmap1"
                                     style="max-width: 350px; color: #104d63"
@@ -387,6 +401,8 @@
                                   <v-autocomplete
                                     v-model="selectedVariableHeatmap2"
                                     clearable
+                                    variant="outlined"
+                                    density="compact"
                                     label="Y Variable"
                                     :items="itemHeatmap2"
                                     style="max-width: 350px; color: #104d63"
@@ -423,6 +439,8 @@
                                   <v-autocomplete
                                     v-model="selectedXvariableBar"
                                     clearable
+                                    variant="outlined"
+                                    density="compact"
                                     label="X Variable"
                                     :items="xItemsBar"
                                     style="max-width: 350px; color: #104d63"
@@ -438,6 +456,8 @@
                                   <v-autocomplete
                                     v-model="selectedCvariableBar"
                                     clearable
+                                    variant="outlined"
+                                    density="compact"
                                     label="Colored by (optional)"
                                     :items="colorItemsBar"
                                     style="max-width: 350px; color: #104d63"
