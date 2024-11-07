@@ -72,7 +72,7 @@ export default {
       contCatItemsB: [
         'ANOVA',
         'Ttest',
-        'Kraskal-Wallis',
+        'Kruskal-Wallis',
         'Mann-Whitney U',
       ],
 

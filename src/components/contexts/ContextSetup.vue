@@ -105,14 +105,14 @@
                       :first="outerIndex === 0 && innerIndex === 0"
                       :rule-group="innerRow.group"
                       :rule-id="innerRow.id"
-                      :enable-connector="true"
+                      :enable-connector="innerRows.filter(item => item.group === outerRow).length - 1 === innerIndex"
                       @button-clicked="(data) => newInnerGroupRule(data)"
                       @data-changed="addToRules"
                     />
                   </v-row>
                 </template>
             </div>
-          <v-row class="mt-0 mb-5">
+          <v-row class="mt-0 mb-5" v-if="this.outerRows.indexOf(outerRow) !== this.outerRows.length - 1">
             <NewFilterButton :connection="outerConnection"
                              :visual-only="true"
                              :last="this.outerRows.indexOf(outerRow) === this.outerRows.length - 1" />
@@ -131,7 +131,7 @@
       <v-row>
         <v-col>
         <v-btn color="primary-darken-1" @click="getProgressStatus">
-          <v-icon color="white" class="my-0">mdi-check-outline</v-icon>
+          <v-icon color="white" class="my-0 mr-2">mdi-check-outline</v-icon>
           Submit Context
         </v-btn>
           </v-col>

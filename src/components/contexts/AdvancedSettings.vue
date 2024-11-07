@@ -1,7 +1,7 @@
 <template>
 
   <v-col>
-    <v-expansion-panels>
+    <v-expansion-panels variant="popout">
       <v-expansion-panel>
         <v-expansion-panel-title>
           <div class="d-flex align-center">
