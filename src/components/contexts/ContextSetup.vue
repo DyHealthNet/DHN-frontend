@@ -203,12 +203,10 @@ export default {
       } else {
         try {
           if (this.innerRows.filter(data => data.group === action.group).length === 1) {
-            // remove the element and the group if it's the only element
             const removeElement = this.innerRows.filter(data => data.group === action.group)[0];
             this.innerRows.splice(this.innerRows.indexOf(removeElement), 1);
             this.outerRows.splice(this.outerRows.indexOf(action.group), 1);
           } else {
-
             const removeElement = this.innerRows.filter(data => data.id === action.id)[0];
             this.innerRows.splice(this.innerRows.indexOf(removeElement), 1);
           }
