@@ -1,11 +1,13 @@
 <template>
   <v-col>
   <v-btn
+      v-if = "!last"
       class="center-button"
       :color="connectCol"
       @click="$emit('addFilter')"
       >
         <v-icon
+            v-if="!visualOnly"
             :color="iconCol"
             size="19"
             class="justify-center my-0 mr-2"
@@ -24,6 +26,14 @@ export default {
       type: String,
       required: true,
     },
+    visualOnly: {
+      type: Boolean,
+      default: false,
+    },
+    last: {
+      type: Boolean,
+      default: false,
+    }
   },
   data() {
     return {

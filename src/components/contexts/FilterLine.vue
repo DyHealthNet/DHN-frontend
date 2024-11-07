@@ -28,9 +28,10 @@
 </v-col>
   <v-col class="center-button">
     <v-btn
+        v-if="enableConnector"
         class="center-button"
     :color="connectCol"
-    @click="handleClick({action: 'new', id: rowId})"
+    @click="handleClick({action: 'new', id: this.ruleId, group: this.ruleGroup})"
     >
       <v-icon
           :color="iconCol"
@@ -44,8 +45,8 @@
       <v-icon v-if="!first"
               color="black"
               size="25"
-              class="my-1 center-icon"
-              @click="handleClick({action: 'delete', id: rowId})">
+              class="my-1 center-icon custom-hover"
+              @click="handleClick({action: 'delete', id: this.ruleId, group: this.ruleGroup})">
         mdi-close-circle-outline</v-icon>
   </v-col>
 </template>
@@ -63,9 +64,17 @@ export default {
       type: Boolean,
       default: false
     },
-    rowId: {
+    ruleGroup: {
       type: String,
       required: true
+    },
+    enableConnector: {
+      type: Boolean,
+      default: true
+    },
+    ruleId: {
+      type: String,
+      required: true,
     }
   },
   data() {
@@ -94,15 +103,19 @@ export default {
   },
   methods: {
     handleClick(action) {
+      console.log(`Button clicked: ${action.action}, id: ${action.id}, group: ${action.group}`);
       this.$emit('button-clicked', action);
     },
     updateData() {
       this.$emit('data-changed', {
-        ruleId: this.rowId,
+        ruleId: this.ruleId,
         columnName: this.columnName,
         selectedOperator: this.selectedOperator,
         selectedValue: this.selectedValue
       });
+    },
+    makeElevation() {
+      return this.first ? 0 : 1;
     }
   },
   computed:{
@@ -112,6 +125,10 @@ export default {
     iconCol() {
       return this.connection === 'AND' ? 'black' : 'white';
     }
+  },
+  created() {
+    console.log(`Rule id ${this.ruleId}`);
+    console.log(`Rule group: ${this.ruleGroup}`);
   }
 };
 </script>
@@ -132,6 +149,15 @@ export default {
 .filter-padding {
   padding-top: 1px;
   padding-bottom: 1px;
+}
+
+.custom-hover {
+  filter: brightness(20%);
+  transition: box-shadow 0.3s ease;
+}
+
+.custom-hover:hover {
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6));
 }
 
 </style>

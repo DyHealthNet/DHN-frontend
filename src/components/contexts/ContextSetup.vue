@@ -88,37 +88,39 @@
       </v-row>
 
       <div id="allRules">
-        <template v-for="(outerRow, outerIndex) in outerRows" :key="`group-${outerIndex}`">
+        <template
+            v-for="(outerRow, outerIndex) in outerRows" :key="outerRow">
             <div>
-              <v-row class="my-1">
-                <FilterLine :connection="innerConnection"
-                            :first="outerIndex === 0"
-                            :row-id="`group-${outerIndex}-rule-0`"
-                            @button-clicked="(data) => newInnerGroupRule(data)"
-                            @data-changed="addToRules"/>
-              </v-row>
                 <template
-                  v-if="innerRows[`group-${outerIndex}`]"
-                  v-for="(innerRow, innerIndex) in innerRows[`group-${outerIndex}`].slice(1)"
-                  :key="`group-${outerIndex}-rule-${innerIndex+1}`">
+                  v-for="(innerRow, innerIndex) in innerRows.filter(item => item.group === outerRow)"
+                  :key="`${innerRow.group}-${innerRow.id}`">
 
-                  <v-row class="my-0">
+                  <v-row class="my-0" v-if="innerIndex > 0">
                     <ConnectorLine :inner="true" :connection="innerConnection" />
                   </v-row>
 
                   <v-row class="my-1">
                     <FilterLine
                       :connection="innerConnection"
-                      :row-id="`group-${outerIndex}-rule-${innerIndex+1}`"
+                      :first="outerIndex === 0 && innerIndex === 0"
+                      :rule-group="innerRow.group"
+                      :rule-id="innerRow.id"
+                      :enable-connector="true"
                       @button-clicked="(data) => newInnerGroupRule(data)"
+                      @data-changed="addToRules"
                     />
                   </v-row>
                 </template>
             </div>
           <v-row class="mt-0 mb-5">
-           <NewFilterButton :connection="outerConnection" @addFilter="() => newOuterGroupRule(`group-${outerIndex+1}`)" />
+            <NewFilterButton :connection="outerConnection"
+                             :visual-only="true"
+                             :last="this.outerRows.indexOf(outerRow) === this.outerRows.length - 1" />
           </v-row>
         </template>
+        <v-row class="mt-0 mb-5">
+          <NewFilterButton :connection="outerConnection" @addFilter="newOuterGroupRule" />
+        </v-row>
 
       </div>
 
@@ -145,6 +147,7 @@ import FilterLine from "@/components/contexts/FilterLine.vue";
 import ConnectorLine from "@/components/contexts/ConnectorLine.vue";
 import NewFilterButton from "@/components/contexts/NewFilterButton.vue";
 import AdvancedSettings from "@/components/contexts/AdvancedSettings.vue";
+import { v4 as uuidv4 } from 'uuid';
 
 export default {
   components: {AdvancedSettings, NewFilterButton, ConnectorLine, FilterLine, ConnectorButton, StatusBox},
@@ -169,7 +172,7 @@ export default {
       selectedLayers: [],
 
       outerRows: ['group-0'],
-      innerRows: { 'group-0': ['group-0-rule-0'] },
+      innerRows: [{group: 'group-0', id: uuidv4(), rule: []}],
       outerConnection: "OR",
       innerConnection: "AND",
 
@@ -191,40 +194,35 @@ export default {
     },
 
     newInnerGroupRule(action) {
+      console.log(action);
       console.log(`Action: ${action.action}, Id: ${action.id}`);
 
-      const group = `group-${action.id.split('-')[1]}`;
-      console.log(group)
-
       if (action.action === 'new') {
-        try {
-          this.innerRows[group].push(action.id);
-        } catch (e) {
-          console.log(e);
-          console.log(this.innerRows);
-        }
+        // get the latest rule in the group and increment it by 1
+        this.innerRows.push({group: action.group, id: uuidv4(), rule: []});
       } else {
         try {
-          if (this.innerRows[group].length === 1 && group !== 'group-0') {
-            // delete inner row
-            this.innerRows[group].splice(this.innerRows[group].indexOf(action.id), 1);
-            delete this.innerRows[group];
-            this.outerRows.slice(this.outerRows.indexOf(group), 1);
-            console.log(`Deleted inner row ${group}`);
-            console.log(this.innerRows)
+          if (this.innerRows.filter(data => data.group === action.group).length === 1) {
+            // remove the element and the group if it's the only element
+            const removeElement = this.innerRows.filter(data => data.group === action.group)[0];
+            this.innerRows.splice(this.innerRows.indexOf(removeElement), 1);
+            this.outerRows.splice(this.outerRows.indexOf(action.group), 1);
           } else {
-            this.innerRows[group].splice(this.innerRows[group].indexOf(action.id), 1);
+
+            const removeElement = this.innerRows.filter(data => data.id === action.id)[0];
+            this.innerRows.splice(this.innerRows.indexOf(removeElement), 1);
           }
         } catch (e) {
           console.log(e);
-          console.log(this.innerRows);
         }
       }
     },
 
-    newOuterGroupRule(groupName) {
+    newOuterGroupRule() {
+       const latestGroup = this.outerRows[this.outerRows.length - 1];
+      const groupName = `group-${parseInt(latestGroup.split('-')[1]) + 1}`;
       this.outerRows.push(groupName);
-      this.innerRows[groupName] = [`${groupName}-rule-0`];
+      this.innerRows.push({group: groupName, id: uuidv4(), rule: []});
       console.log(this.innerRows);
     },
 
