@@ -172,17 +172,6 @@ export default {
       );
     },
   },
-  mounted() {
-    if (Object.keys(this.allVariables).length > 0) {
-      this.columnItems = [... new Set(Object.values(this.allVariables).flat())];
-      this.reverseAllVariables = Object.entries(this.allVariables).reduce((acc, [key, value]) => {
-        value.forEach(v => {
-          acc[v] = key;
-        });
-        return acc;
-      }, {});
-    }
-  },
   setup(props) {
   const { allVariables } = toRefs(props);
 
@@ -190,7 +179,16 @@ export default {
     return [...new Set(Object.values(allVariables.value).flat())];
   });
 
-  return { columnItems };
+  const reverseAllVariables = computed(() => {
+    return Object.entries(allVariables.value).reduce((acc, [key, value]) => {
+      value.forEach(v => {
+        acc[v] = key;
+      });
+      return acc;
+    }, {});
+  });
+
+  return { columnItems, reverseAllVariables };
   },
 };
 </script>
