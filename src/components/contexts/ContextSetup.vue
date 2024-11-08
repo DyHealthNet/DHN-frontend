@@ -284,8 +284,15 @@ export default {
 
       await sleep(2000);
 
-      /*
-      await fetch(`${BASE_URL}/network/api/contextStatus`, {
+      while (this.taskId === null) {
+        console.log("Task ID is null");
+        await sleep(2000);
+      }
+
+      const url = new URL(`${BASE_URL}/network/api/contextStatus`);
+      url.search = new URLSearchParams({ taskId: this.taskId }).toString();
+
+      await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -293,22 +300,12 @@ export default {
       })
         .then(response => response.json())
         .then(data => {
-          console.log('Success:', data);
-          this.progressStatus = data.status;
-          this.progressIcon = data.status === "Completed" ? "mdi-check-circle-outline" : "mdi-autorenew";
+          this.progressStatus = data.status === "SUCCESS" ? "Finished" : "In progress";
+          this.progressIcon = data.status === "SUCCESS" ? "mdi-check-circle-outline" : "mdi-autorenew";
         })
         .catch((error) => {
           console.error('Error:', error);
-        }); */
-
-      const isDone = false;
-      if (isDone) {
-        this.progressStatus = "Completed";
-        this.progressIcon = "mdi-check-circle-outline";
-      } else {
-        this.progressStatus = "0% done lol";
-        this.progressIcon = "mdi-autorenew";
-      }
+        });
     },
 
     addToRules(data) {
@@ -392,8 +389,23 @@ export default {
           console.error('Error:', error);
         });
 
+    },
+
+    async intervalProgress() {
+
+      while (this.taskId === null) {
+        await new Promise(r => setTimeout(r, 20000));
+      }
+
+      while (this.progressStatus !== "SUCCESS") {
+        await this.getProgressStatus();
+        await new Promise(r => setTimeout(r, 30000));
+      }
     }
   },
+  mounted() {
+    this.intervalProgress();
+  }
 };
 </script>
 
