@@ -46,6 +46,7 @@
           <v-col cols="auto" class="filter-padding">
             <StatusBox
             :title="participantNumber"
+            :remove="removedPatients"
             subtitle="Participants"
             icon="mdi-account-multiple-outline"
             />
@@ -208,6 +209,7 @@ export default {
       progressIcon: "mdi-clock-outline",
       progressStatus: "Waiting",
       participantNumber: "13 000",
+      removedPatients: "",
 
       selectedTests: { catCat: 'Chi-squared', catContM: 'ANOVA', catContB: 'T-test', contCont: 'Pearson'},
 
@@ -286,16 +288,20 @@ export default {
       })
         .then(response => response.json())
         .then(data => {
-          newParticipants = '' + data.result;
+          newParticipants = data.result;
         })
         .catch((error) => {
           console.error('Error:', error);
           // get a random number of participants to test
-          newParticipants = '' + Math.floor(Math.random() * 100) + 100;
+          newParticipants = Math.floor(Math.random() * 100) + 100;
         });
 
+      // calculate the number of removed patients
+      const minusPatients = this.participantNumber === '' ? 0 : parseInt(this.participantNumber.replace(/\s/g, '')) - newParticipants;
+      const patientsString = ("" + Math.abs(minusPatients)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+      this.removedPatients = minusPatients > 0 ? "- " + patientsString : "+ " + patientsString;
       // go backwards and add a space every 3 characters to comply with Resolution 10 of CGPM
-      this.participantNumber = newParticipants.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+      this.participantNumber = ('' + newParticipants).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
     },
 
     async getProgressStatus() {

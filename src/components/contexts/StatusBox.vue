@@ -14,6 +14,11 @@
       </v-tooltip>
     <div class="text">
       <p class="title">{{ title }}</p>
+      <p v-if="remove"
+         :key="remove"
+         :class="['remove-text', removeSignClass]"
+
+      >{{ remove }}</p>
       <p class="subtitle">{{ subtitle }}</p>
     </div>
   </div>
@@ -35,6 +40,10 @@ export default {
       type: String,
       default: 'mdi-check-circle-outline',
     },
+    remove: {
+      type: String,
+      required: false,
+    }
   },
   name: 'StatusBox',
   data() {
@@ -61,6 +70,9 @@ export default {
         'mx-1': true,
         'spin-animation': this.icon === 'mdi-autorenew',
       };
+    },
+    removeSignClass() {
+      return this.remove.startsWith('+') ? 'positive' : 'negative';
     },
   },
 };
@@ -102,4 +114,54 @@ export default {
         transform: rotate(360deg);
     }
 }
+
+.remove-text {
+  font-size: 1em;
+  color: red;
+  position: absolute;
+  left: 91.5%;
+  opacity: 1;
+  animation: slideDownFadeOut 1.5s forwards;
+}
+
+.remove-text.positive {
+  color: green; /* Green color for positive numbers */
+}
+
+.remove-text.negative {
+  color: red; /* Red color for negative numbers */
+}
+
+@keyframes slideDownFadeOut {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(10px);
+  }
+  100% {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+}
+
+.remove-text.positive {
+  animation: slideUpFadeIn 1.5s forwards;
+}
+
+@keyframes slideUpFadeIn {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-10px); /* Moves up for positive */
+  }
+  100% {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+}
+
 </style>
