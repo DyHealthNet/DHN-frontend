@@ -8,23 +8,27 @@
     </v-col>
   </v-row>
   <v-row>
-  <v-col cols="4" class="my-0">
-    <v-select
-    :items="contContItems"
-    variant="outlined"
-    density="compact"
-    >
-    </v-select>
-  </v-col>
-  <v-col cols="4" class="my-0">
-    <v-select
-    :items="catCatItems"
-    variant="outlined"
-    density="compact"
-    >
-    </v-select>
-  </v-col>
-</v-row>
+    <v-col cols="4" class="my-0">
+      <v-select
+          v-model="contCont"
+          :items="contContItems"
+          variant="outlined"
+          density="compact"
+          @change="changeTest"
+      >
+      </v-select>
+    </v-col>
+    <v-col cols="4" class="my-0">
+      <v-select
+          v-model="catCat"
+          :items="catCatItems"
+          variant="outlined"
+          density="compact"
+          @change="changeTest"
+      >
+      </v-select>
+    </v-col>
+  </v-row>
   <v-row>
     <v-col>
       <p><b>Categorical-continuous</b></p>
@@ -33,19 +37,23 @@
   <v-row>
     <v-col cols="4" class="my-0">
       <v-select
-      :items="contCatItemsB"
-      label="Binary categories"
-      variant="outlined"
-      density="compact"
+          v-model="contCatB"
+          :items="contCatItemsB"
+          label="Binary categories"
+          variant="outlined"
+          density="compact"
+          @change="changeTest"
       >
       </v-select>
     </v-col>
     <v-col cols="4" class="my-0">
       <v-select
-      :items="contCatItemsM"
-      label="Multiple categories"
-      variant="outlined"
-      density="compact"
+          v-model="contCatM"
+          :items="contCatItemsM"
+          label="Multiple categories"
+          variant="outlined"
+          density="compact"
+          @change="changeTest"
       >
       </v-select>
     </v-col>
@@ -56,13 +64,12 @@
 
 export default {
   name: 'StatisticalTestLine',
-  computed: {
-  },
+  emits: ['data-changed'],
   data() {
     return {
       contContItems: [
-        'Pearson Correlation',
-        'Spearman Correlation',
+        'Pearson',
+        'Spearman',
       ],
 
       catCatItems: [
@@ -71,7 +78,7 @@ export default {
 
       contCatItemsB: [
         'ANOVA',
-        'Ttest',
+        'T-test',
         'Kruskal-Wallis',
         'Mann-Whitney U',
       ],
@@ -79,7 +86,22 @@ export default {
       contCatItemsM: [
         'Kruskal-Wallis',
         'ANOVA'
-      ]
+      ],
+
+      contCont: 'Pearson Correlation',
+      catCat: 'Chi-square',
+      contCatB: 'T-test',
+      contCatM: 'ANOVA',
+    }
+  },
+  methods: {
+    changeTest() {
+      this.$emit('data-changed', {
+        contCont: this.contCont,
+        catCat: this.catCat,
+        contCatB: this.contCatB,
+        contCatM: this.contCatM,
+      })
     }
   }
 }

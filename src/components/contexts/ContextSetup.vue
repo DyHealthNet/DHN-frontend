@@ -125,22 +125,48 @@
       </div>
 
       <v-row>
-        <AdvancedSettings />
+        <AdvancedSettings @data-changed="addTests" />
       </v-row>
 
       <v-row>
         <v-col>
-        <v-btn color="primary-darken-1" @click="getProgressStatus">
+        <v-btn color="primary-darken-1" @click="sendContext" :disabled="sendDisabled">
           <v-icon color="white" class="my-0 mr-2">mdi-check-outline</v-icon>
           Submit Context
         </v-btn>
           </v-col>
       </v-row>
 
+      <v-row>
+        <div class="text-center ma-2">
+            <v-snackbar
+              v-model="taskStarted"
+              :color="taskType"
+            >
+              <v-icon class="my-0 mr-2">
+                mdi-information-outline
+              </v-icon>
+              {{ taskInfo }}
+
+              <template v-slot:actions>
+                <v-btn
+                  variant="text"
+                  @click="taskStarted = false"
+                >
+                  Close
+                </v-btn>
+              </template>
+            </v-snackbar>
+          </div>
+      </v-row>
+
     </v-container>
 </template>
 
 <script>
+const BASE_URL =
+  import.meta.env.VITE_BACKEND_URL ||
+  `${window.location.protocol}//${window.location.host}`;
 import StatusBox from "@/components/contexts/StatusBox.vue";
 import ConnectorButton from "@/components/contexts/ConnectorButton.vue";
 import FilterLine from "@/components/contexts/FilterLine.vue";
@@ -168,19 +194,24 @@ export default {
       contextNameMaxLength: [v => v.length <= 40 || 'Max 40 characters'],
 
       layers: ["Phenomics", "Metabolomics", "Proteomics"],
-      layerValues: ["Layer 1", "Layer 2", "Layer 3"],
-      selectedLayers: [],
+      selectedLayers: ["Phenomics", "Metabolomics", "Proteomics"],
 
       outerRows: ['group-0'],
-      innerRows: [{group: 'group-0', id: uuidv4(), rule: []}],
+      innerRows: [{group: 'group-0', id: uuidv4(), rule: {}}],
       outerConnection: "OR",
       innerConnection: "AND",
 
       progressIcon: "mdi-clock-outline",
       progressStatus: "Waiting",
-      participantNumber: "100",
+      participantNumber: "13 000",
 
-      rules: {}
+      selectedTests: { catCat: 'Chi-squared', catContM: 'ANOVA', catContB: 'T-test', contCont: 'Pearson'},
+
+      taskId: null,
+      taskStarted: false,
+      taskInfo: "",
+      taskType: "",
+      sendDisabled: false
     };
   },
   methods: {
@@ -194,12 +225,10 @@ export default {
     },
 
     newInnerGroupRule(action) {
-      console.log(action);
-      console.log(`Action: ${action.action}, Id: ${action.id}`);
 
       if (action.action === 'new') {
         // get the latest rule in the group and increment it by 1
-        this.innerRows.push({group: action.group, id: uuidv4(), rule: []});
+        this.innerRows.push({group: action.group, id: uuidv4(), rule: {}});
       } else {
         try {
           if (this.innerRows.filter(data => data.group === action.group).length === 1) {
@@ -210,6 +239,7 @@ export default {
             const removeElement = this.innerRows.filter(data => data.id === action.id)[0];
             this.innerRows.splice(this.innerRows.indexOf(removeElement), 1);
           }
+          this.fetchParticipants(this.createParams());
         } catch (e) {
           console.log(e);
         }
@@ -221,12 +251,31 @@ export default {
       const groupName = `group-${parseInt(latestGroup.split('-')[1]) + 1}`;
       this.outerRows.push(groupName);
       this.innerRows.push({group: groupName, id: uuidv4(), rule: []});
-      console.log(this.innerRows);
     },
 
-    fetchParticipants(params) {
-      // Fetch participants from API
-      this.participantNumber = "200";
+    async fetchParticipants(params) {
+      console.log(JSON.stringify(params));
+      let newParticipants = '';
+      // fetch the participants
+      await fetch(`${BASE_URL}/network/api/filterContext`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(params)
+      })
+        .then(response => response.json())
+        .then(data => {
+          newParticipants = '' + data.result;
+        })
+        .catch((error) => {
+          console.error('Error:', error);
+          // get a random number of participants to test
+          newParticipants = '' + Math.floor(Math.random() * 100) + 100;
+        });
+
+      // go backwards and add a space every 3 characters to comply with Resolution 10 of CGPM
+      this.participantNumber = newParticipants.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
     },
 
     async getProgressStatus() {
@@ -234,6 +283,23 @@ export default {
       const sleep = ms => new Promise(r => setTimeout(r, ms));
 
       await sleep(2000);
+
+      /*
+      await fetch(`${BASE_URL}/network/api/contextStatus`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+        .then(response => response.json())
+        .then(data => {
+          console.log('Success:', data);
+          this.progressStatus = data.status;
+          this.progressIcon = data.status === "Completed" ? "mdi-check-circle-outline" : "mdi-autorenew";
+        })
+        .catch((error) => {
+          console.error('Error:', error);
+        }); */
 
       const isDone = false;
       if (isDone) {
@@ -246,11 +312,88 @@ export default {
     },
 
     addToRules(data) {
-      this.rules = data;
+      // find the correct rule and update it
+      const rule = this.innerRows.filter(item => item.id === data.ruleId)[0];
+      rule.rule = {
+        column: data.column,
+        operator: data.operator,
+        value: data.value
+      };
+
+      // once the rule has been added we can fetch the participants
+      this.fetchParticipants(this.createParams());
+    },
+
+    addTests(data) {
+       this.selectedTests = data;
+    },
+
+    createParams() {
+      let conditions = {};
+
+      for (const rule of this.innerRows) {
+        if (rule.rule.column === undefined) {
+          continue;
+        }
+        if (!conditions[rule.group]) {
+          conditions[rule.group] = [];
+        }
+        conditions[rule.group].push(rule.rule);
+      }
+
+      return {
+        connect: {inside: this.innerConnection, outside: this.outerConnection},
+        conditions: conditions,
+        contextName: this.contextName,
+        layers: this.selectedLayers.map(layer => layer.toLowerCase()),
+        tests: this.selectedTests
+      };
+    },
+
+    async sendContext() {
+       // check for validity
+      if (this.selectedLayers.length === 0) {
+        this.taskStarted = true;
+        this.taskInfo = "Please select at least one layer";
+        this.taskType = "error";
+        return;
+      }
+      if (this.contextName.length === 0) {
+        this.taskStarted = true;
+        this.taskInfo = "Please enter a context name";
+        this.taskType = "error";
+        return;
+      }
+      if (this.innerRows.length === 0) {
+        this.taskStarted = true;
+        this.taskInfo = "Please define at least one rule";
+        this.taskType = "error";
+        return;
+      }
+      const params = this.createParams();
+
+      await fetch(`${BASE_URL}/network/api/createContext`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(params)
+      })
+        .then(response => response.json())
+        .then(data => {
+          this.taskId = data.taskId;
+          this.taskStarted = true;
+          this.taskInfo = "Context calculation started successfully";
+          this.taskType = "success";
+          this.sendDisabled = true;
+          this.getProgressStatus();
+        })
+        .catch((error) => {
+          console.error('Error:', error);
+        });
+
     }
   },
-  computed: {
-  }
 };
 </script>
 

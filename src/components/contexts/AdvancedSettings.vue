@@ -10,7 +10,7 @@
           </div>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
-          <StatisticalTestLine />
+          <StatisticalTestLine @data-changed="updateData" />
         </v-expansion-panel-text>
       </v-expansion-panel>
     </v-expansion-panels>
@@ -22,15 +22,12 @@ import StatisticalTestLine from "@/components/contexts/StatisticalTestLine.vue";
 
 export default {
   name: 'AdvancedSettings',
+  emits: ['data-changed'],
   components: {StatisticalTestLine},
-  data() {
-    return {
-      continuousContinuous: false,
-      categoricalCategorical: false,
-      categoricalContinuous: false,
-      binaryCategories: false,
-      twoCategories: false,
-    };
+  methods: {
+    updateData(data) {
+      this.$emit('data-changed', data);
+    },
   },
 };
 </script>

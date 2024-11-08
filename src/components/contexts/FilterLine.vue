@@ -5,7 +5,7 @@
     :items="columnItems"
     density="compact"
     variant="outlined"
-    @change="updateData"
+        @update:model-value="updateData"
     ></v-autocomplete>
 </v-col>
   <v-col cols="2" class="filter-padding">
@@ -14,7 +14,7 @@
     :items="operators"
     density="compact"
     variant="outlined"
-    @change="updateData"
+    @update:model-value="updateData"
     ></v-select>
 </v-col>
   <v-col cols="4" class="filter-padding">
@@ -23,7 +23,8 @@
     :items="possibleValues"
     density="compact"
     variant="outlined"
-    @change="updateData"
+        @update:model-value="updateData"
+
     ></v-combobox>
 </v-col>
   <v-col class="center-button">
@@ -86,37 +87,39 @@ export default {
         'Type of diabetes (x0dm02)',
         'NEIL2 / Protein (x0so3291)',
         'Diabetes treatment (x0dm03)',
+        'BCL2-like 1 protein (x0so5385)',
+        'Histamine'
       ],
       selectedOperator: "",
       operators: [
           'equals (=)',
           'less than (<)',
-          'greater than (>)',
+          'more than (>)',
           'in'
       ],
       selectedValue: "",
       possibleValues: [
-          'Male',
-          'Female'
+          '0',
+          '1'
       ]
     };
   },
   methods: {
     handleClick(action) {
-      console.log(`Button clicked: ${action.action}, id: ${action.id}, group: ${action.group}`);
       this.$emit('button-clicked', action);
     },
     updateData() {
+      // first check if all fields are filled, if not return
+      if (this.columnName === "" || this.selectedOperator === "" || this.selectedValue === "") {
+        return;
+      }
       this.$emit('data-changed', {
         ruleId: this.ruleId,
-        columnName: this.columnName,
-        selectedOperator: this.selectedOperator,
-        selectedValue: this.selectedValue
+        column: this.columnName,
+        operator: this.selectedOperator.substring(0, 5).trim(),
+        value: Number(this.selectedValue)
       });
     },
-    makeElevation() {
-      return this.first ? 0 : 1;
-    }
   },
   computed:{
     connectCol() {
@@ -125,10 +128,6 @@ export default {
     iconCol() {
       return this.connection === 'AND' ? 'black' : 'white';
     }
-  },
-  created() {
-    console.log(`Rule id ${this.ruleId}`);
-    console.log(`Rule group: ${this.ruleGroup}`);
   }
 };
 </script>

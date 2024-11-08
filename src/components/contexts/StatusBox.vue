@@ -47,7 +47,6 @@ export default {
     disableTooltip() {
       if (this.subtitle !== 'Participants') {
         this.tooltipText = '';
-        console.log('Tooltip disabled');
       }
     },
   },
