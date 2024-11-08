@@ -101,8 +101,10 @@
 
                   <v-row class="my-1">
                     <FilterLine
+                      :all-variables="allVariables"
                       :connection="innerConnection"
                       :first="outerIndex === 0 && innerIndex === 0"
+                      :rule="innerRow.rule"
                       :rule-group="innerRow.group"
                       :rule-id="innerRow.id"
                       :enable-connector="innerRows.filter(item => item.group === outerRow).length - 1 === innerIndex"
@@ -196,6 +198,8 @@ export default {
       layers: ["Phenomics", "Metabolomics", "Proteomics"],
       selectedLayers: ["Phenomics", "Metabolomics", "Proteomics"],
 
+      allVariables: {},
+
       outerRows: ['group-0'],
       innerRows: [{group: 'group-0', id: uuidv4(), rule: {}}],
       outerConnection: "OR",
@@ -253,6 +257,22 @@ export default {
       this.innerRows.push({group: groupName, id: uuidv4(), rule: []});
     },
 
+    async fetchVariables() {
+       await fetch(`${BASE_URL}/network/api/variables`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+        .then(response => response.json())
+        .then(data => {
+          this.allVariables = data;
+        })
+        .catch((error) => {
+          console.error('Error:', error);
+        });
+    },
+
     async fetchParticipants(params) {
       console.log(JSON.stringify(params));
       let newParticipants = '';
@@ -300,7 +320,7 @@ export default {
       })
         .then(response => response.json())
         .then(data => {
-          this.progressStatus = data.status === "SUCCESS" ? "Finished" : "In progress";
+          this.progressStatus = data.status === "SUCCESS" ? "Finished" : "Calculating";
           this.progressIcon = data.status === "SUCCESS" ? "mdi-check-circle-outline" : "mdi-autorenew";
         })
         .catch((error) => {
@@ -405,6 +425,7 @@ export default {
   },
   mounted() {
     this.intervalProgress();
+    this.fetchVariables();
   }
 };
 </script>

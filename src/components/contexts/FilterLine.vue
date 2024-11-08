@@ -2,16 +2,17 @@
 <v-col cols="3" class="filter-padding">
   <v-autocomplete
     v-model="columnName"
-    :items="columnItems"
+    :items="filteredColumnItems"
     density="compact"
     variant="outlined"
-        @update:model-value="updateData"
+    @update:model-value="updateData"
+    @update:search="onSearch"
     ></v-autocomplete>
 </v-col>
   <v-col cols="2" class="filter-padding">
   <v-select
     v-model="selectedOperator"
-    :items="operators"
+    :items="availableOperators"
     density="compact"
     variant="outlined"
     @update:model-value="updateData"
@@ -23,7 +24,7 @@
     :items="possibleValues"
     density="compact"
     variant="outlined"
-        @update:model-value="updateData"
+    @update:model-value="updateData"
 
     ></v-combobox>
 </v-col>
@@ -53,10 +54,17 @@
 </template>
 
 <script>
+import {computed, toRefs} from "vue";
+
 export default {
   name: 'FilterLine',
   emits: ['button-clicked', 'data-changed'],
   props: {
+    allVariables: {
+      type: Object,
+      required: false,
+      default: () => ({})
+    },
     connection: {
       type: String,
       default: 'AND'
@@ -76,10 +84,15 @@ export default {
     ruleId: {
       type: String,
       required: true,
+    },
+    rule: {
+      type: Object,
     }
   },
   data() {
     return {
+      searchQuery: '',
+      reverseAllVariables: {},
       columnName: "",
       columnItems: [
         'Sex (x0_sex)',
@@ -120,6 +133,9 @@ export default {
         value: Number(this.selectedValue)
       });
     },
+    onSearch(query) {
+      this.searchQuery = query;
+    },
   },
   computed:{
     connectCol() {
@@ -127,8 +143,55 @@ export default {
     },
     iconCol() {
       return this.connection === 'AND' ? 'black' : 'white';
+    },
+    availableOperators() {
+      const column = this.columnName;
+      if (column in this.reverseAllVariables) {
+        const variable = this.reverseAllVariables[column];
+        switch (variable) {
+          case 'binaryCategorical':
+            return ['equals (=)', 'in'];
+          case 'continuous':
+            return ['equals (=)', 'less than (<)', 'more than (>)'];
+          case 'nonbinaryCategorical':
+            return ['equals (=)', 'in'];
+          default:
+            return this.operators;
+        }
+      } else {
+        return this.operators;
+      }
+    },
+
+    filteredColumnItems() {
+      if (!this.searchQuery) {
+        return this.columnItems.slice(0, 100);
+      }
+      return this.columnItems.filter(item =>
+        item.toLowerCase().includes(this.searchQuery.toLowerCase())
+      );
+    },
+  },
+  mounted() {
+    if (Object.keys(this.allVariables).length > 0) {
+      this.columnItems = [... new Set(Object.values(this.allVariables).flat())];
+      this.reverseAllVariables = Object.entries(this.allVariables).reduce((acc, [key, value]) => {
+        value.forEach(v => {
+          acc[v] = key;
+        });
+        return acc;
+      }, {});
     }
-  }
+  },
+  setup(props) {
+  const { allVariables } = toRefs(props);
+
+  const columnItems = computed(() => {
+    return [...new Set(Object.values(allVariables.value).flat())];
+  });
+
+  return { columnItems };
+  },
 };
 </script>
 
