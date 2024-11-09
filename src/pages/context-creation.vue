@@ -46,16 +46,16 @@ export default {
     return {
       contextTab: 1,
       tabs: [
-        { name: "Context 1", value: 1, content: { inside: 'or', outside: 'and' } },
-        { name: "Context 2", value: 2, content: { inside: 'and', outside: 'or' } },
+        { name: "Context 1", value: 1, content: null },
+        { name: "Context 2", value: 2, content: { connect: { inside: "OR", outside: "AND" }, conditions: {}, tests: {}, layers: ['Metabolomics', 'Phenomics'], contextName: "Test" } },
         { name: "Context 3", value: 3, content: null },
-        { name: "Context 4", value: 4 },
-        { name: "Context 5", value: 5 }],
+        { name: "Context 4", value: 4, content: null },
+        { name: "Context 5", value: 5, content: null }
+      ],
     };
   },
   methods: {
     updateTabName(tabName) {
-      console.log(this.contextTab);
       let newTabName = "";
       if (tabName.length > 15) {
         newTabName = tabName.substring(0, 15) + "...";
@@ -65,7 +65,18 @@ export default {
       }
       this.tabs[this.contextTab - 1].name = newTabName;
     },
+    fillTabNames() {
+      // for all tabs that have content, fill the tab name with the context name
+      this.tabs.forEach((tab) => {
+        if (tab.content) {
+          tab.name = tab.content.contextName;
+        }
+      });
+    }
   },
+  mounted() {
+    this.fillTabNames();
+  }
 };
 </script>
 
