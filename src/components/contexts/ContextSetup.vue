@@ -193,6 +193,18 @@ export default {
   },
   data() {
     const layers = ["Phenomics", "Metabolomics", "Proteomics"];
+    const groups = [];
+    const rules = [];
+    if (this.content) {
+      for (const group in this.content.conditions) {
+        groups.push(`group-${groups.length}`);
+        this.content.conditions[group].forEach(rule => {
+          rules.push({group: `group-${groups.length - 1}`, id: uuidv4(), rule: rule});
+        });
+      }
+      console.log(rules);
+      console.log(groups);
+    }
 
     return {
       contextName: this.content?.contextName ?? "",

@@ -45,7 +45,7 @@
   </v-col>
   <v-col class="center-icon">
       <v-icon v-if="!first"
-              color="black"
+              color="darken-1"
               size="25"
               class="my-1 center-icon custom-hover"
               @click="handleClick({action: 'delete', id: this.ruleId, group: this.ruleGroup})">
@@ -142,7 +142,7 @@ export default {
       return this.connection === 'AND' ? 'primary' : 'primary-darken-1';
     },
     iconCol() {
-      return this.connection === 'AND' ? 'black' : 'white';
+      return this.connection === 'AND' ? 'primary-darken-1' : 'primary';
     },
     availableOperators() {
       const column = this.columnName;

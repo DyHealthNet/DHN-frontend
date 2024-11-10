@@ -36,7 +36,7 @@ export default {
 
 <style>
 .page-borders {
-  border-left: 50px solid white; /* Change the color and size as needed */
-  border-right: 50px solid white; /* Change the color and size as needed */
+  border-left: 50px solid rgb(var(--v-theme-background));
+  border-right: 50px solid rgb(var(--v-theme-background));
 }
 </style>

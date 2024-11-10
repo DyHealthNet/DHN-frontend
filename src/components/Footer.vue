@@ -10,7 +10,7 @@
 
 <style>
 .page-borders-footer {
-  border-left: 50px solid #fafafa; /* Change the color and size as needed */
-  border-right: 50px solid #fafafa; /* Change the color and size as needed */
+  border-left: 50px solid rgb(var(--v-theme-surface));
+  border-right: 50px solid rgb(var(--v-theme-surface));
 }
 </style>

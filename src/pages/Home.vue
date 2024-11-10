@@ -15,11 +15,11 @@
 
               <!-- Title -->
               <v-col cols="12" class="text-center">
-                <h1 class="title1" style="color: #104d63">
+                <h1 class="plain-text">
                   Dynamic Exploration of the Cooperative Health Research in
                   South Tyrol Study Data via Multi-Level Network Medicine
                 </h1>
-                <p style="color: #104d63">
+                <p class="plain-text">
                   DyHealthNet is a platform that addresses the dynamic
                   exploration of epidemiological population cohorts via
                   multi-level network medicine. This platform is connected to a
@@ -94,7 +94,7 @@
             <v-row>
               <!--Text-->
               <v-col cols="12">
-                <h1 class="text-center" style="color: #104d63">
+                <h1 class="text-center plain-text">
                   Collaborators
                 </h1>
               </v-col>
@@ -187,5 +187,9 @@ export default {
   margin-top: 10px;
   font-size: 14px;
   color: #666;
+}
+
+.plain-text {
+  color: rgb(var(--v-theme-primary-darken-1));
 }
 </style>

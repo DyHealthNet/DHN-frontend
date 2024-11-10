@@ -6,7 +6,7 @@
               v-bind="props"
             :icon="icon"
             size=50
-            color="black"
+            color="darken-1"
             :class="iconClasses"
           >
           </v-icon>
@@ -92,7 +92,7 @@ export default {
 .title {
   font-size: 16px;
   font-weight: bold;
-  color: #333;
+  color: rgb(var(--v-theme-darken-1));
   margin: 0;
 }
 

@@ -4,6 +4,14 @@
     <v-app-bar-title class="text-indigo"></v-app-bar-title>
 
     <v-spacer></v-spacer>
+    <v-switch
+        hide-details
+        inset
+        @click="toggleTheme"
+        label="Dark mode"
+        class="mx-4">
+      Toggle dark mode
+    </v-switch>
 
     <v-menu transition="slide-x-transition">
       <template v-slot:activator="{ props }">
@@ -39,9 +47,27 @@
 
 </template>
 
+<script>
+export default {
+  methods: {
+    toggleTheme() {
+      const currentTheme = this.$vuetify.theme.global.name
+      this.$vuetify.theme.global.name = currentTheme === 'dyHealthNetTheme' ? 'dyHealthNetThemeDark' : 'dyHealthNetTheme'
+    },
+    defaultTheme() {
+      const getSystemMode = () => window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+      this.$vuetify.theme.global.name = getSystemMode() === "dark" ? "dyHealthNetThemeDark" : "dyHealthNetTheme"
+    }
+  },
+  created() {
+    this.defaultTheme()
+  }
+}
+</script>
+
 <style>
 .page-borders-nav {
-  border-left: 50px solid #FAFAFA;
-  border-right: 50px solid #FAFAFA;
+  border-left: 50px solid rgb(var(--v-theme-surface));
+  border-right: 50px solid rgb(var(--v-theme-surface));
 }
 </style>
