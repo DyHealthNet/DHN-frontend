@@ -10,23 +10,25 @@
 
     <!--PopUp Alert-->
     <div class="popup">
-      <v-alert v-if="showPopup" color="error" icon="$warning">
-        <div class="popup-text">
-          Some groups don't have enough members and due to privacy issues some
-          data is not displayed.
-        </div>
-        <v-btn color="primary" @click="closePopup">OK</v-btn>
-      </v-alert>
+      <v-snackbar v-model="showPopup" color="error" multi-line>
+        <p class="big-text">
+          Some groups could not be displayed due to privacy reasons.
+          </p>
+        <template v-slot:actions>
+            <v-btn variant="text" @click="showPopup = false">
+              Close
+            </v-btn>
+        </template>
+      </v-snackbar>
     </div>
 
     <!-- Special cases as Example -->
     <div class="button-text-container">
       <div class="button-group">
-        <v-btn @click="showExample" style="background-color: #f1f1f1">
+        <v-btn @click="showExample" class="mx-1">
           Show Example with Popup
         </v-btn>
-        <v-space></v-space>
-        <v-btn @click="closeExample" style="background-color: #f1f1f1">
+        <v-btn @click="closeExample" class="mx-1">
           Close Example
         </v-btn>
       </div>
@@ -91,10 +93,12 @@ export default {
       return false;
     },
     showExample() {
+      this.showPopup = true;
       this.useExampleData = true;
       this.fetchAndUpdateChart();
     },
     closeExample() {
+      this.showPopup = false;
       this.useExampleData = false;
       this.fetchAndUpdateChart();
     },
@@ -252,5 +256,9 @@ export default {
   margin-top: 10px;
   max-width: 100%;
   width: calc(100% - 20px);
+}
+
+.big-text {
+  font-size: 18px;
 }
 </style>

@@ -5,24 +5,24 @@
       <!--main content-->
       <v-container fluid>
         <!-- Clickable description with toggle functionality -->
-        <div class="overview-description" @click="toggleDescription">
+        <div class="overview-description mb-4" @click="toggleDescription">
           <p v-if="!isExpanded">
-            <strong style="color: #104d63"
+            <strong class="plain-text"
               >Explore Data Overview and Visualizations:</strong
             >
             This page provides a comprehensive overview of the dataset,
             showcasing key statistics and insights through a variety of
             visualization methods.
             <span
-              style="color: #104d63"
-              class="toggle-link"
+              class="toggle-link plain-text"
               v-if="!isExpanded"
               @click.stop="toggleDescription"
               >Read more</span
             >
           </p>
           <p v-if="isExpanded">
-            <strong>Explore Data Overview and Visualizations:</strong>
+            <strong class="plain-text">
+              Explore Data Overview and Visualizations:</strong>
             This page provides a comprehensive overview of the dataset,
             showcasing key statistics and insights through a variety of
             visualization methods. <br/> 
@@ -35,8 +35,7 @@
             Click on any visualization to explore the data in more detail and
             customize your view.
             <span
-              style="color: #104d63"
-              class="toggle-link"
+              class="toggle-link plain-text"
               @click.stop="toggleDescription"
               >Read less</span
             >
@@ -57,7 +56,7 @@
                           <v-icon v-bind="props">mdi-information</v-icon>
                         </template>
                         <span
-                          >Here is an overview of simulited cohorts subsets from
+                          >Here is an overview of simulated cohorts subsets from
                           CHRIS data</span
                         >
                       </v-tooltip>
@@ -79,55 +78,17 @@
                             :key="index"
                           >
                             <v-card class="mx-auto">
-                              <v-row>
-                                <!-- Check if it's the last card -->
-                                <!--<v-col
-                                  cols="12"
-                                  v-if="index === rows1.length - 1"
-                                >-->
-                                <!-- Render table for the last card -->
-                                <!--<v-card-title class="small-title"
-                                    >Summary Table</v-card-title
-                                  >
-                                  <v-card-text>
-                                    <v-simple-table>
-                                      <thead>
-                                        <tr>
-                                          <th class="text-left">Name</th>
-                                          <th class="text-left">Value</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        <tr
-                                          v-for="(row, rowIndex) in rows2"
-                                          :key="rowIndex"
-                                        >
-                                          <td>{{ row.name }}</td>
-                                          <td>{{ row.value }}</td>
-                                        </tr>
-                                      </tbody>
-                                    </v-simple-table>
-                                  </v-card-text>
-                                </v-col>-->
-                                <!-- Render regular card for other items -->
-                                <!--<v-col cols="12" v-else>-->
-                                <v-col cols="12">
-                                  <v-img>
-                                    <!-- Assign different images im Vergleich zu den Name der daten-->
-                                    <img
-                                      :src="getImageForCard(item.name)"
-                                      :alt="item.name"
-                                      width="80"
-                                      height="80"
-                                    />
-                                  </v-img>
-                                </v-col>
-                                <!--</v-col>-->
-                                <v-col cols="12">
-                                  <v-card-title class="small-title">{{
-                                    item.name
-                                  }}</v-card-title>
-                                  <v-card-text>{{ item.column1 }}</v-card-text>
+                              <v-row class="justify-center align-center">
+                                <v-col cols="12" class="text-center">
+                                  <v-img
+                                    :src="getImageForCard(item.name)"
+                                    :alt="item.name"
+                                    width="80"
+                                    height="80"
+                                    class="mx-auto mt-2"
+                                  ></v-img>
+                                  <v-card-title class="small-title">{{ item.name }}</v-card-title>
+                                  <v-card-text class="number-data">{{ item.column1 }}</v-card-text>
                                 </v-col>
                               </v-row>
                             </v-card>
@@ -241,7 +202,7 @@
                                     density="compact"
                                     label="X Variable"
                                     :items="xItemsBox"
-                                    style="max-width: 250px; color: #104d63"
+                                    class="variable-field"
                                     v-bind="props"
                                   ></v-autocomplete>
                                 </template>
@@ -258,7 +219,7 @@
                                     density="compact"
                                     label="Y Variable"
                                     :items="yItemsBox"
-                                    style="max-width: 250px; color: #104d63"
+                                    class="variable-field"
                                     v-bind="props"
                                   ></v-autocomplete>
                                 </template>
@@ -275,7 +236,7 @@
                                     density="compact"
                                     label="Colored by (optional)"
                                     :items="colorItemsBox"
-                                    style="max-width: 250px; color: #104d63"
+                                    class="variable-field"
                                     v-bind="props"
                                   ></v-autocomplete>
                                 </template>
@@ -313,7 +274,7 @@
                                     density="compact"
                                     label="X Variable"
                                     :items="xItemsLine"
-                                    style="max-width: 250px; color: #104d63"
+                                    class="variable-field"
                                     v-bind="props"
                                   ></v-autocomplete>
                                 </template>
@@ -333,7 +294,7 @@
                                     density="compact"
                                     label="Y Variable"
                                     :items="yItemsLine"
-                                    style="max-width: 250px; color: #104d63"
+                                    class="variable-field"
                                     v-bind="props"
                                   ></v-autocomplete>
                                 </template>
@@ -350,7 +311,7 @@
                                     density="compact"
                                     label="Colored by (optional)"
                                     :items="colorItemsLine"
-                                    style="max-width: 250px; color: #104d63"
+                                    class="variable-field"
                                     v-bind="props"
                                   ></v-autocomplete>
                                 </template>
@@ -388,7 +349,7 @@
                                     density="compact"
                                     label="X Variable"
                                     :items="itemHeatmap1"
-                                    style="max-width: 350px; color: #104d63"
+                                    class="variable-field"
                                     v-bind="props"
                                   ></v-autocomplete>
                                 </template>
@@ -405,7 +366,7 @@
                                     density="compact"
                                     label="Y Variable"
                                     :items="itemHeatmap2"
-                                    style="max-width: 350px; color: #104d63"
+                                    class="variable-field"
                                     v-bind="props"
                                   ></v-autocomplete>
                                 </template>
@@ -443,7 +404,7 @@
                                     density="compact"
                                     label="X Variable"
                                     :items="xItemsBar"
-                                    style="max-width: 350px; color: #104d63"
+                                    class="variable-field"
                                     v-bind="props"
                                   ></v-autocomplete>
                                 </template>
@@ -460,7 +421,7 @@
                                     density="compact"
                                     label="Colored by (optional)"
                                     :items="colorItemsBar"
-                                    style="max-width: 350px; color: #104d63"
+                                    class="variable-field"
                                     v-bind="props"
                                   ></v-autocomplete>
                                 </template>
@@ -847,13 +808,19 @@ export default {
   padding-left: 10px;
 }
 .small-title {
-  font-size: 18px;
+  color: rgb(var(--v-theme-darken-1));
+  font-size: 20px;
+}
+
+.number-data {
+  font-weight: bolder;
+  font-size: 16px;
 }
 
 .overview-description {
   cursor: pointer; /* Indicates that the element is clickable */
-  background-color: #f5f7fa; /* Light background color for contrast */
-  border-left: 5px solid #3498db; /* Accent border to the left */
+  background-color: rgb(var(--v-theme-surface));
+  border-left: 5px solid rgb(var(--v-theme-info)); /* Accent border to the left */
   padding: 15px 10px; /* Padding around the text */
   margin-bottom: 0px; /* Spacing below the description */
   border-radius: 4px; /* Rounded corners for a modern look */
@@ -863,7 +830,7 @@ export default {
 }
 
 .toggle-link {
-  color: #3498db; /* Accent color for clickable text */
+  color: rgb(var(--v-theme-info));
   cursor: pointer; /* Indicates that the text is clickable */
   text-decoration: underline; /* Underline to indicate link */
   font-weight: bold; /* Make the link text bold */
@@ -873,5 +840,14 @@ export default {
 .toggle-link:hover {
   color: #2980b9; /* Darker color on hover */
   text-decoration: none; /* Remove underline on hover for cleaner look */
+}
+
+.plain-text {
+  color: rgb(var(--v-theme-primary-darken-1));
+}
+
+.variable-field {
+  max-width: 250px;
+  color: rgb(var(--v-theme-on-surface-variant));
 }
 </style>

@@ -45,7 +45,7 @@ export default {
       return this.connection === 'AND' ? 'primary' : 'primary-darken-1';
     },
     iconCol() {
-      return this.connection === 'AND' ? 'black' : 'white';
+      return this.connection === 'AND' ? 'primary-darken-1' : 'primary';
     },
   }
 }

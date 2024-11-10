@@ -134,7 +134,7 @@
     <v-row>
       <v-col>
         <v-btn color="primary-darken-1" @click="sendContext" :disabled="sendDisabled">
-          <v-icon color="white" class="my-0 mr-2">mdi-check-outline</v-icon>
+          <v-icon class="my-0 mr-2">mdi-check-outline</v-icon>
           Submit Context
         </v-btn>
       </v-col>
@@ -187,7 +187,7 @@ export default {
       required: true
     },
     content: {
-      type: Object,
+      type: [Object, null],
       required: true
     }
   },
@@ -260,7 +260,11 @@ export default {
         this.innerRows.push({group: action.group, id: uuidv4(), rule: {}});
       } else {
         try {
-          if (this.innerRows.filter(data => data.group === action.group).length === 1) {
+          if (action.first) {
+            const firstElement = this.innerRows.filter(data => data.group === action.group)[0];
+            firstElement.rule = {};
+          }
+          else if (this.innerRows.filter(data => data.group === action.group).length === 1) {
             const removeElement = this.innerRows.filter(data => data.group === action.group)[0];
             this.innerRows.splice(this.innerRows.indexOf(removeElement), 1);
             this.outerRows.splice(this.outerRows.indexOf(action.group), 1);
@@ -301,6 +305,13 @@ export default {
     async fetchParticipants(params) {
       console.log(JSON.stringify(params));
       let newParticipants = '';
+
+      if (Object.keys(params.conditions).length === 0) {
+        this.removedPatients = ("+ " + Math.abs(parseInt(this.participantNumber.replace(/\s/g, ''))
+                                                - 13000)).replace(/\B(?=(\d{3})+(?!\d))/g, " ")
+        this.participantNumber = "13 000";
+        return;
+      }
       // fetch the participants
       await fetch(`${BASE_URL}/network/api/filterContext`, {
         method: 'POST',

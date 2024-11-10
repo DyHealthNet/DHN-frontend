@@ -44,11 +44,11 @@
     </v-btn>
   </v-col>
   <v-col class="center-icon">
-      <v-icon v-if="!first"
+      <v-icon
               color="darken-1"
               size="25"
               class="my-1 center-icon custom-hover"
-              @click="handleClick({action: 'delete', id: this.ruleId, group: this.ruleGroup})">
+              @click="handleClick({action: 'delete', first: this.first, id: this.ruleId, group: this.ruleGroup})">
         mdi-close-circle-outline</v-icon>
   </v-col>
 </template>
@@ -119,6 +119,11 @@ export default {
   },
   methods: {
     handleClick(action) {
+      if (action.action === 'delete' && this.first) {
+        this.columnName = "";
+        this.selectedOperator = "";
+        this.selectedValue = "";
+      }
       this.$emit('button-clicked', action);
     },
     updateData() {
