@@ -4,14 +4,15 @@
     <v-app-bar-title class="text-indigo"></v-app-bar-title>
 
     <v-spacer></v-spacer>
+    <v-icon>mdi-white-balance-sunny</v-icon>
     <v-switch
+        v-model="isDark"
         hide-details
         inset
         @click="toggleTheme"
-        label="Dark mode"
-        class="mx-4">
-      Toggle dark mode
+        class="mx-2">
     </v-switch>
+    <v-icon class="mr-2">mdi-weather-night</v-icon>
 
     <v-menu transition="slide-x-transition">
       <template v-slot:activator="{ props }">
@@ -49,23 +50,34 @@
 
 <script>
 export default {
+  data() {
+    return {
+      isDark: false,
+      darkModeText: ""
+    }
+  },
   methods: {
     toggleTheme() {
       const currentTheme = this.$vuetify.theme.global.name
       this.$vuetify.theme.global.name = currentTheme === 'dyHealthNetTheme' ? 'dyHealthNetThemeDark' : 'dyHealthNetTheme'
+      this.isDark = currentTheme === 'dyHealthNetTheme'
       localStorage.setItem('theme', this.$vuetify.theme.global.name)
+      this.darkModeText = currentTheme === 'dyHealthNetTheme' ? "Light mode" : "Dark mode";
     },
     defaultTheme() {
       if (localStorage.getItem('theme')) {
         this.$vuetify.theme.global.name = localStorage.getItem('theme')
+        this.isDark = localStorage.getItem('theme') === 'dyHealthNetThemeDark'
         return
       }
       const getSystemMode = () => window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
       this.$vuetify.theme.global.name = getSystemMode() === "dark" ? "dyHealthNetThemeDark" : "dyHealthNetTheme"
+      this.isDark = getSystemMode() === "dark"
     }
   },
   created() {
     this.defaultTheme()
+    this.darkModeText = this.$vuetify.theme.global.name === 'dyHealthNetTheme' ? "Light mode" : "Dark mode";
   }
 }
 </script>
