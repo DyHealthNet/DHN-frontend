@@ -53,8 +53,13 @@ export default {
     toggleTheme() {
       const currentTheme = this.$vuetify.theme.global.name
       this.$vuetify.theme.global.name = currentTheme === 'dyHealthNetTheme' ? 'dyHealthNetThemeDark' : 'dyHealthNetTheme'
+      localStorage.setItem('theme', this.$vuetify.theme.global.name)
     },
     defaultTheme() {
+      if (localStorage.getItem('theme')) {
+        this.$vuetify.theme.global.name = localStorage.getItem('theme')
+        return
+      }
       const getSystemMode = () => window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
       this.$vuetify.theme.global.name = getSystemMode() === "dark" ? "dyHealthNetThemeDark" : "dyHealthNetTheme"
     }
