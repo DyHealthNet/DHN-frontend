@@ -64,6 +64,9 @@ export default {
       if (tabName.length > 15) {
         newTabName = tabName.substring(0, 15) + "...";
       }
+      else if (tabName.length === 0) {
+        newTabName = "Context " + this.contextTab;
+      }
       else {
         newTabName = tabName;
       }

@@ -85,7 +85,7 @@
                                     :alt="item.name"
                                     width="80"
                                     height="80"
-                                    class="mx-auto mt-2"
+                                    class="mx-auto mt-2 bg-layer"
                                   ></v-img>
                                   <v-card-title class="small-title">{{ item.name }}</v-card-title>
                                   <v-card-text class="number-data">{{ item.column1 }}</v-card-text>
@@ -641,33 +641,33 @@ export default {
       const images = [
         {
           name: "Participants",
-          imagepath: new URL(
+          imagePath: new URL(
             "../assets/figures/participants.png",
             import.meta.url
           ).href,
         },
         {
           name: "Phenotypes",
-          imagepath: new URL(
+          imagePath: new URL(
             "../assets/figures/phenotypes.png",
             import.meta.url
           ).href,
         },
         {
           name: "Proteins",
-          imagepath: new URL("../assets/figures/proteins.png", import.meta.url)
+          imagePath: new URL("../assets/figures/proteins.png", import.meta.url)
             .href,
         },
         {
           name: "Metabolites",
-          imagepath: new URL(
+          imagePath: new URL(
             "../assets/figures/metabolites.png",
             import.meta.url
           ).href,
         },
         {
           name: "Genetic Variants",
-          imagepath: new URL(
+          imagePath: new URL(
             "../assets/figures/genetic_variants.png",
             import.meta.url
           ).href,
@@ -675,7 +675,7 @@ export default {
       ];
       for (let i = 0; i < images.length; i++) {
         if (name === images[i].name) {
-          return images[i].imagepath;
+          return images[i].imagePath;
         }
       }
       return new URL("../assets/figures/About_Us.png", import.meta.url).href;
@@ -849,5 +849,11 @@ export default {
 .variable-field {
   max-width: 250px;
   color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.bg-layer {
+  background-color: rgb(var(--v-theme-white-surface));
+  border-radius: 50%;
+  padding: 0;
 }
 </style>

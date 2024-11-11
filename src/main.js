@@ -23,6 +23,7 @@ const dyHealthNetTheme = {
     "surface-variant": "#E0E0E0",
     "on-surface-variant": "#4D4D4D",
     "darken-1": "#333333",
+    "white-surface": "#FAFAFA",
 
     "primary": "#A5BFDC",
     "primary-darken-1": "#164F65",
@@ -46,6 +47,7 @@ const dyHealthNetThemeDark = {
     "surface-light": "#333333",
     "surface-variant": "#444444",
     "on-surface-variant": "#E0E0E0",
+    "white-surface": "#FAFAFA",
 
     "primary": "#0A2835",  // Keep similar to provide brand consistency
     "primary-darken-1": "#A5BFDC",  // Darker shade for contrast #A5BFDC
