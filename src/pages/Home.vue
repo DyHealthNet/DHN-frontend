@@ -101,15 +101,9 @@
 
               <!--Nicht Karten Komponenten-->
               <v-row>
-                <v-col cols="12" md="3" lg="3" class="text-center">
-                  <!-- TUM -->
+                <v-col cols="12" md="3" lg="3" class="text-center align-content-center">
                   <a href="https://www.tum.de/" target="_blank">
-                    <v-img>
-                      <img
-                        :src="tum_logo"
-                        alt=""
-                        style="width: 225px; height: auto"
-                      />
+                    <v-img :src="tum_logo" alt="TUM Logo" width="225" class="mx-auto">
                     </v-img>
                   </a>
                 </v-col>

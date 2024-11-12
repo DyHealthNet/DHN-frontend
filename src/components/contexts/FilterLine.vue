@@ -147,7 +147,7 @@ export default {
       return this.connection === 'AND' ? 'primary' : 'primary-darken-1';
     },
     iconCol() {
-      return this.connection === 'AND' ? 'primary-darken-1' : 'primary';
+      return this.connection === 'AND' ? 'darken-1' : 'surface-light';
     },
     availableOperators() {
       const column = this.columnName;
