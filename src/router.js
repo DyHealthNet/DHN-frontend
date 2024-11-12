@@ -9,6 +9,7 @@ import CHRISDataIntro from './pages/chris-data-intro.vue'
 import DataOverview from './pages/data-overview.vue'
 import NetworkPage from './pages/data-network.vue'
 import ContextCreation from './pages/context-creation.vue'
+import Login from './pages/user-login.vue'
 
 const routes = [
     {
@@ -43,6 +44,11 @@ const routes = [
       path: '/context',
       name: 'Context creation',
       component: ContextCreation
+    },
+    {
+        path: '/login',
+        name: 'Login',
+        component: Login
     }
   ]
 

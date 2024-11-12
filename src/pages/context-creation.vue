@@ -1,7 +1,7 @@
 <template>
   <v-container class="text-center">
     <v-row>
-      <v-col>
+      <v-col cols="12">
         <h1 class="title mt-4">Create a custom context</h1>
       </v-col>
     </v-row>

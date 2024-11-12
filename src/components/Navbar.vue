@@ -44,6 +44,11 @@
           <v-btn to="/about-us" color="primary-darken-1" class="mx-1" v-bind="props"> About Us</v-btn>
       </template>
     </v-menu>
+    <v-menu>
+      <template v-slot:activator="{ props }">
+          <v-btn to="/login" color="primary-darken-1" class="mx-1" :icon="loginStatus"></v-btn>
+      </template>
+    </v-menu>
   </v-app-bar>
 
 </template>
@@ -53,7 +58,8 @@ export default {
   data() {
     return {
       isDark: false,
-      darkModeText: ""
+      darkModeText: "",
+      isLoggedIn: false
     }
   },
   methods: {
@@ -73,11 +79,20 @@ export default {
       const getSystemMode = () => window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
       this.$vuetify.theme.global.name = getSystemMode() === "dark" ? "dyHealthNetThemeDark" : "dyHealthNetTheme"
       this.isDark = getSystemMode() === "dark"
-    }
+    },
   },
   created() {
     this.defaultTheme()
     this.darkModeText = this.$vuetify.theme.global.name === 'dyHealthNetTheme' ? "Light mode" : "Dark mode";
+  },
+  computed: {
+    loginStatus() {
+      // check if we're on the login page or not
+      if (this.$route.path === "/login") {
+        return "mdi-account"
+      }
+      return this.isLoggedIn ? "mdi-account" : "mdi-login"
+    }
   }
 }
 </script>

@@ -12,7 +12,6 @@
     <v-row justify="space-between" class="filter-padding">
       <v-col cols="3" class="filter-padding">
         <v-text-field
-            outlined
             :rules="contextNameMaxLength"
             counter="40"
             density="compact"
