@@ -18,17 +18,13 @@
     @update:model-value="updateData"
     ></v-select>
 </v-col>
-  <v-col cols="4" class="filter-padding">
-  <v-combobox
-    v-model="selectedValue"
-    :items="possibleValues"
-    density="compact"
-    variant="outlined"
-    @update:model-value="updateData"
-
-    ></v-combobox>
+  <v-col cols="4" class="filter-padding d-flex">
+    <FilterRuleValue :value-component="valueComponent"
+                     :possible-values="possibleValues"
+                     :selected-value="selectedValue"
+                     @update:model-value="updateData"/>
 </v-col>
-  <v-col class="center-button">
+  <v-col cols="1" class="center-button">
     <v-btn
         v-if="enableConnector"
         class="center-button"
@@ -43,7 +39,7 @@
       {{ connection }}
     </v-btn>
   </v-col>
-  <v-col class="center-icon">
+  <v-col cols="1" class="center-icon">
       <v-icon
               color="darken-1"
               size="25"
@@ -51,14 +47,19 @@
               @click="handleClick({action: 'delete', first: this.first, id: this.ruleId, group: this.ruleGroup})">
         mdi-close-circle-outline</v-icon>
   </v-col>
+  <v-col cols="1" class="center-icon">
+
+  </v-col>
 </template>
 
 <script>
 import {computed, toRefs} from "vue";
+import FilterRuleValue from "@/components/contexts/FilterRuleValue.vue";
 
 export default {
   name: 'FilterLine',
-  emits: ['button-clicked', 'data-changed'],
+  components: {FilterRuleValue},
+  emits: ['button-clicked', 'data-changed', 'column-type'],
   props: {
     allVariables: {
       type: Object,
@@ -87,12 +88,16 @@ export default {
     },
     rule: {
       type: Object,
+    },
+    tempIt: {
+      type: Number
     }
   },
   data() {
     return {
       searchQuery: '',
       reverseAllVariables: {},
+      columnType: "combobox",
       columnName: "",
       columnItems: [
         'Sex (x0_sex)',
@@ -108,13 +113,14 @@ export default {
           'equals (=)',
           'less than (<)',
           'more than (>)',
-          'in'
+          'in',
+          'in range'
       ],
       selectedValue: "",
-      possibleValues: [
-          '0',
-          '1'
-      ]
+      possibleValues: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
+
+      ComponentTypes: ['combobox', 'select', 'num-text'],
+      valueComponent: 'combobox'
     };
   },
   methods: {
@@ -127,6 +133,9 @@ export default {
       this.$emit('button-clicked', action);
     },
     updateData() {
+      if (this.selectedOperator) {
+        this.changeColumnType()
+      }
       // first check if all fields are filled, if not return
       if (this.columnName === "" || this.selectedOperator === "" || this.selectedValue === "") {
         return;
@@ -141,6 +150,23 @@ export default {
     onSearch(query) {
       this.searchQuery = query;
     },
+    changeColumnType() {
+      // column Type needs to be one of value, range or category
+      if (this.selectedOperator === 'in range') {
+        this.columnType = "range";
+        this.valueComponent = 'num-text';
+        this.possibleValues = [0, 100] // min and max values
+      } else if (this.selectedOperator === 'in') {
+        this.columnType = "category";
+        this.valueComponent = 'select';
+        this.possibleValues = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+      } else {
+        this.columnType = "value";
+        this.valueComponent = 'combobox';
+        this.possibleValues = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+      }
+      this.$emit('column-type', this.columnType);
+    }
   },
   computed:{
     connectCol() {

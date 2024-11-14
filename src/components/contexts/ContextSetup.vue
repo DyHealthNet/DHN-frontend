@@ -82,9 +82,24 @@
       <v-col cols="2">
         <p><b>Operator</b></p>
       </v-col>
-      <v-col cols="4">
-        <p><b>Value</b></p>
-      </v-col>
+      <template v-if="columnType === 'value'">
+        <v-col cols="4">
+          <p><b>Value</b></p>
+        </v-col>
+      </template>
+      <template v-if="columnType === 'range'">
+        <v-col cols="2">
+          <p><b>Min</b></p>
+        </v-col>
+        <v-col cols="2" class="text-end">
+          <p><b>Max</b></p>
+        </v-col>
+      </template>
+      <template v-if="columnType === 'category'">
+        <v-col cols="4">
+          <p><b>Categories</b></p>
+        </v-col>
+      </template>
     </v-row>
 
     <div id="allRules">
@@ -107,9 +122,11 @@
                   :rule="innerRow.rule"
                   :rule-group="innerRow.group"
                   :rule-id="innerRow.id"
+                  :temp-it="innerIndex"
                   :enable-connector="innerRows.filter(item => item.group === outerRow).length - 1 === innerIndex"
                   @button-clicked="(data) => newInnerGroupRule(data)"
                   @data-changed="addToRules"
+                  @column-type="setColumnType"
               />
             </v-row>
           </template>
@@ -213,6 +230,7 @@ export default {
       selectedLayers: this.content?.layers ?? layers,
 
       allVariables: {},
+      columnType: "value",
 
       outerRows: ['group-0'],
       innerRows: [{group: 'group-0', id: uuidv4(), rule: {}}],
@@ -283,6 +301,10 @@ export default {
       const groupName = `group-${parseInt(latestGroup.split('-')[1]) + 1}`;
       this.outerRows.push(groupName);
       this.innerRows.push({group: groupName, id: uuidv4(), rule: []});
+    },
+
+    setColumnType(data) {
+        return this.columnType = data;
     },
 
     async fetchVariables() {
