@@ -39,6 +39,9 @@
       {{ connection }}
     </v-btn>
   </v-col>
+    <v-col cols="1" class="mx-0 d-flex center-graph">
+    <VariableHistogram :bar-type="this.columnType === 'category' ? 'bar' : 'trend' " />
+  </v-col>
   <v-col cols="1" class="center-icon">
       <v-icon
               color="darken-1"
@@ -47,18 +50,16 @@
               @click="handleClick({action: 'delete', first: this.first, id: this.ruleId, group: this.ruleGroup})">
         mdi-close-circle-outline</v-icon>
   </v-col>
-  <v-col cols="1" class="center-icon">
-
-  </v-col>
 </template>
 
 <script>
 import {computed, toRefs} from "vue";
 import FilterRuleValue from "@/components/contexts/FilterRuleValue.vue";
+import VariableHistogram from "@/components/contexts/VariableHistogram.vue";
 
 export default {
   name: 'FilterLine',
-  components: {FilterRuleValue},
+  components: {VariableHistogram, FilterRuleValue},
   emits: ['button-clicked', 'data-changed', 'column-type'],
   props: {
     allVariables: {
@@ -183,7 +184,7 @@ export default {
           case 'binaryCategorical':
             return ['equals (=)', 'in'];
           case 'continuous':
-            return ['equals (=)', 'less than (<)', 'more than (>)'];
+            return ['less than (<)', 'more than (>)', 'in range'];
           case 'nonbinaryCategorical':
             return ['equals (=)', 'in'];
           default:
@@ -235,6 +236,13 @@ export default {
   padding-top: 0;
   padding-bottom: 0;
   margin-top: 5px;
+}
+
+.center-graph {
+  padding-top: 0;
+  padding-bottom: 0;
+  margin-top: 0;
+  margin-bottom: 10px;
 }
 
 .filter-padding {
