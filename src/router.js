@@ -10,6 +10,7 @@ import DataOverview from './pages/data-overview.vue'
 import NetworkPage from './pages/data-network.vue'
 import ContextCreation from './pages/context-creation.vue'
 import Login from './pages/user-login.vue'
+import Logout from './pages/user-logout.vue'
 
 const routes = [
     {
@@ -49,6 +50,11 @@ const routes = [
         path: '/login',
         name: 'Login',
         component: Login
+    },
+    {
+        path: '/logout',
+        name: 'Logout',
+        component: Logout
     }
   ]
 
