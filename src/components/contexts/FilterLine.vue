@@ -57,7 +57,7 @@ import {computed, toRefs} from "vue";
 import FilterRuleValue from "@/components/contexts/FilterRuleValue.vue";
 import VariableHistogram from "@/components/contexts/VariableHistogram.vue";
 
-export default {
+export default  {
   name: 'FilterLine',
   components: {VariableHistogram, FilterRuleValue},
   emits: ['button-clicked', 'data-changed', 'column-type'],

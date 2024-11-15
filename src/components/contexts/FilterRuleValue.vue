@@ -15,7 +15,25 @@
     chips
     multiple
     density="compact"
-  ></v-select>
+  >
+    <template v-slot:prepend-item>
+      <v-list-item
+        title="Select All"
+        @click="toggleAll"
+      >
+        <template v-slot:prepend>
+          <v-checkbox-btn
+            :color="selectedValue.length > 0 ? 'grey' : undefined"
+            :indeterminate="selectedValue.length > 0 && selectedValue.length < possibleValues.length"
+            :model-value="selectedValue.length === possibleValues.length"
+          ></v-checkbox-btn>
+        </template>
+      </v-list-item>
+
+      <v-divider class="mt-2"></v-divider>
+    </template>
+
+  </v-select>
   <template v-if="valueComponent === 'num-text'">
     <div class="d-flex align-center" style="width: 100%">
     <v-text-field
@@ -77,6 +95,8 @@ export default {
   },
   methods: {
     getInitialValue(component) {
+      // the problem here is the preselected value will get chosen even if the user changes the component, meaning it
+      // will create visual bugs
       if (component === 'combobox') {
         return this.preselectedValue ?? '';
       } else if (component === 'select') {
@@ -88,6 +108,14 @@ export default {
     },
     updateData() {
       this.$emit('update:modelValue', this.selectedValue)
+    },
+    toggleAll() {
+      if (this.selectedValue.length === this.possibleValues.length) {
+        this.selectedValue = [];
+      } else {
+        this.selectedValue = this.possibleValues;
+      }
+      this.updateData();
     }
   }
 }
