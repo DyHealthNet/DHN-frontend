@@ -54,6 +54,10 @@ export default {
       type: Array,
       default: () => []
     },
+    preselectedValue: {
+      type: [String, Array],
+      default: () => []
+    }
   },
 
   data() {
@@ -65,16 +69,20 @@ export default {
     valueComponent(newVal) {
       this.selectedValue = this.getInitialValue(newVal);
       this.updateData();
+    },
+    preselectedValue(newVal) {
+      this.selectedValue = newVal;
+      this.updateData();
     }
   },
   methods: {
     getInitialValue(component) {
       if (component === 'combobox') {
-        return '';
+        return this.preselectedValue ?? '';
       } else if (component === 'select') {
-        return [];
+        return this.preselectedValue ?? [];
       } else if (component === 'num-text') {
-        return [0, 100];
+        return this.preselectedValue ?? [0, 100];
       }
       return null;
     },

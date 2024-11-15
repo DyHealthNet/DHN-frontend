@@ -37,7 +37,7 @@
   <v-row>
     <v-col cols="4" class="my-0">
       <v-select
-          v-model="contCatB"
+          v-model="catContB"
           :items="contCatItemsB"
           label="Binary categories"
           variant="outlined"
@@ -48,7 +48,7 @@
     </v-col>
     <v-col cols="4" class="my-0">
       <v-select
-          v-model="contCatM"
+          v-model="catContM"
           :items="contCatItemsM"
           label="Multiple categories"
           variant="outlined"
@@ -65,6 +65,12 @@
 export default {
   name: 'StatisticalTestLine',
   emits: ['data-changed'],
+  props: {
+    selectedTests: {
+      type: Object,
+      required: false
+    }
+  },
   data() {
     return {
       contContItems: [
@@ -88,10 +94,10 @@ export default {
         'ANOVA'
       ],
 
-      contCont: 'Pearson Correlation',
-      catCat: 'Chi-square',
-      contCatB: 'T-test',
-      contCatM: 'ANOVA',
+      contCont: this.selectedTests?.contCont ?? 'Pearson',
+      catCat: this.selectedTests?.catCat ?? 'Chi-square',
+      catContB: this.selectedTests?.catContB ?? 'T-test',
+      catContM: this.selectedTests?.catContM ??'ANOVA',
     }
   },
   methods: {
@@ -99,8 +105,8 @@ export default {
       this.$emit('data-changed', {
         contCont: this.contCont,
         catCat: this.catCat,
-        contCatB: this.contCatB,
-        contCatM: this.contCatM,
+        catContB: this.catContB,
+        catContM: this.catContM,
       })
     }
   }

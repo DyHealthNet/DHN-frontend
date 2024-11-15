@@ -67,10 +67,6 @@
       dialogActive: false,
       autoLineWidth: true,
     }),
-    mounted() {
-      console.log(this.value.length)
-      console.log(this.valueLabels.length)
-    }
   }
 </script>
 

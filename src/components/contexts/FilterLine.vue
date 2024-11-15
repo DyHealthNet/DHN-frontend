@@ -21,7 +21,7 @@
   <v-col cols="4" class="filter-padding d-flex">
     <FilterRuleValue :value-component="valueComponent"
                      :possible-values="possibleValues"
-                     :selected-value="selectedValue"
+                     :preselected-value="selectedValue"
                      @update:model-value="updateData"/>
 </v-col>
   <v-col cols="1" class="center-button">
@@ -222,6 +222,15 @@ export default {
 
   return { columnItems, reverseAllVariables };
   },
+  created() {
+    if (this.rule) {
+      console.log(JSON.stringify(this.rule));
+      this.columnName = this.rule.column;
+      this.selectedOperator = this.rule.operator;
+      this.selectedValue = this.rule.value;
+      this.changeColumnType();
+    }
+  }
 };
 </script>
 

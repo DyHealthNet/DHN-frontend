@@ -144,7 +144,7 @@
     </div>
 
     <v-row>
-      <AdvancedSettings @data-changed="addTests"/>
+      <AdvancedSettings :selected-tests="selectedTests" @data-changed="addTests"/>
     </v-row>
 
     <v-row>
@@ -219,7 +219,6 @@ export default {
         });
       }
       console.log(rules);
-      console.log(groups);
     }
 
     return {
@@ -232,8 +231,8 @@ export default {
       allVariables: {},
       columnType: "value",
 
-      outerRows: ['group-0'],
-      innerRows: [{group: 'group-0', id: uuidv4(), rule: {}}],
+      outerRows: groups.length > 0 ? groups : ['group-0'],
+      innerRows: rules.length > 0 ? rules : [{group: 'group-0', id: uuidv4(), rule: {}}],
       outerConnection: this.content?.connect.outside ?? "OR",
       innerConnection: this.content?.connect.inside ?? "AND",
 
@@ -490,6 +489,7 @@ export default {
   mounted() {
     this.intervalProgress();
     this.fetchVariables();
+    console.log(JSON.stringify(this.selectedTests));
   }
 };
 </script>
