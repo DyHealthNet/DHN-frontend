@@ -5,7 +5,7 @@
 
     <v-spacer></v-spacer>
 
-    <v-icon>mdi-white-balance-sunny</v-icon>
+    <v-icon color="primary-darken-1">mdi-white-balance-sunny</v-icon>
     <v-switch
         v-model="isDark"
         hide-details
@@ -13,7 +13,7 @@
         @click="toggleTheme"
         class="mx-2">
     </v-switch>
-    <v-icon class="mr-5">mdi-weather-night</v-icon>
+    <v-icon class="mr-5" color="primary-darken-1">mdi-weather-night</v-icon>
 
     <v-menu transition="slide-x-transition">
       <template v-slot:activator="{ props }">
