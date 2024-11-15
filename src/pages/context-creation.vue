@@ -23,7 +23,7 @@
           <v-card color="surface">
             <v-card-text>
               <v-row>
-                <ContextSetup :title="tab.name" :content="tab.content" @data-changed="updateTabName" />
+                <ContextSetup :title="tab.name" :content="tab.content" :value="tab.value" @data-changed="updateTabName" />
               </v-row>
             </v-card-text>
           </v-card>

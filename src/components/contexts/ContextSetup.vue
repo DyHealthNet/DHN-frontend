@@ -205,6 +205,10 @@ export default {
     content: {
       type: [Object, null],
       required: true
+    },
+    value: {
+      type: Number,
+      required: true
     }
   },
   data() {
@@ -426,7 +430,8 @@ export default {
         conditions: conditions,
         contextName: this.contextName,
         layers: this.selectedLayers.map(layer => layer.toLowerCase()),
-        tests: this.selectedTests
+        tests: this.selectedTests,
+        contextValue: this.value
       };
     },
 
