@@ -47,7 +47,7 @@
     </v-menu>
     <v-menu>
       <template v-slot:activator="{ props }">
-          <v-btn to="/login" color="primary-darken-1" class="mx-1" :icon="loginStatus"></v-btn>
+          <v-btn @click="handleAuth" color="primary-darken-1" class="mx-1" :icon="loginStatus"></v-btn>
       </template>
     </v-menu>
   </v-app-bar>
@@ -55,6 +55,11 @@
 </template>
 
 <script>
+import router from "@/router.js";
+
+const BASE_URL =
+  import.meta.env.VITE_BACKEND_URL ||
+  `${window.location.protocol}//${window.location.host}`;
 export default {
   data() {
     return {
@@ -81,6 +86,46 @@ export default {
       this.$vuetify.theme.global.name = getSystemMode() === "dark" ? "dyHealthNetThemeDark" : "dyHealthNetTheme"
       this.isDark = getSystemMode() === "dark"
     },
+    async handleAuth() {
+      if (this.isLoggedIn) {
+        // If the user is logged in, log them out
+        await this.logout();
+      } else {
+        // If the user is not logged in, redirect to login page
+        this.$router.push("/login");
+      }
+    },
+    async logout() {
+      try {
+        const csrfToken = this.getCookie("csrftoken"); // Get the CSRF token from cookies
+        console.log(csrfToken)
+        const response = await fetch(`${BASE_URL}/network/api/logout/`, {
+          method: 'POST',
+        headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken // Include the CSRF token in the request header
+        },
+        credentials: 'include',
+        }).then(response => response.json())
+          .then(async data => {
+            // Check the response to determine success
+            if (data.status === 'success') {
+              console.log("Logged out successfully");
+              this.isLoggedIn = false;
+              await router.push("/logout");  // Redirect to login page
+          } else {
+          console.error("Logout failed:", response.statusText);
+        }
+      })
+      } catch (error) {
+        console.error("Error during logout:", error);
+      }
+    },
+    getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(';').shift();
+    }
   },
   created() {
     this.defaultTheme()
@@ -91,8 +136,22 @@ export default {
       // check if we're on the login page or not
       if (this.$route.path === "/login") {
         return "mdi-account"
+      } else {
+        try {
+          fetch(`${BASE_URL}/network/api/checklogin/`, {
+            method: 'GET',
+            credentials: 'include',  // Ensures session cookies are sent with the request
+          }).then(response => response.json())
+          .then( data => {
+            this.isLoggedIn = data.is_logged_in;
+          })
+        } catch (error) {
+          console.error('Error submitting form:', error);
+        };
+        console.log(this.isLoggedIn);
+        console.log(this.isLoggedIn ? "mdi-logout" : "mdi-login");
+        return this.isLoggedIn ? "mdi-logout" : "mdi-login";
       }
-      return this.isLoggedIn ? "mdi-account" : "mdi-login"
     }
   }
 }
