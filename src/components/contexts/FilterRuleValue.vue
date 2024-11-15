@@ -15,6 +15,7 @@
     chips
     multiple
     density="compact"
+    @update:model-value="updateData"
   >
     <template v-slot:prepend-item>
       <v-list-item
@@ -90,7 +91,6 @@ export default {
     },
     preselectedValue(newVal) {
       this.selectedValue = newVal;
-      this.updateData();
     }
   },
   methods: {
@@ -107,7 +107,7 @@ export default {
       return null;
     },
     updateData() {
-      this.$emit('update:modelValue', this.selectedValue)
+      this.$emit('update:modelValue', {value: this.selectedValue})
     },
     toggleAll() {
       if (this.selectedValue.length === this.possibleValues.length) {

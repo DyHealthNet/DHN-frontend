@@ -13,7 +13,8 @@
        </template>
       </v-tooltip>
     <div class="text">
-      <p class="title">{{ title }}</p>
+      <p class="title"
+      >{{ title }}</p>
       <p v-if="remove"
          :key="remove"
          :class="['remove-text', removeSignClass]"

@@ -351,7 +351,7 @@ export default {
           .catch((error) => {
             console.error('Error:', error);
             // get a random number of participants to test
-            newParticipants = Math.floor(Math.random() * 100) + 100;
+            newParticipants = 0;
           });
 
       // calculate the number of removed patients
