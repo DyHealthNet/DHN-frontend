@@ -51,7 +51,7 @@ export default {
           value: 2,
           content: {
             connect: { inside: "OR", outside: "AND" },
-            conditions: {'group-0': [{column: 'Abc', operator: 'equal', value: '1'},
+            conditions: {'group-0': [{column: 'Abc', operator: 'equals (=)', value: '1'},
                                      {column: 'def', operator: 'in range', value: [0, 5]}],
                          'group-1': [{column: 'Ghi', operator: 'in', value: ['male', 'female']}]},
             tests: {contCont: 'Spearman', catCat: 'Chi-square', catContM: 'ANOVA', catContB: 'ANOVA'},

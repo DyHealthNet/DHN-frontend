@@ -122,7 +122,6 @@
                   :rule="innerRow.rule"
                   :rule-group="innerRow.group"
                   :rule-id="innerRow.id"
-                  :temp-it="innerIndex"
                   :enable-connector="innerRows.filter(item => item.group === outerRow).length - 1 === innerIndex"
                   @button-clicked="(data) => newInnerGroupRule(data)"
                   @data-changed="addToRules"
@@ -315,8 +314,10 @@ export default {
       await fetch(`${BASE_URL}/network/api/variables`, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie("csrftoken")
+        },
+        credentials: 'include',
       })
           .then(response => response.json())
           .then(data => {
@@ -341,8 +342,10 @@ export default {
       await fetch(`${BASE_URL}/network/api/filterContext`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie("csrftoken")
         },
+        credentials: 'include',
         body: JSON.stringify(params)
       })
           .then(response => response.json())
@@ -383,8 +386,10 @@ export default {
       await fetch(url, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie("csrftoken")
+        },
+        credentials: 'include'
       })
           .then(response => response.json())
           .then(data => {
@@ -498,7 +503,6 @@ export default {
   mounted() {
     this.intervalProgress();
     this.fetchVariables();
-    console.log(JSON.stringify(this.selectedTests));
   }
 };
 </script>

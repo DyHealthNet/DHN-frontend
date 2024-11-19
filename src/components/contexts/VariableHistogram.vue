@@ -72,7 +72,7 @@
     },
     data: () => ({
       width: 2,
-      radius: 10,
+      radius: true,
       padding: 8,
       lineCap: 'round',
       value: [0, 1, 2, 4, 5, 14, 5, 6, 6, 4, 15, 18, 22, 15, 5],

@@ -21,8 +21,9 @@
   <v-col cols="4" class="filter-padding d-flex">
     <FilterRuleValue :value-component="valueComponent"
                      :possible-values="possibleValues"
-                     :preselected-value="selectedValue"
-                     @update:model-value="updateData"/>
+                     v-model:selectedValue="selectedValue"
+                      @update:selectedValue="updateData"
+                     />
 </v-col>
   <v-col cols="1" class="center-button">
     <v-btn
@@ -56,6 +57,7 @@
 import {computed, toRefs} from "vue";
 import FilterRuleValue from "@/components/contexts/FilterRuleValue.vue";
 import VariableHistogram from "@/components/contexts/VariableHistogram.vue";
+import {da} from "vuetify/locale";
 
 const BASE_URL =
     import.meta.env.VITE_BACKEND_URL ||
@@ -94,9 +96,6 @@ export default  {
     rule: {
       type: Object,
     },
-    tempIt: {
-      type: Number
-    }
   },
   data() {
     return {
@@ -131,12 +130,9 @@ export default  {
       this.$emit('button-clicked', action);
     },
 
-    updateData(data) {
-      console.log(data);
-      if (data?.value?.length > 0) {
-        this.selectedValue = data.value;
-      }
-
+    updateData() {
+      console.log("Updating data");
+      console.log("selectedValue: " + this.selectedValue);
       if (this.selectedOperator) {
         this.changeColumnType()
       }
@@ -153,10 +149,10 @@ export default  {
       }
 
       // this must come after the above since otherwise the selectedValue might be undefined
-      if (typeof this.selectedValue === 'string') {
-        this.selectedValue = Number(this.selectedValue);
-      } else {
+      if (Array.isArray(this.selectedValue)) {
         this.selectedValue = this.selectedValue.map(Number);
+      } else {
+        this.selectedValue = Number(this.selectedValue);
       }
 
       console.log("Emitting data-changed");

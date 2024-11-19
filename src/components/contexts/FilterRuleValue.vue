@@ -1,21 +1,19 @@
 <template>
   <v-combobox
     v-if="valueComponent === 'combobox'"
-    v-model="selectedValue"
+    v-model="localSelectedValue"
     :items="possibleValues"
     density="compact"
     variant="outlined"
-    @update:model-value="updateData"
     ></v-combobox>
   <v-select
       v-if="valueComponent === 'select'"
-    v-model="selectedValue"
+    v-model="localSelectedValue"
     :items="possibleValues"
     variant="outlined"
     chips
     multiple
     density="compact"
-    @update:model-value="updateData"
   >
     <template v-slot:prepend-item>
       <v-list-item
@@ -24,9 +22,9 @@
       >
         <template v-slot:prepend>
           <v-checkbox-btn
-            :color="selectedValue.length > 0 ? 'grey' : undefined"
-            :indeterminate="selectedValue.length > 0 && selectedValue.length < possibleValues.length"
-            :model-value="selectedValue.length === possibleValues.length"
+            :color="localSelectedValue.length > 0 ? 'grey' : undefined"
+            :indeterminate="localSelectedValue.length > 0 && localSelectedValue.length < possibleValues.length"
+            :model-value="localSelectedValue.length === possibleValues.length"
           ></v-checkbox-btn>
         </template>
       </v-list-item>
@@ -43,7 +41,7 @@
       :rules="[v => v >= possibleValues[0] || `No values less than ${possibleValues[0]}`]"
       variant="outlined"
       density="compact"
-      @update:model-value="updateData">
+     >
     </v-text-field>
      <v-divider color="primary-darken-1" class="mx-2 mb-4" thickness="5" style="max-width: 100px"></v-divider>
     <v-text-field
@@ -52,7 +50,7 @@
       :rules="[v => v <= possibleValues[1] || `No values greater than ${possibleValues[1]}`]"
       variant="outlined"
       density="compact"
-      @update:model-value="updateData">
+    >
     </v-text-field>
     </div>
   </template>
@@ -63,7 +61,7 @@
 
 export default {
   name: 'FilterRuleValue',
-  emits: ['update:modelValue'],
+  emits: ['update:selectedValue'],
   props: {
     valueComponent: {
       type: String,
@@ -73,49 +71,55 @@ export default {
       type: Array,
       default: () => []
     },
-    preselectedValue: {
-      type: [String, Array],
-      default: () => []
+    selectedValue: {
+      type: [String, Array, Number],
     }
   },
 
   data() {
     return {
-      selectedValue: this.getInitialValue(this.valueComponent)
+      localSelectedValue: this.selectedValue || this.getInitialValue(this.valueComponent)
     }
   },
   watch: {
     valueComponent(newVal) {
-      this.selectedValue = this.getInitialValue(newVal);
-      this.updateData();
+      this.localSelectedValue = this.getInitialValue(newVal);
     },
-    preselectedValue(newVal) {
-      this.selectedValue = newVal;
-    }
   },
   methods: {
     getInitialValue(component) {
       // the problem here is the preselected value will get chosen even if the user changes the component, meaning it
       // will create visual bugs
       if (component === 'combobox') {
-        return this.preselectedValue ?? '';
+        return '';
       } else if (component === 'select') {
-        return this.preselectedValue ?? [];
+        return [];
       } else if (component === 'num-text') {
-        return this.preselectedValue ?? [0, 100];
+        return [0, 100];
       }
       return null;
     },
-    updateData() {
-      this.$emit('update:modelValue', {value: this.selectedValue})
-    },
     toggleAll() {
-      if (this.selectedValue.length === this.possibleValues.length) {
-        this.selectedValue = [];
+      if (this.localSelectedValue.length === this.possibleValues.length) {
+        this.localSelectedValue = [];
+        this.$emit('update:selectedValue', []);
       } else {
-        this.selectedValue = this.possibleValues;
+        this.localSelectedValue = this.possibleValues;
+        this.$emit('update:selectedValue', this.possibleValues);
       }
-      this.updateData();
+    },
+  },
+  computed: {
+    localSelectedValue: {
+      get() {
+        if (this.selectedValue) {
+          return this.selectedValue;
+        }
+        return this.getInitialValue(this.valueComponent);
+      },
+      set(value) {
+        this.$emit('update:selectedValue', value);
+      }
     }
   }
 }
