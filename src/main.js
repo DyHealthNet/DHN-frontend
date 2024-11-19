@@ -35,6 +35,9 @@ const dyHealthNetTheme = {
     "info": "#3398DB",
     "success": "#81C784",
     "warning": "#FFB74D",
+
+    "orcid_button": "#A6CE39",
+    "github_button": "#121212"
   },
 }
 
@@ -59,6 +62,9 @@ const dyHealthNetThemeDark = {
     "info": "#3398DB",
     "success": "#81C784",
     "warning": "#FFB74D",
+
+    "orcid_button": "#54691a",
+    "github_button": "#FAFAFA",
   },
 }
 

@@ -56,6 +56,7 @@
 
 <script>
 import router from "@/router.js";
+import { getCookie } from '@/components/authentication/auth.js';
 
 const BASE_URL =
   import.meta.env.VITE_BACKEND_URL ||
@@ -88,16 +89,16 @@ export default {
     },
     async handleAuth() {
       if (this.isLoggedIn) {
-        // If the user is logged in, log them out
+        // If the authentication is logged in, log them out
         await this.logout();
       } else {
-        // If the user is not logged in, redirect to login page
+        // If the authentication is not logged in, redirect to login page
         this.$router.push("/login");
       }
     },
     async logout() {
       try {
-        const csrfToken = this.getCookie("csrftoken"); // Get the CSRF token from cookies
+        const csrfToken = getCookie('csrftoken'); // Get the CSRF token from cookies
         console.log(csrfToken)
         const response = await fetch(`${BASE_URL}/network/api/logout/`, {
           method: 'POST',

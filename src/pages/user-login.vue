@@ -1,27 +1,69 @@
 <template>
     <v-container class="text-center">
-    <v-row>
+    <v-row class="d-flex align-center justify-center">
       <v-col cols="12">
         <h1 class="title mt-4">Sign in</h1>
       </v-col>
     </v-row>
-      <v-row>
+      <v-row class="d-flex align-center justify-center">
       <v-col class="d-flex justify-center">
         <v-divider class="my-2" thickness="2"></v-divider>
       </v-col>
     </v-row>
   </v-container>
-  <v-container class="d-flex align-center justify-center fill-height" >
-    <v-row class="d-flex align-center justify-center">
-      <v-col cols="3">
-        <v-card>
+  <v-container class="d-flex text-center justify-center mt-4">
+
+    <!-- Tabs -->
+    <v-card width="50%" rounded="lg" elevation="5" >
+      <v-tabs v-model="activeTab" align-tabs="center" bg-color="primary-darken-1" show-arrows>
+        <v-tab v-for="tab in tabs" :key="tab.value" :text="tab.name" :value="tab.value"></v-tab>
+      </v-tabs>
+
+    <!-- Tabs Content -->
+    <v-tabs-window v-model="activeTab">
+      <v-window-item :value="0">
+        <v-card class="pa-4">
+          <v-card-title>Login</v-card-title>
           <v-card-text>
             <v-form fast-fail @submit.prevent="login">
               <v-text-field
                 variant="outlined"
                 density="compact"
                 counter="20"
-                v-model="formData.username"
+                v-model="loginForm.username"
+                :rules="usernameRules"
+                label="Username"
+              ></v-text-field>
+
+              <v-text-field
+                variant="outlined"
+                density="compact"
+                v-model="loginForm.password"
+                :rules="passwordRules"
+                type="password"
+                label="Password"
+              ></v-text-field>
+              <v-row class="d-flex align-center justify-center" >
+                <v-col class="text-center" cols="4">
+                  <v-btn class="mt-2" color="primary-darken-1" type="submit" block>Submit</v-btn>
+                </v-col>
+              </v-row>
+            </v-form>
+          </v-card-text>
+        </v-card>
+      </v-window-item>
+
+      <!-- Sign Up Tab -->
+      <v-window-item :value="1">
+        <v-card class="pa-4">
+          <v-card-title>Sign Up</v-card-title>
+          <v-card-text>
+            <v-form fast-fail @submit.prevent="signup">
+              <v-text-field
+                variant="outlined"
+                density="compact"
+                counter="20"
+                v-model="signupForm.username"
                 :rules="usernameRules"
                 label="Username"
               ></v-text-field>
@@ -30,7 +72,7 @@
                 variant="outlined"
                 density="compact"
                 counter="20"
-                v-model="email"
+                v-model="signupForm.email"
                 :rules="[required]"
                 label="Email"
                 clearable
@@ -39,22 +81,46 @@
               <v-text-field
                 variant="outlined"
                 density="compact"
-                v-model="formData.password"
+                v-model="signupForm.password"
                 :rules="passwordRules"
                 type="password"
                 label="Password"
               ></v-text-field>
 
-              <v-btn class="mt-2" type="submit" block>Submit</v-btn>
+              <v-text-field
+                variant="outlined"
+                density="compact"
+                v-model="signupForm.confirmPassword"
+                :rules="passwordRules"
+                type="password"
+                label="Confirm Password"
+              ></v-text-field>
+
+              <v-row class="d-flex align-center justify-center" >
+                <v-col class="text-center" cols="4">
+                  <v-btn class="mt-2" color="primary-darken-1" type="submit" block>Submit</v-btn>
+                </v-col>
+              </v-row>
             </v-form>
           </v-card-text>
         </v-card>
+      </v-window-item>
+    </v-tabs-window>
+    <v-row class="d-flex align-center justify-center" >
+      <v-col class="text-center" cols="8">
+        <v-divider class="my-9" thickness="2"></v-divider>
       </v-col>
     </v-row>
-    <v-row class="d-flex align-center justify-center" style="width: 100%;">
-      <v-col class="text-center" cols="3">
-        <v-divider class="my-9" thickness="2"></v-divider>
-        <v-btn size="large" class="align-center justify-center" color="success">ORCID</v-btn>
+    <v-row class="d-flex align-center justify-center" >
+      <v-col class="text-center" cols="5">
+        <v-btn size="large" class="align-center justify-center" color="orcid_button" @click="loginWithORCID">
+          <svg-icon type="mdi" :path="pathORCID" class="mr-2"></svg-icon>ORCID
+        </v-btn>
+      </v-col>
+      <v-col class="text-center" cols="5">
+        <v-btn size="large" class="align-center justify-center" color="github_button" @click="loginWithGitHub">
+          <svg-icon type="mdi" :path="pathGitHub" class="mr-2"></svg-icon>GitHub
+        </v-btn>
       </v-col>
     </v-row>
     <v-row>
@@ -79,6 +145,7 @@
         </v-snackbar>
       </div>
     </v-row>
+    </v-card>
   </v-container>
 </template>
 
@@ -87,14 +154,31 @@ const BASE_URL =
   import.meta.env.VITE_BACKEND_URL ||
   `${window.location.protocol}//${window.location.host}`;
 import router from "@/router.js";
+import SvgIcon from "@jamescoyle/vue-icon";
+import { mdiGithub } from '@mdi/js';
+import { mdiIdentifier } from '@mdi/js';
+import { getCookie } from '@/components/authentication/auth.js';
 import axios from "axios";
 
 export default {
+  components: {
+		SvgIcon
+	},
   data() {
     return {
-      formData: {
+      activeTab: 0,
+      tabs: [
+        { name: "Login", value: 0 },
+        { name: "Sign Up", value: 1 },
+      ],
+      loginForm: {
         username: '',
         password: ''
+      },
+      signupForm: {
+        username: '',
+        password: '',
+        confirmPassword: ''
       },
       usernameRules: [
         v => !!v || "A Username is required",
@@ -104,15 +188,22 @@ export default {
         v => !!v || "Password is required",
         v => (v && v.length > 8) || "Password must be more than eight characters"
       ],
+      secPasswordCheckRules: [
+        (v) => !!v || "Confirm Password is required.",
+        (v) =>
+          v === this.signupForm.password || "Passwords do not match.", // Compare passwords
+      ],
       taskStarted: false,
       taskInfo: "",
       taskType: "",
+      pathORCID: mdiIdentifier,
+      pathGitHub: mdiGithub,
     };
   },
   methods: {
     async login() {
       try {
-        const csrfToken = this.getCookie("csrftoken"); // Get the CSRF token from cookies
+        const csrfToken = getCookie('csrftoken'); // Get the CSRF token from cookies
         console.log(csrfToken)
         // send login data and fetch response
         await fetch(`${BASE_URL}/network/api/login/`, {
@@ -122,20 +213,20 @@ export default {
         'X-CSRFToken': csrfToken // Include the CSRF token in the request header
       },
         credentials: 'include',  // This ensures cookies (like the session cookie) are sent with the request
-        body: JSON.stringify(this.formData)
+        body: JSON.stringify(this.signupForm)
       }).then(response => response.json())
           .then(async data => {
             // Check the response to determine success
             if (data.status === 'success') {
               // Redirect to the desired route if login is successful
-              await router.push({name: 'Context creation'});  // Replace 'home' with the name of your target route
+              await router.push({name: 'Context creation'});
             } else {
                 this.taskStarted = true;
                 this.taskInfo = "Username or password incorrect.";
                 this.taskType = "error";
 
                 // Reset password field
-                this.formData.password = "";
+                this.loginForm.password = "";
               //alert(data.message);  // Show error message if login failed
             }
           })
@@ -143,12 +234,46 @@ export default {
         console.error('Error submitting form:', error);
       }
     },
-    // Helper function to get cookies
-    getCookie(name) {
-      const value = `; ${document.cookie}`;
-      const parts = value.split(`; ${name}=`);
-      if (parts.length === 2) return parts.pop().split(';').shift();
-    }
+    async signup() {
+      try {
+        const csrfToken = getCookie('csrftoken'); // Get the CSRF token from cookies
+        console.log(csrfToken)
+        // send login data and fetch response
+        await fetch(`${BASE_URL}/network/api/register/`, {
+        method: 'POST',
+        headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken // Include the CSRF token in the request header
+      },
+        credentials: 'include',  // This ensures cookies (like the session cookie) are sent with the request
+        body: JSON.stringify(this.signupForm)
+      }).then(response => response.json())
+          .then(async data => {
+            // Check the response to determine success
+            if (data.status === 'success') {
+              // Redirect to the desired route if login is successful
+              await router.push({name: 'Context creation'});
+            } else {
+                this.taskStarted = true;
+                this.taskInfo = "Username not allowed or password inputs do not match.";
+                this.taskType = "error";
+
+                // Reset password field
+                this.signupForm.password = "";
+                this.signupForm.confirmPassword = "";
+              //alert(data.message);  // Show error message if login failed
+            }
+          })
+      } catch (error) {
+        console.error('Error submitting form:', error);
+      }
+    },
+    async loginWithORCID() {
+      window.location.href = `${BASE_URL}/network/api/orcid/login/`;
+    },
+    async loginWithGitHub() {
+      window.location.href = `${BASE_URL}/network/api/github/login/`;
+    },
   },
 };
 </script>

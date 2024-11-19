@@ -1,5 +1,5 @@
 // This file links the pages with the routes so that 
-//the pages can be accessed by the user
+//the pages can be accessed by the authentication
 //and show in the browser
 
 import { createRouter, createWebHistory } from 'vue-router'
