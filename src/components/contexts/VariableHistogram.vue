@@ -65,22 +65,33 @@
 
   export default {
     props: {
-      barType: {
-        type: String,
-        default: 'trend'
-      },
+      barData: {
+        type: Object,
+        default: () => ({})
+      }
     },
     data: () => ({
       width: 2,
       radius: true,
       padding: 8,
       lineCap: 'round',
-      value: [0, 1, 2, 4, 5, 14, 5, 6, 6, 4, 15, 18, 22, 15, 5],
-      valueLabels: [0, 6.6, 13.3, 20, 26.6, 33.3, 40, 46.6, 53.3, 60, 66.6, 73.3, 80, 86.6, 100],
+      value: [],
+      valueLabels: [],
+      barType: 'bar',
       fill: true,
       dialogActive: false,
       autoLineWidth: true,
     }),
+    watch: {
+      barData: {
+        handler() {
+          this.value = this.barData?.values || []
+          this.valueLabels = this.barData?.labels || []
+          this.barType = this.barData?.type || 'bar'
+        },
+        immediate: true
+      }
+    }
   }
 </script>
 

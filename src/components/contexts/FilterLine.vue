@@ -41,7 +41,7 @@
     </v-btn>
   </v-col>
     <v-col cols="1" class="mx-0 d-flex center-graph">
-    <VariableHistogram :bar-type="this.columnType === 'category' ? 'bar' : 'trend' " />
+    <VariableHistogram :bar-data="histogramData" />
   </v-col>
   <v-col cols="1" class="center-icon">
       <v-icon
@@ -117,7 +117,9 @@ export default  {
       possibleValues: [],
 
       ComponentTypes: ['combobox', 'select', 'num-text'],
-      valueComponent: 'combobox'
+      valueComponent: 'combobox',
+
+      histogramData: {values: [], labels: [], type: 'bar'},
     };
   },
   methods: {
@@ -131,8 +133,6 @@ export default  {
     },
 
     updateData() {
-      console.log("Updating data");
-      console.log("selectedValue: " + this.selectedValue);
       if (this.selectedOperator) {
         this.changeColumnType()
       }
@@ -192,8 +192,12 @@ export default  {
       this.$emit('column-type', this.columnType);
     },
 
-    async getHistogramData() {
-      // get histogram data
+    getHistogramData(distribution, type) {
+      this.histogramData = {
+        values: distribution.values,
+        labels: distribution.labels,
+        type: type || 'bar'
+      }
     },
 
     async getAvailableValues() {
@@ -216,6 +220,7 @@ export default  {
           .then(response => response.json())
           .then(data => {
             this.possibleValues = data.result;
+            this.getHistogramData(data.distribution, data.type);
           })
     }
   },
