@@ -21,7 +21,7 @@
   <v-col cols="4" class="filter-padding d-flex">
     <FilterRuleValue :value-component="valueComponent"
                      :possible-values="possibleValues"
-                     :selected-value="selectedValue"
+                     :preselected-value="selectedValue"
                      @update:model-value="updateData"/>
 </v-col>
   <v-col cols="1" class="center-button">
@@ -57,7 +57,11 @@ import {computed, toRefs} from "vue";
 import FilterRuleValue from "@/components/contexts/FilterRuleValue.vue";
 import VariableHistogram from "@/components/contexts/VariableHistogram.vue";
 
-export default {
+const BASE_URL =
+    import.meta.env.VITE_BACKEND_URL ||
+    `${window.location.protocol}//${window.location.host}`;
+
+export default  {
   name: 'FilterLine',
   components: {VariableHistogram, FilterRuleValue},
   emits: ['button-clicked', 'data-changed', 'column-type'],
@@ -99,16 +103,9 @@ export default {
       searchQuery: '',
       reverseAllVariables: {},
       columnType: "combobox",
+      prevColumnName: "",
       columnName: "",
-      columnItems: [
-        'Sex (x0_sex)',
-        'Food frequency: Meat (x0fd01)',
-        'Type of diabetes (x0dm02)',
-        'NEIL2 / Protein (x0so3291)',
-        'Diabetes treatment (x0dm03)',
-        'BCL2-like 1 protein (x0so5385)',
-        'Histamine'
-      ],
+      columnItems: [],
       selectedOperator: "",
       operators: [
           'equals (=)',
@@ -118,7 +115,7 @@ export default {
           'in range'
       ],
       selectedValue: "",
-      possibleValues: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
+      possibleValues: [],
 
       ComponentTypes: ['combobox', 'select', 'num-text'],
       valueComponent: 'combobox'
@@ -133,40 +130,97 @@ export default {
       }
       this.$emit('button-clicked', action);
     },
-    updateData() {
+
+    updateData(data) {
+      console.log(data);
+      if (data?.value?.length > 0) {
+        this.selectedValue = data.value;
+      }
+
       if (this.selectedOperator) {
         this.changeColumnType()
       }
+
+      if (this.columnName && this.columnName !== this.prevColumnName) {
+        this.getAvailableValues();
+        this.prevColumnName = this.columnName;
+      }
+
       // first check if all fields are filled, if not return
-      if (this.columnName === "" || this.selectedOperator === "" || this.selectedValue === "") {
+      if (this.columnName === "" || this.selectedOperator === "" || this.selectedValue === ""
+          || !this.selectedValue || !this.columnName || !this.selectedOperator || this.selectedValue === []) {
         return;
       }
+
+      // this must come after the above since otherwise the selectedValue might be undefined
+      if (typeof this.selectedValue === 'string') {
+        this.selectedValue = Number(this.selectedValue);
+      } else {
+        this.selectedValue = this.selectedValue.map(Number);
+      }
+
+      console.log("Emitting data-changed");
       this.$emit('data-changed', {
         ruleId: this.ruleId,
         column: this.columnName,
-        operator: this.selectedOperator.substring(0, 5).trim(),
-        value: Number(this.selectedValue)
+        operator: this.selectedOperator,
+        value: this.selectedValue
       });
     },
+
     onSearch(query) {
       this.searchQuery = query;
     },
+
     changeColumnType() {
       // column Type needs to be one of value, range or category
       if (this.selectedOperator === 'in range') {
         this.columnType = "range";
         this.valueComponent = 'num-text';
-        this.possibleValues = [0, 100] // min and max values
+        if (this.possibleValues.length === 0) {
+          this.possibleValues = [0, 100] // min and max values
+        }
       } else if (this.selectedOperator === 'in') {
         this.columnType = "category";
         this.valueComponent = 'select';
-        this.possibleValues = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+        if (this.possibleValues.length === 0) {
+        this.possibleValues = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k'];
+        }
       } else {
         this.columnType = "value";
         this.valueComponent = 'combobox';
-        this.possibleValues = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+        if (this.possibleValues.length === 0) {
+          this.possibleValues = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+        }
       }
       this.$emit('column-type', this.columnType);
+    },
+
+    async getHistogramData() {
+      // get histogram data
+    },
+
+    async getAvailableValues() {
+      let variableId;
+      if (this.columnName.includes('(')) {
+        variableId = this.columnName.split('(').at(-1).split(')')[0];
+      } else {
+        variableId = this.columnName.split("/")[0].trim();
+      }
+
+      let url = new URL(`${BASE_URL}/network/api/singleVariableInfo`);
+      url.search = new URLSearchParams({variableId: variableId}).toString();
+
+      await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          })
+          .then(response => response.json())
+          .then(data => {
+            this.possibleValues = data.result;
+          })
     }
   },
   computed:{
@@ -222,6 +276,15 @@ export default {
 
   return { columnItems, reverseAllVariables };
   },
+  created() {
+    if (this.rule) {
+      console.log(JSON.stringify(this.rule));
+      this.columnName = this.rule.column;
+      this.selectedOperator = this.rule.operator;
+      this.selectedValue = this.rule.value;
+      this.changeColumnType();
+    }
+  }
 };
 </script>
 

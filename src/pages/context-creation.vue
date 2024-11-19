@@ -23,7 +23,7 @@
           <v-card color="surface">
             <v-card-text>
               <v-row>
-                <ContextSetup :title="tab.name" :content="tab.content" @data-changed="updateTabName" />
+                <ContextSetup :title="tab.name" :content="tab.content" :value="tab.value" @data-changed="updateTabName" />
               </v-row>
             </v-card-text>
           </v-card>
@@ -47,11 +47,18 @@ export default {
       contextTab: 1,
       tabs: [
         { name: "Context 1", value: 1, content: null },
-        { name: "Context 2", value: 2, content: { connect: { inside: "OR", outside: "AND" },
-                                                  conditions: {'group-0': [{column: 'Abc', operator: 'equal', value: '1'}]},
-                                                  tests: {},
-                                                  layers: ['Metabolomics', 'Phenomics'],
-                                                  contextName: "Test" } },
+        { name: "Context 2",
+          value: 2,
+          content: {
+            connect: { inside: "OR", outside: "AND" },
+            conditions: {'group-0': [{column: 'Abc', operator: 'equal', value: '1'},
+                                     {column: 'def', operator: 'in range', value: [0, 5]}],
+                         'group-1': [{column: 'Ghi', operator: 'in', value: ['male', 'female']}]},
+            tests: {contCont: 'Spearman', catCat: 'Chi-square', catContM: 'ANOVA', catContB: 'ANOVA'},
+            layers: ['Metabolomics', 'Phenomics'],
+            contextName: "Test" },
+            contextValue: 2
+        },
         { name: "Context 3", value: 3, content: null },
         { name: "Context 4", value: 4, content: null },
         { name: "Context 5", value: 5, content: null }

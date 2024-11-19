@@ -144,7 +144,7 @@
     </div>
 
     <v-row>
-      <AdvancedSettings @data-changed="addTests"/>
+      <AdvancedSettings :selected-tests="selectedTests" @data-changed="addTests"/>
     </v-row>
 
     <v-row>
@@ -205,6 +205,10 @@ export default {
     content: {
       type: [Object, null],
       required: true
+    },
+    value: {
+      type: Number,
+      required: true
     }
   },
   data() {
@@ -219,7 +223,6 @@ export default {
         });
       }
       console.log(rules);
-      console.log(groups);
     }
 
     return {
@@ -232,8 +235,8 @@ export default {
       allVariables: {},
       columnType: "value",
 
-      outerRows: ['group-0'],
-      innerRows: [{group: 'group-0', id: uuidv4(), rule: {}}],
+      outerRows: groups.length > 0 ? groups : ['group-0'],
+      innerRows: rules.length > 0 ? rules : [{group: 'group-0', id: uuidv4(), rule: {}}],
       outerConnection: this.content?.connect.outside ?? "OR",
       innerConnection: this.content?.connect.inside ?? "AND",
 
@@ -348,7 +351,7 @@ export default {
           .catch((error) => {
             console.error('Error:', error);
             // get a random number of participants to test
-            newParticipants = Math.floor(Math.random() * 100) + 100;
+            newParticipants = 0;
           });
 
       // calculate the number of removed patients
@@ -427,7 +430,8 @@ export default {
         conditions: conditions,
         contextName: this.contextName,
         layers: this.selectedLayers.map(layer => layer.toLowerCase()),
-        tests: this.selectedTests
+        tests: this.selectedTests,
+        contextValue: this.value
       };
     },
 
@@ -490,6 +494,7 @@ export default {
   mounted() {
     this.intervalProgress();
     this.fetchVariables();
+    console.log(JSON.stringify(this.selectedTests));
   }
 };
 </script>

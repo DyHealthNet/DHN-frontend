@@ -6,7 +6,7 @@
     :model-value="value"
     :padding="padding"
     color="primary-darken-1"
-    :smooth="radius || false"
+    :smooth="barType === 'trend' ? radius : false"
     :stroke-linecap="lineCap"
     :type="barType"
     auto-draw
@@ -17,6 +17,7 @@
     <v-card title="Data distribution for XY">
       <v-card-text>
           <v-sparkline
+            v-if="barType === 'trend'"
             :auto-line-width="autoLineWidth"
             :fill="fill"
             :line-width="width"
@@ -33,6 +34,19 @@
             {{ valueLabels[index] }}
           </template>
           </v-sparkline>
+        <v-sparkline
+            v-if="barType === 'bar'"
+            :model-value="value"
+            color="primary-darken-1"
+            :type="barType"
+            :auto-line-width="autoLineWidth"
+            auto-draw
+            @click="dialogActive = true"
+          >
+            <template v-slot:label="{ index }">
+            {{ valueLabels[index] }}
+          </template>
+        </v-sparkline>
       </v-card-text>
 
       <v-card-actions>
@@ -67,10 +81,6 @@
       dialogActive: false,
       autoLineWidth: true,
     }),
-    mounted() {
-      console.log(this.value.length)
-      console.log(this.valueLabels.length)
-    }
   }
 </script>
 

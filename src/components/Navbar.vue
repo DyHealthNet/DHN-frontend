@@ -5,7 +5,7 @@
 
     <v-spacer></v-spacer>
 
-    <v-icon>mdi-white-balance-sunny</v-icon>
+    <v-icon color="primary-darken-1">mdi-white-balance-sunny</v-icon>
     <v-switch
         v-model="isDark"
         hide-details
@@ -13,26 +13,42 @@
         @click="toggleTheme"
         class="mx-2">
     </v-switch>
-    <v-icon class="mr-5">mdi-weather-night</v-icon>
+    <v-icon class="mr-5" color="primary-darken-1">mdi-weather-night</v-icon>
 
     <v-menu transition="slide-x-transition">
       <template v-slot:activator="{ props }">
-          <v-btn to="/" color="primary-darken-1" cl="mx-1" v-bind="props">Home</v-btn>
+          <v-btn to="/" color="primary-darken-1" cl="mx-1" v-bind="props">
+            <template v-slot:prepend>
+              <v-icon>mdi-home</v-icon>
+            </template>
+            Home</v-btn>
       </template>
     </v-menu>
     <v-menu transition="slide-x-transition">
       <template v-slot:activator="{ props }">
-        <v-btn to="/context" color="primary-darken-1" class="mx-1" v-bind="props">Context Creation</v-btn>
+        <v-btn to="/context" color="primary-darken-1" class="mx-1" v-bind="props">
+          <template v-slot:prepend>
+            <v-icon>mdi-tune-vertical</v-icon>
+          </template>
+          Context Creation</v-btn>
       </template>
     </v-menu>
     <v-menu transition="slide-x-transition">
       <template v-slot:activator="{ props }">
-          <v-btn to="/overview" color="primary-darken-1" class="mx-1" v-bind="props">Data Overview</v-btn>
+          <v-btn to="/overview" color="primary-darken-1" class="mx-1" v-bind="props">
+            <template v-slot:prepend>
+              <v-icon>mdi-chart-line</v-icon>
+            </template>
+            Data Overview</v-btn>
       </template>
     </v-menu>
     <v-menu transition="slide-x-transition">
       <template v-slot:activator="{ props }">
-          <v-btn to="/network" color="primary-darken-1" class="mx-1" v-bind="props">Network</v-btn>
+          <v-btn to="/network" color="primary-darken-1" class="mx-1" v-bind="props">
+            <template v-slot:prepend>
+              <v-icon>mdi-graph-outline</v-icon>
+            </template>
+            Network</v-btn>
       </template>
     </v-menu>
     <!--<v-menu transition="slide-x-transition">
@@ -42,7 +58,11 @@
     </v-menu>-->
     <v-menu transition="slide-x-transition">
       <template v-slot:activator="{ props }">
-          <v-btn to="/about-us" color="primary-darken-1" class="mx-1" v-bind="props"> About Us</v-btn>
+          <v-btn to="/about-us" color="primary-darken-1" class="mx-1" v-bind="props">
+            <template v-slot:prepend>
+              <v-icon>mdi-account-group-outline</v-icon>
+            </template>
+            About Us</v-btn>
       </template>
     </v-menu>
     <v-menu>

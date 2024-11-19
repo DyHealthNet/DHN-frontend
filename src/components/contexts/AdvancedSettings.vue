@@ -10,7 +10,7 @@
           </div>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
-          <StatisticalTestLine @data-changed="updateData" />
+          <StatisticalTestLine :selected-tests="selectedTests" @data-changed="updateData" />
         </v-expansion-panel-text>
       </v-expansion-panel>
     </v-expansion-panels>
@@ -24,11 +24,20 @@ export default {
   name: 'AdvancedSettings',
   emits: ['data-changed'],
   components: {StatisticalTestLine},
+  props: {
+    selectedTests: {
+      type: Object,
+      required: false,
+    },
+  },
   methods: {
     updateData(data) {
       this.$emit('data-changed', data);
     },
   },
+  mounted() {
+    console.log(JSON.stringify(this.selectedTests));
+  }
 };
 </script>
 
