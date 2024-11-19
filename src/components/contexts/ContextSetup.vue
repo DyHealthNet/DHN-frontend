@@ -193,6 +193,7 @@ import ConnectorLine from "@/components/contexts/ConnectorLine.vue";
 import NewFilterButton from "@/components/contexts/NewFilterButton.vue";
 import AdvancedSettings from "@/components/contexts/AdvancedSettings.vue";
 import {v4 as uuidv4} from 'uuid';
+import { getCookie } from "@/components/authentication/auth.js";
 
 export default {
   components: {AdvancedSettings, NewFilterButton, ConnectorLine, FilterLine, ConnectorButton, StatusBox},
@@ -456,12 +457,15 @@ export default {
         return;
       }
       const params = this.createParams();
+      const csrfToken = getCookie("csrftoken");
 
       await fetch(`${BASE_URL}/network/api/createContext`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
         },
+        credentials: 'include',
         body: JSON.stringify(params)
       })
           .then(response => response.json())

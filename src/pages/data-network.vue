@@ -1,4 +1,19 @@
 <template>
+  <v-container class="text-center">
+    <v-row>
+      <v-col cols="12">
+        <h1 class="title mt-4">Query the network</h1>
+      </v-col>
+    </v-row>
+
+    <v-row>
+      <v-col class="d-flex justify-center">
+        <v-divider class="my-2" thickness="2"></v-divider>
+      </v-col>
+    </v-row>
+  </v-container>
+
+  <v-container class="d-flex justify-center mt-4">
   <!-- Clickable description with toggle functionality -->
   <div class="network-description" @click="toggleDescription">
     <p v-if="!isExpanded">
@@ -482,6 +497,7 @@
       </div>
     </div>
   </div>
+  </v-container>
 </template>
 
 <script>

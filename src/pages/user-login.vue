@@ -158,7 +158,6 @@ import SvgIcon from "@jamescoyle/vue-icon";
 import { mdiGithub } from '@mdi/js';
 import { mdiIdentifier } from '@mdi/js';
 import { getCookie } from '@/components/authentication/auth.js';
-import axios from "axios";
 
 export default {
   components: {
@@ -213,7 +212,7 @@ export default {
         'X-CSRFToken': csrfToken // Include the CSRF token in the request header
       },
         credentials: 'include',  // This ensures cookies (like the session cookie) are sent with the request
-        body: JSON.stringify(this.signupForm)
+        body: JSON.stringify(this.loginForm)
       }).then(response => response.json())
           .then(async data => {
             // Check the response to determine success

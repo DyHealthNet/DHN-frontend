@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@jamescoyle/vue-icon": "^0.1.2",
     "@mdi/js": "^7.4.47",
     "@mdi/svg": "^7.4.47",
     "@sgratzl/chartjs-chart-boxplot": "^4.4.0",
