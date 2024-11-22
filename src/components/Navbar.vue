@@ -30,7 +30,7 @@
           <template v-slot:prepend>
             <v-icon>mdi-tune-vertical</v-icon>
           </template>
-          Context Creation</v-btn>
+          Contexts</v-btn>
       </template>
     </v-menu>
     <v-menu transition="slide-x-transition">
@@ -39,7 +39,7 @@
             <template v-slot:prepend>
               <v-icon>mdi-chart-line</v-icon>
             </template>
-            Data Overview</v-btn>
+            Overview</v-btn>
       </template>
     </v-menu>
     <v-menu transition="slide-x-transition">
@@ -62,7 +62,7 @@
             <template v-slot:prepend>
               <v-icon>mdi-account-group-outline</v-icon>
             </template>
-            About Us</v-btn>
+            About</v-btn>
       </template>
     </v-menu>
     <v-menu>

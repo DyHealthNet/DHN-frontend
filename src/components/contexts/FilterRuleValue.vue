@@ -36,7 +36,7 @@
   <template v-if="valueComponent === 'num-text'">
     <div class="d-flex align-center" style="width: 100%">
     <v-text-field
-      v-model="selectedValue[0]"
+      v-model="localSelectedValue[0]"
       type="number"
       :rules="[v => v >= possibleValues[0] || `No values less than ${possibleValues[0]}`]"
       variant="outlined"
@@ -45,7 +45,7 @@
     </v-text-field>
      <v-divider color="primary-darken-1" class="mx-2 mb-4" thickness="5" style="max-width: 100px"></v-divider>
     <v-text-field
-      v-model="selectedValue[1]"
+      v-model="localSelectedValue[1]"
       type="number"
       :rules="[v => v <= possibleValues[1] || `No values greater than ${possibleValues[1]}`]"
       variant="outlined"
@@ -95,7 +95,7 @@ export default {
       } else if (component === 'select') {
         return [];
       } else if (component === 'num-text') {
-        return [0, 100];
+        return [0, 1];
       }
       return null;
     },
@@ -118,6 +118,7 @@ export default {
         return this.getInitialValue(this.valueComponent);
       },
       set(value) {
+        console.log("value", value);
         this.$emit('update:selectedValue', value);
       }
     }

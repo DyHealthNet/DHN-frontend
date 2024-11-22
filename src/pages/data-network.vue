@@ -13,7 +13,6 @@
     </v-row>
   </v-container>
 
-  <v-container class="d-flex justify-center mt-4">
   <!-- Clickable description with toggle functionality -->
   <div class="network-description" @click="toggleDescription">
     <p v-if="!isExpanded">
@@ -497,7 +496,6 @@
       </div>
     </div>
   </div>
-  </v-container>
 </template>
 
 <script>

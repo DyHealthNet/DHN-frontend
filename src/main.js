@@ -37,23 +37,27 @@ const dyHealthNetTheme = {
     "warning": "#FFB74D",
 
     "orcid_button": "#A6CE39",
-    "github_button": "#121212"
+    "github_button": "#121212",
+
+    "chart": '#707070',
+    "chart-grid": '#E0E0E0',
   },
 }
 
 const dyHealthNetThemeDark = {
   dark: true,
   colors: {
-    "background": "#121212",
-    "surface": "#1E1E1E",
-    "surface-bright": "#2A2A2A",
-    "surface-light": "#333333",
-    "surface-variant": "#444444",
-    "on-surface-variant": "#E0E0E0",
+    "background": "#1E1E1E",
+    "surface": "#2A2A2A",
+    "surface-bright": "#3C3C3C",
+    "surface-light": "#474747",
+    "surface-variant": "#555555",
+    "on-surface-variant": "#D1D1D1",
+    "darken-1": "#FFFFFF",
     "white-surface": "#FAFAFA",
 
-    "primary": "#0A2835",  // Keep similar to provide brand consistency
-    "primary-darken-1": "#A5BFDC",  // Darker shade for contrast #A5BFDC
+    "primary": "#0A2835",
+    "primary-darken-1": "#A5BFDC",
 
     "secondary": "#C1A1D3",
     "secondary-darken-1": "#5E3A6B",
@@ -65,6 +69,9 @@ const dyHealthNetThemeDark = {
 
     "orcid_button": "#54691a",
     "github_button": "#FAFAFA",
+
+    "chart": '#B0B0B0',
+    "chart-grid": '#555555',
   },
 }
 

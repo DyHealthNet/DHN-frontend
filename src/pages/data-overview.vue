@@ -3,8 +3,62 @@
     <!--structure define-->
     <v-main>
       <!--main content-->
-      <v-container fluid>
+    <v-container class="text-center">
+    <v-row class="d-flex align-center justify-center">
+      <v-col cols="12">
+        <h1 class="title mt-4">Data Overview</h1>
+      </v-col>
+    </v-row>
+      <v-row class="d-flex align-center justify-center">
+      <v-col class="d-flex justify-center">
+        <v-divider class="my-2" thickness="2"></v-divider>
+      </v-col>
+    </v-row>
+  </v-container>
+    <v-container class="mt-4">
+      <!-- Dial to select context -->
+      <div class="follow-dial">
+        <v-speed-dial location="top top" transition="fade-transition">
+          <template v-slot:activator="{ props: activatorProps }">
+            <v-fab
+              v-bind="activatorProps"
+              size="large"
+              icon="mdi-filter-outline"
+            ></v-fab>
+          </template>
+
+          <v-btn
+            key="1"
+            text="Context 1"
+            color="primary"
+            prepend-icon="mdi-note-text-outline"
+          ></v-btn>
+          <v-btn
+            key="2"
+            text="Context 2"
+            prepend-icon="mdi-note-text-outline"
+          ></v-btn>
+          <v-btn
+            key="3"
+            text="Context 3"
+            color="primary"
+            prepend-icon="mdi-note-text-outline"
+          ></v-btn>
+          <v-btn
+            key="4"
+            text="Context 4"
+            prepend-icon="mdi-note-text-outline"
+          ></v-btn>
+          <v-btn
+            key="5"
+            text="Context 5"
+            color="primary"
+            prepend-icon="mdi-note-text-outline"
+          ></v-btn>
+        </v-speed-dial>
+      </div>
         <!-- Clickable description with toggle functionality -->
+        <!--
         <div class="overview-description mb-4" @click="toggleDescription">
           <p v-if="!isExpanded">
             <strong class="plain-text"
@@ -40,15 +94,10 @@
               >Read less</span
             >
           </p>
-        </div>
-        <v-divider></v-divider>
-        <v-row>
-          <!--Overview data table-->
-          <v-col cols="4.5">
-            <v-row>
-              <v-col cols="12">
-                <v-card>
-                  <v-toolbar color="primary-darken-1">
+        </div> -->
+        <v-row class="my-2 justify-center">
+                <v-card width="80%" rounded="lg" elevation="5">
+                  <v-toolbar color="primary-darken-1" density="compact">
                     <v-toolbar-title
                       >Overview of Cohorts Data
                       <v-tooltip bottom>
@@ -68,29 +117,26 @@
                   <v-tabs-window v-model="model">
                     <v-card>
                       <v-card-text>
-                        <!--Cards instead of table-->
-                        <v-row class="fill-height" justify="center">
+                        <!-- Cards filling the entire row, equally spaced -->
+                        <v-row class="fill-height" justify="space-between" align="stretch">
                           <v-col
-                            align="left"
-                            cols="12"
-                            sm="6"
+                            :cols="12 / rows1.length"
                             v-for="(item, index) in rows1"
                             :key="index"
+                            class="d-flex"
                           >
-                            <v-card class="mx-auto">
-                              <v-row class="justify-center align-center">
-                                <v-col cols="12" class="text-center">
-                                  <v-img
-                                    :src="getImageForCard(item.name)"
-                                    :alt="item.name"
-                                    width="80"
-                                    height="80"
-                                    class="mx-auto mt-2 bg-layer"
-                                  ></v-img>
-                                  <v-card-title class="small-title">{{ item.name }}</v-card-title>
-                                  <v-card-text class="number-data">{{ item.column1 }}</v-card-text>
-                                </v-col>
-                              </v-row>
+                            <v-card class="mx-0 d-flex flex-row align-center justify-center" outlined>
+                              <v-img
+                                :src="getImageForCard(item.name)"
+                                :alt="item.name"
+                                width="40"
+                                height="40"
+                                class="mx-2 bg-layer"
+                              ></v-img>
+                              <div class="text-left mr-5 my-2">
+                                <div class="small-title">{{ item.name }}</div>
+                                <div class="number-data">{{ item.column1 }}</div>
+                              </div>
                             </v-card>
                           </v-col>
                         </v-row>
@@ -98,7 +144,7 @@
                     </v-card>
                   </v-tabs-window>
                 </v-card>
-              </v-col>
+
               <!--Overview of Phenotype data table-->
               <!--<v-cols cols="12">
                 <v-card>
@@ -141,13 +187,12 @@
                 </v-card>
               </v-cols>-->
             </v-row>
-          </v-col>
-
+    <v-spacer class="my-6"></v-spacer>
           <!--Tab bar-->
-          <v-col cols="8">
-            <v-card>
+          <v-row class="my-2 justify-center">
+            <v-card width="80%" rounded="lg" elevation="5">
               <!--Tab bar name-->
-              <v-toolbar color="primary-darken-1">
+              <v-toolbar color="primary-darken-1" density="compact">
                 <v-toolbar-title
                   >Data Overview
                   <v-tooltip bottom>
@@ -446,37 +491,7 @@
                 </v-tabs-window-item>
               </v-tabs-window>
             </v-card>
-          </v-col>
-
-          <!--Commentierte Data Tables-->
-          <!--<v-col cols="12">
-            <r-row class="fill-height" justify="center">
-              <v-col cols="12" align="center">
-                <h2>Data Table</h2>
-              </v-col>
-
-              <v-row justify="center">
-                <v-col cols="6">
-                  <v-data-table
-                    :headers="columns"
-                    :items="rows1"
-                    hide-default-footer
-                  ></v-data-table>
-                </v-col>
-
-                <v-col cols="6">
-                  <v-data-table
-                    :headers="columns"
-                    :items="rows2"
-                    hide-default-footer
-                  ></v-data-table>
-                </v-col>
-              </v-row>
-            </r-row>
-          </v-col>-->
-
-          <!--End of the content-->
-        </v-row>
+          </v-row>
       </v-container>
     </v-main>
   </v-app>
@@ -800,6 +815,17 @@ export default {
 </script>
 
 <style scoped>
+.follow-dial .v-fab {
+  position: fixed !important;
+  bottom: 20%;
+  right: 10%;
+  z-index: 10;
+}
+
+.title {
+  font-weight: bold;
+}
+
 .first-column {
   padding-right: 10px;
 }

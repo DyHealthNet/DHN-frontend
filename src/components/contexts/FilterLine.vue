@@ -173,8 +173,9 @@ export default  {
       if (this.selectedOperator === 'in range') {
         this.columnType = "range";
         this.valueComponent = 'num-text';
+        this.selectedValue = ["", ""];
         if (this.possibleValues.length === 0) {
-          this.possibleValues = [0, 100] // min and max values
+        this.possibleValues = [0, 100] // min and max values
         }
       } else if (this.selectedOperator === 'in') {
         this.columnType = "category";
