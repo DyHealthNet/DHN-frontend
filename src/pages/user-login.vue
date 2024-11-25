@@ -108,17 +108,17 @@
     </v-tabs-window>
     <v-row class="d-flex align-center justify-center" >
       <v-col class="text-center" cols="8">
-        <v-divider class="my-9" thickness="2"></v-divider>
+        <v-divider class="my-9" thickness="2">Or</v-divider>
       </v-col>
     </v-row>
     <v-row class="d-flex align-center justify-center" >
       <v-col class="text-center" cols="5">
-        <v-btn size="large" class="align-center justify-center" color="orcid_button" @click="loginWithORCID">
+        <v-btn size="large" class="align-center justify-center mb-3" color="orcid_button" @click="loginWithORCID">
           <svg-icon type="mdi" :path="pathORCID" class="mr-2"></svg-icon>ORCID
         </v-btn>
       </v-col>
       <v-col class="text-center" cols="5">
-        <v-btn size="large" class="align-center justify-center" color="github_button" @click="loginWithGitHub">
+        <v-btn size="large" class="align-center justify-center mb-3" color="github_button" @click="loginWithGitHub">
           <svg-icon type="mdi" :path="pathGitHub" class="mr-2"></svg-icon>GitHub
         </v-btn>
       </v-col>
@@ -199,7 +199,30 @@ export default {
       pathGitHub: mdiGithub,
     };
   },
+  mounted() {
+    // Initial check for query parameters when the component is first mounted
+    this.checkLoginRedirect();
+  },
+  watch: {
+  '$route.query': {
+    handler(newQuery) {
+      // Watch for query parameter changes
+      console.log("Query changed:", newQuery);
+      this.checkLoginRedirect(newQuery);
+    },
+    immediate: true, // Run immediately on initialization
+  }
+},
   methods: {
+    checkLoginRedirect() {
+      const message = this.$route.query.message;
+
+      if (message === "login_required" && !this.taskStarted) {
+        this.taskInfo = "Access to the requested page is restricted to logged-in users. Please log in to continue.";
+        this.taskStarted = true;
+        this.taskType = "info";
+      }
+    },
     async login() {
       try {
         const csrfToken = getCookie('csrftoken'); // Get the CSRF token from cookies
@@ -217,8 +240,10 @@ export default {
           .then(async data => {
             // Check the response to determine success
             if (data.status === 'success') {
+              console.log('im in the login page')
               // Redirect to the desired route if login is successful
               await router.push({name: 'Context creation'});
+              console.log('still here even though I should not be')
             } else {
                 this.taskStarted = true;
                 this.taskInfo = "Username or password incorrect.";
@@ -271,7 +296,15 @@ export default {
       window.location.href = `${BASE_URL}/network/api/orcid/login/`;
     },
     async loginWithGitHub() {
-      window.location.href = `${BASE_URL}/network/api/github/login/`;
+      let loginUrl = `${BASE_URL}/network/api/github/login/`;
+      const redirect_url = this.$route.query.redirect
+      console.log("redirect_url", redirect_url)
+      if (redirect_url) {
+        const fullredirection = `${window.location.protocol}//${window.location.host}${redirect_url}`;
+        loginUrl += `?next=${encodeURIComponent(fullredirection)}`;
+      }
+      console.log("loginUrl", loginUrl)
+      window.location.href = loginUrl;
     },
   },
 };

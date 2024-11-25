@@ -113,9 +113,10 @@ export default {
         await this.logout();
       } else {
         // If the authentication is not logged in, redirect to login page
-        this.$router.push("/login");
+        this.$router.push({path: "/login"});
       }
     },
+    //TODO move this to logout script, but how to adjust isLoggedIn, set it globally in storage?
     async logout() {
       try {
         const csrfToken = getCookie('csrftoken'); // Get the CSRF token from cookies
