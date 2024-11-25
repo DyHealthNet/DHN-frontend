@@ -24,7 +24,6 @@
                 rounded="lg"
                 elevation="5"
                 ref="filterToolbar"
-                @scroll="isSticky = this.$refs.filterToolbar.$el.getBoundingClientRect().top === 140"
             >
               <v-combobox
                 :prepend-icon="isSticky ? '' : 'mdi-filter-outline'"
@@ -756,6 +755,13 @@ export default {
     toggleDescription() {
       this.isExpanded = !this.isExpanded;
     },
+  },
+
+  mounted() {
+    window.addEventListener('scroll', () => {
+    const toolbar = this.$refs.filterToolbar.$el.getBoundingClientRect();
+    this.isSticky = toolbar.top === 140;
+  });
   },
 };
 </script>
