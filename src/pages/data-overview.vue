@@ -15,12 +15,32 @@
           </v-col>
         </v-row>
       </v-container>
-      <v-container class="mt-4">
-        <v-fab
-          prepend-icon="mdi-filter-outline"
-          text="Context"
-          class="sticky-fab"
-        ></v-fab>
+      <v-container class="mt-4 ">
+            <v-toolbar
+                color="primary-darken-1"
+                density="compact"
+                class="stick-to-top mt-2 mb-5 filter-toolbar"
+                :class="{ 'is-sticky': isSticky }"
+                rounded="lg"
+                elevation="5"
+                ref="filterToolbar"
+                @scroll="isSticky = this.$refs.filterToolbar.$el.getBoundingClientRect().top === 140"
+            >
+              <v-combobox
+                :prepend-icon="isSticky ? '' : 'mdi-filter-outline'"
+                v-model="selectedContext"
+                :items="contexts"
+                hide-details
+                single-line
+                :class="isSticky ? '' : 'ml-3'"
+              ></v-combobox>
+              <v-btn icon
+                @click="clearSelection"
+                v-if="selectedContext !== 'Choose Context'"
+              >
+                <v-icon>mdi-close-circle-outline</v-icon>
+              </v-btn>
+            </v-toolbar>
         <!-- Clickable description with toggle functionality -->
         <!--
         <div class="overview-description mb-4" @click="toggleDescription">
@@ -60,7 +80,7 @@
           </p>
         </div> -->
         <v-row class="my-2 justify-center">
-          <v-card width="80%" rounded="lg" elevation="5">
+          <v-card width="80%" rounded="lg" elevation="2">
             <v-toolbar color="primary-darken-1" density="compact">
               <v-toolbar-title>
                 Overview of Cohorts Data
@@ -111,7 +131,7 @@
         <v-spacer class="my-10"></v-spacer>
         <!--Tab bar-->
         <v-row class="my-2 justify-center">
-          <v-card width="80%" rounded="lg" elevation="5">
+          <v-card width="80%" rounded="lg" elevation="2">
             <!--Tab bar name-->
             <v-toolbar color="primary-darken-1" density="compact">
               <v-toolbar-title
@@ -337,78 +357,78 @@
                           </div>
                         </v-col>
 
-                        <!--Heatmap-->
-                        <v-col cols="12" align="center">
-                          <div style="height: 480px; width: 800px">
-                            <CustomHeatmap
-                                :x-var="selectedVariableHeatmap1"
-                                :y-var="selectedVariableHeatmap2"
-                            />
-                          </div>
-                        </v-col>
-                      </v-row>
-                    </template>
+                            <!--Heatmap-->
+                            <v-col cols="12" align="center">
+                              <div style="height: 480px; width: 800px">
+                                <CustomHeatmap
+                                    :x-var="selectedVariableHeatmap1"
+                                    :y-var="selectedVariableHeatmap2"
+                                />
+                              </div>
+                            </v-col>
+                          </v-row>
+                        </template>
 
-                    <!-- Content for the variable counts tab -->
-                    <template v-else-if="tab.value === 6">
-                      <!--Bar Plot-->
-                      <v-row>
-                        <!--Drop Down list-->
-                        <v-col cols="12" align="center">
-                          <div class="d-flex justify-space-around">
-                            <!--Select X variables-->
-                            <v-tooltip location="top" open-on-hover>
-                              <template v-slot:activator="{ props }">
-                                <v-autocomplete
-                                    v-model="selectedXvariableBar"
-                                    clearable
-                                    variant="outlined"
-                                    density="compact"
-                                    label="X Variable"
-                                    :items="xItemsBar"
-                                    class="variable-field"
-                                    v-bind="props"
-                                ></v-autocomplete>
-                              </template>
-                              <span>Categorical variable possible</span>
-                            </v-tooltip>
+                        <!-- Content for the variable counts tab -->
+                        <template v-else-if="tab.value === 6">
+                          <!--Bar Plot-->
+                          <v-row>
+                            <!--Drop Down list-->
+                            <v-col cols="12" align="center">
+                              <div class="d-flex justify-space-around">
+                                <!--Select X variables-->
+                                <v-tooltip location="top" open-on-hover>
+                                  <template v-slot:activator="{ props }">
+                                    <v-autocomplete
+                                        v-model="selectedXvariableBar"
+                                        clearable
+                                        variant="outlined"
+                                        density="compact"
+                                        label="X Variable"
+                                        :items="xItemsBar"
+                                        class="variable-field"
+                                        v-bind="props"
+                                    ></v-autocomplete>
+                                  </template>
+                                  <span>Categorical variable possible</span>
+                                </v-tooltip>
 
-                            <!--Colored by which variables-->
-                            <v-tooltip location="top" open-on-hover>
-                              <template v-slot:activator="{ props }">
-                                <v-autocomplete
-                                    v-model="selectedCvariableBar"
-                                    clearable
-                                    variant="outlined"
-                                    density="compact"
-                                    label="Colored by (optional)"
-                                    :items="colorItemsBar"
-                                    class="variable-field"
-                                    v-bind="props"
-                                ></v-autocomplete>
-                              </template>
-                              <span>Categorical variable as grouping</span>
-                            </v-tooltip>
-                          </div>
-                        </v-col>
+                                <!--Colored by which variables-->
+                                <v-tooltip location="top" open-on-hover>
+                                  <template v-slot:activator="{ props }">
+                                    <v-autocomplete
+                                        v-model="selectedCvariableBar"
+                                        clearable
+                                        variant="outlined"
+                                        density="compact"
+                                        label="Colored by (optional)"
+                                        :items="colorItemsBar"
+                                        class="variable-field"
+                                        v-bind="props"
+                                    ></v-autocomplete>
+                                  </template>
+                                  <span>Categorical variable as grouping</span>
+                                </v-tooltip>
+                              </div>
+                            </v-col>
 
-                        <!--Bar-->
-                        <v-col cols="12" align="center">
-                          <div style="height: 450px; width: 800px">
-                            <CustomBar
-                                :x-var="selectedXvariableBar"
-                                :c-var="selectedCvariableBar"
-                            />
-                          </div>
-                        </v-col>
-                      </v-row>
-                    </template>
-                  </v-card-text>
-                </v-card>
-              </v-tabs-window-item>
-            </v-tabs-window>
-          </v-card>
-        </v-row>
+                            <!--Bar-->
+                            <v-col cols="12" align="center">
+                              <div style="height: 450px; width: 800px">
+                                <CustomBar
+                                    :x-var="selectedXvariableBar"
+                                    :c-var="selectedCvariableBar"
+                                />
+                              </div>
+                            </v-col>
+                          </v-row>
+                        </template>
+                      </v-card-text>
+                    </v-card>
+                  </v-tabs-window-item>
+                </v-tabs-window>
+              </v-card>
+            </v-row>
       </v-container>
     </v-main>
   </v-app>
@@ -450,8 +470,10 @@ export default {
   components: {CustomBar, CustomLine, CustomBox, CustomHeatmap},
   data() {
     return {
-      openFilterMenu: false,
-      cohorts: ["Cohort 1", "Cohort 2", "Cohort 3", "Cohort 4"],
+      selectedContext: "Choose Context",
+      contexts: ["Context 1", "Context 2", "Context 3", "Context 4", "Context 5"],
+      isSticky: false,
+
       data_table: null,
 
       model: "tab-2",
@@ -526,7 +548,12 @@ export default {
 
   // +++++++++++ Methods ++++++++++++++
   methods: {
-    //functions to get the data from the json file
+    selectContext(item) {
+      this.selectedContext = item;
+    },
+    clearSelection() {
+      this.selectedContext = "Choose Context";
+    },
     async getTableDataFromApi() {
       try {
         const response = await fetch(`${BASE_URL}/network/api/table/`);
@@ -734,10 +761,21 @@ export default {
 </script>
 
 <style scoped>
-.sticky-fab {
+.stick-to-top {
   position: sticky;
-  top: 10%; /* Adjust as needed to control the distance from the top */
-  z-index: 1000; /* Ensure it's above other content */
+  top: 140px;
+  z-index: 10;
+}
+
+.filter-toolbar {
+  margin: 0 auto;
+  width: 40%;
+}
+
+.stick-to-top.is-sticky {
+  transform: translateX(calc(48vw - 80px));
+  width: 12%;
+  left: 0;
 }
 
 .title {
