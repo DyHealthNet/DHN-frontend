@@ -488,10 +488,10 @@ export default {
       selectedContext: null,
       contexts:   [
           {text: 'Cohort 1', color: '#FF0000', lightVariant: '#dba3a3', darkVariant: '#845252'},
-          {text: 'Cohort 2', color: '#00FF00'},
-          {text: 'Cohort 3', color: '#0000FF'},
-          {text: 'Cohort 4', color: '#FFFF00'},
-          {text: 'Cohort 5', color: '#FF00FF'},
+          {text: 'Cohort 2', color: '#00FF00', lightVariant: '#a3dba3', darkVariant: '#528452'},
+          {text: 'Cohort 3', color: '#0000FF', lightVariant: '#a3a3db', darkVariant: '#525284'},
+          {text: 'Cohort 4', color: '#FFFF00', lightVariant: '#dbdba3', darkVariant: '#848452'},
+          {text: 'Cohort 5', color: '#FF00FF', lightVariant: '#dba3db', darkVariant: '#845284'},
       ],
       isSticky: false,
 
@@ -570,6 +570,9 @@ export default {
   // +++++++++++ Methods ++++++++++++++
   methods: {
     changeColorOnSelectedContext() {
+      if (!this.selectedContext) {
+        return;
+      }
       const color = this.selectedContext.color;
       const lightVariant = this.selectedContext.lightVariant;
       const darkVariant = this.selectedContext.darkVariant;
@@ -582,7 +585,14 @@ export default {
     },
 
     clearSelection() {
-      this.selectedContext = "Choose Context";
+      this.selectedContext = null;
+      const defaultLightVariant = this.$vuetify.theme.themes.dyHealthNetTheme.colors['primary-backup'];
+      const defaultDarkVariant = this.$vuetify.theme.themes.dyHealthNetTheme.colors['primary-darken-1-backup'];
+      this.$vuetify.theme.themes.dyHealthNetTheme.colors['primary'] = defaultLightVariant;
+      this.$vuetify.theme.themes.dyHealthNetTheme.colors['primary-darken-1'] = defaultDarkVariant;
+
+      this.$vuetify.theme.themes.dyHealthNetThemeDark.colors['primary-darken-1'] = defaultLightVariant;
+      this.$vuetify.theme.themes.dyHealthNetThemeDark.colors['primary'] = defaultDarkVariant;
     },
 
     async getTableDataFromApi() {
