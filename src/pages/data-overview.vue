@@ -17,6 +17,7 @@
       </v-container>
       <v-container class="mt-4 ">
             <v-toolbar
+                v-if="isLoggedIn"
                 color="primary-darken-1"
                 density="compact"
                 class="stick-to-top mt-2 mb-5 filter-toolbar"
@@ -29,13 +30,25 @@
                 :prepend-icon="isSticky ? '' : 'mdi-filter-outline'"
                 v-model="selectedContext"
                 :items="contexts"
+                label="Choose Context"
                 hide-details
                 single-line
                 :class="isSticky ? '' : 'ml-3'"
-              ></v-combobox>
+                item-value="text"
+                item-title="text"
+              >
+                <!-- Slot to customize items -->
+                <template #item="{ item, props }">
+                  <v-list-item v-bind="props">
+                    <template v-slot:append>
+                      <v-icon :color="item.raw.color">mdi-circle</v-icon> <!-- Use "item.color" -->
+                    </template>
+                  </v-list-item>
+                </template>
+              </v-combobox>
               <v-btn icon
                 @click="clearSelection"
-                v-if="selectedContext !== 'Choose Context'"
+                v-if="selectedContext !== null"
               >
                 <v-icon>mdi-close-circle-outline</v-icon>
               </v-btn>
@@ -434,6 +447,8 @@
 </template>
 
 <script>
+import {ca} from "vuetify/locale";
+
 const BASE_URL =
     import.meta.env.VITE_BACKEND_URL ||
     `${window.location.protocol}//${window.location.host}`;
@@ -453,7 +468,6 @@ import {
   CategoryScale,
   LinearScale,
 } from "chart.js";
-import {helper} from "echarts";
 
 ChartJS.register(
     Title,
@@ -469,8 +483,16 @@ export default {
   components: {CustomBar, CustomLine, CustomBox, CustomHeatmap},
   data() {
     return {
-      selectedContext: "Choose Context",
-      contexts: ["Context 1", "Context 2", "Context 3", "Context 4", "Context 5"],
+      isLoggedIn: true,
+
+      selectedContext: null,
+      contexts:   [
+          {text: 'Cohort 1', color: '#FF0000', lightVariant: '#dba3a3', darkVariant: '#845252'},
+          {text: 'Cohort 2', color: '#00FF00'},
+          {text: 'Cohort 3', color: '#0000FF'},
+          {text: 'Cohort 4', color: '#FFFF00'},
+          {text: 'Cohort 5', color: '#FF00FF'},
+      ],
       isSticky: false,
 
       data_table: null,
@@ -547,12 +569,22 @@ export default {
 
   // +++++++++++ Methods ++++++++++++++
   methods: {
-    selectContext(item) {
-      this.selectedContext = item;
+    changeColorOnSelectedContext() {
+      const color = this.selectedContext.color;
+      const lightVariant = this.selectedContext.lightVariant;
+      const darkVariant = this.selectedContext.darkVariant;
+      console.log("Selected Context color: ", color);
+      this.$vuetify.theme.themes.dyHealthNetTheme.colors['primary'] = lightVariant;
+      this.$vuetify.theme.themes.dyHealthNetTheme.colors['primary-darken-1'] = darkVariant;
+
+      this.$vuetify.theme.themes.dyHealthNetThemeDark.colors['primary-darken-1'] = lightVariant;
+      this.$vuetify.theme.themes.dyHealthNetThemeDark.colors['primary'] = darkVariant;
     },
+
     clearSelection() {
       this.selectedContext = "Choose Context";
     },
+
     async getTableDataFromApi() {
       try {
         const response = await fetch(`${BASE_URL}/network/api/table/`);
@@ -759,9 +791,19 @@ export default {
 
   mounted() {
     window.addEventListener('scroll', () => {
-    const toolbar = this.$refs.filterToolbar.$el.getBoundingClientRect();
-    this.isSticky = toolbar.top === 140;
+      try {
+        const toolbar = this.$refs.filterToolbar.$el.getBoundingClientRect();
+        this.isSticky = toolbar.top === 140;
+      } catch (error) {
+        console.error("Error in sticky toolbar:", error);
+      }
   });
+  },
+
+  watch: {
+    selectedContext: function() {
+      this.changeColorOnSelectedContext();
+    },
   },
 };
 </script>
