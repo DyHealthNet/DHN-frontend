@@ -67,7 +67,7 @@
     </v-menu>
     <v-menu>
       <template v-slot:activator="{ props }">
-          <v-btn @click="handleAuth" color="primary-darken-1" class="mx-1" :icon="loginStatus"></v-btn>
+          <v-btn @click="handleAuth" color="primary-darken-1" class="mx-1" :icon=icon></v-btn>
       </template>
     </v-menu>
   </v-app-bar>
@@ -76,17 +76,53 @@
 
 <script>
 import router from "@/router.js";
-import { getCookie } from '@/components/authentication/auth.js';
+import { authState, checkLogin, getCookie } from '@/components/authentication/auth.js';
+import {reactive, onMounted, computed} from 'vue';
+import {useRoute} from "vue-router";
 
 const BASE_URL =
   import.meta.env.VITE_BACKEND_URL ||
   `${window.location.protocol}//${window.location.host}`;
 export default {
+  setup() { // setup (Composition API) runs before mounted and provides access to reactive "APIs" (here authState)
+    const route = useRoute(); // to get current route because this.router doesn't work in setup()
+
+    // computed property for dynamic icon
+    // computed is reactivity-based -> automatically updates when underlying reactive data changes (here route.path & authState.isLoggedIn)
+    const icon = computed(() => {
+      if (route.path === '/login') {
+        return 'mdi-account'; // Show account icon on login page
+      } else {
+        return authState.isLoggedIn ? 'mdi-logout' : 'mdi-login';
+      }
+    });
+
+    // Fetch login status on component mount
+    // mounted is a lifecycle hook (Options API) & is called when a component has been added to DOM
+    onMounted(() => {
+      checkLogin(); // Ensures login status is up to date when navbar loads
+    });
+
+    // Handle Login/ Logout page navigation
+    const handleAuth = async () => {
+      if (authState.isLoggedIn) {
+        router.push("/logout");// Redirect to logout page
+      } else {
+        // Redirect to login page
+        router.push("/login"); // Update with your login route
+      }
+    };
+
+    return {
+      icon,
+      handleAuth,
+    };
+  },
   data() {
     return {
       isDark: false,
       darkModeText: "",
-      isLoggedIn: false
+      isLoggedIn: false,
     }
   },
   methods: {
@@ -107,70 +143,11 @@ export default {
       this.$vuetify.theme.global.name = getSystemMode() === "dark" ? "dyHealthNetThemeDark" : "dyHealthNetTheme"
       this.isDark = getSystemMode() === "dark"
     },
-    async handleAuth() {
-      if (this.isLoggedIn) {
-        // If the authentication is logged in, log them out
-        await this.logout();
-      } else {
-        // If the authentication is not logged in, redirect to login page
-        this.$router.push({path: "/login"});
-      }
-    },
-    //TODO move this to logout script, but how to adjust isLoggedIn, set it globally in storage?
-    async logout() {
-      try {
-        const csrfToken = getCookie('csrftoken'); // Get the CSRF token from cookies
-        console.log(csrfToken)
-        const response = await fetch(`${BASE_URL}/network/api/logout/`, {
-          method: 'POST',
-        headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': csrfToken // Include the CSRF token in the request header
-        },
-        credentials: 'include',
-        }).then(response => response.json())
-          .then(async data => {
-            // Check the response to determine success
-            if (data.status === 'success') {
-              console.log("Logged out successfully");
-              this.isLoggedIn = false;
-              await router.push("/logout");  // Redirect to login page
-          } else {
-          console.error("Logout failed:", response.statusText);
-        }
-      })
-      } catch (error) {
-        console.error("Error during logout:", error);
-      }
-    },
   },
   created() {
     this.defaultTheme()
     this.darkModeText = this.$vuetify.theme.global.name === 'dyHealthNetTheme' ? "Light mode" : "Dark mode";
   },
-  computed: {
-    loginStatus() {
-      // check if we're on the login page or not
-      if (this.$route.path === "/login") {
-        return "mdi-account"
-      } else {
-        try {
-          fetch(`${BASE_URL}/network/api/checklogin/`, {
-            method: 'GET',
-            credentials: 'include',  // Ensures session cookies are sent with the request
-          }).then(response => response.json())
-          .then( data => {
-            this.isLoggedIn = data.is_logged_in;
-          })
-        } catch (error) {
-          console.error('Error submitting form:', error);
-        };
-        console.log(this.isLoggedIn);
-        console.log(this.isLoggedIn ? "mdi-logout" : "mdi-login");
-        return this.isLoggedIn ? "mdi-logout" : "mdi-login";
-      }
-    }
-  }
 }
 </script>
 

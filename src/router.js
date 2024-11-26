@@ -11,6 +11,7 @@ import NetworkPage from './pages/data-network.vue'
 import ContextCreation from './pages/context-creation.vue'
 import Login from './pages/user-login.vue'
 import Logout from './pages/user-logout.vue'
+import {checkLogin} from "@/components/authentication/auth.js";
 const BASE_URL =
   import.meta.env.VITE_BACKEND_URL ||
   `${window.location.protocol}//${window.location.host}`;
@@ -75,35 +76,26 @@ router.beforeEach(async (to, from, next) => {
   if (to.meta.requiresAuth) {
       console.log("to", to);
     try {
-      const response = await fetch(`${BASE_URL}/network/api/checklogin/`, {
-        method: 'GET',
-        credentials: 'include', // Ensures session cookies are sent with the request
-      });
+      const isLoggedIn = await checkLogin(); // Await the login status
 
-      const data = await response.json();
-      console.log("data.is_logged_in:", data.is_logged_in);
-
-      if (data.is_logged_in) {
-        console.log("User authenticated, proceeding...");
-        next(); // Proceed to the route
+    if (isLoggedIn) {
+            console.log("User authenticated, proceeding...");
+            next(); // Allow access
+          } else {
+            console.log("User not authenticated, redirecting to login...");
+            next({
+              name: 'Login',
+              query: { redirect: to.fullPath, message: 'login_required' }, // Redirect to login with original path as query
+            });
+          }
+        } catch (error) {
+          console.error('Error during authentication check:', error);
+          next({
+            name: 'Login',
+            query: { redirect: to.fullPath, message: 'login_required' }, // Redirect to login with original path as query
+          });
+        }
       } else {
-        console.log("User not authenticated, redirecting to login...");
-        next({
-          name: 'Login',
-          query: { redirect: to.fullPath, // Redirect to login with original route as query
-          message: 'login_required'},
-        });
+        next(); // Route does not require authentication, proceed
       }
-    } catch (error) {
-      console.error("Error during authentication check:", error);
-      next({
-        name: 'Login',
-          query: { redirect: to.fullPath, // Redirect to login with original route as query
-          message: 'login_required'},
-      });
-    }
-  } else {
-    console.log("Route does not require authentication, proceeding...");
-    next(); // Allow access for routes that don't require authentication
-  }
 });

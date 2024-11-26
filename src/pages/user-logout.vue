@@ -28,5 +28,44 @@
   border-radius: 10px;
 }
 </style>
-<script setup>
+<script>
+import {authState, checkLogin, getCookie} from '@/components/authentication/auth.js';
+import router from "@/router.js"; // If you're using a reactive auth state
+
+const BASE_URL =
+  import.meta.env.VITE_BACKEND_URL ||
+  `${window.location.protocol}//${window.location.host}`;
+
+export default {
+  async mounted() {
+    await this.logout(); // Perform logout when the component is mounted
+  },
+  methods: {
+    async logout() {
+      try {
+        const csrfToken = getCookie('csrftoken'); // Get the CSRF token from cookies
+        console.log(csrfToken)
+        const response = await fetch(`${BASE_URL}/network/api/logout/`, {
+          method: 'POST',
+        headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken // Include the CSRF token in the request header
+        },
+        credentials: 'include',
+        }).then(response => response.json())
+          .then(async data => {
+            // Check the response to determine success
+            if (data.status === 'success') {
+              console.log("Logged OUT successfully");
+              authState.isLoggedIn = false; // Update auth state if you use it
+          } else {
+          console.error("Logout failed:", response.statusText);
+        }
+      })
+      } catch (error) {
+        console.error("Error during logout:", error);
+      }
+    },
+  },
+};
 </script>

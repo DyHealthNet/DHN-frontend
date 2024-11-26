@@ -157,7 +157,7 @@ import router from "@/router.js";
 import SvgIcon from "@jamescoyle/vue-icon";
 import { mdiGithub } from '@mdi/js';
 import { mdiIdentifier } from '@mdi/js';
-import { getCookie } from '@/components/authentication/auth.js';
+import {authState, checkLogin, getCookie} from '@/components/authentication/auth.js';
 
 export default {
   components: {
@@ -240,10 +240,13 @@ export default {
           .then(async data => {
             // Check the response to determine success
             if (data.status === 'success') {
-              console.log('im in the login page')
+              console.log('Logged IN successfully')
+              // update authState directly or more secure query the backend for it
+              // (actually not even necessary as redirection to login restricted page should ensure another checkLogin call)
+              //authState.isLoggedIn = true;
+              await checkLogin();
               // Redirect to the desired route if login is successful
               await router.push({name: 'Context creation'});
-              console.log('still here even though I should not be')
             } else {
                 this.taskStarted = true;
                 this.taskInfo = "Username or password incorrect.";
