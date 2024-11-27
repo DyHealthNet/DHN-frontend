@@ -14,7 +14,7 @@
   </v-container>
 
   <v-container class="d-flex justify-center mt-4">
-    <v-card width="80%" rounded="lg" elevation="2">
+    <v-card rounded="lg" elevation="2" class="responsive-card">
       <v-tabs v-model="contextTab" align-tabs="center" bg-color="primary-darken-1" show-arrows>
         <v-tab v-for="tab in tabs" :key="tab.value" :text="tab.name" :value="tab.value"></v-tab>
       </v-tabs>
@@ -95,6 +95,16 @@ export default {
 </script>
 
 <style scoped>
+.responsive-card {
+  width: 80%;
+  transition: width 0.3s ease;
+}
+@media (max-width: 1500px) {
+  .responsive-card {
+    width: 100%;
+  }
+}
+
 .title {
   font-weight: bold;
 }

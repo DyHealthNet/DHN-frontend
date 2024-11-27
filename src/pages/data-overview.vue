@@ -16,43 +16,7 @@
         </v-row>
       </v-container>
       <v-container class="mt-4 ">
-            <v-toolbar
-                v-if="isLoggedIn"
-                :color="filterToolbarColor"
-                density="compact"
-                class="stick-to-top mt-2 mb-5 filter-toolbar"
-                :class="{ 'is-sticky': isSticky }"
-                rounded="lg"
-                elevation="5"
-                ref="filterToolbar"
-            >
-              <v-combobox
-                :prepend-icon="isSticky ? '' : 'mdi-filter-outline'"
-                v-model="selectedContext"
-                :items="contexts"
-                label="Static network"
-                hide-details
-                single-line
-                :class="isSticky ? '' : 'ml-3'"
-                item-value="text"
-                item-title="text"
-              >
-                <!-- Slot to customize items -->
-                <template #item="{ item, props }">
-                  <v-list-item v-bind="props">
-                    <template v-slot:append>
-                      <v-icon :color="item.raw.color">mdi-circle</v-icon>
-                    </template>
-                  </v-list-item>
-                </template>
-              </v-combobox>
-              <v-btn icon
-                @click="clearSelection"
-                v-if="selectedContext !== null"
-              >
-                <v-icon>mdi-close-circle-outline</v-icon>
-              </v-btn>
-            </v-toolbar>
+            <FilterToolbar :contexts="contexts" @cangeContext="console.log('context changed')"></FilterToolbar>
         <!-- Clickable description with toggle functionality -->
         <!--
         <div class="overview-description mb-4" @click="toggleDescription">
@@ -143,7 +107,7 @@
         <v-spacer class="my-10"></v-spacer>
         <!--Tab bar-->
         <v-row class="my-2 justify-center">
-          <v-card width="80%" rounded="lg" elevation="2">
+          <v-card rounded="lg" elevation="2" class="responsive-card">
             <!--Tab bar name-->
             <v-toolbar color="primary-darken-1" density="compact">
               <v-toolbar-title
@@ -468,6 +432,7 @@ import {
   CategoryScale,
   LinearScale,
 } from "chart.js";
+import FilterToolbar from "@/components/FilterToolbar.vue";
 
 ChartJS.register(
     Title,
@@ -480,13 +445,9 @@ ChartJS.register(
 
 export default {
   name: "DataOverview",
-  components: {CustomBar, CustomLine, CustomBox, CustomHeatmap},
+  components: {FilterToolbar, CustomBar, CustomLine, CustomBox, CustomHeatmap},
   data() {
     return {
-      isLoggedIn: true,
-
-      selectedContext: null,
-      filterToolbarColor: "primary-darken-1",
       contexts:   [
           {text: 'Cohort 1', color: '#FF0000', lightVariant: '#dba3a3', darkVariant: '#845252'},
           {text: 'Cohort 2', color: '#00FF00', lightVariant: '#a3dba3', darkVariant: '#528452'},
@@ -494,8 +455,6 @@ export default {
           {text: 'Cohort 4', color: '#FFFF00', lightVariant: '#dbdba3', darkVariant: '#848452'},
           {text: 'Cohort 5', color: '#FF00FF', lightVariant: '#dba3db', darkVariant: '#845284'},
       ],
-      isSticky: false,
-
       data_table: null,
 
       model: "tab-2",
@@ -570,19 +529,6 @@ export default {
 
   // +++++++++++ Methods ++++++++++++++
   methods: {
-    changeColorOnSelectedContext() {
-      if (!this.selectedContext) {
-        return;
-      }
-      const color = this.selectedContext.color;
-      this.filterToolbarColor = this.selectedContext.darkVariant;
-    },
-
-    clearSelection() {
-      this.selectedContext = null;
-      this.filterToolbarColor = "primary-darken-1";
-    },
-
     async getTableDataFromApi() {
       try {
         const response = await fetch(`${BASE_URL}/network/api/table/`);
@@ -786,23 +732,6 @@ export default {
       this.isExpanded = !this.isExpanded;
     },
   },
-
-  mounted() {
-    window.addEventListener('scroll', () => {
-      try {
-        const toolbar = this.$refs.filterToolbar.$el.getBoundingClientRect();
-        this.isSticky = toolbar.top === 140;
-      } catch (error) {
-        console.error("Error in sticky toolbar:", error);
-      }
-  });
-  },
-
-  watch: {
-    selectedContext: function() {
-      this.changeColorOnSelectedContext();
-    },
-  },
 };
 </script>
 
@@ -815,23 +744,6 @@ export default {
   .responsive-card {
     width: 100%;
   }
-}
-
-.stick-to-top {
-  position: sticky;
-  top: 140px;
-  z-index: 10;
-}
-
-.filter-toolbar {
-  margin: 0 auto;
-  width: 40%;
-}
-
-.stick-to-top.is-sticky {
-  transform: translateX(calc(48vw - 80px));
-  width: 12%;
-  left: 0;
 }
 
 .title {
