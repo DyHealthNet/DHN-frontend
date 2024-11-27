@@ -1,6 +1,6 @@
 <template>
 <v-toolbar
-    v-if="isLoggedIn"
+    v-if="showToolbar"
     :color="filterToolbarColor"
     density="compact"
     class="stick-to-top mt-2 mb-5 filter-toolbar"
@@ -39,6 +39,8 @@
 </template>
 
 <script>
+import {authState} from "@/components/authentication/auth.js";
+
 export default {
   name: 'FilterToolbar',
   emits: ['cangeContext'],
@@ -51,7 +53,8 @@ export default {
 
   data() {
     return {
-      isLoggedIn: true,
+      // only show toolbar if user is logged in
+      showToolbar: authState.isLoggedIn,
 
       selectedContext: null,
       filterToolbarColor: "primary-darken-1",
@@ -83,6 +86,7 @@ export default {
         // ignore
       }
   });
+    console.log(this.isLoggedIn);
   },
 
   watch: {
