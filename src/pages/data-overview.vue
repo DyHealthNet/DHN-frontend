@@ -18,7 +18,7 @@
       <v-container class="mt-4 ">
             <v-toolbar
                 v-if="isLoggedIn"
-                color="primary-darken-1"
+                :color="filterToolbarColor"
                 density="compact"
                 class="stick-to-top mt-2 mb-5 filter-toolbar"
                 :class="{ 'is-sticky': isSticky }"
@@ -30,7 +30,7 @@
                 :prepend-icon="isSticky ? '' : 'mdi-filter-outline'"
                 v-model="selectedContext"
                 :items="contexts"
-                label="Choose Context"
+                label="Static network"
                 hide-details
                 single-line
                 :class="isSticky ? '' : 'ml-3'"
@@ -41,7 +41,7 @@
                 <template #item="{ item, props }">
                   <v-list-item v-bind="props">
                     <template v-slot:append>
-                      <v-icon :color="item.raw.color">mdi-circle</v-icon> <!-- Use "item.color" -->
+                      <v-icon :color="item.raw.color">mdi-circle</v-icon>
                     </template>
                   </v-list-item>
                 </template>
@@ -92,7 +92,7 @@
           </p>
         </div> -->
         <v-row class="my-2 justify-center">
-          <v-card width="80%" rounded="lg" elevation="2">
+          <v-card rounded="lg" elevation="2"   class="responsive-card">
             <v-toolbar color="primary-darken-1" density="compact">
               <v-toolbar-title>
                 Overview of Cohorts Data
@@ -486,6 +486,7 @@ export default {
       isLoggedIn: true,
 
       selectedContext: null,
+      filterToolbarColor: "primary-darken-1",
       contexts:   [
           {text: 'Cohort 1', color: '#FF0000', lightVariant: '#dba3a3', darkVariant: '#845252'},
           {text: 'Cohort 2', color: '#00FF00', lightVariant: '#a3dba3', darkVariant: '#528452'},
@@ -574,25 +575,12 @@ export default {
         return;
       }
       const color = this.selectedContext.color;
-      const lightVariant = this.selectedContext.lightVariant;
-      const darkVariant = this.selectedContext.darkVariant;
-      console.log("Selected Context color: ", color);
-      this.$vuetify.theme.themes.dyHealthNetTheme.colors['primary'] = lightVariant;
-      this.$vuetify.theme.themes.dyHealthNetTheme.colors['primary-darken-1'] = darkVariant;
-
-      this.$vuetify.theme.themes.dyHealthNetThemeDark.colors['primary-darken-1'] = lightVariant;
-      this.$vuetify.theme.themes.dyHealthNetThemeDark.colors['primary'] = darkVariant;
+      this.filterToolbarColor = this.selectedContext.darkVariant;
     },
 
     clearSelection() {
       this.selectedContext = null;
-      const defaultLightVariant = this.$vuetify.theme.themes.dyHealthNetTheme.colors['primary-backup'];
-      const defaultDarkVariant = this.$vuetify.theme.themes.dyHealthNetTheme.colors['primary-darken-1-backup'];
-      this.$vuetify.theme.themes.dyHealthNetTheme.colors['primary'] = defaultLightVariant;
-      this.$vuetify.theme.themes.dyHealthNetTheme.colors['primary-darken-1'] = defaultDarkVariant;
-
-      this.$vuetify.theme.themes.dyHealthNetThemeDark.colors['primary-darken-1'] = defaultLightVariant;
-      this.$vuetify.theme.themes.dyHealthNetThemeDark.colors['primary'] = defaultDarkVariant;
+      this.filterToolbarColor = "primary-darken-1";
     },
 
     async getTableDataFromApi() {
@@ -819,6 +807,16 @@ export default {
 </script>
 
 <style scoped>
+.responsive-card {
+  width: 80%;
+  transition: width 0.3s ease;
+}
+@media (max-width: 1500px) {
+  .responsive-card {
+    width: 100%;
+  }
+}
+
 .stick-to-top {
   position: sticky;
   top: 140px;
