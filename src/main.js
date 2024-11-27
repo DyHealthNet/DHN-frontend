@@ -26,7 +26,9 @@ const dyHealthNetTheme = {
     "white-surface": "#FAFAFA",
 
     "primary": "#A5BFDC",
+    "primary-backup": "#A5BFDC",
     "primary-darken-1": "#516F84",
+    "primary-darken-1-backup": "#516F84",
 
     "secondary": "#C1A1D3",
     "secondary-darken-1": "#7D5E9A",

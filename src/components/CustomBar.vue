@@ -55,9 +55,6 @@ export default {
   },
   computed: {
     computedChartData() {
-      console.log("this.xVar: ", this.xVar);
-      console.log("this.cVar: ", this.cVar);
-
       if (!this.xVar || this.checkVariableConflict()) {
         return {
           labels: [],
@@ -114,10 +111,8 @@ export default {
       // chartjs does not support theme colors so we just directly call the theme color
       let colorName = grid ? "chart-grid" : "chart";
       if (this.$vuetify.theme.global.name === 'dyHealthNetTheme') {
-        console.log(this.$vuetify.theme.themes.dyHealthNetTheme.colors[colorName]);
         return this.$vuetify.theme.themes.dyHealthNetTheme.colors[colorName];
       } else {
-        console.log(this.$vuetify.theme.themes.dyHealthNetThemeDark.colors[colorName]);
         return this.$vuetify.theme.themes.dyHealthNetThemeDark.colors[colorName];
       }
     },

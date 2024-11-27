@@ -16,30 +16,7 @@
         </v-row>
       </v-container>
       <v-container class="mt-4 ">
-            <v-toolbar
-                color="primary-darken-1"
-                density="compact"
-                class="stick-to-top mt-2 mb-5 filter-toolbar"
-                :class="{ 'is-sticky': isSticky }"
-                rounded="lg"
-                elevation="5"
-                ref="filterToolbar"
-            >
-              <v-combobox
-                :prepend-icon="isSticky ? '' : 'mdi-filter-outline'"
-                v-model="selectedContext"
-                :items="contexts"
-                hide-details
-                single-line
-                :class="isSticky ? '' : 'ml-3'"
-              ></v-combobox>
-              <v-btn icon
-                @click="clearSelection"
-                v-if="selectedContext !== 'Choose Context'"
-              >
-                <v-icon>mdi-close-circle-outline</v-icon>
-              </v-btn>
-            </v-toolbar>
+            <FilterToolbar :contexts="contexts" @cangeContext="console.log('context changed')"></FilterToolbar>
         <!-- Clickable description with toggle functionality -->
         <!--
         <div class="overview-description mb-4" @click="toggleDescription">
@@ -79,7 +56,7 @@
           </p>
         </div> -->
         <v-row class="my-2 justify-center">
-          <v-card width="80%" rounded="lg" elevation="2">
+          <v-card rounded="lg" elevation="2"   class="responsive-card">
             <v-toolbar color="primary-darken-1" density="compact">
               <v-toolbar-title>
                 Overview of Cohorts Data
@@ -130,7 +107,7 @@
         <v-spacer class="my-10"></v-spacer>
         <!--Tab bar-->
         <v-row class="my-2 justify-center">
-          <v-card width="80%" rounded="lg" elevation="2">
+          <v-card rounded="lg" elevation="2" class="responsive-card">
             <!--Tab bar name-->
             <v-toolbar color="primary-darken-1" density="compact">
               <v-toolbar-title
@@ -434,6 +411,8 @@
 </template>
 
 <script>
+import {ca} from "vuetify/locale";
+
 const BASE_URL =
     import.meta.env.VITE_BACKEND_URL ||
     `${window.location.protocol}//${window.location.host}`;
@@ -453,7 +432,7 @@ import {
   CategoryScale,
   LinearScale,
 } from "chart.js";
-import {helper} from "echarts";
+import FilterToolbar from "@/components/FilterToolbar.vue";
 
 ChartJS.register(
     Title,
@@ -466,13 +445,16 @@ ChartJS.register(
 
 export default {
   name: "DataOverview",
-  components: {CustomBar, CustomLine, CustomBox, CustomHeatmap},
+  components: {FilterToolbar, CustomBar, CustomLine, CustomBox, CustomHeatmap},
   data() {
     return {
-      selectedContext: "Choose Context",
-      contexts: ["Context 1", "Context 2", "Context 3", "Context 4", "Context 5"],
-      isSticky: false,
-
+      contexts:   [
+          {text: 'Cohort 1', color: '#FF0000', lightVariant: '#dba3a3', darkVariant: '#845252'},
+          {text: 'Cohort 2', color: '#00FF00', lightVariant: '#a3dba3', darkVariant: '#528452'},
+          {text: 'Cohort 3', color: '#0000FF', lightVariant: '#a3a3db', darkVariant: '#525284'},
+          {text: 'Cohort 4', color: '#FFFF00', lightVariant: '#dbdba3', darkVariant: '#848452'},
+          {text: 'Cohort 5', color: '#FF00FF', lightVariant: '#dba3db', darkVariant: '#845284'},
+      ],
       data_table: null,
 
       model: "tab-2",
@@ -547,12 +529,6 @@ export default {
 
   // +++++++++++ Methods ++++++++++++++
   methods: {
-    selectContext(item) {
-      this.selectedContext = item;
-    },
-    clearSelection() {
-      this.selectedContext = "Choose Context";
-    },
     async getTableDataFromApi() {
       try {
         const response = await fetch(`${BASE_URL}/network/api/table/`);
@@ -756,32 +732,18 @@ export default {
       this.isExpanded = !this.isExpanded;
     },
   },
-
-  mounted() {
-    window.addEventListener('scroll', () => {
-    const toolbar = this.$refs.filterToolbar.$el.getBoundingClientRect();
-    this.isSticky = toolbar.top === 140;
-  });
-  },
 };
 </script>
 
 <style scoped>
-.stick-to-top {
-  position: sticky;
-  top: 140px;
-  z-index: 10;
+.responsive-card {
+  width: 80%;
+  transition: width 0.3s ease;
 }
-
-.filter-toolbar {
-  margin: 0 auto;
-  width: 40%;
-}
-
-.stick-to-top.is-sticky {
-  transform: translateX(calc(48vw - 80px));
-  width: 12%;
-  left: 0;
+@media (max-width: 1500px) {
+  .responsive-card {
+    width: 100%;
+  }
 }
 
 .title {
