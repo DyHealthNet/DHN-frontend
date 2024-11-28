@@ -35,9 +35,6 @@ export default {
       this.$emit('data-changed', data);
     },
   },
-  mounted() {
-    console.log(JSON.stringify(this.selectedTests));
-  }
 };
 </script>
 

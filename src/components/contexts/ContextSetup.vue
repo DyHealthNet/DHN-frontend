@@ -222,7 +222,7 @@ export default {
           rules.push({group: `group-${groups.length - 1}`, id: uuidv4(), rule: rule});
         });
       }
-      console.log(rules);
+      console.log(`Got content: ${JSON.stringify(this.content)}`);
     }
 
     return {
@@ -475,6 +475,13 @@ export default {
       })
           .then(response => response.json())
           .then(data => {
+            if (!data.taskId) {
+              // something went wrong
+              this.taskStarted = true;
+              this.taskInfo = "An error occurred while starting the context calculation";
+              this.taskType = "error";
+              return;
+            }
             this.taskId = data.taskId;
             this.taskStarted = true;
             this.taskInfo = "Context calculation started successfully";
@@ -494,10 +501,12 @@ export default {
         await new Promise(r => setTimeout(r, 20000));
       }
 
-      while (this.progressStatus !== "SUCCESS") {
+      while (this.progressStatus !== "Finished") {
         await this.getProgressStatus();
         await new Promise(r => setTimeout(r, 30000));
       }
+      // if progress is successful, enable the send button
+      this.sendDisabled = false;
     }
   },
   mounted() {

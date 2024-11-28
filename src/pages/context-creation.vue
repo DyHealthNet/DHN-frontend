@@ -16,14 +16,14 @@
   <v-container class="d-flex justify-center mt-4">
     <v-card rounded="lg" elevation="2" class="responsive-card">
       <v-tabs v-model="contextTab" align-tabs="center" bg-color="primary-darken-1" show-arrows>
-        <v-tab v-for="tab in tabs" :key="tab.value" :text="tab.name" :value="tab.value"></v-tab>
+        <v-tab v-for="tab in tabs" :key="tab.contextValue" :text="tab.contextName" :value="tab.contextValue"></v-tab>
       </v-tabs>
       <v-window v-model="contextTab">
-        <v-window-item v-for="tab in tabs" :key="tab.value" :value="tab.value">
+        <v-window-item v-for="tab in tabs" :key="tab.contextValue" :value="tab.contextValue">
           <v-card color="surface">
             <v-card-text>
               <v-row>
-                <ContextSetup :title="tab.name" :content="tab.content" :value="tab.value" @data-changed="updateTabName" />
+                <ContextSetup :title="tab.contextName" :content="tab.content" :value="tab.contextValue" @data-changed="updateTabName" />
               </v-row>
             </v-card-text>
           </v-card>
@@ -34,6 +34,11 @@
 </template>
 
 <script>
+import {getCookie} from "@/components/authentication/auth.js";
+
+const BASE_URL =
+    import.meta.env.VITE_BACKEND_URL ||
+    `${window.location.protocol}//${window.location.host}`;
 
 import ContextSetup from "@/components/contexts/ContextSetup.vue";
 
@@ -45,10 +50,10 @@ export default {
   data() {
     return {
       contextTab: 1,
-      tabs: [
-        { name: "Context 1", value: 1, content: null },
-        { name: "Context 2",
-          value: 2,
+      preTabs: [
+        { contextName: "Context 1", contextValue: 1, content: null },
+        { contextName: "Context 2",
+          contextValue: 2,
           content: {
             connect: { inside: "OR", outside: "AND" },
             conditions: {'group-0': [{column: 'Abc', operator: 'equals (=)', value: '1'},
@@ -59,10 +64,11 @@ export default {
             contextName: "Test" },
             contextValue: 2
         },
-        { name: "Context 3", value: 3, content: null },
-        { name: "Context 4", value: 4, content: null },
-        { name: "Context 5", value: 5, content: null }
+        { contextName: "Context 3", contextValue: 3, content: null },
+        { contextName: "Context 4", contextValue: 4, content: null },
+        { contextName: "Context 5", contextValue: 5, content: null }
       ],
+      tabs: [],
     };
   },
   methods: {
@@ -77,19 +83,42 @@ export default {
       else {
         newTabName = tabName;
       }
-      this.tabs[this.contextTab - 1].name = newTabName;
+      this.tabs[this.contextTab - 1].contextName = newTabName;
     },
     fillTabNames() {
       // for all tabs that have content, fill the tab name with the context name
       this.tabs.forEach((tab) => {
         if (tab.content) {
-          tab.name = tab.content.contextName;
+          tab.contextName = tab.content.contextName;
         }
       });
-    }
+    },
+
+    async getAllContexts() {
+      await fetch(`${BASE_URL}/network/api/retrieveContexts/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie("csrftoken")
+        },
+        credentials: 'include',
+      })
+          .then(response => response.json())
+          .then(data => {
+            this.tabs = data.result;
+            console.log(this.tabs);
+          })
+          .catch((error) => {
+            console.error('Error:', error);
+            this.tabs = this.preTabs;
+          });
+    },
   },
   mounted() {
     this.fillTabNames();
+  },
+  created() {
+    this.getAllContexts()
   }
 };
 </script>
