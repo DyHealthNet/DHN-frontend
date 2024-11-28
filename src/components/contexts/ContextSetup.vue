@@ -147,12 +147,41 @@
     </v-row>
 
     <v-row>
-      <v-col>
+      <v-col cols="2">
         <v-btn color="primary-darken-1" @click="sendContext" :disabled="sendDisabled">
           <v-icon class="my-0 mr-2">mdi-check-outline</v-icon>
           Submit Context
         </v-btn>
       </v-col>
+      <v-col cols="3">
+        <v-btn color="surface" @click="fetchParticipants(createParams())" elevation="1">
+          <v-icon class="my-0 mr-2">mdi-refresh</v-icon>
+          Refresh Participants
+        </v-btn>
+      </v-col>
+      <v-spacer></v-spacer>
+      <v-col cols="2">
+        <v-btn color="error" elevation="1" @click="deleteWarn = true">
+          <v-icon class="my-0 mr-2">mdi-close-circle-outline</v-icon>
+          Clear context
+        </v-btn>
+      </v-col>
+      <v-dialog width="auto" v-model="deleteWarn">
+        <v-card color="error" rounded="lg">
+          <v-card-title class="headline">
+            <v-icon class="my-0 mr-2">mdi-alert-outline</v-icon>
+            <b>You are about to delete this context.</b>
+          </v-card-title>
+          <v-card-text>
+            This action cannot be undone. Are you sure you want to continue?
+          </v-card-text>
+          <v-card-actions>
+            <v-btn @click="clearContext">Yes</v-btn>
+            <v-btn @click="deleteWarn = false">No</v-btn>
+          </v-card-actions>
+        </v-card>
+
+      </v-dialog>
     </v-row>
 
     <v-row>
@@ -228,6 +257,8 @@ export default {
     return {
       contextName: this.content?.contextName ?? "",
       contextNameMaxLength: [v => v.length <= 40 || 'Max 40 characters'],
+
+      deleteWarn: false,
 
       layers: layers,
       selectedLayers: this.content?.layers ?? layers,
@@ -507,6 +538,27 @@ export default {
       }
       // if progress is successful, enable the send button
       this.sendDisabled = false;
+    },
+
+    clearContext() {
+      this.deleteWarn = false;
+      this.contextName = `Context ${this.value}`;
+      this.selectedLayers = ["Phenomics", "Metabolomics", "Proteomics"];
+      this.outerRows = ['group-0'];
+      this.innerRows = [{group: 'group-0', id: uuidv4(), rule: {}}];
+      this.progressIcon = "mdi-clock-outline";
+      this.progressStatus = "Waiting";
+      this.participantNumber = "13 000";
+      this.removedPatients = "";
+      this.selectedTests = {
+        catCat: 'Chi-squared', catContM: 'ANOVA',
+        catContB: 'T-test', contCont: 'Pearson'
+      };
+      this.taskId = null;
+      this.taskStarted = false;
+      this.taskInfo = "";
+
+      // TODO: also tell the API that this context should be deleted
     }
   },
   mounted() {
