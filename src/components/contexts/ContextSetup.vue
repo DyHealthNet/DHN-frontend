@@ -153,12 +153,6 @@
           Submit Context
         </v-btn>
       </v-col>
-      <v-col cols="3">
-        <v-btn color="surface" @click="fetchParticipants(createParams())" elevation="1">
-          <v-icon class="my-0 mr-2">mdi-refresh</v-icon>
-          Refresh Participants
-        </v-btn>
-      </v-col>
       <v-spacer></v-spacer>
       <v-col cols="2">
         <v-btn color="error" elevation="1" @click="deleteWarn = true">
@@ -536,11 +530,9 @@ export default {
         await this.getProgressStatus();
         await new Promise(r => setTimeout(r, 30000));
       }
-      // if progress is successful, enable the send button
-      this.sendDisabled = false;
     },
 
-    clearContext() {
+    async clearContext() {
       this.deleteWarn = false;
       this.contextName = `Context ${this.value}`;
       this.selectedLayers = ["Phenomics", "Metabolomics", "Proteomics"];
@@ -558,12 +550,37 @@ export default {
       this.taskStarted = false;
       this.taskInfo = "";
 
-      // TODO: also tell the API that this context should be deleted
+      // Send a DELETE request to the backend deleting the context
+      await fetch(`${BASE_URL}/network/api/deleteContext`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie("csrftoken")
+        },
+        credentials: 'include',
+        body: JSON.stringify({contextValue: this.value})
+      })
+          .then(response => response.json())
+          .then(data => {
+            this.taskStarted = true;
+            this.taskInfo = data.message;
+            this.taskType = "success";
+            this.sendDisabled = false;
+          })
+          .catch((error) => {
+            console.error('Error:', error);
+            this.taskStarted = true;
+            this.taskInfo = "An error occurred while deleting the context";
+            this.taskType = "error";
+          });
     }
   },
   mounted() {
     this.intervalProgress();
     this.fetchVariables();
+  },
+  created() {
+    this.fetchParticipants(this.createParams())
   }
 };
 </script>
