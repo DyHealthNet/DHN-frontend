@@ -56,7 +56,8 @@ export default {
           .then(async data => {
             // Check the response to determine success
             if (data.status === 'success') {
-              console.log("Logged OUT successfully");
+              console.log("Logged out successfully");
+              // add checkLogin? (not necessary as logout was successfull and will be checked before accessing restricted site)
               authState.isLoggedIn = false; // Update auth state if you use it
           } else {
           console.error("Logout failed:", response.statusText);

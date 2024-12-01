@@ -118,7 +118,7 @@ export default {
     this.fillTabNames();
   },
   created() {
-    this.getAllContexts()
+    this.getAllContexts();
   }
 };
 </script>

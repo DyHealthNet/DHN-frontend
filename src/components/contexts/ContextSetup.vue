@@ -406,7 +406,7 @@ export default {
       }
 
       const url = new URL(`${BASE_URL}/network/api/contextStatus`);
-      url.search = new URLSearchParams({taskId: this.taskId}).toString();
+      url.search = new URLSearchParams({context_value: this.value}).toString();
 
       await fetch(url, {
         method: 'GET',

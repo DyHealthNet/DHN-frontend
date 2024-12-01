@@ -14,6 +14,11 @@ export function getCookie(name) {
   if (parts.length === 2) return parts.pop().split(';').shift();
   return null;
 }
+export function clearCookies() {
+  document.cookie = "csrftoken=; Max-Age=0; path=/;"; // Clear CSRF token
+  document.cookie = "sessionid=; Max-Age=0; path=/;"; // Clear session cookie (if used)
+  console.log("Cookies cleared!");
+}
 
 //TODO adapt or add function that also returns the Username (because backend already send that
 // with this API call if logged in and authState already captures boolean auth state)
