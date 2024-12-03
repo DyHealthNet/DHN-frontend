@@ -30,6 +30,16 @@ export default {
     this.renderChart();
   },
   methods: {
+    labelColor(grid=false) {
+      // chartjs does not support theme colors so we just directly call the theme color
+      let colorName = grid ? "chart-grid" : "chart";
+      if (this.$vuetify.theme.global.name === 'dyHealthNetTheme') {
+        return this.$vuetify.theme.themes.dyHealthNetTheme.colors[colorName];
+      } else {
+        return this.$vuetify.theme.themes.dyHealthNetThemeDark.colors[colorName];
+      }
+    },
+
     renderChart() {
      if (this.chartInstance) {
        this.chartInstance.destroy(); // Destroy the existing chart instance
@@ -40,24 +50,36 @@ export default {
        type: 'boxplot',
        data: this.chartData,
        options: {
+          color: this.labelColor(),
           scales: {
             x: {
               title: {
                 display: true,
-                text: this.xLabel || 'X Label'  
+                text: this.xLabel || 'X Label',
+                color: this.labelColor()
               },
               ticks: {
-              minRotation: 25, 
-              maxRotation: 25, 
-            },
+                maxRotation: 25,
+                minRotation: 25,
+                color: this.labelColor(),
+              },
+              grid: {
+                color: this.labelColor(true),
+              }
              
             },
             y: {
               title: {
                 display: true,
-                text: this.yLabel || 'Y Label'  // Y-axis label
+                text: this.yLabel || 'Y Label',  // Y-axis label
+                color: this.labelColor()
               },
-              
+              ticks: {
+                color: this.labelColor(),
+              },
+              grid: {
+                color: this.labelColor(true),
+              }
             }
           }
         }

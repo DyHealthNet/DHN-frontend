@@ -67,6 +67,7 @@ export default {
       return {
         responsive: true,
         maintainAspectRatio: false,
+        color: this.labelColor(),
         scales: {
           x: {
             beginAtZero: true,
