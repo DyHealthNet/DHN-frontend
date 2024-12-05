@@ -81,16 +81,22 @@ export default {
       return {
         responsive: true,
         maintainAspectRatio: false,
+        color: this.labelColor(),
         scales: {
           x: {
             beginAtZero: false,
             title: {
               display: true,
               text: this.xVar || "X Label",
+              color: this.labelColor(),
             },
             ticks: {
               minRotation: 25, 
-              maxRotation: 25, 
+              maxRotation: 25,
+              color: this.labelColor(),
+            },
+            grid: {
+              color: this.labelColor(true),
             },
           },
           y: {
@@ -98,6 +104,13 @@ export default {
             title: {
               display: true,
               text: this.yVar || "Y Label",
+              color: this.labelColor(),
+            },
+            ticks: {
+              color: this.labelColor(),
+            },
+            grid: {
+              color: this.labelColor(true),
             },
           },
         },
@@ -109,6 +122,15 @@ export default {
     computedChartOptions: "updateChart",
   },
   methods: {
+    labelColor(grid=false) {
+      // chartjs does not support theme colors so we just directly call the theme color
+      let colorName = grid ? "chart-grid" : "chart";
+      if (this.$vuetify.theme.global.name === 'dyHealthNetTheme') {
+        return this.$vuetify.theme.themes.dyHealthNetTheme.colors[colorName];
+      } else {
+        return this.$vuetify.theme.themes.dyHealthNetThemeDark.colors[colorName];
+      }
+    },
     updateChart() {
       this.$nextTick(() => {
         if (this.$refs.lineComponent && this.$refs.lineComponent.lineInstance) {

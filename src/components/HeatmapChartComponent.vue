@@ -25,6 +25,14 @@ export default {
     this.createHeatmap();
   },
   methods: {
+    getThemeColor(color) {
+      if (this.$vuetify.theme.global.name === 'dyHealthNetTheme') {
+        return this.$vuetify.theme.themes.dyHealthNetTheme.colors[color];
+      } else {
+        return this.$vuetify.theme.themes.dyHealthNetThemeDark.colors[color];
+      }
+    },
+
     createHeatmap() {
       const xCategoriesAsString = this.chartData.xCategories.map(String);
       const yCategoriesAsString = this.chartData.yCategories.map(String);
@@ -35,13 +43,23 @@ export default {
         z: this.chartData.datasets,
         type: "heatmap",
         colorscale: [
+            // TODO: Change whatever the hell this is
           [0, "rgb(209,229,240)"], // Lightest color
           [0.5, "rgb(131,179,197)"], // Mid-tone color
           [1, "rgb(16,77,99)"], // Darkest color (#104d63)
         ],
       };
 
-      const layout = {
+      Plotly.newPlot("heatmap", [trace], this.heatmapLayout);
+    },
+  },
+  computed: {
+    heatmapLayout() {
+      return {
+        paper_bgcolor: this.getThemeColor('surface'),
+        font: {
+          color: this.getThemeColor('chart')
+        },
         xaxis: {
           type: "category",
           title: {
@@ -49,7 +67,7 @@ export default {
             standoff: 20, // Abstand zwischen Achsentitel und Achse
           },
           tickangle: -20, // Labels um drehen
-          automargin: true, 
+          automargin: true,
         },
         yaxis: {
           type: "category",
@@ -57,12 +75,15 @@ export default {
             text: this.yLabel || 'Y Label',
             standoff: 20, // Abstand zwischen Achsentitel und Achse
           },
-          tickangle: 0, 
-          automargin: true, 
+          tickangle: 0,
+          automargin: true,
         },
       };
-
-      Plotly.newPlot("heatmap", [trace], layout);
+    },
+  },
+  watch: {
+    '$vuetify.theme.global.name': function () {
+      this.createHeatmap();
     },
   },
 };
