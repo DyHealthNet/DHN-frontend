@@ -51,7 +51,7 @@ export default {
     return {
       contextTab: 1,
       preTabs: [
-        { contextName: "Context 1", contextValue: 1, content: null },
+        { contextName: "Context 1", contextValue: 1, content: null, contextCalculated:false},
         { contextName: "Context 2",
           contextValue: 2,
           content: {
@@ -62,11 +62,12 @@ export default {
             tests: {contCont: 'Spearman', catCat: 'Chi-square', catContM: 'ANOVA', catContB: 'ANOVA'},
             layers: ['Metabolomics', 'Phenomics'],
             contextName: "Test" },
-            contextValue: 2
+            contextValue: 2,
+            contextCalculated:true,
         },
-        { contextName: "Context 3", contextValue: 3, content: null },
-        { contextName: "Context 4", contextValue: 4, content: null },
-        { contextName: "Context 5", contextValue: 5, content: null }
+        { contextName: "Context 3", contextValue: 3, content: null, contextCalculated:false},
+        { contextName: "Context 4", contextValue: 4, content: null, contextCalculated:false},
+        { contextName: "Context 5", contextValue: 5, content: null, contextCalculated:false}
       ],
       tabs: [],
     };

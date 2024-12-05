@@ -12,493 +12,501 @@
       </v-col>
     </v-row>
   </v-container>
+  <v-container class="justify-center mt-4">
+    <FilterToolbar :contexts="contexts" @cangeContext="console.log('context changed')"></FilterToolbar>
 
-  <!-- Clickable description with toggle functionality -->
-  <div class="network-description" @click="toggleDescription">
-    <p v-if="!isExpanded">
-      <strong style="color: #104d63"
-        >Explore CHRIS Network Associations:</strong
-      >
-      This page displays a network illustrating the associations between CHRIS
-      nodes and their connections with external variables.
-      <span
-        style="color: #104d63"
-        class="toggle-link"
-        v-if="!isExpanded"
-        @click.stop="toggleDescription"
-        >Read more</span
-      >
-    </p>
-    <p v-if="isExpanded">
-      <strong>Explore CHRIS Network Associations:</strong>
-      This page presents a network diagram that illustrates the relationships
-      between CHRIS nodes and their connections to external variables.<br /><br />
-      Edges in the network represent statistically significant associations.
-      These are determined using Pearson correlation for continuous variables,
-      Chi-square tests for categorical variables, and T-tests for associations
-      between continuous and categorical variables.<br /><br />
-      To find, select, and add CHRIS nodes to the network display, use the text
-      search located in the upper left corner. Selected nodes will be included
-      in the network and listed in the "Network Nodes" panel.<br />
-      Both nodes and edges in the network are clickable, providing additional
-      information. By selecting a node, you can also add its most highly
-      correlated nodes to the network.
-      <span
-        style="color: #104d63"
-        class="toggle-link"
-        @click.stop="toggleDescription"
-        >Read less</span
-      >
-    </p>
-  </div>
-
-  <div class="outer-container">
-    <div class="panel-container">
-      <div class="panel">
-        <div class="panel-header">
-          <h2
-            style="color: white"
-            title="Find CHRIS nodes by CHRIS ID, display name or description and add them to the network display"
-          >
-            Node Selection <span class="mdi mdi-information"></span>
-          </h2>
-        </div>
-        <div class="panel-content">
-          <div class="node-selection">
-            <input
-              type="text"
-              v-model="searchText"
-              @input="fetchData"
-              placeholder="Type something..."
-              style="width: 175px"
-            />
-            <ul v-if="dropdownNodes.length" class="dropdown" ref="dropdown">
-              <li
-                v-for="(item, index) in dropdownNodes"
-                @click="addDropdownNodeToNetwork(item)"
-                :key="index"
-                @mouseover="hoverNode(item)"
-                @mouseleave="hoverNode(null)"
+<!--      &lt;!&ndash; Clickable description with toggle functionality &ndash;&gt;-->
+<!--      <div class="network-description" @click="toggleDescription">-->
+<!--        <p v-if="!isExpanded">-->
+<!--          <strong style="color: #104d63"-->
+<!--            >Explore CHRIS Network Associations:</strong-->
+<!--          >-->
+<!--          This page displays a network illustrating the associations between CHRIS-->
+<!--          nodes and their connections with external variables.-->
+<!--          <span-->
+<!--            style="color: #104d63"-->
+<!--            class="toggle-link"-->
+<!--            v-if="!isExpanded"-->
+<!--            @click.stop="toggleDescription"-->
+<!--            >Read more</span-->
+<!--          >-->
+<!--        </p>-->
+<!--        <p v-if="isExpanded">-->
+<!--          <strong>Explore CHRIS Network Associations:</strong>-->
+<!--          This page presents a network diagram that illustrates the relationships-->
+<!--          between CHRIS nodes and their connections to external variables.<br /><br />-->
+<!--          Edges in the network represent statistically significant associations.-->
+<!--          These are determined using Pearson correlation for continuous variables,-->
+<!--          Chi-square tests for categorical variables, and T-tests for associations-->
+<!--          between continuous and categorical variables.<br /><br />-->
+<!--          To find, select, and add CHRIS nodes to the network display, use the text-->
+<!--          search located in the upper left corner. Selected nodes will be included-->
+<!--          in the network and listed in the "Network Nodes" panel.<br />-->
+<!--          Both nodes and edges in the network are clickable, providing additional-->
+<!--          information. By selecting a node, you can also add its most highly-->
+<!--          correlated nodes to the network.-->
+<!--          <span-->
+<!--            style="color: #104d63"-->
+<!--            class="toggle-link"-->
+<!--            @click.stop="toggleDescription"-->
+<!--            >Read less</span-->
+<!--          >-->
+<!--        </p>-->
+<!--      </div>-->
+    <v-row justify="space-between" class="filter-padding">
+    <v-col cols="12" class="d-flex justify-start">
+      <div class="outer-container">
+        <div class="panel-container">
+          <div class="panel">
+            <div class="panel-header">
+              <h2
+                style="color: white"
+                title="Find CHRIS nodes by CHRIS ID, display name or description and add them to the network display"
               >
-                {{ item.display_name }}
-              </li>
-            </ul>
-            <teleport to="body">
-              <div v-if="hoveredItem" class="tooltip" :style="tooltipStyle">
-                <strong>CHRIS ID:</strong> {{ hoveredItem.id }}<br />
-                <strong>Display Name:</strong> {{ hoveredItem.display_name
-                }}<br />
-                <strong>Source Table:</strong> {{ hoveredItem.source_table
-                }}<br />
-                <strong>Description:</strong> {{ hoveredItem.description }}
+                Node Selection <span class="mdi mdi-information"></span>
+              </h2>
+            </div>
+            <div class="panel-content">
+              <div class="node-selection">
+                <input
+                  type="text"
+                  v-model="searchText"
+                  @input="fetchData"
+                  placeholder="Type something..."
+                  style="width: 175px"
+                />
+                <ul v-if="dropdownNodes.length" class="dropdown" ref="dropdown">
+                  <li
+                    v-for="(item, index) in dropdownNodes"
+                    @click="addDropdownNodeToNetwork(item)"
+                    :key="index"
+                    @mouseover="hoverNode(item)"
+                    @mouseleave="hoverNode(null)"
+                  >
+                    {{ item.display_name }}
+                  </li>
+                </ul>
+                <teleport to="body">
+                  <div v-if="hoveredItem" class="tooltip" :style="tooltipStyle">
+                    <strong>CHRIS ID:</strong> {{ hoveredItem.id }}<br />
+                    <strong>Display Name:</strong> {{ hoveredItem.display_name
+                    }}<br />
+                    <strong>Source Table:</strong> {{ hoveredItem.source_table
+                    }}<br />
+                    <strong>Description:</strong> {{ hoveredItem.description }}
+                  </div>
+                </teleport>
               </div>
-            </teleport>
-          </div>
-        </div>
-        <div class="panel-header">
-          <h2
-            style="color: white"
-            title="These CHRIS nodes have been selected and are displayed in the network"
-          >
-            Network Nodes <span class="mdi mdi-information"></span>
-          </h2>
-        </div>
-        <div class="panel-content">
-          <div class="node-selection">
-            <ul v-if="displayedNodes.length" class="dropdown" ref="dropdown">
-              <li
-                v-for="(item, index) in displayedNodes"
-                @click="BoxClickEvent(item, $event)"
-                :key="index"
-                @mouseover="hoverNode(item)"
-                @mouseleave="hoverNode(null)"
+            </div>
+            <div class="panel-header">
+              <h2
+                style="color: white"
+                title="These CHRIS nodes have been selected and are displayed in the network"
               >
-                {{ item.display_name }}
-                <span class="remove-node" @click="RemoveNetworkNode(item)"
-                  >✖</span
-                >
-              </li>
-            </ul>
+                Network Nodes <span class="mdi mdi-information"></span>
+              </h2>
+            </div>
+            <div class="panel-content">
+              <div class="node-selection">
+                <ul v-if="displayedNodes.length" class="dropdown" ref="dropdown">
+                  <li
+                    v-for="(item, index) in displayedNodes"
+                    @click="BoxClickEvent(item, $event)"
+                    :key="index"
+                    @mouseover="hoverNode(item)"
+                    @mouseleave="hoverNode(null)"
+                  >
+                    {{ item.display_name }}
+                    <span class="remove-node" @click="RemoveNetworkNode(item)"
+                      >✖</span
+                    >
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
 
-    <div class="network-container">
+        <div class="network-container">
 
 
-      <!-- Legend -->
-      <div class="legend">
-        <h2>
-          Total Nodes: <span>{{ this.network_nodes.length }}</span>
-        </h2>
-        <div v-for="(group, key) in groups" :key="key" class="legend-item">
-          <div
-            class="legend-color"
-            :style="getShapeStyle(group.color, key)"
-          ></div>
-          <span
-            >&nbsp;&nbsp;{{ this.capitalizeFirstLetter(key) }}s:
-            {{ this.getNodesCount(key) }}</span
-          >
-        </div>
-      </div>
-      <div class="legend2">
-        <h2>
-          Total Edges: <span>{{ this.network_edges.length }}</span>
-        </h2>
-        <div class="legend-item">
-          <div class="solid-line"></div>
-          <div class="legend-text">
-            CHRIS: <span>{{ this.getEdgesCount("cohort") }}</span>
+          <!-- Legend -->
+          <div class="legend">
+            <h2>
+              Total Nodes: <span>{{ this.network_nodes.length }}</span>
+            </h2>
+            <div v-for="(group, key) in groups" :key="key" class="legend-item">
+              <div
+                class="legend-color"
+                :style="getShapeStyle(group.color, key)"
+              ></div>
+              <span
+                >&nbsp;&nbsp;{{ this.capitalizeFirstLetter(key) }}s:
+                {{ this.getNodesCount(key) }}</span
+              >
+            </div>
           </div>
-        </div>
-        <div class="legend-item">
-          <div class="dashed-line"></div>
-          <div class="legend-text">
-            External: <span>{{ this.getEdgesCount("external") }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Network Visualization -->
-      <div ref="network" id="network">
-      </div>
-      <v-tooltip bottom>
-          <template v-slot:activator="{ props }">
-            <v-icon v-bind="props" style="color: #104d63; top: -530px; left: 10px"
-              >mdi-information</v-icon
-            >
-          </template>
-          <span></span>
-          <v-list-tile-avatar slot="activator">
-            <img src="../pages/legend.png" />
-          </v-list-tile-avatar>
-          <span></span>
-        </v-tooltip>
-      <button
-        class="btn-save-network"
-        @click="saveNetwork()"
-        title="Save network to .json and download it"
-      >
-        Save Network
-      </button>
-      <button
-        class="btn-clear-network"
-        @click="clearNetwork()"
-        title="Clear the full network"
-      >
-        Clear Network
-      </button>
-      <button
-        class="btn-keep-highlighted"
-        @click="keepHighlighted()"
-        title="Remove all nodes that are not highlighted"
-      >
-        Only keep highlighted
-      </button>
-    </div>
-    <!-- Info Panel -->
-    <div class="info-panel">
-      <h2 v-if="displayedElement"></h2>
-      <template v-if="displayedElement">
-        <template v-if="displayedElementType === 'node'">
-          <!-- Display selected node details -->
-          <p>
-            <strong style="font-size: 24px">Selected Node</strong>
-            <span
-              class="remove-nodeX"
-              @click="RemoveNetworkNode(displayedElement)"
-              title="Remove the selected node"
-              >✖</span
-            >
-          </p>
-          <button
-            class="btn-update-network"
-            @click="addConnectedNodes()"
-            title="Click to add nodes that are significantly correlated with the selected node"
-          >
-            Add Connected Nodes
-          </button>
-          <button
-            @click="showOverlay"
-            title="Modify the type and number of added nodes"
-            class="icon-button"
-          >
-            <img
-              src="@/pages/gear-solid.svg"
-              alt="Clear Network Icon"
-              class="icon"
-            />
-          </button>
-          <!-- Overlay with radio button selection -->
-          <div v-if="isOverlayVisible" class="overlay">
-            <div class="overlay-content">
-              <h3>Amount of added CHRIS nodes:</h3>
-              <div class="checkbox-group">
-                <label>
-                  <input
-                    type="checkbox"
-                    v-model="isProteinsChecked"
-                    @change="updateProteinAmount"
-                  />
-                  <span class="bold-large-text">Proteins</span>
-                </label>
-                <input
-                  type="number"
-                  v-model="proteinAmount"
-                  :disabled="!isProteinsChecked"
-                  placeholder="Enter amount"
-                  max="10"
-                  min="0"
-                />
+          <div class="legend2">
+            <h2>
+              Total Edges: <span>{{ this.network_edges.length }}</span>
+            </h2>
+            <div class="legend-item">
+              <div class="solid-line"></div>
+              <div class="legend-text">
+                CHRIS: <span>{{ this.getEdgesCount("cohort") }}</span>
               </div>
-
-              <div class="checkbox-group">
-                <label>
-                  <input
-                    type="checkbox"
-                    v-model="isMetabolitesChecked"
-                    @change="updateMetaboliteAmount"
-                  />
-                  <span class="bold-large-text">Metabolites</span>
-                </label>
-                <input
-                  type="number"
-                  v-model="metaboliteAmount"
-                  :disabled="!isMetabolitesChecked"
-                  placeholder="Enter amount"
-                  max="10"
-                  min="0"
-                />
+            </div>
+            <div class="legend-item">
+              <div class="dashed-line"></div>
+              <div class="legend-text">
+                External: <span>{{ this.getEdgesCount("external") }}</span>
               </div>
-              <!-- Phenotypes Checkbox Group -->
-              <div class="checkbox-group">
-                <label>
-                  <input
-                    type="checkbox"
-                    v-model="isPhenotypesChecked"
-                    @change="updatePhenotypeAmount"
-                  />
-                  <span class="bold-large-text">Phenotypes</span>
-                </label>
-                <input
-                  type="number"
-                  v-model="phenotypeAmount"
-                  :disabled="!isPhenotypesChecked"
-                  placeholder="Enter amount"
-                  max="10"
-                  min="0"
-                />
-              </div>
-
-              <!-- Variants Checkbox Group -->
-              <div class="checkbox-group">
-                <label>
-                  <input
-                    type="checkbox"
-                    v-model="isVariantsChecked"
-                    @change="updateVariantAmount"
-                  />
-                  <span class="bold-large-text">Variants</span>
-                </label>
-                <input
-                  type="number"
-                  v-model="variantAmount"
-                  :disabled="!isVariantsChecked"
-                  placeholder="Enter amount"
-                  max="10"
-                  min="0"
-                />
-              </div>
-
-              <button @click="handleSubmit">Submit</button>
-              <button @click="hideOverlay">Cancel</button>
             </div>
           </div>
 
-          <div id="messageContainer" style="position: absolute"></div>
+          <!-- Network Visualization -->
+          <div ref="network" id="network">
+          </div>
+          <v-tooltip bottom>
+              <template v-slot:activator="{ props }">
+                <v-icon v-bind="props" style="color: #104d63; top: -530px; left: 10px"
+                  >mdi-information</v-icon
+                >
+              </template>
+              <span></span>
+              <v-list-tile-avatar slot="activator">
+                <img src="../pages/legend.png" />
+              </v-list-tile-avatar>
+              <span></span>
+            </v-tooltip>
           <button
-            class="btn-show-external"
-            @click="showExternals(this.displayedElement)"
-            title="Add connections from external databases, can take a few seconds for some protein"
+            class="btn-save-network"
+            @click="saveNetwork()"
+            title="Save network to .json and download it"
           >
-            Add external nodes
+            Save Network
           </button>
-
-          <p>&nbsp;</p>
-          <p title="CHRIS ID or display Name for external nodes">
-            <strong>ID:</strong> {{ displayedElement.id }}
-          </p>
-          <p title="Node label">
-            <strong>Display Name:</strong> {{ displayedElement.display_name }}
-          </p>
-          <p title="Data set is either CHRIS or external">
-            <strong>Data set:</strong> {{ displayedElement.set }}
-          </p>
-
-          <p title="Short node description">
-            <strong>Description:</strong>
-            {{ capitalizeFirstLetter(displayedElement.description) }}
-          </p>
-          <p
-            title="CHRIS contains three source tables: proteins, metabolites, and phenotypes"
+          <button
+            class="btn-clear-network"
+            @click="clearNetwork()"
+            title="Clear the full network"
           >
-            <strong>Source Table:</strong>
-            {{
-              capitalizeFirstLetter(displayedElement.source_table.split("_")[1])
-            }}
-          </p>
-          <!-- <p><strong>Cross Reference: </strong> {{ displayedElement.xrefs }}</p>-->
-          <p
-            title="We use Uniprot for proteins, HMDB for metabolites and SNOMED for phenotypes"
+            Clear Network
+          </button>
+          <button
+            class="btn-keep-highlighted"
+            @click="keepHighlighted()"
+            title="Remove all nodes that are not highlighted"
           >
-            <strong>Reference:</strong>
-            <span
-              v-if="
-                displayedElement.xrefs &&
-                displayedElement.xrefs[displayedElement.xrefs.length - 1] !==
-                  '.'
-              "
-            >
-              <span
-                v-for="(xref, index) in displayedElement.xrefs.split('|')"
-                :key="index"
-              >
-                <a
-                  :href="generateLink(xref.trim())"
-                  target="_blank"
-                  style="color: darkblue"
-                  >{{ xref.trim() }}</a
-                >
-                <span
-                  v-if="index < displayedElement.xrefs.split('|').length - 1"
-                  >,&#8203;</span
-                >
-              </span>
-            </span>
-            <span v-else> none</span>
-          </p>
-        </template>
-
-        <template
-          v-else-if="
-            displayedElementType === 'edge' && displayedElement.set === 'cohort'
-          "
-        >
-          <!-- Display details for edge with set 'cohort' -->
-          <p><strong style="font-size: 24px">Selected Edge</strong></p>
-          <p><strong>Set:</strong> CHRIS edges</p>
-          <p>&nbsp;</p>
-          <p><strong>Node 0</strong></p>
-          <p>
-            <strong>Display Name:</strong> {{ displayedElement.node0_label }}
-          </p>
-          <p><strong>ID:</strong> {{ displayedElement.to }}</p>
-          <p><strong>Type:</strong> {{ displayedElement.node0_type }}</p>
-          <p>&nbsp;</p>
-          <p><strong>Node 1</strong></p>
-          <p>
-            <strong>Display Name:</strong> {{ displayedElement.node1_label }}
-          </p>
-          <p><strong>ID:</strong> {{ displayedElement.from }}</p>
-          <p><strong>Type:</strong> {{ displayedElement.node1_type }}</p>
-          <p>&nbsp;</p>
-          <p>
-            <strong>P Value:</strong>
-            {{ displayedElement.p_value.toPrecision(3) }}
-          </p>
-          <p>
-            <strong>Adjusted P Value:</strong>
-            {{ displayedElement.adjusted_p_value !== null ? displayedElement.adjusted_p_value.toPrecision(3) : 'null' }}
-          </p>
-          <p>
-            <strong>Effect Size:</strong>
-            {{ displayedElement.effect_size.toPrecision(3) }}
-          </p>
-          <p>
-            <strong>Effect Size Type:</strong>
-            {{ capitalizeFirstLetter(displayedElement.effect_size_type) }}
-          </p>
-        </template>
-
-        <template
-          v-else-if="
-            displayedElementType === 'edge' &&
-            displayedElement.set === 'external'
-          "
-        >
-          <template v-if="displayedElement.to === displayedElement.from">
-            <p><strong style="font-size: 24px">Selected Edge</strong></p>
-            <p><strong>Set:</strong> External edges</p>
-            <p>&nbsp;</p>
-
-            <p>
-              <strong>Node Name:</strong> {{ displayedElement.node0_label }}
-            </p>
-            <p><strong>Node ID:</strong> {{ displayedElement.to }}</p>
-            <p><strong>Node Type:</strong> {{ displayedElement.node0_type }}</p>
-          </template>
-
-          <template v-else>
-            <p><strong style="font-size: 24px">Selected Edge</strong></p>
-            <p><strong>Set:</strong> External edges</p>
-            <p>&nbsp;</p>
-
-            <p><strong>Node 0</strong></p>
-            <p>
-              <strong>Display Name:</strong> {{ displayedElement.node0_label }}
-            </p>
-            <p><strong>ID:</strong> {{ displayedElement.to }}</p>
-            <p><strong>Type:</strong> {{ displayedElement.node0_type }}</p>
-            <p>&nbsp;</p>
-            <p><strong>Node 1</strong></p>
-            <p>
-              <strong>Display Name:</strong> {{ displayedElement.node1_label }}
-            </p>
-            <p><strong>ID:</strong> {{ displayedElement.from }}</p>
-            <p><strong>Type:</strong> {{ displayedElement.node1_type }}</p>
-            <!-- Add more fields specific to 'external' here -->
-          </template>
-        </template>
-      </template>
-      <!-- No element selected message -->
-      <p v-else>No element selected, you can select a node or an edge</p>
-    </div>
-    <div class="panel-container2">
-      <div class="panel">
-        <div class="panel-header">
-          <h2
-            style="color: white"
-            title="Double-click on nodes to highlight them. When you download the network, highlighted nodes will include an 'is_highlighted' key set to true or false."
-          >
-            Highlighted Nodes <span class="mdi mdi-information"></span>
-          </h2>
+            Only keep highlighted
+          </button>
         </div>
-        <div class="panel-content">
-          <div class="node-selection">
-            <ul v-if="selectedNodes.length" class="dropdown" ref="dropdown">
-              <li
-                v-for="(item, index) in selectedNodes"
-                @click="BoxClickEvent2(item, $event)"
-                :key="index"
-                @mouseover="hoverNode(item)"
-                @mouseleave="hoverNode(null)"
-              >
-                {{ item.display_name }}
-                <span class="remove-node" @click="RemoveNetworkNode2(item)"
+        <!-- Info Panel -->
+        <div class="info-panel">
+          <h2 v-if="displayedElement"></h2>
+          <template v-if="displayedElement">
+            <template v-if="displayedElementType === 'node'">
+              <!-- Display selected node details -->
+              <p>
+                <strong style="font-size: 24px">Selected Node</strong>
+                <span
+                  class="remove-nodeX"
+                  @click="RemoveNetworkNode(displayedElement)"
+                  title="Remove the selected node"
                   >✖</span
                 >
-              </li>
-            </ul>
+              </p>
+              <button
+                class="btn-update-network"
+                @click="addConnectedNodes()"
+                title="Click to add nodes that are significantly correlated with the selected node"
+              >
+                Add Connected Nodes
+              </button>
+              <button
+                @click="showOverlay"
+                title="Modify the type and number of added nodes"
+                class="icon-button"
+              >
+                <img
+                  src="@/pages/gear-solid.svg"
+                  alt="Clear Network Icon"
+                  class="icon"
+                />
+              </button>
+              <!-- Overlay with radio button selection -->
+              <div v-if="isOverlayVisible" class="overlay">
+                <div class="overlay-content">
+                  <h3>Amount of added CHRIS nodes:</h3>
+                  <div class="checkbox-group">
+                    <label>
+                      <input
+                        type="checkbox"
+                        v-model="isProteinsChecked"
+                        @change="updateProteinAmount"
+                      />
+                      <span class="bold-large-text">Proteins</span>
+                    </label>
+                    <input
+                      type="number"
+                      v-model="proteinAmount"
+                      :disabled="!isProteinsChecked"
+                      placeholder="Enter amount"
+                      max="10"
+                      min="0"
+                    />
+                  </div>
+
+                  <div class="checkbox-group">
+                    <label>
+                      <input
+                        type="checkbox"
+                        v-model="isMetabolitesChecked"
+                        @change="updateMetaboliteAmount"
+                      />
+                      <span class="bold-large-text">Metabolites</span>
+                    </label>
+                    <input
+                      type="number"
+                      v-model="metaboliteAmount"
+                      :disabled="!isMetabolitesChecked"
+                      placeholder="Enter amount"
+                      max="10"
+                      min="0"
+                    />
+                  </div>
+                  <!-- Phenotypes Checkbox Group -->
+                  <div class="checkbox-group">
+                    <label>
+                      <input
+                        type="checkbox"
+                        v-model="isPhenotypesChecked"
+                        @change="updatePhenotypeAmount"
+                      />
+                      <span class="bold-large-text">Phenotypes</span>
+                    </label>
+                    <input
+                      type="number"
+                      v-model="phenotypeAmount"
+                      :disabled="!isPhenotypesChecked"
+                      placeholder="Enter amount"
+                      max="10"
+                      min="0"
+                    />
+                  </div>
+
+                  <!-- Variants Checkbox Group -->
+                  <div class="checkbox-group">
+                    <label>
+                      <input
+                        type="checkbox"
+                        v-model="isVariantsChecked"
+                        @change="updateVariantAmount"
+                      />
+                      <span class="bold-large-text">Variants</span>
+                    </label>
+                    <input
+                      type="number"
+                      v-model="variantAmount"
+                      :disabled="!isVariantsChecked"
+                      placeholder="Enter amount"
+                      max="10"
+                      min="0"
+                    />
+                  </div>
+
+                  <button @click="handleSubmit">Submit</button>
+                  <button @click="hideOverlay">Cancel</button>
+                </div>
+              </div>
+
+              <div id="messageContainer" style="position: absolute"></div>
+              <button
+                class="btn-show-external"
+                @click="showExternals(this.displayedElement)"
+                title="Add connections from external databases, can take a few seconds for some protein"
+              >
+                Add external nodes
+              </button>
+
+              <p>&nbsp;</p>
+              <p title="CHRIS ID or display Name for external nodes">
+                <strong>ID:</strong> {{ displayedElement.id }}
+              </p>
+              <p title="Node label">
+                <strong>Display Name:</strong> {{ displayedElement.display_name }}
+              </p>
+              <p title="Data set is either CHRIS or external">
+                <strong>Data set:</strong> {{ displayedElement.set }}
+              </p>
+
+              <p title="Short node description">
+                <strong>Description:</strong>
+                {{ capitalizeFirstLetter(displayedElement.description) }}
+              </p>
+              <p
+                title="CHRIS contains three source tables: proteins, metabolites, and phenotypes"
+              >
+                <strong>Source Table:</strong>
+                {{
+                  capitalizeFirstLetter(displayedElement.source_table.split("_")[1])
+                }}
+              </p>
+              <!-- <p><strong>Cross Reference: </strong> {{ displayedElement.xrefs }}</p>-->
+              <p
+                title="We use Uniprot for proteins, HMDB for metabolites and SNOMED for phenotypes"
+              >
+                <strong>Reference:</strong>
+                <span
+                  v-if="
+                    displayedElement.xrefs &&
+                    displayedElement.xrefs[displayedElement.xrefs.length - 1] !==
+                      '.'
+                  "
+                >
+                  <span
+                    v-for="(xref, index) in displayedElement.xrefs.split('|')"
+                    :key="index"
+                  >
+                    <a
+                      :href="generateLink(xref.trim())"
+                      target="_blank"
+                      style="color: darkblue"
+                      >{{ xref.trim() }}</a
+                    >
+                    <span
+                      v-if="index < displayedElement.xrefs.split('|').length - 1"
+                      >,&#8203;</span
+                    >
+                  </span>
+                </span>
+                <span v-else> none</span>
+              </p>
+            </template>
+
+            <template
+              v-else-if="
+                displayedElementType === 'edge' && displayedElement.set === 'cohort'
+              "
+            >
+              <!-- Display details for edge with set 'cohort' -->
+              <p><strong style="font-size: 24px">Selected Edge</strong></p>
+              <p><strong>Set:</strong> CHRIS edges</p>
+              <p>&nbsp;</p>
+              <p><strong>Node 0</strong></p>
+              <p>
+                <strong>Display Name:</strong> {{ displayedElement.node0_label }}
+              </p>
+              <p><strong>ID:</strong> {{ displayedElement.to }}</p>
+              <p><strong>Type:</strong> {{ displayedElement.node0_type }}</p>
+              <p>&nbsp;</p>
+              <p><strong>Node 1</strong></p>
+              <p>
+                <strong>Display Name:</strong> {{ displayedElement.node1_label }}
+              </p>
+              <p><strong>ID:</strong> {{ displayedElement.from }}</p>
+              <p><strong>Type:</strong> {{ displayedElement.node1_type }}</p>
+              <p>&nbsp;</p>
+              <p>
+                <strong>P Value:</strong>
+                {{ displayedElement.p_value.toPrecision(3) }}
+              </p>
+              <p>
+                <strong>Adjusted P Value:</strong>
+                {{ displayedElement.adjusted_p_value !== null ? displayedElement.adjusted_p_value.toPrecision(3) : 'null' }}
+              </p>
+              <p>
+                <strong>Effect Size:</strong>
+                {{ displayedElement.effect_size.toPrecision(3) }}
+              </p>
+              <p>
+                <strong>Effect Size Type:</strong>
+                {{ capitalizeFirstLetter(displayedElement.effect_size_type) }}
+              </p>
+            </template>
+
+            <template
+              v-else-if="
+                displayedElementType === 'edge' &&
+                displayedElement.set === 'external'
+              "
+            >
+              <template v-if="displayedElement.to === displayedElement.from">
+                <p><strong style="font-size: 24px">Selected Edge</strong></p>
+                <p><strong>Set:</strong> External edges</p>
+                <p>&nbsp;</p>
+
+                <p>
+                  <strong>Node Name:</strong> {{ displayedElement.node0_label }}
+                </p>
+                <p><strong>Node ID:</strong> {{ displayedElement.to }}</p>
+                <p><strong>Node Type:</strong> {{ displayedElement.node0_type }}</p>
+              </template>
+
+              <template v-else>
+                <p><strong style="font-size: 24px">Selected Edge</strong></p>
+                <p><strong>Set:</strong> External edges</p>
+                <p>&nbsp;</p>
+
+                <p><strong>Node 0</strong></p>
+                <p>
+                  <strong>Display Name:</strong> {{ displayedElement.node0_label }}
+                </p>
+                <p><strong>ID:</strong> {{ displayedElement.to }}</p>
+                <p><strong>Type:</strong> {{ displayedElement.node0_type }}</p>
+                <p>&nbsp;</p>
+                <p><strong>Node 1</strong></p>
+                <p>
+                  <strong>Display Name:</strong> {{ displayedElement.node1_label }}
+                </p>
+                <p><strong>ID:</strong> {{ displayedElement.from }}</p>
+                <p><strong>Type:</strong> {{ displayedElement.node1_type }}</p>
+                <!-- Add more fields specific to 'external' here -->
+              </template>
+            </template>
+          </template>
+          <!-- No element selected message -->
+          <p v-else>No element selected, you can select a node or an edge</p>
+        </div>
+        <div class="panel-container2">
+          <div class="panel">
+            <div class="panel-header">
+              <h2
+                style="color: white"
+                title="Double-click on nodes to highlight them. When you download the network, highlighted nodes will include an 'is_highlighted' key set to true or false."
+              >
+                Highlighted Nodes <span class="mdi mdi-information"></span>
+              </h2>
+            </div>
+            <div class="panel-content">
+              <div class="node-selection">
+                <ul v-if="selectedNodes.length" class="dropdown" ref="dropdown">
+                  <li
+                    v-for="(item, index) in selectedNodes"
+                    @click="BoxClickEvent2(item, $event)"
+                    :key="index"
+                    @mouseover="hoverNode(item)"
+                    @mouseleave="hoverNode(null)"
+                  >
+                    {{ item.display_name }}
+                    <span class="remove-node" @click="RemoveNetworkNode2(item)"
+                      >✖</span
+                    >
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  </div>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <script>
+import FilterToolbar from "@/components/FilterToolbar.vue";
+
 const BASE_URL =
   import.meta.env.VITE_BACKEND_URL ||
   `${window.location.protocol}//${window.location.host}`;
@@ -508,6 +516,7 @@ import { groups } from "./networkData";
 import Swal from 'sweetalert2';
 
 export default {
+  components: {FilterToolbar},
   data() {
     return {
       isExpanded: false,
@@ -540,6 +549,13 @@ export default {
       metaboliteAmount: 3,
       phenotypeAmount: 3,
       variantAmount: 3,
+      contexts: [
+        {text: 'Cohort 1', color: '#FF0000', lightVariant: '#dba3a3', darkVariant: '#845252'},
+        {text: 'Cohort 2', color: '#00FF00', lightVariant: '#a3dba3', darkVariant: '#528452'},
+        {text: 'Cohort 3', color: '#0000FF', lightVariant: '#a3a3db', darkVariant: '#525284'},
+        {text: 'Cohort 4', color: '#FFFF00', lightVariant: '#dbdba3', darkVariant: '#848452'},
+        {text: 'Cohort 5', color: '#FF00FF', lightVariant: '#dba3db', darkVariant: '#845284'},
+      ],
     };
   },
   methods: {
@@ -1326,6 +1342,11 @@ export default {
 </script>
 
 <style scoped>
+.responsive-col {
+  width: 80%;
+  transition: width 0.3s ease;
+}
+
 .my-custom-button {
     background-color: #007BFF; /* You can set your preferred button background color */
     color: #fff; /* Default text color */
@@ -1375,7 +1396,7 @@ export default {
     align-items: center;
     padding: 10px;
     cursor: pointer;
-    background-color: #104d63;
+    background-color: rgb(var(--v-theme-primary-darken-1));
     border-bottom: 1px solid #ccc;
     border-radius: 5px 5px 0 0;
   }

@@ -216,6 +216,9 @@ import NewFilterButton from "@/components/contexts/NewFilterButton.vue";
 import AdvancedSettings from "@/components/contexts/AdvancedSettings.vue";
 import {v4 as uuidv4} from 'uuid';
 import { getCookie } from "@/components/authentication/auth.js";
+import { contextState } from '@/components/contexts/contextStatus.js';
+import { inject, provide } from 'vue';
+
 
 export default {
   components: {AdvancedSettings, NewFilterButton, ConnectorLine, FilterLine, ConnectorButton, StatusBox},
@@ -265,8 +268,8 @@ export default {
       outerConnection: this.content?.connect.outside ?? "OR",
       innerConnection: this.content?.connect.inside ?? "AND",
 
-      progressIcon: "mdi-clock-outline",
-      progressStatus: "Waiting",
+      progressIcon: this.content? "mdi-check-circle-outline": "mdi-clock-outline",
+      progressStatus: this.content? "Finished" : "Waiting",
       participantNumber: "13 000",
       removedPatients: "",
 
@@ -275,7 +278,7 @@ export default {
         catContB: 'T-test', contCont: 'Pearson'
       },
 
-      taskId: null,
+      taskMessage: null,
       taskStarted: false,
       taskInfo: "",
       taskType: "",
@@ -400,8 +403,8 @@ export default {
 
       await sleep(2000);
 
-      while (this.taskId === null) {
-        console.log("Task ID is null");
+      while (this.taskMessage === null) {
+        console.log("Task Message is null");
         await sleep(2000);
       }
 
@@ -420,6 +423,13 @@ export default {
           .then(data => {
             this.progressStatus = data.status === "SUCCESS" ? "Finished" : "Calculating";
             this.progressIcon = data.status === "SUCCESS" ? "mdi-check-circle-outline" : "mdi-autorenew";
+            contextState.processFinished = data.status === "SUCCESS";
+            if (contextState.processFinished) {
+              contextState.taskInfo = "Context Creation of context " + this.contextName + " is finished.";
+              contextState.taskStarted = true;
+              contextState.taskType = "info";
+            }
+
           })
           .catch((error) => {
             console.error('Error:', error);
@@ -500,17 +510,17 @@ export default {
       })
           .then(response => response.json())
           .then(data => {
-            if (!data.taskId) {
+            if (data.status==="error") {
               // something went wrong
               this.taskStarted = true;
               this.taskInfo = "An error occurred while starting the context calculation";
               this.taskType = "error";
               return;
             }
-            this.taskId = data.taskId;
+            this.taskMessage = data.message;
             this.taskStarted = true;
             this.taskInfo = "Context calculation started successfully";
-            this.taskType = "success";
+            this.taskType = data.status;
             this.sendDisabled = true;
             this.getProgressStatus();
           })
@@ -522,7 +532,7 @@ export default {
 
     async intervalProgress() {
 
-      while (this.taskId === null) {
+      while (this.taskMessage === null) {
         await new Promise(r => setTimeout(r, 20000));
       }
 
@@ -546,41 +556,47 @@ export default {
         catCat: 'Chi-squared', catContM: 'ANOVA',
         catContB: 'T-test', contCont: 'Pearson'
       };
-      this.taskId = null;
+      this.taskMessage = null;
       this.taskStarted = false;
       this.taskInfo = "";
 
-      // Send a DELETE request to the backend deleting the context
-      await fetch(`${BASE_URL}/network/api/deleteContext`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': getCookie("csrftoken")
-        },
-        credentials: 'include',
-        body: JSON.stringify({contextValue: this.value})
-      })
-          .then(response => response.json())
-          .then(data => {
-            this.taskStarted = true;
-            this.taskInfo = data.message;
-            this.taskType = "success";
-            this.sendDisabled = false;
-          })
-          .catch((error) => {
-            console.error('Error:', error);
-            this.taskStarted = true;
-            this.taskInfo = "An error occurred while deleting the context";
-            this.taskType = "error";
-          });
-    }
+      this.sendContextName();
+
+      // Only call api if there was a context created for this tab otherwise merely the form was being cleared
+      if (this.content !== null) {
+
+        // Send a DELETE request to the backend deleting the context
+        await fetch(`${BASE_URL}/network/api/deleteContext`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie("csrftoken")
+          },
+          credentials: 'include',
+          body: JSON.stringify({contextValue: this.value})
+        })
+            .then(response => response.json())
+            .then(data => {
+              this.taskStarted = true;
+              this.taskInfo = data.message;
+              this.taskType = "success";
+              this.sendDisabled = false;
+            })
+            .catch((error) => {
+              console.error('Error:', error);
+              this.taskStarted = true;
+              this.taskInfo = "An error occurred while deleting the context";
+              this.taskType = "error";
+            });
+      }
+      }
   },
   mounted() {
     this.intervalProgress();
     this.fetchVariables();
   },
   created() {
-    this.fetchParticipants(this.createParams())
+    this.fetchParticipants(this.createParams());
   }
 };
 </script>

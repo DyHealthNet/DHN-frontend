@@ -71,7 +71,28 @@
       </template>
     </v-menu>
   </v-app-bar>
+  <v-row>
+      <div class="text-center ma-2">
+        <v-snackbar
+            v-model="contextState.taskStarted"
+            :color="contextState.taskType"
+        >
+          <v-icon class="my-0 mr-2">
+            mdi-information-outline
+          </v-icon>
+          {{ contextState.taskInfo }}
 
+          <template v-slot:actions>
+            <v-btn
+                variant="text"
+                @click="contextState.taskStarted = false"
+            >
+              Close
+            </v-btn>
+          </template>
+        </v-snackbar>
+      </div>
+    </v-row>
 </template>
 
 <script>
@@ -79,14 +100,20 @@ import router from "@/router.js";
 import { authState, checkLogin, getCookie } from '@/components/authentication/auth.js';
 import {reactive, onMounted, computed} from 'vue';
 import {useRoute} from "vue-router";
+import { ref, watch, inject } from 'vue';
+import { contextState } from '@/components/contexts/contextStatus.js';
 
 const BASE_URL =
   import.meta.env.VITE_BACKEND_URL ||
   `${window.location.protocol}//${window.location.host}`;
 export default {
+  computed: {
+    contextState() {
+      return contextState
+    }
+  },
   setup() { // setup (Composition API) runs before mounted and provides access to reactive "APIs" (here authState)
     const route = useRoute(); // to get current route because this.router doesn't work in setup()
-
     // computed property for dynamic icon
     // computed is reactivity-based -> automatically updates when underlying reactive data changes (here route.path & authState.isLoggedIn)
     const icon = computed(() => {
@@ -123,6 +150,10 @@ export default {
       isDark: false,
       darkModeText: "",
       isLoggedIn: false,
+
+      taskStarted: false,
+      taskInfo: "",
+      taskType: "",
     }
   },
   methods: {
