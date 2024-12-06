@@ -251,6 +251,11 @@ export default {
       console.log(`Got content: ${JSON.stringify(this.content)}`);
     }
 
+    // make the layers uppercase if they exist
+    if (this.content?.layers) {
+      this.content.layers = this.content.layers.map(layer => layer.charAt(0).toUpperCase() + layer.slice(1));
+    }
+
     return {
       contextName: this.content?.contextName ?? "",
       contextNameMaxLength: [v => v.length <= 40 || 'Max 40 characters'],
