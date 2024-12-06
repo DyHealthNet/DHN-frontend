@@ -1,60 +1,56 @@
 <template>
-<v-toolbar
-    v-if="showToolbar"
-    :color="filterToolbarColor"
-    density="compact"
-    class="stick-to-top mt-2 mb-5 filter-toolbar"
-    :class="{ 'is-sticky': isSticky }"
-    rounded="lg"
-    elevation="5"
-    ref="filterToolbar"
+  <v-toolbar
+      v-if="showToolbar"
+      :color="filterToolbarColor"
+      density="compact"
+      class="stick-to-top mt-2 mb-5 filter-toolbar"
+      :class="{ 'is-sticky': isSticky }"
+      rounded="lg"
+      elevation="5"
+      ref="filterToolbar"
   >
-  <v-combobox
-    :prepend-icon="isSticky ? '' : 'mdi-filter-outline'"
-    v-model="selectedContext"
-    :items="contexts"
-    label="Static network"
-    hide-details
-    single-line
-    :class="isSticky ? '' : 'ml-3'"
-    item-value="text"
-    item-title="text"
-  >
-    <!-- Slot to customize items -->
-    <template #item="{ item, props }">
-      <v-list-item v-bind="props">
-        <template v-slot:append>
-          <v-icon :color="item.raw.color">mdi-circle</v-icon>
-        </template>
-      </v-list-item>
-    </template>
-  </v-combobox>
-  <v-btn icon
-    @click="clearSelection"
-    v-if="selectedContext !== null"
-  >
-    <v-icon>mdi-close-circle-outline</v-icon>
-  </v-btn>
-</v-toolbar>
+    <v-combobox
+        :prepend-icon="isSticky ? '' : 'mdi-filter-outline'"
+        v-model="selectedContext"
+        :items="contexts"
+        label="Static network"
+        hide-details
+        single-line
+        :class="isSticky ? '' : 'ml-3'"
+        item-value="text"
+        item-title="text"
+    >
+      <!-- Slot to customize items -->
+      <template #item="{ item, props }">
+        <v-list-item v-bind="props">
+          <template v-slot:append>
+            <v-icon :color="item.raw.color">mdi-circle</v-icon>
+          </template>
+        </v-list-item>
+      </template>
+    </v-combobox>
+    <v-btn icon
+           @click="clearSelection"
+           v-if="selectedContext !== null"
+    >
+      <v-icon>mdi-close-circle-outline</v-icon>
+    </v-btn>
+  </v-toolbar>
 </template>
 
 <script>
-import {authState} from "@/components/authentication/auth.js";
+import {BASE_URL} from "@/components/constants.js";
+import {authState, getCookie} from "@/components/authentication/auth.js";
 
 export default {
   name: 'FilterToolbar',
   emits: ['cangeContext'],
-  props: {
-    contexts: {
-      type: Array,
-      required: true
-    }
-  },
 
   data() {
     return {
       // only show toolbar if user is logged in
       showToolbar: authState.isLoggedIn,
+      contexts: [{'text': 'Context1', 'color': '#00000', 'lightVariant': '#00000', 'darkVariant': '#00000'}],
 
       selectedContext: null,
       filterToolbarColor: "primary-darken-1",
@@ -75,6 +71,37 @@ export default {
       this.filterToolbarColor = this.selectedContext.darkVariant;
     },
 
+
+    async retrieveContexts() {
+      const wantedFields = ['contextName', 'contextValue', 'colors']
+      let url = new URL(`${BASE_URL}/network/api/retrieveContexts/`);
+      url.search = new URLSearchParams({fields: wantedFields});
+
+      await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie("csrftoken")
+        },
+        credentials: 'include',
+      })
+          .then(response => response.json())
+          .then(data => {
+            console.log(data.result);
+            this.contexts = data.result.map((context) => {
+              return {
+                text: context.contextName,
+                value: context.contextValue,
+                color: context.colors.color,
+                lightVariant: context.colors.lightVariant,
+                darkVariant: context.colors.darkVariant,
+              };
+            });
+          })
+          .catch((error) => {
+            console.error('Error:', error);
+          });
+    }
   },
 
   mounted() {
@@ -85,12 +112,14 @@ export default {
       } catch (error) {
         // ignore
       }
-  });
-    console.log(this.isLoggedIn);
+    });
+  },
+  created() {
+    this.retrieveContexts();
   },
 
   watch: {
-    selectedContext: function() {
+    selectedContext: function () {
       this.changeColorOnSelectedContext();
       this.$emit('cangeContext', this.selectedContext);
     },
