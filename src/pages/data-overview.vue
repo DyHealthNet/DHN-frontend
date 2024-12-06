@@ -16,7 +16,7 @@
         </v-row>
       </v-container>
       <v-container class="mt-4 ">
-            <FilterToolbar :contexts="contexts" @cangeContext="console.log('context changed')"></FilterToolbar>
+            <FilterToolbar @cangeContext="console.log('context changed')"></FilterToolbar>
         <!-- Clickable description with toggle functionality -->
         <!--
         <div class="overview-description mb-4" @click="toggleDescription">
@@ -412,10 +412,7 @@
 
 <script>
 import {ca} from "vuetify/locale";
-
-const BASE_URL =
-    import.meta.env.VITE_BACKEND_URL ||
-    `${window.location.protocol}//${window.location.host}`;
+import {BASE_URL} from "../components/constants.js";
 import CustomLine from "../components/CustomLine.vue";
 import CustomBar from "../components/CustomBar.vue";
 import CustomBox from "../components/CustomBox.vue";
@@ -448,13 +445,6 @@ export default {
   components: {FilterToolbar, CustomBar, CustomLine, CustomBox, CustomHeatmap},
   data() {
     return {
-      contexts:   [
-          {text: 'Cohort 1', color: '#FF0000', lightVariant: '#dba3a3', darkVariant: '#845252'},
-          {text: 'Cohort 2', color: '#00FF00', lightVariant: '#a3dba3', darkVariant: '#528452'},
-          {text: 'Cohort 3', color: '#0000FF', lightVariant: '#a3a3db', darkVariant: '#525284'},
-          {text: 'Cohort 4', color: '#FFFF00', lightVariant: '#dbdba3', darkVariant: '#848452'},
-          {text: 'Cohort 5', color: '#FF00FF', lightVariant: '#dba3db', darkVariant: '#845284'},
-      ],
       data_table: null,
 
       model: "tab-2",

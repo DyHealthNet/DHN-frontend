@@ -35,11 +35,7 @@
 
 <script>
 import {getCookie} from "@/components/authentication/auth.js";
-
-const BASE_URL =
-    import.meta.env.VITE_BACKEND_URL ||
-    `${window.location.protocol}//${window.location.host}`;
-
+import {BASE_URL} from "@/components/constants.js";
 import ContextSetup from "@/components/contexts/ContextSetup.vue";
 
 export default {
