@@ -99,6 +99,7 @@
       async fetchData() {
         try {
           const response = await fetch('http://localhost:8000/network/api/plotData/');
+          console.log("WE ARE IN CUSTOMBOXPLOT COMPONENT AND FETCHING DATA")
           const data = await response.json();
           this.labels = Object.keys(data[0]);
           this.sourceData = data;

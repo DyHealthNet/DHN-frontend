@@ -128,6 +128,7 @@
         <v-snackbar
             v-model="taskStarted"
             :color="taskType"
+            :timeout="timeout * 2"
         >
           <v-icon class="my-0 mr-2">
             mdi-information-outline
@@ -142,6 +143,12 @@
               Close
             </v-btn>
           </template>
+          <v-progress-linear
+            :model-value="progress"
+            height="4"
+            absolute
+            style="bottom: 0"
+          ></v-progress-linear>
         </v-snackbar>
       </div>
     </v-row>
@@ -197,6 +204,9 @@ export default {
       taskType: "",
       pathORCID: mdiIdentifier,
       pathGitHub: mdiGithub,
+
+      progress: 100,
+      timeout: 5000,
     };
   },
   mounted() {
@@ -211,7 +221,15 @@ export default {
       this.checkLoginRedirect(newQuery);
     },
     immediate: true, // Run immediately on initialization
-  }
+  },
+  taskStarted(value) {
+    if (value) {
+      this.startProgress();
+    } else {
+      this.stopProgress();
+    }
+  },
+
 },
   methods: {
     checkLoginRedirect() {
@@ -221,6 +239,7 @@ export default {
         this.taskInfo = "Access to the requested page is restricted to logged-in users. Please log in to continue.";
         this.taskStarted = true;
         this.taskType = "info";
+        this.startProgress()
       }
     },
     async login() {
@@ -228,7 +247,7 @@ export default {
         const csrfToken = getCookie('csrftoken'); // Get the CSRF token from cookies
         console.log(csrfToken)
         // send login data and fetch response
-        await fetch(`${BASE_URL}/network/api/login/`, {
+        await fetch(`${BASE_URL}/auth/api/login/`, {
         method: 'POST',
         headers: {
         'Content-Type': 'application/json',
@@ -266,7 +285,7 @@ export default {
         const csrfToken = getCookie('csrftoken'); // Get the CSRF token from cookies
         console.log(csrfToken)
         // send login data and fetch response
-        await fetch(`${BASE_URL}/network/api/register/`, {
+        await fetch(`${BASE_URL}/auth/api/register/`, {
         method: 'POST',
         headers: {
         'Content-Type': 'application/json',
@@ -296,10 +315,10 @@ export default {
       }
     },
     async loginWithORCID() {
-      window.location.href = `${BASE_URL}/network/api/orcid/login/`;
+      window.location.href = `${BASE_URL}/auth/api/orcid/login/`;
     },
     async loginWithGitHub() {
-      let loginUrl = `${BASE_URL}/network/api/github/login/`;
+      let loginUrl = `${BASE_URL}/auth/api/github/login/`;
       const redirect_url = this.$route.query.redirect
       console.log("redirect_url", redirect_url)
       if (redirect_url) {
@@ -308,6 +327,26 @@ export default {
       }
       console.log("loginUrl", loginUrl)
       window.location.href = loginUrl;
+    },
+
+    startProgress() {
+      console.log("Starting progress");
+      const interval = 50; // Update interval in milliseconds
+      const decrement = (interval / this.timeout) * 100;
+      this.progress = 100;
+
+      this.progressTimer = setInterval(() => {
+        this.progress -= decrement;
+        if (this.progress <= 0) {
+          this.stopProgress();
+          this.taskStarted = false; // Ensure snackbar is dismissed
+        }
+      }, interval);
+    },
+
+    stopProgress() {
+      clearInterval(this.progressTimer); // Clean up the interval
+      this.progress = 100; // Reset progress
     },
   },
 };

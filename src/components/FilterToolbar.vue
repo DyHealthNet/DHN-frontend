@@ -74,7 +74,7 @@ export default {
 
     async retrieveContexts() {
       const wantedFields = ['contextName', 'contextValue', 'colors']
-      let url = new URL(`${BASE_URL}/network/api/retrieveContexts/`);
+      let url = new URL(`${BASE_URL}/context/api/retrieveContexts/`);
       url.search = new URLSearchParams({fields: wantedFields});
 
       await fetch(url, {

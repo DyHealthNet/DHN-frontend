@@ -92,7 +92,7 @@ export default {
     },
 
     async getAllContexts() {
-      await fetch(`${BASE_URL}/network/api/retrieveContexts/`, {
+      await fetch(`${BASE_URL}/context/api/retrieveContexts/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

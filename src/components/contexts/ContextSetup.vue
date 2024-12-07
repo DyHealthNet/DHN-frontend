@@ -344,7 +344,7 @@ export default {
     },
 
     async fetchVariables() {
-      await fetch(`${BASE_URL}/network/api/variables`, {
+      await fetch(`${BASE_URL}/general/api/variables`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -372,7 +372,7 @@ export default {
         return;
       }
       // fetch the participants
-      await fetch(`${BASE_URL}/network/api/filterContext`, {
+      await fetch(`${BASE_URL}/context/api/filterContext`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -413,7 +413,7 @@ export default {
         await sleep(2000);
       }
 
-      const url = new URL(`${BASE_URL}/network/api/contextStatus`);
+      const url = new URL(`${BASE_URL}/context/api/contextStatus`);
       url.search = new URLSearchParams({context_value: this.value}).toString();
 
       await fetch(url, {
@@ -504,7 +504,7 @@ export default {
       const params = this.createParams();
       const csrfToken = getCookie("csrftoken");
 
-      await fetch(`${BASE_URL}/network/api/createContext`, {
+      await fetch(`${BASE_URL}/context/api/createContext`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -571,7 +571,7 @@ export default {
       if (this.content !== null) {
 
         // Send a DELETE request to the backend deleting the context
-        await fetch(`${BASE_URL}/network/api/deleteContext`, {
+        await fetch(`${BASE_URL}/context/api/deleteContext`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',

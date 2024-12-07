@@ -152,7 +152,7 @@ export default {
         return;
       }
       try {
-        const url = new URL("/network/api/plotData/", BASE_URL);
+        const url = new URL("/plotting/api/plotData/", BASE_URL);
         //const url = new URL("http://localhost:8000/network/api/plotData/");
         url.searchParams.append("x", this.xVar);
         url.searchParams.append("y", this.yVar);

@@ -123,7 +123,7 @@ export default {
             return;
           }
           // Daten von der API abrufen
-          const url = new URL("/network/api/plotDataBoxPlot/", BASE_URL);
+          const url = new URL("/plotting/api/plotDataBoxPlot/", BASE_URL);
           url.searchParams.append("x", this.xVar);
           url.searchParams.append("y", this.yVar);
           if (this.cVar) {

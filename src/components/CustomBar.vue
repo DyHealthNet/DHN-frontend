@@ -7,10 +7,8 @@
 </template>
 
 <script>
-const BASE_URL =
-  import.meta.env.VITE_BACKEND_URL ||
-  `${window.location.protocol}//${window.location.host}`;
 import { Bar } from "vue-chartjs";
+import { BASE_URL } from "@/components/constants.js";
 import {
   Chart as ChartJS,
   Title,
@@ -144,7 +142,7 @@ export default {
       }
 
       try {
-        const url = new URL("/network/api/plotDataBarCount/", BASE_URL);
+        const url = new URL("/plotting/api/plotDataBarCount/", BASE_URL);
         url.searchParams.append("x", this.xVar);
         if (this.cVar) {
           url.searchParams.append("c", this.cVar);

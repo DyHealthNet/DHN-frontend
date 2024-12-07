@@ -64,7 +64,7 @@ export default {
       try {
         console.log('this.xVar: ', this.xVar)
         console.log('this.yVar: ', this.yVar)
-        const url = new URL("/network/api/plotDataHeatmap/", BASE_URL);
+        const url = new URL("/plotting/api/plotDataHeatmap/", BASE_URL);
         url.searchParams.append("x", this.xVar);
         url.searchParams.append("y", this.yVar);
         console.log('url: ', url)
