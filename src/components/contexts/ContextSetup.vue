@@ -217,7 +217,6 @@ import AdvancedSettings from "@/components/contexts/AdvancedSettings.vue";
 import {v4 as uuidv4} from 'uuid';
 import { getCookie } from "@/components/authentication/auth.js";
 import { contextState } from '@/components/contexts/contextStatus.js';
-import { inject, provide } from 'vue';
 
 
 export default {
@@ -234,6 +233,10 @@ export default {
     },
     value: {
       type: Number,
+      required: true
+    },
+    status: {
+      type: String,
       required: true
     }
   },
@@ -273,8 +276,11 @@ export default {
       outerConnection: this.content?.connect.outside ?? "OR",
       innerConnection: this.content?.connect.inside ?? "AND",
 
-      progressIcon: this.content? "mdi-check-circle-outline": "mdi-clock-outline",
-      progressStatus: this.content? "Finished" : "Waiting",
+      //progressIcon: this.content? "mdi-check-circle-outline": "mdi-clock-outline",
+      //progressStatus: this.content? "Finished" : "Waiting",
+      progressStatus: this.status ?? "Waiting",
+      progressIcon: this.progressStatus === "Success" ? "mdi-check-circle-outline" : "mdi-clock-outline",
+
       participantNumber: "13 000",
       removedPatients: "",
 
@@ -344,7 +350,7 @@ export default {
     },
 
     async fetchVariables() {
-      await fetch(`${BASE_URL}/network/api/variables`, {
+      await fetch(`${BASE_URL}/general/api/variables`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -372,7 +378,7 @@ export default {
         return;
       }
       // fetch the participants
-      await fetch(`${BASE_URL}/network/api/filterContext`, {
+      await fetch(`${BASE_URL}/context/api/filterContext`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -403,6 +409,7 @@ export default {
     },
 
     async getProgressStatus() {
+      console.log("start", this.progressIcon)
       // sleep for 2 seconds
       const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -413,7 +420,7 @@ export default {
         await sleep(2000);
       }
 
-      const url = new URL(`${BASE_URL}/network/api/contextStatus`);
+      const url = new URL(`${BASE_URL}/context/api/contextStatus`);
       url.search = new URLSearchParams({context_value: this.value}).toString();
 
       await fetch(url, {
@@ -428,13 +435,16 @@ export default {
           .then(data => {
             this.progressStatus = data.status === "SUCCESS" ? "Finished" : "Calculating";
             this.progressIcon = data.status === "SUCCESS" ? "mdi-check-circle-outline" : "mdi-autorenew";
+            console.log(this.progressIcon)
             contextState.processFinished = data.status === "SUCCESS";
             if (contextState.processFinished) {
               contextState.taskInfo = "Context Creation of context " + this.contextName + " is finished.";
               contextState.taskStarted = true;
               contextState.taskType = "info";
+              if (this.$route.path !== '/context') {
+                contextState.showIndicator = true;
+              }
             }
-
           })
           .catch((error) => {
             console.error('Error:', error);
@@ -504,7 +514,7 @@ export default {
       const params = this.createParams();
       const csrfToken = getCookie("csrftoken");
 
-      await fetch(`${BASE_URL}/network/api/createContext`, {
+      await fetch(`${BASE_URL}/context/api/createContext`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -527,6 +537,7 @@ export default {
             this.taskInfo = "Context calculation started successfully";
             this.taskType = data.status;
             this.sendDisabled = true;
+            //contextState.indicatorSeen = true;
             this.getProgressStatus();
           })
           .catch((error) => {
@@ -568,10 +579,10 @@ export default {
       this.sendContextName();
 
       // Only call api if there was a context created for this tab otherwise merely the form was being cleared
-      if (this.content !== null) {
+      if (this.status === "Finished") {
 
         // Send a DELETE request to the backend deleting the context
-        await fetch(`${BASE_URL}/network/api/deleteContext`, {
+        await fetch(`${BASE_URL}/context/api/deleteContext`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
@@ -594,7 +605,20 @@ export default {
               this.taskType = "error";
             });
       }
+    },
+    updateCreationIcon(status) {
+      if (status === "Finished") {
+        //this.progressStatus = "Finished"
+         this.progressIcon = "mdi-check-circle-outline";
+      } else if (status === "Pending") {
+        this.progressStatus = "Calculating"
+        this.progressIcon = "mdi-autorenew";
       }
+      else {
+         //this.progressStatus = "Waiting"
+         this.progressIcon = "mdi-clock-outline"; // Default to WAITING for any other value
+      }
+    },
   },
   mounted() {
     this.intervalProgress();
@@ -602,6 +626,7 @@ export default {
   },
   created() {
     this.fetchParticipants(this.createParams());
+    this.updateCreationIcon(this.progressStatus);
   }
 };
 </script>

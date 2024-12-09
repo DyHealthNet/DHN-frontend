@@ -25,7 +25,7 @@ export function clearCookies() {
 export async function checkLogin() {
   console.log("\n\ncheckLogin is being called!! \n\n")
   try {
-    const response = await fetch(`${BASE_URL}/network/api/checklogin/`, {
+    const response = await fetch(`${BASE_URL}/auth/api/checklogin/`, {
       method: 'GET',
       credentials: 'include', // Include cookies for authentication
     });

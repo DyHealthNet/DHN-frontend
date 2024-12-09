@@ -228,7 +228,7 @@ export default {
         const csrfToken = getCookie('csrftoken'); // Get the CSRF token from cookies
         console.log(csrfToken)
         // send login data and fetch response
-        await fetch(`${BASE_URL}/network/api/login/`, {
+        await fetch(`${BASE_URL}/auth/api/login/`, {
         method: 'POST',
         headers: {
         'Content-Type': 'application/json',
@@ -266,7 +266,7 @@ export default {
         const csrfToken = getCookie('csrftoken'); // Get the CSRF token from cookies
         console.log(csrfToken)
         // send login data and fetch response
-        await fetch(`${BASE_URL}/network/api/register/`, {
+        await fetch(`${BASE_URL}/auth/api/register/`, {
         method: 'POST',
         headers: {
         'Content-Type': 'application/json',
@@ -296,10 +296,10 @@ export default {
       }
     },
     async loginWithORCID() {
-      window.location.href = `${BASE_URL}/network/api/orcid/login/`;
+      window.location.href = `${BASE_URL}/auth/api/orcid/login/`;
     },
     async loginWithGitHub() {
-      let loginUrl = `${BASE_URL}/network/api/github/login/`;
+      let loginUrl = `${BASE_URL}/auth/api/github/login/`;
       const redirect_url = this.$route.query.redirect
       console.log("redirect_url", redirect_url)
       if (redirect_url) {

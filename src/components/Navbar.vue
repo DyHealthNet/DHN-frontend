@@ -26,9 +26,9 @@
     </v-menu>
     <v-menu transition="slide-x-transition">
       <template v-slot:activator="{ props }">
-        <v-btn to="/context" color="primary-darken-1" class="mx-1" v-bind="props" @click="indicatorSeen = true">
+        <v-btn to="/context" color="primary-darken-1" class="mx-1" v-bind="props" @click="contextState.showIndicator = false">
           <template v-slot:prepend>
-            <v-badge v-if="finishedIndicator" dot color="error">
+            <v-badge v-if="contextState.showIndicator" dot color="error">
               <v-icon>mdi-tune-vertical</v-icon>
             </v-badge>
             <v-icon v-else>mdi-tune-vertical</v-icon>

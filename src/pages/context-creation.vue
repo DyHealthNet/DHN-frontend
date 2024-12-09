@@ -23,7 +23,7 @@
           <v-card color="surface">
             <v-card-text>
               <v-row>
-                <ContextSetup :title="tab.contextName" :content="tab.content" :value="tab.contextValue" @data-changed="updateTabName" />
+                <ContextSetup :title="tab.contextName" :content="tab.content" :status="tab.status" :value="tab.contextValue" @data-changed="updateTabName" />
               </v-row>
             </v-card-text>
           </v-card>
@@ -47,7 +47,7 @@ export default {
     return {
       contextTab: 1,
       preTabs: [
-        { contextName: "Context 1", contextValue: 1, content: null, contextCalculated:false},
+        { contextName: "Context 1", contextValue: 1, content: null, status:"Waiting"},
         { contextName: "Context 2",
           contextValue: 2,
           content: {
@@ -59,11 +59,11 @@ export default {
             layers: ['Metabolomics', 'Phenomics'],
             contextName: "Test" },
             contextValue: 2,
-            contextCalculated:true,
+            status:"Finished",
         },
-        { contextName: "Context 3", contextValue: 3, content: null, contextCalculated:false},
-        { contextName: "Context 4", contextValue: 4, content: null, contextCalculated:false},
-        { contextName: "Context 5", contextValue: 5, content: null, contextCalculated:false}
+        { contextName: "Context 3", contextValue: 3, content: null, status:"Waiting"},
+        { contextName: "Context 4", contextValue: 4, content: null, status:"Waiting"},
+        { contextName: "Context 5", contextValue: 5, content: null, status:"Waiting"}
       ],
       tabs: [],
     };
@@ -92,7 +92,7 @@ export default {
     },
 
     async getAllContexts() {
-      await fetch(`${BASE_URL}/network/api/retrieveContexts/`, {
+      await fetch(`${BASE_URL}/context/api/retrieveContexts/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

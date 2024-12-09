@@ -144,7 +144,7 @@ export default {
       }
 
       try {
-        const url = new URL("/network/api/plotDataBarCount/", BASE_URL);
+        const url = new URL("/plotting/api/plotDataBarCount/", BASE_URL);
         url.searchParams.append("x", this.xVar);
         if (this.cVar) {
           url.searchParams.append("c", this.cVar);

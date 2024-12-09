@@ -2,6 +2,7 @@ import { reactive } from 'vue';
 
 const contextState = reactive({
   processFinished: false, // Initially unknown
+  showIndicator: false,
   taskStarted: false,
   taskInfo:"",
   taskType:"info"

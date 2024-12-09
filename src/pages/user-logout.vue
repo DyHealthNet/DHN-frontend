@@ -45,7 +45,7 @@ export default {
       try {
         const csrfToken = getCookie('csrftoken'); // Get the CSRF token from cookies
         console.log(csrfToken)
-        const response = await fetch(`${BASE_URL}/network/api/logout/`, {
+        const response = await fetch(`${BASE_URL}/auth/api/logout/`, {
           method: 'POST',
         headers: {
         'Content-Type': 'application/json',
