@@ -209,7 +209,7 @@ export default  {
         variableId = this.columnName.split("/")[0].trim();
       }
 
-      let url = new URL(`${BASE_URL}/network/api/singleVariableInfo`);
+      let url = new URL(`${BASE_URL}/context/api/singleVariableInfo`);
       url.search = new URLSearchParams({variableId: variableId}).toString();
 
       await fetch(url, {

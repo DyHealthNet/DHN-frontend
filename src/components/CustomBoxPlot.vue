@@ -98,7 +98,7 @@
     methods: {
       async fetchData() {
         try {
-          const response = await fetch('http://localhost:8000/network/api/plotData/');
+          const response = await fetch('http://localhost:8000/plotting/api/plotData/');
           console.log("WE ARE IN CUSTOMBOXPLOT COMPONENT AND FETCHING DATA")
           const data = await response.json();
           this.labels = Object.keys(data[0]);

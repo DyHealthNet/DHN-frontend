@@ -632,8 +632,13 @@ export default {
     // Line Plot Data Fetch
     async getVariableDataLine() {
       try {
+        //const response = await fetch(
+        // "http://localhost:8000/general/api/variables/"
+        //);
+        console.log(`${BASE_URL}/general/api/variables/`);
         const response = await fetch(`${BASE_URL}/general/api/variables/`);
         const data = await response.json();
+        console.log(data);
         this.rows = Object.keys(data).map((key, i) => ({
           name: key,
           column1: data[key],
@@ -651,6 +656,9 @@ export default {
     // Box Plot Data Fetch
     async getVariableDataBox() {
       try {
+        //const response = await fetch(
+        //  "http://localhost:8000/general/api/variables/"
+        //);
         const response = await fetch(`${BASE_URL}/general/api/variables/`);
         const data = await response.json();
         this.rows = Object.keys(data).map((key, i) => ({
