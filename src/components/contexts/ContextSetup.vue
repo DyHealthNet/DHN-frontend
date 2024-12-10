@@ -480,9 +480,6 @@ export default {
     filterVariables() {
       // check what selected layers we have and then filter allVariables down.
       // this is a band-aid solution and ideally we get info on what layers the variables belong to
-      // if (!this.selectedLayers.includes("Phenomics")) {
-      //   this.allVariablesFiltered = this.allVariables;
-      // }
       this.allVariablesFiltered = this.allVariables;
 
       if (!this.selectedLayers.includes("Phenomics")) {

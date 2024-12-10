@@ -6,11 +6,10 @@
     density="compact"
     variant="outlined"
     item-title="label"
-    item-value="value"
     ></v-combobox>
 
   <v-select
-      v-if="valueComponent === 'select'"
+    v-if="valueComponent === 'select'"
     v-model="localSelectedValue"
     :items="possibleValues"
     variant="outlined"
@@ -18,8 +17,8 @@
     multiple
     density="compact"
     item-title="label"
-    item-value="value"
-  >
+    return-object
+    >
     <template v-slot:prepend-item>
       <v-list-item
         title="Select All"
@@ -36,8 +35,8 @@
 
       <v-divider class="mt-2"></v-divider>
     </template>
-
   </v-select>
+
   <template v-if="valueComponent === 'num-text'">
     <div class="d-flex align-center" style="width: 100%">
     <v-text-field
@@ -82,10 +81,16 @@ export default {
   },
 
   data() {
+    let lower = 0;
+    let upper = 1;
+    if (this.valueComponent === 'num-text' && this.selectedValue) {
+      lower = this.selectedValue[0];
+      upper = this.selectedValue[1];
+    }
     return {
       localSelectedValue: this.selectedValue || this.getInitialValue(this.valueComponent),
-      lowerBound: 0,
-      upperBound: 1
+      lowerBound: lower,
+      upperBound: upper
     }
   },
   watch: {
@@ -98,14 +103,15 @@ export default {
         this.$emit('update:selectedValue', [0, 1])
       }
     },
+
     selectedValue(newVal) {
       if (this.valueComponent === 'num-text') {
         this.lowerBound = this.selectedValue[0];
         this.upperBound = this.selectedValue[1];
       }
     },
-    lowerBound: 'updateLSV',
-    upperBound: 'updateLSV'
+    lowerBound: 'updateSelectedValue',
+    upperBound: 'updateSelectedValue'
   },
   methods: {
     getInitialValue(component) {
@@ -127,7 +133,7 @@ export default {
         this.$emit('update:selectedValue', this.possibleValues);
       }
     },
-    updateLSV() {
+    updateSelectedValue() {
       this.$emit('update:selectedValue', [this.lowerBound, this.upperBound])
     }
   },
