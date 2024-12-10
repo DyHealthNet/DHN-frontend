@@ -98,6 +98,12 @@ export default {
         this.$emit('update:selectedValue', [0, 1])
       }
     },
+    selectedValue(newVal) {
+      if (this.valueComponent === 'num-text') {
+        this.lowerBound = this.selectedValue[0];
+        this.upperBound = this.selectedValue[1];
+      }
+    },
     lowerBound: 'updateLSV',
     upperBound: 'updateLSV'
   },
