@@ -129,26 +129,23 @@ export default  {
         this.columnName = "";
         this.selectedOperator = "";
         this.selectedValue = "";
+        this.changeColumnType();
       }
       this.$emit('button-clicked', action);
     },
 
     newData(value) {
       this.selectedValue = value;
-      console.log("Now:", this.selectedValue)
       this.updateData();
     },
 
     updateData() {
-      console.log("In updateData")
       if (this.selectedOperator && this.selectedOperator !== this.prevSelectedOperator) {
-        console.log("changing col type")
         this.changeColumnType()
         this.prevSelectedOperator = this.selectedOperator;
       }
 
       if (this.columnName && this.columnName !== this.prevColumnName) {
-        console.log("getting available col values")
         this.getAvailableValues();
         this.prevColumnName = this.columnName;
       }
@@ -159,7 +156,6 @@ export default  {
         return;
       }
 
-      console.log("Emitting data-changed:", this.selectedValue);
       this.$emit('data-changed', {
         ruleId: this.ruleId,
         column: this.columnName,

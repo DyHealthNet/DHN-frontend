@@ -90,7 +90,6 @@ export default {
   },
   watch: {
     valueComponent(newVal) {
-      console.log("in the watcher", newVal)
       if (newVal === 'combobox') {
         this.$emit('update:selectedValue', "")
       } else if (newVal === 'select') {
@@ -123,7 +122,6 @@ export default {
       }
     },
     updateLSV() {
-      console.log("updating lsv")
       this.$emit('update:selectedValue', [this.lowerBound, this.upperBound])
     }
   },
@@ -136,7 +134,6 @@ export default {
         return this.getInitialValue(this.valueComponent);
       },
       set(value) {
-        console.log("value", value);
         this.$emit('update:selectedValue', value);
       }
     }
