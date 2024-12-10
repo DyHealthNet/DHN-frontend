@@ -30,6 +30,7 @@
             chips
             multiple
             density="compact"
+            @update:model-value="filterVariables"
         ></v-select>
       </v-col>
 
@@ -116,7 +117,7 @@
 
             <v-row class="my-1">
               <FilterLine
-                  :all-variables="allVariables"
+                  :all-variables="allVariablesFiltered"
                   :connection="innerConnection"
                   :first="outerIndex === 0 && innerIndex === 0"
                   :rule="innerRow.rule"
@@ -205,6 +206,8 @@
 </template>
 
 <script>
+import {fi} from "vuetify/locale";
+
 const BASE_URL =
     import.meta.env.VITE_BACKEND_URL ||
     `${window.location.protocol}//${window.location.host}`;
@@ -220,6 +223,11 @@ import { contextState } from '@/components/contexts/contextStatus.js';
 
 
 export default {
+  computed: {
+    fi() {
+      return fi
+    }
+  },
   components: {AdvancedSettings, NewFilterButton, ConnectorLine, FilterLine, ConnectorButton, StatusBox},
   emits: ['data-changed'],
   props: {
@@ -251,7 +259,6 @@ export default {
           rules.push({group: `group-${groups.length - 1}`, id: uuidv4(), rule: rule});
         });
       }
-      console.log(`Got content: ${JSON.stringify(this.content)}`);
     }
 
     // make the layers uppercase if they exist
@@ -269,6 +276,7 @@ export default {
       selectedLayers: this.content?.layers ?? layers,
 
       allVariables: {},
+      allVariablesFiltered: {},
       columnType: "value",
 
       outerRows: groups.length > 0 ? groups : ['group-0'],
@@ -361,6 +369,7 @@ export default {
           .then(response => response.json())
           .then(data => {
             this.allVariables = data;
+            this.allVariablesFiltered = data;
           })
           .catch((error) => {
             console.error('Error:', error);
@@ -466,6 +475,44 @@ export default {
 
     addTests(data) {
       this.selectedTests = data;
+    },
+
+    filterVariables() {
+      // check what selected layers we have and then filter allVariables down.
+      // this is a band-aid solution and ideally we get info on what layers the variables belong to
+      // if (!this.selectedLayers.includes("Phenomics")) {
+      //   this.allVariablesFiltered = this.allVariables;
+      // }
+      this.allVariablesFiltered = this.allVariables;
+
+      if (!this.selectedLayers.includes("Phenomics")) {
+        this.allVariablesFiltered = Object.fromEntries(
+          Object.entries(this.allVariablesFiltered).map(([key, value]) => [
+            key,
+            value.filter(item => item.includes(" / Metabolite" || item.includes(" / Protein"))),
+          ])
+        );
+      }
+
+      if (!this.selectedLayers.includes("Metabolomics")) {
+        this.allVariablesFiltered = Object.fromEntries(
+          Object.entries(this.allVariablesFiltered).map(([key, value]) => [
+            key,
+            value.filter(item => !item.includes(" / Metabolite")),
+          ])
+        );
+      }
+
+      if (!this.selectedLayers.includes("Proteomics")) {
+        this.allVariablesFiltered = Object.fromEntries(
+          Object.entries(this.allVariablesFiltered).map(([key, value]) => [
+            key,
+            value.filter(item => !item.includes(" / Protein")),
+          ])
+        );
+      }
+
+      console.log(this.allVariablesFiltered);
     },
 
     createParams() {
@@ -606,6 +653,7 @@ export default {
             });
       }
     },
+
     updateCreationIcon(status) {
       if (status === "Finished") {
         //this.progressStatus = "Finished"
