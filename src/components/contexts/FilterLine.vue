@@ -22,7 +22,7 @@
     <FilterRuleValue :value-component="valueComponent"
                      :possible-values="possibleValues"
                      v-model:selectedValue="selectedValue"
-                      @update:selectedValue="updateData"
+                      @update:selectedValue="newData"
                      />
 </v-col>
   <v-col cols="1" class="center-button">
@@ -106,6 +106,7 @@ export default  {
       columnName: "",
       columnItems: [],
       selectedOperator: "",
+      prevSelectedOperator: "",
       operators: [
           'equals (=)',
           'less than (<)',
@@ -132,12 +133,22 @@ export default  {
       this.$emit('button-clicked', action);
     },
 
+    newData(value) {
+      this.selectedValue = value;
+      console.log("Now:", this.selectedValue)
+      this.updateData();
+    },
+
     updateData() {
-      if (this.selectedOperator) {
+      console.log("In updateData")
+      if (this.selectedOperator && this.selectedOperator !== this.prevSelectedOperator) {
+        console.log("changing col type")
         this.changeColumnType()
+        this.prevSelectedOperator = this.selectedOperator;
       }
 
       if (this.columnName && this.columnName !== this.prevColumnName) {
+        console.log("getting available col values")
         this.getAvailableValues();
         this.prevColumnName = this.columnName;
       }
@@ -148,14 +159,7 @@ export default  {
         return;
       }
 
-      // this must come after the above since otherwise the selectedValue might be undefined
-      if (Array.isArray(this.selectedValue)) {
-        this.selectedValue = this.selectedValue.map(Number);
-      } else {
-        this.selectedValue = Number(this.selectedValue);
-      }
-
-      console.log("Emitting data-changed");
+      console.log("Emitting data-changed:", this.selectedValue);
       this.$emit('data-changed', {
         ruleId: this.ruleId,
         column: this.columnName,
@@ -173,9 +177,10 @@ export default  {
       if (this.selectedOperator === 'in range') {
         this.columnType = "range";
         this.valueComponent = 'num-text';
-        this.selectedValue = ["", ""];
         if (this.possibleValues.length === 0) {
-        this.possibleValues = [0, 100] // min and max values
+          this.possibleValues = [0, 100] // min and max values
+        } else {
+          this.selectedValue = this.possibleValues;
         }
       } else if (this.selectedOperator === 'in') {
         this.columnType = "category";
@@ -280,7 +285,6 @@ export default  {
   },
   created() {
     if (this.rule) {
-      console.log(JSON.stringify(this.rule));
       this.columnName = this.rule.column;
       this.selectedOperator = this.rule.operator;
       this.selectedValue = this.rule.value;
