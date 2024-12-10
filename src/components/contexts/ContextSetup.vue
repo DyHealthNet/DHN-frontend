@@ -672,6 +672,10 @@ export default {
   created() {
     this.fetchParticipants(this.createParams());
     this.updateCreationIcon(this.progressStatus);
+    if (this.progressStatus === 'Finished') {
+      // disable the send button if the context is already created
+      this.sendDisabled = true;
+    }
   }
 };
 </script>
