@@ -97,6 +97,8 @@ export default {
                 darkVariant: context.colors.darkVariant,
               };
             });
+            // filter out contexts where color is black
+            this.contexts = this.contexts.filter((context) => context.color !== '#000000');
           })
           .catch((error) => {
             console.error('Error:', error);
