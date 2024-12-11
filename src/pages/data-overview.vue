@@ -368,7 +368,6 @@
                                   </template>
                                   <span>Categorical variable possible</span>
                                 </v-tooltip>
-
                                 <!--Colored by which variables-->
                                 <v-tooltip location="top" open-on-hover>
                                   <template v-slot:activator="{ props }">
@@ -411,7 +410,7 @@
 </template>
 
 <script>
-import {ca, th} from "vuetify/locale";
+import {ca, da, th} from "vuetify/locale";
 import {BASE_URL} from "../components/constants.js";
 import CustomLine from "../components/plots/CustomLine.vue";
 import CustomBar from "../components/plots/CustomBar.vue";
@@ -462,7 +461,7 @@ export default {
         {name: "Phenotype specific", value: 5},
       ],
 
-      itemtest: ["foo", "bar", "fizz", "buzz"],
+      allVariables: {},
 
       //Bar Plot: Different variables for the dropdown list
       xItemsBar: [],
@@ -510,15 +509,18 @@ export default {
   },
 
   // Create the data
-  created() {
-    //this.data_table = this.getTableDataFromApi()
-    //this.splitRows(this.getTableData(this.data_table));
-    this.loadData();
+  created: async function () {
+    // Wait for both methods to complete
+    await this.getTableDataFromApi();
+    await this.getAllVariables();
+
+    // Execute the next methods
     this.getVariableDataBar();
     this.getVariableDataLine();
     this.getVariableDataBox();
     this.getVariableDataHeatmap();
   },
+
 
   // +++++++++++ Methods ++++++++++++++
   methods: {
@@ -550,33 +552,51 @@ export default {
           return {name: key, column1: value};
         });
 
-        // return simulated data
-        return {
-          // this part here stays static, don't need to change this
+        if (rows.length === 0) {
+          console.error("No data found in the response");
+          return null;
+        }
+
+        this.columns = {
           columns: [
             {align: "start", key: "name", sortable: false, title: ""},
             {key: "column1"},
           ],
-          rows: rows,
-        };
+        }
+        this.rows1 = rows;
+
+        // return simulated data
+        return data;
       } catch (error) {
         console.error("There was a problem with the fetch operation:", error);
-      }
-    },
-    async loadData() {
-      const data_table = await this.getTableDataFromApi();
-      if (data_table) {
-        this.splitRows(data_table);
-      } else {
-        console.error("Data table is null or undefined");
+        throw error;
       }
     },
 
-    splitRows(tableData) {
-      console.log(tableData);
-      this.columns = tableData.columns;
+    async getAllVariables() {
+        const csrfToken = getCookie('csrftoken');
+        const contextValue = this.contextValue;
+        let url = `${BASE_URL}/general/api/variables/`;
 
-      this.rows1 = tableData.rows;
+        if (contextValue) {
+          url += `?contextValue=${encodeURIComponent(contextValue)}`;
+        }
+
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+          },
+          credentials: 'include',
+        });
+
+        const data = await response.json();
+
+        this.allVariables = data;
+
+        console.log("Fetched all variables");
+        return data;
     },
 
     getImageForCard(name) {
@@ -623,121 +643,77 @@ export default {
       return new URL("../assets/figures/About_Us.png", import.meta.url).href;
     },
 
-    // Bar Plot Data Fetch
-    async getVariableDataBar() {
+    // Assemble valid data for the dropdown lists in the different plots
+    getVariableDataBar() {
       try {
-        const response = await fetch(`${BASE_URL}/general/api/variables/`);
-        const data = await response.json();
-        this.rows = Object.keys(data).map((key, i) => ({
-          name: key,
-          column1: data[key],
-        }));
+        console.log(this.allVariables);
         //[...new Set(data.nonbinaryCategorical.concat(data.binaryCategorical))]
-        this.xItemsBar = data.nonbinaryCategorical.concat(
-            data.binaryCategorical
+        this.xItemsBar = this.allVariables.nonbinaryCategorical.concat(
+            this.allVariables.binaryCategorical
         );
         //this.yItemsBar = data.nonbinaryCategorical;
-        this.colorItemsBar = data.binaryCategorical.concat(
-            data.nonbinaryCategorical
+        this.colorItemsBar = this.allVariables.binaryCategorical.concat(
+            this.allVariables.nonbinaryCategorical
         );
       } catch (error) {
         console.error("Error fetching variable data:", error);
       }
     },
 
-    // Line Plot Data Fetch
-    async getVariableDataLine() {
+    getVariableDataLine() {
       try {
-        //const response = await fetch(
-        // "http://localhost:8000/general/api/variables/"
-        //);
-        console.log(`${BASE_URL}/general/api/variables/`);
-        const response = await fetch(`${BASE_URL}/general/api/variables/`);
-        const data = await response.json();
-        console.log(data);
-        this.rows = Object.keys(data).map((key, i) => ({
-          name: key,
-          column1: data[key],
-        }));
-        this.xItemsLine = data.nonbinaryCategorical.concat(data.continuous);
-        this.yItemsLine = data.continuous;
-        this.colorItemsLine = data.binaryCategorical.concat(
-            data.nonbinaryCategorical
+        this.xItemsLine = this.allVariables.nonbinaryCategorical.concat(this.allVariables.continuous);
+        this.yItemsLine = this.allVariables.continuous;
+        this.colorItemsLine = this.allVariables.binaryCategorical.concat(
+            this.allVariables.nonbinaryCategorical
         );
       } catch (error) {
         console.error("Error fetching variable data:", error);
       }
     },
 
-    // Box Plot Data Fetch
-    async getVariableDataBox() {
+    getVariableDataBox() {
       try {
-        //const response = await fetch(
-        //  "http://localhost:8000/general/api/variables/"
-        //);
-        const response = await fetch(`${BASE_URL}/general/api/variables/`);
-        const data = await response.json();
-        this.rows = Object.keys(data).map((key, i) => ({
-          name: key,
-          column1: data[key],
-        }));
         //##############Have to change the Box Variable Data#########
-        this.xItemsBox = data.nonbinaryCategorical.concat(
-            data.binaryCategorical
+        this.xItemsBox = this.allVariables.nonbinaryCategorical.concat(
+            this.allVariables.binaryCategorical
         );
         //.concat(data.continuous);
-        this.yItemsBox = data.continuous;
-        this.colorItemsBox = data.binaryCategorical.concat(
-            data.nonbinaryCategorical
+        this.yItemsBox = this.allVariables.continuous;
+        this.colorItemsBox = this.allVariables.binaryCategorical.concat(
+            this.allVariables.nonbinaryCategorical
         );
       } catch (error) {
         console.error("Error fetching variable data:", error);
-        console.log(error.text);
       }
     },
 
-    // Heatmap Data Fetch
-    async getVariableDataHeatmap() {
+    getVariableDataHeatmap() {
       try {
-        const response = await fetch(`${BASE_URL}/general/api/variables/`);
-        const data = await response.json();
-        this.rows = Object.keys(data).map((key, i) => ({
-          name: key,
-          column1: data[key],
-        }));
-        //##############Have to change the Heatmap variable Data#########
-        this.itemHeatmap1 = data.nonbinaryCategorical.concat(
-            data.binaryCategorical
+        this.itemHeatmap1 = this.allVariables.nonbinaryCategorical.concat(
+            this.allVariables.binaryCategorical
         );
-        this.itemHeatmap2 = data.nonbinaryCategorical.concat(
-            data.binaryCategorical
+        this.itemHeatmap2 = this.allVariables.nonbinaryCategorical.concat(
+            this.allVariables.binaryCategorical
         );
       } catch (error) {
         console.error("Error fetching variable data:", error);
       }
     },
 
-    // Get table data
-    getTableData(imported_json) {
-      const rows = Object.entries(imported_json).map(([key, value]) => {
-        return {name: key, column1: value};
-      });
-      return {
-        // this part here stays static, don't need to change this
-        columns: [
-          {align: "start", key: "name", sortable: false, title: ""},
-          {key: "column1"},
-        ],
-        rows: rows,
-      };
-    },
     toggleDescription() {
       this.isExpanded = !this.isExpanded;
     },
 
-    updateData(val) {
+    async updateData(val) {
       this.contextValue = val ? val.value : null;
-      this.loadData();
+      await this.getTableDataFromApi();
+      await this.getAllVariables();
+
+      this.getVariableDataBar();
+      this.getVariableDataLine();
+      this.getVariableDataBox();
+      this.getVariableDataHeatmap();
     }
   },
 };
