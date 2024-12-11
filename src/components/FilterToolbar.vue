@@ -44,7 +44,7 @@ import {authState, getCookie} from "@/components/authentication/auth.js";
 
 export default {
   name: 'FilterToolbar',
-  emits: ['cangeContext'],
+  emits: ['changeContext'],
 
   data() {
     return {
@@ -61,7 +61,7 @@ export default {
     clearSelection() {
       this.selectedContext = null;
       this.filterToolbarColor = "primary-darken-1";
-      this.$emit('cangeContext', this.selectedContext);
+      this.$emit('changeContext', this.selectedContext);
     },
 
     changeColorOnSelectedContext() {
@@ -87,7 +87,6 @@ export default {
       })
           .then(response => response.json())
           .then(data => {
-            console.log(data.result);
             this.contexts = data.result.map((context) => {
               return {
                 text: context.contextName,
@@ -123,7 +122,7 @@ export default {
   watch: {
     selectedContext: function () {
       this.changeColorOnSelectedContext();
-      this.$emit('cangeContext', this.selectedContext);
+      this.$emit('changeContext', this.selectedContext);
     },
   },
 }

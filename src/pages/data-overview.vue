@@ -16,7 +16,7 @@
         </v-row>
       </v-container>
       <v-container class="mt-4 ">
-            <FilterToolbar @cangeContext="console.log('context changed')"></FilterToolbar>
+            <FilterToolbar @change-context="updateData"></FilterToolbar>
         <!-- Clickable description with toggle functionality -->
         <!--
         <div class="overview-description mb-4" @click="toggleDescription">
@@ -411,7 +411,7 @@
 </template>
 
 <script>
-import {ca} from "vuetify/locale";
+import {ca, th} from "vuetify/locale";
 import {BASE_URL} from "../components/constants.js";
 import CustomLine from "../components/plots/CustomLine.vue";
 import CustomBar from "../components/plots/CustomBar.vue";
@@ -430,6 +430,7 @@ import {
   LinearScale,
 } from "chart.js";
 import FilterToolbar from "@/components/FilterToolbar.vue";
+import {getCookie} from "@/components/authentication/auth.js";
 
 ChartJS.register(
     Title,
@@ -501,8 +502,10 @@ export default {
       //table data initialization
       columns: [],
       rows1: [],
-      rows2: [],
       isExpanded: false,
+
+      // context value
+      contextValue: null,
     };
   },
 
@@ -521,19 +524,32 @@ export default {
   methods: {
     async getTableDataFromApi() {
       try {
-        const response = await fetch(`${BASE_URL}/plotting/api/table/`);
+        const csrfToken = getCookie('csrftoken');
+        const contextValue = this.contextValue;
+        let url = `${BASE_URL}/plotting/api/table/`;
+
+        if (contextValue) {
+          url += `?contextValue=${encodeURIComponent(contextValue)}`;
+        }
+
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+          },
+          credentials: 'include',
+        });
+
         if (!response.ok) {
           throw new Error("Network response was not ok");
         }
-        const data = await response.json(); // Daten im JSON-Format abrufen
-
-        console.log("Overview of Data: ", data);
-
-        //return data;
+        const data = await response.json();
 
         const rows = Object.entries(data).map(([key, value]) => {
           return {name: key, column1: value};
         });
+
         // return simulated data
         return {
           // this part here stays static, don't need to change this
@@ -557,12 +573,12 @@ export default {
     },
 
     splitRows(tableData) {
+      console.log(tableData);
       this.columns = tableData.columns;
-      // split the rows into two halves so that they can be displayed in two tables
-      //const midpoint = Math.ceil(tableData.rows.length / 2);
-      this.rows1 = tableData.rows.slice(0, tableData.rows.length - 5);
-      this.rows2 = tableData.rows.slice(tableData.rows.length - 5);
+
+      this.rows1 = tableData.rows;
     },
+
     getImageForCard(name) {
       const images = [
         {
@@ -718,6 +734,11 @@ export default {
     toggleDescription() {
       this.isExpanded = !this.isExpanded;
     },
+
+    updateData(val) {
+      this.contextValue = val ? val.value : null;
+      this.loadData();
+    }
   },
 };
 </script>
