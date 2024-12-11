@@ -14,7 +14,9 @@
           :items="contContItems"
           variant="outlined"
           density="compact"
-          @change="changeTest"
+          @update:model-value="changeTest"
+          item-title="label"
+          return-object
       >
       </v-select>
     </v-col>
@@ -24,7 +26,9 @@
           :items="catCatItems"
           variant="outlined"
           density="compact"
-          @change="changeTest"
+          @update:model-value="changeTest"
+          item-title="label"
+          return-object
       >
       </v-select>
     </v-col>
@@ -42,7 +46,9 @@
           label="Binary categories"
           variant="outlined"
           density="compact"
-          @change="changeTest"
+          @update:model-value="changeTest"
+          item-title="label"
+          return-object
       >
       </v-select>
     </v-col>
@@ -53,7 +59,9 @@
           label="Multiple categories"
           variant="outlined"
           density="compact"
-          @change="changeTest"
+          @update:model-value="changeTest"
+          item-title="label"
+          return-object
       >
       </v-select>
     </v-col>
@@ -74,30 +82,30 @@ export default {
   data() {
     return {
       contContItems: [
-        'Pearson',
-        'Spearman',
+        {label: 'Pearson correlation', value: 'pearson'},
+        {label: 'Spearmans rank correlation', value: 'spearman'},
       ],
 
       catCatItems: [
-        'Chi-square',
+        {label: 'Chi-squared test', value: 'chi2'}
       ],
 
       contCatItemsB: [
-        'ANOVA',
-        'T-test',
-        'Kruskal-Wallis',
-        'Mann-Whitney U',
+        {label: 'T-test', value: 't-test'},
+        {label: 'ANOVA', value: 'anova'},
+        {label: 'Kruskal-Wallis', value: 'kruskal-wallis'},
+        {label: 'Mann-Whitney U', value: 'mann-whitney u'},
       ],
 
       contCatItemsM: [
-        'Kruskal-Wallis',
-        'ANOVA'
+        {label: 'Kruskal-Wallis', value: 'kruskal-wallis'},
+        {label: 'ANOVA', value: 'anova'},
       ],
 
-      contCont: this.selectedTests?.contCont ?? 'Pearson',
-      catCat: this.selectedTests?.catCat ?? 'Chi-square',
-      catContB: this.selectedTests?.catContB ?? 'T-test',
-      catContM: this.selectedTests?.catContM ??'ANOVA',
+      contCont: this.selectedTests?.contCont ?? {label: 'Pearson correlation', value: 'pearson'},
+      catCat: this.selectedTests?.catCat ?? {label: 'Chi-squared test', value: 'chi2'},
+      catContB: this.selectedTests?.catContB ?? {label: 'T-test', value: 't-test'},
+      catContM: this.selectedTests?.catContM ?? {label: 'ANOVA', value: 'anova'},
     }
   },
   methods: {

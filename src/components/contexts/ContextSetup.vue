@@ -293,8 +293,8 @@ export default {
       removedPatients: "",
 
       selectedTests: this.content?.tests ?? {
-        catCat: 'Chi-squared', catContM: 'ANOVA',
-        catContB: 'T-test', contCont: 'Pearson'
+        catCat: {label: 'Chi-squared test', value: 'chi2'}, catContM: {label: 'ANOVA', value: 'anova'},
+        catContB: {label: 'T-test', value: 't-test'}, contCont: {label: 'Pearson correlation', value: 'pearson'}
       },
 
       taskMessage: null,
