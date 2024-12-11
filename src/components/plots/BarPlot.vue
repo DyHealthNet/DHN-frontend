@@ -5,7 +5,7 @@
 <script>
 import { Bar } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js'
-import barPlot1 from '../data/test_barplotData1.json'
+import barPlot1 from '../../data/test_barplotData1.json'
 
 ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale)
 

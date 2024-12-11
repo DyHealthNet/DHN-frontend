@@ -45,8 +45,8 @@
 const BASE_URL =
   import.meta.env.VITE_BACKEND_URL ||
   `${window.location.protocol}//${window.location.host}`;
-import BoxPlotChartComponent from "@/components/BoxPlotChartComponent.vue";
-import testbox from "../data/test_boxplotData.json";
+import BoxPlotChartComponent from "@/components/plots/BoxPlotChartComponent.vue";
+import testbox from "../../data/test_boxplotData.json";
 //import testbox from "../data/test_boxPlotWithTimeAsX.json";
 
 export default {

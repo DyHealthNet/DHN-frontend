@@ -413,10 +413,10 @@
 <script>
 import {ca} from "vuetify/locale";
 import {BASE_URL} from "../components/constants.js";
-import CustomLine from "../components/CustomLine.vue";
-import CustomBar from "../components/CustomBar.vue";
-import CustomBox from "../components/CustomBox.vue";
-import CustomHeatmap from "../components/CustomHeatMap.vue";
+import CustomLine from "../components/plots/CustomLine.vue";
+import CustomBar from "../components/plots/CustomBar.vue";
+import CustomBox from "../components/plots/CustomBox.vue";
+import CustomHeatmap from "../components/plots/CustomHeatMap.vue";
 // Simulation of test data
 //import test_table from "../data/test_dataTableOverview.json";
 
