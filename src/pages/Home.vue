@@ -21,22 +21,22 @@
         <v-row class="my-5">
           <!-- Part 2 Context page-->
           <v-col cols="12" md="12" lg="6" class="text-center">
-            <v-sheet rounded="lg" elevation="1" height="300px" min-width="620px" class="d-flex align-center">
+            <v-sheet rounded="lg" elevation="1" min-height="240px" min-width="620px" class="d-flex align-center">
               <v-row>
                 <v-col cols="4" class="d-flex justify-center align-center">
                   <v-img>
-                    <img :src="network" alt="Network" width="200" height="200"/>
+                    <img :src="contexts" alt="Network" width="200" height="200"/>
                   </v-img>
                 </v-col>
-                <v-col cols="8" class="d-flex flex-column justify-space-between">
-                  <h3 class="secondary-header">
+                <v-col cols="8" class="d-flex flex-column justify-space-between text-justify">
+                  <h3 class="secondary-header mx-3">
                     Define your Context
                   </h3>
                   <p class="description-text mx-3">
                     {{ loremIpsum }}
                   </p>
                   <v-btn size="x-large" to="/context" color="primary"
-                         class="mt-5 align-self-center" prepend-icon="mdi-tune-vertical">Contexts</v-btn>
+                         class="mt-5 mx-3 align-self-end" prepend-icon="mdi-tune-vertical">Contexts</v-btn>
                 </v-col>
               </v-row>
             </v-sheet>
@@ -44,22 +44,22 @@
 
           <!-- Part 2 Network page-->
           <v-col cols="12" md="12" lg="6" class="text-center">
-            <v-sheet rounded="lg" elevation="1" height="300px" min-width="620px" class="d-flex align-center">
+            <v-sheet rounded="lg" elevation="1" min-height="240px" min-width="620px" class="d-flex align-center">
               <v-row>
                 <v-col cols="4" class="d-flex justify-center align-center">
                   <v-img>
                     <img :src="network" alt="Network" width="200" height="200"/>
                   </v-img>
                 </v-col>
-                <v-col cols="8" class="d-flex flex-column justify-space-between">
-                  <h3 class="secondary-header">
+                <v-col cols="8" class="d-flex flex-column justify-space-between text-justify">
+                  <h3 class="secondary-header mx-3">
                     Build a Network
                   </h3>
                   <p class="description-text mx-3">
                     {{ networkDescription }}
                   </p>
                   <v-btn size="x-large" to="/network" color="primary"
-                         class="mt-5 align-self-center" prepend-icon="mdi-graph-outline">Network</v-btn>
+                         class="mt-5 mx-3 align-self-end" prepend-icon="mdi-graph-outline">Network</v-btn>
                 </v-col>
               </v-row>
             </v-sheet>
@@ -67,7 +67,7 @@
 
           <!-- Part 2 Overview page-->
           <v-col cols="12" md="12" lg="6" class="text-center">
-            <v-sheet rounded="lg" elevation="1" height="300px" min-width="620px" class="d-flex align-center">
+            <v-sheet rounded="lg" elevation="1" min-height="240px" min-width="620px" class="d-flex align-center">
               <v-row>
                 <v-col cols="4" class="d-flex justify-center align-center">
                   <v-img>
@@ -79,9 +79,9 @@
                     />
                   </v-img>
                 </v-col>
-                <v-col cols="8" class="d-flex flex-column justify-space-between">
+                <v-col cols="8" class="d-flex flex-column justify-space-between text-justify">
                   <div>
-                    <h3 class="secondary-header">
+                    <h3 class="secondary-header mx-3">
                       Get a Data Overview
                     </h3>
                     <p class="description-text mx-3">
@@ -89,7 +89,7 @@
                     </p>
                   </div>
                   <v-btn size="x-large" to="/overview" color="primary"
-                         class="mt-5 align-self-center" prepend-icon="mdi-chart-line">Overview</v-btn>
+                         class="mt-5 mx-3 align-self-end" prepend-icon="mdi-chart-line">Overview</v-btn>
                 </v-col>
               </v-row>
             </v-sheet>
@@ -97,22 +97,22 @@
 
           <!-- Do it yourself page-->
           <v-col cols="12" md="12" lg="6" class="text-center">
-            <v-sheet rounded="lg" elevation="1" height="300px" min-width="620px" class="d-flex align-center">
+            <v-sheet rounded="lg" elevation="1" min-height="240px" min-width="620px" class="d-flex align-center">
               <v-row>
                 <v-col cols="4" class="d-flex justify-center align-center">
                   <v-img>
-                    <img :src="about_us" alt="Network" width="200" height="200"/>
+                    <img :src="documentation" alt="Network" width="200" height="200"/>
                   </v-img>
                 </v-col>
-                <v-col cols="8" class="d-flex flex-column justify-space-between">
-                  <h3 class="secondary-header">
+                <v-col cols="8" class="d-flex flex-column justify-space-between text-justify">
+                  <h3 class="secondary-header mx-3">
                     Apply to your Cohort
                   </h3>
                   <p class="description-text mx-3">
                     {{ loremIpsum }}
                   </p>
                   <v-btn size="x-large" to="/about-us" color="primary"
-                         class="mt-5 align-self-center" prepend-icon="mdi-book-outline">Documentation</v-btn>
+                         class="mt-5 mx-3 align-self-end" prepend-icon="mdi-book-outline">Documentation</v-btn>
                 </v-col>
               </v-row>
             </v-sheet>
@@ -120,7 +120,7 @@
 
         </v-row>
 
-        <v-divider class="my-10"></v-divider>
+        <v-divider class="my-10" thickness="2"></v-divider>
 
         <!-- Part 3 Explanation-->
         <v-row class="my-5">
@@ -130,13 +130,13 @@
             </h1>
           </v-col>
           <v-col cols="6">
-            <p class="plain-text">
+            <p class="plain-text text-justify">
               {{ detailedExplanation }}
             </p>
           </v-col>
         </v-row>
 
-        <v-divider class="my-10"></v-divider>
+        <v-divider class="my-10" thickness="2"></v-divider>
 
         <!-- Part 4 Foundation-->
         <v-row class="my-5">
@@ -194,7 +194,7 @@
           <h2 class="secondary-header">
             Our collaborators
           </h2>
-          <p class="plain-text my-5">
+          <p class="plain-text my-5 text-justify">
             {{ collaboratorsDescription }}
           </p>
         </v-col>
@@ -213,13 +213,11 @@ export default {
       eurac_logo: new URL("../assets/figures/Eurac.png", import.meta.url).href,
       fau_logo: new URL("../assets/figures/FAU.png", import.meta.url).href,
       unibz_logo: new URL("../assets/figures/Unibz.png", import.meta.url).href,
-      about_us: new URL("../assets/figures/About_Us.png", import.meta.url).href,
-      overview: new URL("../assets/figures/Data_Overview.png", import.meta.url)
-          .href,
-      network: new URL(
-          "../assets/figures/DyHealthNet_Icon.png",
-          import.meta.url
-      ).href,
+
+      documentation: new URL("../assets/figures/Home_Page_Icons-05.png", import.meta.url).href,
+      overview: new URL("../assets/figures/Home_Page_Icons-01.png", import.meta.url).href,
+      network: new URL("../assets/figures/Home_Page_Icons-03.png",import.meta.url).href,
+      contexts: new URL("../assets/figures/Home_Page_Icons-04.png", import.meta.url).href,
 
       mainHeader: "Explore Cohorts with DyHealthNet",
       mainSubheader: "A Dynamic Approach to Network Medicine in the CHRIS Study",

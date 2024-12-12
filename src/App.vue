@@ -2,22 +2,15 @@
 
 <template>
   <v-app>
-
-      <Navbar />
-    
-      <v-main>
-        <v-container fluid class="page-borders">
-          <v-row>
-
-            <!--Hier show the pages that  defines in the router-->
-            <router-view />
-            
-          </v-row>
-        </v-container>
-      </v-main>
-
-      <Footer />
-   
+    <Navbar />
+    <v-main>
+      <v-container fluid class="page-borders">
+        <v-row>
+          <router-view />
+        </v-row>
+      </v-container>
+    </v-main>
+    <Footer />
   </v-app>
 </template>
 
