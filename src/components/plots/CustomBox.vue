@@ -7,7 +7,7 @@
       :yLabel="this.yVar"
       ref="boxplotchartComponent"
     />
-
+    here: {{ contextValue }}
     <!--PopUp Alert-->
     <div class="popup">
       <v-snackbar v-model="showPopup" color="error" multi-line>
@@ -42,6 +42,8 @@
 </template>
 
 <script>
+import {getCookie} from "@/components/authentication/auth.js";
+
 const BASE_URL =
   import.meta.env.VITE_BACKEND_URL ||
   `${window.location.protocol}//${window.location.host}`;
@@ -65,6 +67,10 @@ export default {
       type: String,
       required: false,
     },
+    contextValue: {
+      type: Number,
+      required: true,
+    },
   },
 
   data() {
@@ -82,6 +88,7 @@ export default {
     xVar: "fetchAndUpdateChart",
     yVar: "fetchAndUpdateChart",
     cVar: "fetchAndUpdateChart",
+    contextValue: "fetchAndUpdateChart",
   },
 
   methods: {
@@ -129,12 +136,21 @@ export default {
           if (this.cVar) {
             url.searchParams.append("c", this.cVar);
           }
-          console.log("url: ", url);
-          const response = await fetch(url);
+          if (this.contextValue) {
+            url.searchParams.append("contextValue", String(this.contextValue));
+          }
+
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCookie('csrftoken')
+            },
+            credentials: 'include',
+          });
           data = await response.json();
         }
         console.log("data: ", data);
-        // Neue Datenstruktur für gefilterte Boxplots
         const filteredData = {
           labels: [],
           datasets: data.datasets.map((dataset) => ({
@@ -144,9 +160,8 @@ export default {
         };
 
         let dataRemoved = false;
-        let dataNanMarker = false; // Marker für NaN-Werte
+        let dataNanMarker = false;
 
-        // Durchlaufen der Labels und Daten
         for (let i = 0; i < data.labels.length; i++) {
           let validLabel = false;
 

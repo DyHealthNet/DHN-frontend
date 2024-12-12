@@ -210,6 +210,7 @@
                                 :x-var="selectedXvariableBox"
                                 :y-var="selectedYvariableBox"
                                 :c-var="selectedCvariableBox"
+                                :context-value="contextValue"
                             />
                           </div>
                         </v-col>

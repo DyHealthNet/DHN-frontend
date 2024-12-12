@@ -42,6 +42,10 @@ export default {
       type: String,
       required: false,
     },
+    contextValue: {
+      type: String,
+      required: false,
+    },
   },
   data() {
     return {
@@ -148,7 +152,6 @@ export default {
           url.searchParams.append("c", this.cVar);
         }
 
-        console.log("url: ", url);
         const response = await fetch(url);
         const data = await response.json();
         this.rows = Object.keys(data).map((key) => ({
