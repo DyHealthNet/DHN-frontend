@@ -286,6 +286,7 @@
                                 :x-var="selectedXvariableLine"
                                 :y-var="selectedYvariableLine"
                                 :c-var="selectedCvariableLine"
+                                :context-value="contextValue"
                             />
                           </div>
                         </v-col>
@@ -340,6 +341,7 @@
                                 <CustomHeatmap
                                     :x-var="selectedVariableHeatmap1"
                                     :y-var="selectedVariableHeatmap2"
+                                    :context-value="contextValue"
                                 />
                               </div>
                             </v-col>
@@ -394,6 +396,7 @@
                                 <CustomBar
                                     :x-var="selectedXvariableBar"
                                     :c-var="selectedCvariableBar"
+                                    :context-value="contextValue"
                                 />
                               </div>
                             </v-col>
@@ -647,7 +650,6 @@ export default {
     // Assemble valid data for the dropdown lists in the different plots
     getVariableDataBar() {
       try {
-        console.log(this.allVariables);
         //[...new Set(data.nonbinaryCategorical.concat(data.binaryCategorical))]
         this.xItemsBar = this.allVariables.nonbinaryCategorical.concat(
             this.allVariables.binaryCategorical

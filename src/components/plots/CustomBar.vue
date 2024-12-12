@@ -18,6 +18,7 @@ import {
   CategoryScale,
   LinearScale,
 } from "chart.js";
+import {getCookie} from "@/components/authentication/auth.js";
 //import barPlot1 from "../data/test_countBar.json";
 //import text from "../data/test_popup.json";
 
@@ -43,7 +44,7 @@ export default {
       required: false,
     },
     contextValue: {
-      type: String,
+      type: Number,
       required: false,
     },
   },
@@ -108,6 +109,7 @@ export default {
   watch: {
     xVar: "fetchChartData",
     cVar: "fetchChartData",
+    contextValue: "fetchChartData",
   },
   methods: {
     labelColor(grid=false) {
@@ -129,6 +131,7 @@ export default {
       return false;
     },
     updateChart() {
+      console.log("updateChart");
       this.$nextTick(() => {
         if (
           this.$refs.chartComponent &&
@@ -151,8 +154,19 @@ export default {
         if (this.cVar) {
           url.searchParams.append("c", this.cVar);
         }
+        if (this.contextValue) {
+          url.searchParams.append("contextValue", String(this.contextValue));
+        }
 
-        const response = await fetch(url);
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCookie('csrftoken')
+            },
+            credentials: 'include',
+          }
+        );
         const data = await response.json();
         this.rows = Object.keys(data).map((key) => ({
           name: key,
@@ -160,9 +174,9 @@ export default {
         }));
 
         this.chartData = data;
-        //this.chartData = text;
 
         this.updateChart();
+
       } catch (error) {
         console.error("Error fetching variable data:", error);
         this.chartData = { labels: [], datasets: [] };

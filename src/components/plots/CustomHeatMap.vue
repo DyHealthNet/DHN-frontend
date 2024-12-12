@@ -6,6 +6,8 @@
 </template>
 
 <script>
+import {getCookie} from "@/components/authentication/auth.js";
+
 const BASE_URL =
   import.meta.env.VITE_BACKEND_URL ||
   `${window.location.protocol}//${window.location.host}`;
@@ -24,6 +26,10 @@ export default {
       type: String,
       required: true,
     },
+    contextValue: {
+      type: Number,
+      required: false,
+    },
   },
 
   data() {
@@ -39,6 +45,7 @@ export default {
   watch: {
     xVar: "fetchAndUpdateChart",
     yVar: "fetchAndUpdateChart",
+    contextValue: "fetchAndUpdateChart",
   },
 
   methods: {
@@ -55,20 +62,28 @@ export default {
     },
 
     async fetchChartData() {
-      console.log('this.xVar: ', this.xVar)
-      console.log('this.yVar: ', this.yVar)
       if (!this.xVar || !this.yVar ||this.checkVariableConflict()) {
         this.chartData = { xCategories: [], yCategories: [], datasets: [] };
         return this.chartData;
       }
       try {
-        console.log('this.xVar: ', this.xVar)
-        console.log('this.yVar: ', this.yVar)
+
         const url = new URL("/plotting/api/plotDataHeatmap/", BASE_URL);
         url.searchParams.append("x", this.xVar);
         url.searchParams.append("y", this.yVar);
-        console.log('url: ', url)
-        const response = await fetch(url);
+        if (this.contextValue) {
+          url.searchParams.append("contextValue", String(this.contextValue));
+        }
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCookie('csrftoken')
+            },
+            credentials: 'include',
+          }
+        );
         const data = await response.json();
         this.rows = Object.keys(data).map((key) => ({
           name: key,

@@ -3,6 +3,8 @@
 </template>
 
 <script>
+import {getCookie} from "@/components/authentication/auth.js";
+
 const BASE_URL =
   import.meta.env.VITE_BACKEND_URL ||
   `${window.location.protocol}//${window.location.host}`;
@@ -50,6 +52,10 @@ export default {
       type: String,
       required: false,
     },
+    contextValue: {
+      type: Number,
+      required: true,
+    },
   },
 
   data() {
@@ -62,21 +68,14 @@ export default {
 
   computed: {
     computedChartData() {
-      console.log("this.xVar: ", this.xVar);
-      console.log("this.yVar: ", this.yVar);
-      console.log("this.cVar: ", this.cVar);
       if (!this.xVar || !this.yVar || this.checkVariableConflict()) {
         return {
           datasets: [],
         };
       }
-      // Add your stuff here. I.e. the api call or other data manipulation. If you create a function, just add it
-      // in the methods section and call it here using this.functionName()
-      console.log("this.xVar: ", this.xVar);
-      console.log("this.yVar: ", this.yVar);
-      console.log("this.cVar: ", this.cVar);
       return this.fetchChartData();
     },
+
     computedChartOptions() {
       return {
         responsive: true,
@@ -120,6 +119,7 @@ export default {
   watch: {
     computedChartData: "updateChart",
     computedChartOptions: "updateChart",
+    contextValue: "fetchChartData",
   },
   methods: {
     labelColor(grid=false) {
@@ -152,15 +152,25 @@ export default {
         return;
       }
       try {
-        const url = new URL("/plotting/api/plotData/", BASE_URL);
-        //const url = new URL("http://localhost:8000/plotting/api/plotData/");
+        const url = new URL("/plotting/api/plotDataLine/", BASE_URL);
         url.searchParams.append("x", this.xVar);
         url.searchParams.append("y", this.yVar);
         if (this.cVar) {
           url.searchParams.append("c", this.cVar);
         }
-        console.log("url: ", url);
-        const response = await fetch(url);
+        if (this.contextValue) {
+          url.searchParams.append("contextValue", String(this.contextValue));
+        }
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCookie('csrftoken')
+            },
+            credentials: 'include',
+          }
+        );
         const data = await response.json();
         this.rows = Object.keys(data).map((key) => ({
           name: key,
