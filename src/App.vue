@@ -35,8 +35,4 @@ export default {
 </script>
 
 <style>
-.page-borders {
-  border-left: 50px solid rgb(var(--v-theme-background));
-  border-right: 50px solid rgb(var(--v-theme-background));
-}
 </style>

@@ -5,21 +5,11 @@
 
     <v-spacer></v-spacer>
 
-    <v-icon color="primary-darken-1">mdi-white-balance-sunny</v-icon>
-    <v-switch
-        v-model="isDark"
-        hide-details
-        inset
-        @click="toggleTheme"
-        class="mx-2">
-    </v-switch>
-    <v-icon class="mr-5" color="primary-darken-1">mdi-weather-night</v-icon>
-
     <v-menu transition="slide-x-transition">
       <template v-slot:activator="{ props }">
           <v-btn to="/" color="primary-darken-1" cl="mx-1" v-bind="props">
             <template v-slot:prepend>
-              <v-icon>mdi-home</v-icon>
+              <v-icon>mdi-home-outline</v-icon>
             </template>
             Home</v-btn>
       </template>
@@ -54,20 +44,26 @@
             Network</v-btn>
       </template>
     </v-menu>
-    <!--<v-menu transition="slide-x-transition">
-      <template v-slot:activator="{ props }">
-        <v-btn color="#104D63" v-bind="props">API</v-btn>
-      </template>
-    </v-menu>-->
     <v-menu transition="slide-x-transition">
       <template v-slot:activator="{ props }">
           <v-btn to="/about-us" color="primary-darken-1" class="mx-1" v-bind="props">
             <template v-slot:prepend>
-              <v-icon>mdi-account-group-outline</v-icon>
+              <v-icon>mdi-book-outline</v-icon>
             </template>
-            About</v-btn>
+            Documentation</v-btn>
       </template>
     </v-menu>
+
+    <v-icon color="primary-darken-1">mdi-white-balance-sunny</v-icon>
+    <v-switch
+        v-model="isDark"
+        hide-details
+        inset
+        @click="toggleTheme"
+        class="mx-2">
+    </v-switch>
+    <v-icon class="mr-5" color="primary-darken-1">mdi-weather-night</v-icon>
+
     <v-menu>
       <template v-slot:activator="{ props }">
           <v-btn @click="handleAuth" color="primary-darken-1" class="mx-1" :icon=icon></v-btn>
