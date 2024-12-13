@@ -16,57 +16,19 @@
         </v-row>
       </v-container>
       <v-container class="mt-4 ">
-            <FilterToolbar @change-context="updateData"></FilterToolbar>
-        <!-- Clickable description with toggle functionality -->
-        <!--
-        <div class="overview-description mb-4" @click="toggleDescription">
-          <p v-if="!isExpanded">
-            <strong class="plain-text"
-              >Explore Data Overview and Visualizations:</strong
-            >
-            This page provides a comprehensive overview of the dataset,
-            showcasing key statistics and insights through a variety of
-            visualization methods.
-            <span
-              class="toggle-link plain-text"
-              v-if="!isExpanded"
-              @click.stop="toggleDescription"
-              >Read more</span
-            >
-          </p>
-          <p v-if="isExpanded">
-            <strong class="plain-text">
-              Explore Data Overview and Visualizations:</strong>
-            This page provides a comprehensive overview of the dataset,
-            showcasing key statistics and insights through a variety of
-            visualization methods. <br/> 
-            The data is displayed using different charts
-            and graphs, such as box plots to highlight data distribution and
-            outliers, heatmaps to reveal
-            correlations and patterns. <br/>
-            These visualizations enable a deeper understanding of the dataset,
-            making it easier to identify significant relationships and trends.
-            Click on any visualization to explore the data in more detail and
-            customize your view.
-            <span
-              class="toggle-link plain-text"
-              @click.stop="toggleDescription"
-              >Read less</span
-            >
-          </p>
-        </div> -->
+        <FilterToolbar @change-context="updateData"></FilterToolbar>
         <v-row class="my-2 justify-center">
-          <v-card rounded="lg" elevation="2"   class="responsive-card">
+          <v-card rounded="lg" elevation="2" class="responsive-card">
             <v-toolbar color="primary-darken-1" density="compact">
               <v-toolbar-title>
-                Overview of Cohorts Data
+                Variable Summary
                 <v-tooltip bottom>
                   <template v-slot:activator="{ props }">
                     <v-icon v-bind="props">mdi-information</v-icon>
                   </template>
                   <span>
-                          Here is an overview of simulated cohorts subsets from CHRIS data
-                        </span>
+                    Here is an overview of simulated cohorts subsets from CHRIS data
+                  </span>
                 </v-tooltip>
               </v-toolbar-title>
             </v-toolbar>
@@ -77,22 +39,22 @@
               <v-card>
                 <v-card-text>
                   <!-- Cards filling the entire row, equally spaced -->
-                  <v-row class="fill-height" justify="space-between" align="stretch">
+                  <v-row class="fill-height" justify="space-around" align="stretch">
                     <v-col
                         :cols="12 / rows1.length"
                         v-for="(item, index) in rows1"
                         :key="index"
-                        class="d-flex"
+                        class=""
                     >
-                      <v-card class="mx-0 d-flex flex-row align-center justify-center" outlined>
+                      <v-card class="mx-0 d-flex flex-row align-center" outlined>
                         <v-img
-                            :src="getImageForCard(item.name)"
-                            :alt="item.name"
-                            width="40"
-                            height="40"
-                            class="mx-2 bg-layer"
+                          :src="getImageForCard(item.name)"
+                          :alt="item.name"
+                          max-width="40"
+                          max-height="40"
+                          class="mx-3 bg-layer"
                         ></v-img>
-                        <div class="text-left mr-5 my-2">
+                        <div class="text-left mr-3 my-2 d-flex flex-column justify-center">
                           <div class="small-title">{{ item.name }}</div>
                           <div class="number-data">{{ item.column1 }}</div>
                         </div>
@@ -116,10 +78,10 @@
                   <template v-slot:activator="{ props }">
                     <v-icon v-bind="props">mdi-information</v-icon>
                   </template>
-                  <span
-                  >You can select and visualize variables for your own
-                      requirements</span
-                  >
+                  <span>
+                    You can select and visualize variables for your own
+                      requirements
+                  </span>
                 </v-tooltip>
               </v-toolbar-title>
               <v-spacer></v-spacer>
@@ -335,86 +297,85 @@
                           </div>
                         </v-col>
 
-                            <!--Heatmap-->
-                            <v-col cols="12" align="center">
-                              <div style="height: 480px; width: 800px">
-                                <CustomHeatmap
-                                    :x-var="selectedVariableHeatmap1"
-                                    :y-var="selectedVariableHeatmap2"
-                                    :context-value="contextValue"
-                                />
-                              </div>
-                            </v-col>
-                          </v-row>
-                        </template>
+                        <!--Heatmap-->
+                        <v-col cols="12" align="center">
+                          <div style="height: 480px; width: 800px">
+                            <CustomHeatmap
+                                :x-var="selectedVariableHeatmap1"
+                                :y-var="selectedVariableHeatmap2"
+                                :context-value="contextValue"
+                            />
+                          </div>
+                        </v-col>
+                      </v-row>
+                    </template>
 
-                        <!-- Content for the variable counts tab -->
-                        <template v-else-if="tab.value === 6">
-                          <!--Bar Plot-->
-                          <v-row>
-                            <!--Drop Down list-->
-                            <v-col cols="12" align="center">
-                              <div class="d-flex justify-space-around">
-                                <!--Select X variables-->
-                                <v-tooltip location="top" open-on-hover>
-                                  <template v-slot:activator="{ props }">
-                                    <v-autocomplete
-                                        v-model="selectedXvariableBar"
-                                        clearable
-                                        variant="outlined"
-                                        density="compact"
-                                        label="X Variable"
-                                        :items="xItemsBar"
-                                        class="variable-field"
-                                        v-bind="props"
-                                    ></v-autocomplete>
-                                  </template>
-                                  <span>Categorical variable possible</span>
-                                </v-tooltip>
-                                <!--Colored by which variables-->
-                                <v-tooltip location="top" open-on-hover>
-                                  <template v-slot:activator="{ props }">
-                                    <v-autocomplete
-                                        v-model="selectedCvariableBar"
-                                        clearable
-                                        variant="outlined"
-                                        density="compact"
-                                        label="Colored by (optional)"
-                                        :items="colorItemsBar"
-                                        class="variable-field"
-                                        v-bind="props"
-                                    ></v-autocomplete>
-                                  </template>
-                                  <span>Categorical variable as grouping</span>
-                                </v-tooltip>
-                              </div>
-                            </v-col>
+                    <!-- Content for the variable counts tab -->
+                    <template v-else-if="tab.value === 6">
+                      <!--Bar Plot-->
+                      <v-row>
+                        <!--Drop Down list-->
+                        <v-col cols="12" align="center">
+                          <div class="d-flex justify-space-around">
+                            <!--Select X variables-->
+                            <v-tooltip location="top" open-on-hover>
+                              <template v-slot:activator="{ props }">
+                                <v-autocomplete
+                                    v-model="selectedXvariableBar"
+                                    clearable
+                                    variant="outlined"
+                                    density="compact"
+                                    label="X Variable"
+                                    :items="xItemsBar"
+                                    class="variable-field"
+                                    v-bind="props"
+                                ></v-autocomplete>
+                              </template>
+                              <span>Categorical variable possible</span>
+                            </v-tooltip>
+                            <!--Colored by which variables-->
+                            <v-tooltip location="top" open-on-hover>
+                              <template v-slot:activator="{ props }">
+                                <v-autocomplete
+                                    v-model="selectedCvariableBar"
+                                    clearable
+                                    variant="outlined"
+                                    density="compact"
+                                    label="Colored by (optional)"
+                                    :items="colorItemsBar"
+                                    class="variable-field"
+                                    v-bind="props"
+                                ></v-autocomplete>
+                              </template>
+                              <span>Categorical variable as grouping</span>
+                            </v-tooltip>
+                          </div>
+                        </v-col>
 
-                            <!--Bar-->
-                            <v-col cols="12" align="center">
-                              <div style="height: 450px; width: 800px">
-                                <CustomBar
-                                    :x-var="selectedXvariableBar"
-                                    :c-var="selectedCvariableBar"
-                                    :context-value="contextValue"
-                                />
-                              </div>
-                            </v-col>
-                          </v-row>
-                        </template>
-                      </v-card-text>
-                    </v-card>
-                  </v-tabs-window-item>
-                </v-tabs-window>
-              </v-card>
-            </v-row>
+                        <!--Bar-->
+                        <v-col cols="12" align="center">
+                          <div style="height: 450px; width: 800px">
+                            <CustomBar
+                                :x-var="selectedXvariableBar"
+                                :c-var="selectedCvariableBar"
+                                :context-value="contextValue"
+                            />
+                          </div>
+                        </v-col>
+                      </v-row>
+                    </template>
+                  </v-card-text>
+                </v-card>
+              </v-tabs-window-item>
+            </v-tabs-window>
+          </v-card>
+        </v-row>
       </v-container>
     </v-main>
   </v-app>
 </template>
 
 <script>
-import {ca, da, th} from "vuetify/locale";
 import {BASE_URL} from "../components/constants.js";
 import CustomLine from "../components/plots/CustomLine.vue";
 import CustomBar from "../components/plots/CustomBar.vue";
@@ -509,6 +470,24 @@ export default {
 
       // context value
       contextValue: null,
+
+      informationTextShort:
+          "This page provides a comprehensive overview of the dataset,\n" +
+          "showcasing key statistics and insights through a variety of\n" +
+          "visualization methods.",
+      informationTextLong:
+          "Explore Data Overview and Visualizations:</strong>\n" +
+          "This page provides a comprehensive overview of the dataset,\n" +
+          "showcasing key statistics and insights through a variety of\n" +
+          "visualization methods. <br/> \n" +
+          "The data is displayed using different charts\n" +
+          "and graphs, such as box plots to highlight data distribution and\n" +
+          "outliers, heatmaps to reveal\n" +
+          "correlations and patterns. <br/>\n" +
+          "These visualizations enable a deeper understanding of the dataset,\n" +
+          "making it easier to identify significant relationships and trends.\n" +
+          "Click on any visualization to explore the data in more detail and\n" +
+          "customize your view.",
     };
   },
 
@@ -578,65 +557,52 @@ export default {
     },
 
     async getAllVariables() {
-        const csrfToken = getCookie('csrftoken');
-        const contextValue = this.contextValue;
-        let url = `${BASE_URL}/general/api/variables/`;
+      const csrfToken = getCookie('csrftoken');
+      const contextValue = this.contextValue;
+      let url = `${BASE_URL}/general/api/variables/`;
 
-        if (contextValue) {
-          url += `?contextValue=${encodeURIComponent(contextValue)}`;
-        }
+      if (contextValue) {
+        url += `?contextValue=${encodeURIComponent(contextValue)}`;
+      }
 
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken
-          },
-          credentials: 'include',
-        });
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        },
+        credentials: 'include',
+      });
 
-        const data = await response.json();
+      const data = await response.json();
 
-        this.allVariables = data;
+      this.allVariables = data;
 
-        console.log("Fetched all variables");
-        return data;
+      console.log("Fetched all variables");
+      return data;
     },
 
     getImageForCard(name) {
       const images = [
         {
           name: "Participants",
-          imagePath: new URL(
-              "../assets/figures/participants.png",
-              import.meta.url
-          ).href,
+          imagePath: new URL("../assets/figures/participants.png", import.meta.url).href,
         },
         {
           name: "Phenotypes",
-          imagePath: new URL(
-              "../assets/figures/phenotypes.png",
-              import.meta.url
-          ).href,
+          imagePath: new URL("../assets/figures/phenotypes.png", import.meta.url).href,
         },
         {
           name: "Proteins",
-          imagePath: new URL("../assets/figures/proteins.png", import.meta.url)
-              .href,
+          imagePath: new URL("../assets/figures/proteins.png", import.meta.url).href,
         },
         {
           name: "Metabolites",
-          imagePath: new URL(
-              "../assets/figures/metabolites.png",
-              import.meta.url
-          ).href,
+          imagePath: new URL("../assets/figures/metabolites.png", import.meta.url).href,
         },
         {
           name: "Genetic Variants",
-          imagePath: new URL(
-              "../assets/figures/genetic_variants.png",
-              import.meta.url
-          ).href,
+          imagePath: new URL("../assets/figures/genetic_variants.png", import.meta.url).href,
         },
       ];
       for (let i = 0; i < images.length; i++) {
@@ -727,6 +693,7 @@ export default {
   width: 80%;
   transition: width 0.3s ease;
 }
+
 @media (max-width: 1500px) {
   .responsive-card {
     width: 100%;
@@ -734,15 +701,8 @@ export default {
 }
 
 .title {
-  font-weight: bold;
-}
-
-.first-column {
-  padding-right: 10px;
-}
-
-.second-column {
-  padding-left: 10px;
+  font-size: 3rem;
+  color: rgb(var(--v-theme-darken-1));
 }
 
 .small-title {
