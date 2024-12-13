@@ -1,5 +1,5 @@
 <template>
-  <v-footer height="50" class="page-borders-footer" app>
+  <v-footer height="50" class="page-borders-footer">
     <v-row justify="center" no-gutters>
       <v-col cols="12" class="text-center">
         <p class="white--text">©{{ new Date().getFullYear() }} — DyHealthNet</p>
