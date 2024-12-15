@@ -44,12 +44,12 @@
     <VariableHistogram :bar-data="histogramData" />
   </v-col>
   <v-col cols="1" class="center-icon">
-      <v-icon
-              color="darken-1"
-              size="25"
-              class="my-1 center-icon custom-hover"
-              @click="handleClick({action: 'delete', first: this.first, id: this.ruleId, group: this.ruleGroup})">
-        mdi-close-circle-outline</v-icon>
+    <v-btn icon="mdi-close"
+           density="comfortable"
+            color="error"
+            @click="handleClick({action: 'delete', first: this.first, id: this.ruleId, group: this.ruleGroup})">
+           </v-btn>
+
   </v-col>
 </template>
 
@@ -57,11 +57,7 @@
 import {computed, toRefs} from "vue";
 import FilterRuleValue from "@/components/contexts/FilterRuleValue.vue";
 import VariableHistogram from "@/components/contexts/VariableHistogram.vue";
-import {da} from "vuetify/locale";
-
-const BASE_URL =
-    import.meta.env.VITE_BACKEND_URL ||
-    `${window.location.protocol}//${window.location.host}`;
+import {BASE_URL} from "src/components/constants.js";
 
 export default  {
   name: 'FilterLine',
@@ -316,12 +312,12 @@ export default  {
 }
 
 .custom-hover {
-  filter: brightness(20%);
   transition: box-shadow 0.3s ease;
+  color: rgb(var(--v-theme-darken-1));
 }
 
 .custom-hover:hover {
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6));
+  filter: drop-shadow(0 4px 8px rgba(var(--v-theme-darken-1), 0.6));
 }
 
 </style>
