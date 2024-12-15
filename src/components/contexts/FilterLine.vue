@@ -311,13 +311,4 @@ export default  {
   padding-bottom: 1px;
 }
 
-.custom-hover {
-  transition: box-shadow 0.3s ease;
-  color: rgb(var(--v-theme-darken-1));
-}
-
-.custom-hover:hover {
-  filter: drop-shadow(0 4px 8px rgba(var(--v-theme-darken-1), 0.6));
-}
-
 </style>

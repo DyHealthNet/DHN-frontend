@@ -46,7 +46,7 @@
                         :key="index"
                         class=""
                     >
-                      <v-card class="mx-0 d-flex flex-row align-center" outlined>
+                      <v-card class="mx-0 d-flex flex-row align-center" outlined elevation="0">
                         <v-img
                           :src="getImageForCard(item.name)"
                           :alt="item.name"
@@ -72,19 +72,22 @@
           <v-card rounded="lg" elevation="2" class="responsive-card">
             <!--Tab bar name-->
             <v-toolbar color="primary-darken-1" density="compact">
-              <v-toolbar-title
-              >Data Overview
-                <v-tooltip bottom>
-                  <template v-slot:activator="{ props }">
-                    <v-icon v-bind="props">mdi-information</v-icon>
-                  </template>
-                  <span>
-                    You can select and visualize variables for your own
-                      requirements
-                  </span>
-                </v-tooltip>
+              <v-toolbar-title>
+                <div class="d-flex align-center">
+                  <span>Data Overview</span>
+                  <v-tooltip bottom>
+                    <template v-slot:activator="{ props }">
+                      <v-icon class="ml-2" v-bind="props">mdi-information</v-icon>
+                    </template>
+                    <span>
+                      You can select and visualize variables for your own
+                        requirements
+                    </span>
+                  </v-tooltip>
+                <v-spacer></v-spacer>
+                <v-btn icon="mdi-cog-outline" @click="showOptions = true"></v-btn>
+                </div>
               </v-toolbar-title>
-              <v-spacer></v-spacer>
               <template v-slot:extension>
                 <v-tabs v-model="model" align-tabs="center" bg-color="primary-darken-1">
                   <v-tab
@@ -96,6 +99,52 @@
                 </v-tabs>
               </template>
             </v-toolbar>
+
+            <!-- options dialog -->
+            <v-dialog v-model="showOptions" max-width="1000px">
+              <v-card>
+                <v-card-title>Plotting options</v-card-title>
+                <v-card-text>
+                  <v-row>
+                    <v-col cols="6">
+                      <p>Plot size</p>
+                    </v-col>
+                  </v-row>
+                  <v-row>
+                    <v-col cols="6">
+                      <v-slider v-model="plotWidth" max="2000" min="200" step="1">
+                            <template v-slot:append>
+                              <v-text-field
+                                v-model="plotWidth"
+                                density="compact"
+                                style="width: 90px"
+                                type="number"
+                                variant="outlined"
+                                hide-details
+                                single-line
+                              ></v-text-field>
+                            </template>
+                      </v-slider>
+                      <v-slider v-model="plotHeight" max="2000" min="200" step="1">
+                        <template v-slot:append>
+                              <v-text-field
+                                v-model="plotHeight"
+                                density="compact"
+                                style="width: 90px"
+                                type="number"
+                                variant="outlined"
+                                hide-details
+                                single-line
+                              ></v-text-field>
+                            </template></v-slider>
+                    </v-col>
+                  </v-row>
+                </v-card-text>
+                <v-card-actions>
+                  <v-btn @click="showOptions = false">Close</v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-dialog>
 
             <!--Tab content-->
             <v-tabs-window v-model="model">
@@ -354,13 +403,13 @@
 
                         <!--Bar-->
                         <v-col cols="12" align="center">
-                          <div style="height: 450px; width: 800px">
+                          <v-sheet :max-width="plotWidth" :min-height="plotHeight" :max-height="plotHeight">
                             <CustomBar
                                 :x-var="selectedXvariableBar"
                                 :c-var="selectedCvariableBar"
                                 :context-value="contextValue"
                             />
-                          </div>
+                            </v-sheet>
                         </v-col>
                       </v-row>
                     </template>
@@ -411,7 +460,6 @@ export default {
   data() {
     return {
       data_table: null,
-
       model: "tab-2",
 
       //Tab names
@@ -471,6 +519,12 @@ export default {
       // context value
       contextValue: null,
 
+      // options
+      showOptions: false,
+      plotWidth: 900,
+      plotHeight: 500,
+
+      // information texts
       informationTextShort:
           "This page provides a comprehensive overview of the dataset,\n" +
           "showcasing key statistics and insights through a variety of\n" +
