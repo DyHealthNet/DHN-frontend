@@ -68,7 +68,7 @@ export default {
       if (!this.selectedContext) {
         return;
       }
-      this.filterToolbarColor = this.selectedContext.darkVariant;
+      this.filterToolbarColor = this.selectedContext.lightVariant;
     },
 
 

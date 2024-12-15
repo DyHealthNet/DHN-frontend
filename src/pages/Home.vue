@@ -140,7 +140,7 @@
 
         <!-- Part 4 Foundation-->
         <v-row class="my-5">
-          <v-col cols="6">
+          <v-col cols="12" lg="6" md="12">
             <v-row>
               <v-col cols="6" class="text-center align-content-center">
                 <a href="https://www.tum.de/" target="_blank">
@@ -190,7 +190,7 @@
             </v-row>
           </v-col>
 
-        <v-col cols="6" class="d-flex flex-column align-center text-center">
+          <v-col cols="12" lg="6" md="12" class="d-flex flex-column align-center text-center">
           <h2 class="secondary-header">
             Our collaborators
           </h2>
