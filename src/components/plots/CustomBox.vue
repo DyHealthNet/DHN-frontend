@@ -7,7 +7,6 @@
       :yLabel="this.yVar"
       ref="boxplotchartComponent"
     />
-    here: {{ contextValue }}
     <!--PopUp Alert-->
     <div class="popup">
       <v-snackbar v-model="showPopup" color="error" multi-line>
@@ -20,23 +19,6 @@
             </v-btn>
         </template>
       </v-snackbar>
-    </div>
-
-    <!-- Special cases as Example -->
-    <div class="button-text-container">
-      <div class="button-group">
-        <v-btn @click="showExample" class="mx-1">
-          Show Example with Popup
-        </v-btn>
-        <v-btn @click="closeExample" class="mx-1">
-          Close Example
-        </v-btn>
-      </div>
-
-      <p class="centered-text">
-        Click this button to see a special case with a popup. Don't forget to
-        close the example first if you want to return to the original data.
-      </p>
     </div>
   </div>
 </template>
@@ -122,9 +104,6 @@ export default {
           // Verwende die Beispiel-Daten 
           data = testbox;
         } else {
-          console.log("this.xVar: ", this.xVar);
-          console.log("this.yVar: ", this.yVar);
-          console.log("this.cVar: ", this.cVar);
           if (!this.xVar || !this.yVar || this.checkVariableConflict()) {
             this.chartData = { datasets: [] };
             return;

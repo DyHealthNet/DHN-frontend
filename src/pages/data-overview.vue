@@ -225,14 +225,14 @@
 
                         <!--Box Chart-->
                         <v-col cols="12" align="center">
-                          <div style="height: 500px; width: 800px">
+                          <v-sheet :max-width="plotWidth" :min-height="plotHeight" :max-height="plotHeight">
                             <CustomBox
                                 :x-var="selectedXvariableBox"
                                 :y-var="selectedYvariableBox"
                                 :c-var="selectedCvariableBox"
                                 :context-value="contextValue"
                             />
-                          </div>
+                          </v-sheet>
                         </v-col>
                       </v-row>
                     </template>
@@ -301,14 +301,14 @@
 
                         <!--Line Chart-->
                         <v-col cols="12" align="center">
-                          <div style="height: 450px; width: 800px">
+                          <v-sheet :max-width="plotWidth" :min-height="plotHeight" :max-height="plotHeight">
                             <CustomLine
                                 :x-var="selectedXvariableLine"
                                 :y-var="selectedYvariableLine"
                                 :c-var="selectedCvariableLine"
                                 :context-value="contextValue"
                             />
-                          </div>
+                          </v-sheet>
                         </v-col>
                       </v-row>
                     </template>
@@ -357,13 +357,13 @@
 
                         <!--Heatmap-->
                         <v-col cols="12" align="center">
-                          <div style="height: 480px; width: 800px">
+                          <v-sheet :max-width="plotWidth" :min-height="plotHeight" :max-height="plotHeight">
                             <CustomHeatmap
                                 :x-var="selectedVariableHeatmap1"
                                 :y-var="selectedVariableHeatmap2"
                                 :context-value="contextValue"
                             />
-                          </div>
+                          </v-sheet>
                         </v-col>
                       </v-row>
                     </template>
