@@ -59,6 +59,7 @@
                           <div class="number-data">{{ item.column1 }}</div>
                         </div>
                       </v-card>
+                      <v-divider thickness="2"></v-divider>
                     </v-col>
                   </v-row>
                 </v-card-text>
@@ -109,6 +110,9 @@
                     <v-col cols="6">
                       <p>Plot size</p>
                     </v-col>
+                    <v-col cols="6">
+                      <p>Color palette</p>
+                    </v-col>
                   </v-row>
                   <v-row>
                     <v-col cols="6">
@@ -137,6 +141,11 @@
                                 single-line
                               ></v-text-field>
                             </template></v-slider>
+                    </v-col>
+                    <v-col cols="6" class="d-flex">
+                      <ColorPalette :colors="colorPalettes.tab10" palette-id="tab10" class="mx-3"></ColorPalette>
+                      <ColorPalette :colors="colorPalettes.rocket" palette-id="rocket" class="mx-3"></ColorPalette>
+                      <ColorPalette :colors="colorPalettes.husl" palette-id="husl" class="mx-3"></ColorPalette>
                     </v-col>
                   </v-row>
                 </v-card-text>
@@ -444,6 +453,7 @@ import {
 } from "chart.js";
 import FilterToolbar from "@/components/FilterToolbar.vue";
 import {getCookie} from "@/components/authentication/auth.js";
+import ColorPalette from "@/components/plots/ColorPalette.vue";
 
 ChartJS.register(
     Title,
@@ -456,7 +466,7 @@ ChartJS.register(
 
 export default {
   name: "DataOverview",
-  components: {FilterToolbar, CustomBar, CustomLine, CustomBox, CustomHeatmap},
+  components: {ColorPalette, FilterToolbar, CustomBar, CustomLine, CustomBox, CustomHeatmap},
   data() {
     return {
       data_table: null,
@@ -523,6 +533,29 @@ export default {
       showOptions: false,
       plotWidth: 900,
       plotHeight: 500,
+      colorPalettes: {
+        'tab10': [
+                  { name: 'first', hex: '#4878d0' },
+                  { name: 'second', hex: '#ee854a' },
+                  { name: 'third', hex: '#6acc64' },
+                  { name: 'fourth', hex: '#d65f5f' },
+                  { name: 'fifth', hex: '#956cb4'}
+                ],
+        'rocket': [
+          {name: 'first', hex: '#35193e'},
+          {name: 'second', hex: '#701f57'},
+          {name: 'third', hex: '#ad1759'},
+          {name: 'fourth', hex: '#e13342'},
+          {name: 'fifth', hex: '#f37651'}
+        ],
+        'husl': [
+          {name: 'first', hex: '#f77189'},
+          {name: 'second', hex: '#ce9032'},
+          {name: 'third', hex: '#97a431'},
+          {name: 'fourth', hex: '#32b166'},
+          {name: 'fifth', hex: '#1f968b'}
+        ]
+      },
 
       // information texts
       informationTextShort:

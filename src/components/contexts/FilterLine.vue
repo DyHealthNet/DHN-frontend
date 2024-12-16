@@ -57,7 +57,7 @@
 import {computed, toRefs} from "vue";
 import FilterRuleValue from "@/components/contexts/FilterRuleValue.vue";
 import VariableHistogram from "@/components/contexts/VariableHistogram.vue";
-import {BASE_URL} from "src/components/constants.js";
+import {BASE_URL} from "@/components/constants.js";
 
 export default  {
   name: 'FilterLine',
