@@ -379,6 +379,7 @@
                                 :x-var="selectedVariableHeatmap1"
                                 :y-var="selectedVariableHeatmap2"
                                 :context-value="contextValue"
+                                :palette="userSelectedPalette"
                             />
                           </v-sheet>
                         </v-col>

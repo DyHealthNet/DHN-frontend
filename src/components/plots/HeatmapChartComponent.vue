@@ -36,6 +36,7 @@ export default {
     createHeatmap() {
       const xCategoriesAsString = this.chartData.xCategories.map(String);
       const yCategoriesAsString = this.chartData.yCategories.map(String);
+      const paletteColors = this.chartData.colors ? this.chartData.colors : ['#f7f7f7', '#d9d9d9', '#104d63'];
 
       const trace = {
         x: xCategoriesAsString,
@@ -43,10 +44,9 @@ export default {
         z: this.chartData.datasets,
         type: "heatmap",
         colorscale: [
-            // TODO: Change whatever the hell this is
-          [0, "rgb(209,229,240)"], // Lightest color
-          [0.5, "rgb(131,179,197)"], // Mid-tone color
-          [1, "rgb(16,77,99)"], // Darkest color (#104d63)
+          [0, paletteColors[0]], // Lightest color
+          [0.5, paletteColors[1]], // Mid-tone color
+          [1, paletteColors[2]], // Darkest color (#104d63)
         ],
       };
 

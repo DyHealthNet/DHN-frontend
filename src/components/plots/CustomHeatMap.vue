@@ -30,6 +30,10 @@ export default {
       type: Number,
       required: false,
     },
+    palette: {
+      type: String,
+      required: false,
+    },
   },
 
   data() {
@@ -73,6 +77,9 @@ export default {
         url.searchParams.append("y", this.yVar);
         if (this.contextValue) {
           url.searchParams.append("contextValue", String(this.contextValue));
+        }
+        if (this.palette && this.palette === "rocket") {
+          url.searchParams.append("colors", this.palette);
         }
 
         const response = await fetch(url, {
