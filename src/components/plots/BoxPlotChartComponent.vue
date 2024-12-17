@@ -1,6 +1,6 @@
 <template>
   <div class="chart-container">
-    <canvas ref="canvas"></canvas>
+    <canvas class="max-canvas" ref="canvas"></canvas>
   </div>
 </template>
 
@@ -89,4 +89,15 @@ export default {
 };
 </script>
 
-
+<style scoped>
+.max-canvas {
+  max-height: 100%;
+  max-width: 100%;
+  height: 100%;
+  width: 100%;
+}
+.chart-container {
+  height: 100%;
+  width: 100%;
+}
+</style>

@@ -1,5 +1,4 @@
 <template>
-  <div>
     <!-- BoxPlotChartComponent anzeigen -->
     <BoxPlotChartComponent
       :chartData="chartData"
@@ -20,7 +19,6 @@
         </template>
       </v-snackbar>
     </div>
-  </div>
 </template>
 
 <script>

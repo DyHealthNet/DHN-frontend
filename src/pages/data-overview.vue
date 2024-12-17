@@ -129,7 +129,7 @@
                               ></v-text-field>
                             </template>
                       </v-slider>
-                      <v-slider v-model="plotHeight" max="2000" min="200" step="1">
+                      <v-slider v-model="plotHeight" max="1000" min="200" step="1">
                         <template v-slot:append>
                               <v-text-field
                                 v-model="plotHeight"
@@ -240,7 +240,7 @@
 
                         <!--Box Chart-->
                         <v-col cols="12" align="center">
-                          <v-sheet :max-width="plotWidth" :min-height="plotHeight" :max-height="plotHeight">
+                          <v-sheet :width="plotWidth" :height="plotHeight">
                             <CustomBox
                                 :x-var="selectedXvariableBox"
                                 :y-var="selectedYvariableBox"
