@@ -143,9 +143,24 @@
                             </template></v-slider>
                     </v-col>
                     <v-col cols="6" class="d-flex">
-                      <ColorPalette :colors="colorPalettes.tab10" palette-id="tab10" class="mx-3"></ColorPalette>
-                      <ColorPalette :colors="colorPalettes.rocket" palette-id="rocket" class="mx-3"></ColorPalette>
-                      <ColorPalette :colors="colorPalettes.husl" palette-id="husl" class="mx-3"></ColorPalette>
+                      <ColorPalette :colors="colorPalettes.tab10"
+                                    palette-id="tab10"
+                                    class="mx-3"
+                                    @palette-selected="(paletteId) => {this.userSelectedPalette = paletteId}"
+                                    :current-palette="userSelectedPalette"
+                      ></ColorPalette>
+                      <ColorPalette :colors="colorPalettes.rocket"
+                                    palette-id="rocket"
+                                    class="mx-3"
+                                    @palette-selected="(paletteId) => {this.userSelectedPalette = paletteId}"
+                                    :current-palette="userSelectedPalette"
+                      ></ColorPalette>
+                      <ColorPalette :colors="colorPalettes.husl"
+                                    palette-id="husl"
+                                    class="mx-3"
+                                    @palette-selected="(paletteId) => {this.userSelectedPalette = paletteId}"
+                                    :current-palette="userSelectedPalette"
+                      ></ColorPalette>
                     </v-col>
                   </v-row>
                 </v-card-text>
@@ -417,6 +432,7 @@
                                 :x-var="selectedXvariableBar"
                                 :c-var="selectedCvariableBar"
                                 :context-value="contextValue"
+                                :palette="userSelectedPalette"
                             />
                             </v-sheet>
                         </v-col>
@@ -556,6 +572,7 @@ export default {
           {name: 'fifth', hex: '#1f968b'}
         ]
       },
+      userSelectedPalette: 'tab10',
 
       // information texts
       informationTextShort:
