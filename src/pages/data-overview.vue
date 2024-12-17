@@ -246,6 +246,7 @@
                                 :y-var="selectedYvariableBox"
                                 :c-var="selectedCvariableBox"
                                 :context-value="contextValue"
+                                :palette="userSelectedPalette"
                             />
                           </v-sheet>
                         </v-col>
@@ -322,6 +323,7 @@
                                 :y-var="selectedYvariableLine"
                                 :c-var="selectedCvariableLine"
                                 :context-value="contextValue"
+                                :palette="userSelectedPalette"
                             />
                           </v-sheet>
                         </v-col>

@@ -47,6 +47,10 @@ export default {
       type: Number,
       required: false,
     },
+    palette: {
+      type: String,
+      required: false,
+    }
   },
   data() {
     return {
@@ -156,6 +160,9 @@ export default {
         }
         if (this.contextValue) {
           url.searchParams.append("contextValue", String(this.contextValue));
+        }
+        if (this.palette) {
+          url.searchParams.append("colors", String(this.palette))
         }
 
         const response = await fetch(url, {
