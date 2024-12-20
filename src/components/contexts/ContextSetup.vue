@@ -526,6 +526,10 @@ export default {
         conditions[rule.group].push(rule.rule);
       }
 
+      if (!this.selectedTests) {
+        this.selectedTests = this.defaultSelectedTests;
+      }
+
       return {
         connect: {inside: this.innerConnection, outside: this.outerConnection},
         conditions: conditions,
