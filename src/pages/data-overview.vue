@@ -110,8 +110,11 @@
                     <v-col cols="6">
                       <p>Plot size</p>
                     </v-col>
-                    <v-col cols="6">
-                      <p>Color palette</p>
+                    <v-col cols="3">
+                      <p>Color palette continuous</p>
+                    </v-col>
+                    <v-col>
+                      <p>Color palette categorical</p>
                     </v-col>
                   </v-row>
                   <v-row>
@@ -142,24 +145,32 @@
                               ></v-text-field>
                             </template></v-slider>
                     </v-col>
-                    <v-col cols="6" class="d-flex">
+                    <v-col cols="3" class="">
                       <ColorPalette :colors="colorPalettes.tab10"
                                     palette-id="tab10"
-                                    class="mx-3"
-                                    @palette-selected="(paletteId) => {this.userSelectedPalette = paletteId}"
-                                    :current-palette="userSelectedPalette"
-                      ></ColorPalette>
-                      <ColorPalette :colors="colorPalettes.rocket"
-                                    palette-id="rocket"
-                                    class="mx-3"
-                                    @palette-selected="(paletteId) => {this.userSelectedPalette = paletteId}"
-                                    :current-palette="userSelectedPalette"
+                                    class="mx-3 my-3"
+                                    @palette-selected="(paletteId) => {this.userSelectedPaletteCa = paletteId}"
+                                    :current-palette="userSelectedPaletteCa"
                       ></ColorPalette>
                       <ColorPalette :colors="colorPalettes.husl"
                                     palette-id="husl"
                                     class="mx-3"
-                                    @palette-selected="(paletteId) => {this.userSelectedPalette = paletteId}"
-                                    :current-palette="userSelectedPalette"
+                                    @palette-selected="(paletteId) => {this.userSelectedPaletteCa = paletteId}"
+                                    :current-palette="userSelectedPaletteCa"
+                      ></ColorPalette>
+                    </v-col>
+                    <v-col cols="3" class="">
+                      <ColorPalette palette-id="viridis"
+                                    :colors="colorPalettes.viridis"
+                                    class="mx-3 my-3"
+                                    @palette-selected="(paletteId) => {this.userSelectedPaletteCo = paletteId}"
+                                    :current-palette="userSelectedPaletteCo"
+                      ></ColorPalette>
+                      <ColorPalette :colors="colorPalettes.rocket"
+                                    palette-id="rocket"
+                                    class="mx-3"
+                                    @palette-selected="(paletteId) => {this.userSelectedPaletteCo = paletteId}"
+                                    :current-palette="userSelectedPaletteCo"
                       ></ColorPalette>
                     </v-col>
                   </v-row>
@@ -246,7 +257,7 @@
                                 :y-var="selectedYvariableBox"
                                 :c-var="selectedCvariableBox"
                                 :context-value="contextValue"
-                                :palette="userSelectedPalette"
+                                :palette="userSelectedPaletteCa"
                             />
                           </v-sheet>
                         </v-col>
@@ -323,7 +334,7 @@
                                 :y-var="selectedYvariableLine"
                                 :c-var="selectedCvariableLine"
                                 :context-value="contextValue"
-                                :palette="userSelectedPalette"
+                                :palette="userSelectedPaletteCa"
                             />
                           </v-sheet>
                         </v-col>
@@ -374,12 +385,12 @@
 
                         <!--Heatmap-->
                         <v-col cols="12" align="center">
-                          <v-sheet :max-width="plotWidth" :min-height="plotHeight" :max-height="plotHeight">
+                          <v-sheet :width="plotWidth" :height="plotHeight">
                             <CustomHeatmap
                                 :x-var="selectedVariableHeatmap1"
                                 :y-var="selectedVariableHeatmap2"
                                 :context-value="contextValue"
-                                :palette="userSelectedPalette"
+                                :palette="userSelectedPaletteCo"
                             />
                           </v-sheet>
                         </v-col>
@@ -435,7 +446,7 @@
                                 :x-var="selectedXvariableBar"
                                 :c-var="selectedCvariableBar"
                                 :context-value="contextValue"
-                                :palette="userSelectedPalette"
+                                :palette="userSelectedPaletteCa"
                             />
                             </v-sheet>
                         </v-col>
@@ -560,6 +571,20 @@ export default {
                   { name: 'fourth', hex: '#d65f5f' },
                   { name: 'fifth', hex: '#956cb4'}
                 ],
+        'husl': [
+          {name: 'first', hex: '#f77189'},
+          {name: 'second', hex: '#ce9032'},
+          {name: 'third', hex: '#97a431'},
+          {name: 'fourth', hex: '#32b166'},
+          {name: 'fifth', hex: '#1f968b'}
+        ],
+        'viridis': [
+          {name: 'first', hex: '#440154'},
+          {name: 'second', hex: '#3a528b'},
+          {name: 'third', hex: '#20908d'},
+          {name: 'fourth', hex: '#5dc963'},
+          {name: 'fifth', hex: '#fde725'}
+        ],
         'rocket': [
           {name: 'first', hex: '#35193e'},
           {name: 'second', hex: '#701f57'},
@@ -567,15 +592,9 @@ export default {
           {name: 'fourth', hex: '#e13342'},
           {name: 'fifth', hex: '#f37651'}
         ],
-        'husl': [
-          {name: 'first', hex: '#f77189'},
-          {name: 'second', hex: '#ce9032'},
-          {name: 'third', hex: '#97a431'},
-          {name: 'fourth', hex: '#32b166'},
-          {name: 'fifth', hex: '#1f968b'}
-        ]
       },
-      userSelectedPalette: 'tab10',
+      userSelectedPaletteCa: 'tab10',
+      userSelectedPaletteCo: 'viridis',
 
       // information texts
       informationTextShort:
