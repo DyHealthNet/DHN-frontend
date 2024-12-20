@@ -67,6 +67,7 @@ export default {
       chartData: {
         datasets: [],
       },
+      defaultChart: true,
     };
   },
 
@@ -169,6 +170,12 @@ export default {
           url.searchParams.append("colors", this.palette);
         }
 
+        // If the chart is the default chart, add the default parameter to the URL to enable the backend
+        // to send a cached version of the data
+        if (this.defaultChart) {
+          url.searchParams.append("default", "true");
+        }
+
         const response = await fetch(url, {
             method: 'GET',
             headers: {
@@ -185,8 +192,8 @@ export default {
         }));
 
         this.chartData = data;
-        //this.chartData = linePlot1;
-        console.log("this.chartData: ", this.chartData);
+
+        this.defaultChart = false;
 
         return this.chartData;
       } catch (error) {

@@ -65,6 +65,7 @@ export default {
       },
       showPopup: false, // Popup-Status
       useExampleData: false,
+      defaultChart: true,
     };
   },
 
@@ -114,6 +115,9 @@ export default {
             console.log("palette: ", this.palette);
             url.searchParams.append("colors", this.palette);
           }
+          if (this.defaultChart) {
+            url.searchParams.append("default", "true");
+          }
 
           const response = await fetch(url, {
             method: 'GET',
@@ -125,7 +129,9 @@ export default {
           });
           data = await response.json();
         }
-        console.log("data: ", data);
+
+        this.defaultChart = false;
+
         const filteredData = {
           labels: [],
           datasets: data.datasets.map((dataset) => ({
