@@ -144,7 +144,9 @@
     </div>
 
     <v-row>
+       <v-col>
       <AdvancedSettings :selected-tests="selectedTests" @data-changed="addTests"/>
+       </v-col>
     </v-row>
 
     <v-row>
@@ -207,16 +209,14 @@
 
 <script>
 import {fi} from "vuetify/locale";
+import {BASE_URL} from "../constants.js";
 
-const BASE_URL =
-    import.meta.env.VITE_BACKEND_URL ||
-    `${window.location.protocol}//${window.location.host}`;
 import StatusBox from "@/components/contexts/StatusBox.vue";
 import ConnectorButton from "@/components/contexts/ConnectorButton.vue";
 import FilterLine from "@/components/contexts/FilterLine.vue";
 import ConnectorLine from "@/components/contexts/ConnectorLine.vue";
 import NewFilterButton from "@/components/contexts/NewFilterButton.vue";
-import AdvancedSettings from "@/components/contexts/AdvancedSettings.vue";
+import AdvancedSettings from "@/components/AdvancedSettings.vue";
 import {v4 as uuidv4} from 'uuid';
 import { getCookie } from "@/components/authentication/auth.js";
 import { contextState } from '@/components/contexts/contextStatus.js';
@@ -449,7 +449,7 @@ export default {
             if (contextState.processFinished) {
               contextState.taskInfo = "Context Creation of context " + this.contextName + " is finished.";
               contextState.taskStarted = true;
-              contextState.taskType = "info";
+              contextState.taskType = "success";
               if (this.$route.path !== '/context') {
                 contextState.showIndicator = true;
               }

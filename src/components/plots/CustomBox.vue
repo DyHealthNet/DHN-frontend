@@ -26,9 +26,7 @@
 <script>
 import {getCookie} from "@/components/authentication/auth.js";
 
-const BASE_URL =
-  import.meta.env.VITE_BACKEND_URL ||
-  `${window.location.protocol}//${window.location.host}`;
+import {BASE_URL} from "../constants.js";
 import BoxPlotChartComponent from "@/components/plots/BoxPlotChartComponent.vue";
 import testbox from "../../data/test_boxplotData.json";
 //import testbox from "../data/test_boxPlotWithTimeAsX.json";
