@@ -4,9 +4,8 @@ const authState = reactive({
   isLoggedIn: null, // Initially unknown
 });
 
-const BASE_URL =
-  import.meta.env.VITE_BACKEND_URL ||
-  `${window.location.protocol}//${window.location.host}`;
+import {BASE_URL} from "../constants.js";
+
 
 export function getCookie(name) {
   const value = `; ${document.cookie}`;

@@ -475,9 +475,8 @@
 </template>
 
 <script>
-const BASE_URL =
-  import.meta.env.VITE_BACKEND_URL ||
-  `${window.location.protocol}//${window.location.host}`;
+import {BASE_URL} from "../components/constants.js";
+
 import { DataSet, Network } from "vis-network/standalone/esm/vis-network";
 import axios from "axios";
 import { groups } from "./networkData";

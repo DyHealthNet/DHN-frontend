@@ -101,10 +101,8 @@ import {reactive, onMounted, computed} from 'vue';
 import {useRoute} from "vue-router";
 import { ref, watch, inject } from 'vue';
 import { contextState } from '@/components/contexts/contextStatus.js';
+import {BASE_URL} from "../components/constants.js";
 
-const BASE_URL =
-  import.meta.env.VITE_BACKEND_URL ||
-  `${window.location.protocol}//${window.location.host}`;
 export default {
   computed: {
     contextState() {

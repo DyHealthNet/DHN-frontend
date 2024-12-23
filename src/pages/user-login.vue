@@ -157,9 +157,7 @@
 </template>
 
 <script>
-const BASE_URL =
-  import.meta.env.VITE_BACKEND_URL ||
-  `${window.location.protocol}//${window.location.host}`;
+import {BASE_URL} from "../components/constants.js";
 import router from "@/router.js";
 import SvgIcon from "@jamescoyle/vue-icon";
 import { mdiGithub } from '@mdi/js';

@@ -31,10 +31,8 @@
 <script>
 import {authState, checkLogin, getCookie} from '@/components/authentication/auth.js';
 import router from "@/router.js"; // If you're using a reactive auth state
+import {BASE_URL} from "../components/constants.js";
 
-const BASE_URL =
-  import.meta.env.VITE_BACKEND_URL ||
-  `${window.location.protocol}//${window.location.host}`;
 
 export default {
   async mounted() {
