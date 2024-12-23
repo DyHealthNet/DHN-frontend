@@ -16,6 +16,7 @@
     "axion": "^0.1.0",
     "axios": "^1.7.4",
     "chart.js": "^4.4.3",
+    "chartjs-chart-matrix": "^2.0.1",
     "echarts": "^5.5.1",
     "plotly.js-dist": "^2.34.0",
     "sweetalert2": "^11.12.4",
