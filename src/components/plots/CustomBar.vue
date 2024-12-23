@@ -58,6 +58,7 @@ export default {
         labels: [],
         datasets: [],
       },
+      defaultChart: true,
     };
   },
   computed: {
@@ -164,6 +165,9 @@ export default {
         if (this.palette) {
           url.searchParams.append("colors", String(this.palette))
         }
+        if (this.defaultChart) {
+          url.searchParams.append("default", "true");
+        }
 
         const response = await fetch(url, {
             method: 'GET',
@@ -181,6 +185,8 @@ export default {
         }));
 
         this.chartData = data;
+
+        this.defaultChart = false;
 
         this.updateChart();
 

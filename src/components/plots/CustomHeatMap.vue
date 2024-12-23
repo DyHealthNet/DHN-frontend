@@ -76,6 +76,7 @@ export default {
         if (this.contextValue) {
           url.searchParams.append("contextValue", String(this.contextValue));
         }
+        // categorical palettes make no sense for heatmaps
         if (this.palette && this.palette === "rocket") {
           url.searchParams.append("colors", this.palette);
         }

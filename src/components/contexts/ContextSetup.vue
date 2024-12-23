@@ -292,10 +292,11 @@ export default {
       participantNumber: "13 000",
       removedPatients: "",
 
-      selectedTests: this.content?.tests ?? {
+      defaultSelectedTests: {
         catCat: {label: 'Chi-squared test', value: 'chi2'}, catContM: {label: 'ANOVA', value: 'anova'},
         catContB: {label: 'T-test', value: 't-test'}, contCont: {label: 'Pearson correlation', value: 'pearson'}
       },
+      selectedTests: this.content?.tests ?? this.defaultSelectedTests,
 
       taskMessage: null,
       taskStarted: false,
@@ -525,6 +526,10 @@ export default {
         conditions[rule.group].push(rule.rule);
       }
 
+      if (!this.selectedTests) {
+        this.selectedTests = this.defaultSelectedTests;
+      }
+
       return {
         connect: {inside: this.innerConnection, outside: this.outerConnection},
         conditions: conditions,
@@ -612,10 +617,7 @@ export default {
       this.progressStatus = "Waiting";
       this.participantNumber = "13 000";
       this.removedPatients = "";
-      this.selectedTests = {
-        catCat: 'Chi-squared', catContM: 'ANOVA',
-        catContB: 'T-test', contCont: 'Pearson'
-      };
+      this.selectedTests = this.defaultSelectedTests;
       this.taskMessage = null;
       this.taskStarted = false;
       this.taskInfo = "";
