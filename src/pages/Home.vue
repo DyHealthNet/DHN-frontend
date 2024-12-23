@@ -260,7 +260,6 @@ export default {
 <style scoped>
 
 .home-background {
-  //background: radial-gradient(ellipse, rgb(var(--v-theme-primary)) 30%, rgba(255, 255, 255, 0) 100%);
   background: linear-gradient(to bottom right,  rgb(var(--v-theme-primary)),  rgb(var(--v-theme-background)));
   padding: 20px;
   border-radius: 10px;

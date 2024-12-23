@@ -146,8 +146,8 @@
                             </template></v-slider>
                     </v-col>
                     <v-col cols="3" class="">
-                      <ColorPalette :colors="colorPalettes.tab10"
-                                    palette-id="tab10"
+                      <ColorPalette :colors="colorPalettes.muted"
+                                    palette-id="muted"
                                     class="mx-3 my-3"
                                     @palette-selected="(paletteId) => {this.userSelectedPaletteCa = paletteId}"
                                     :current-palette="userSelectedPaletteCa"
@@ -564,36 +564,12 @@ export default {
       plotWidth: 900,
       plotHeight: 500,
       colorPalettes: {
-        'tab10': [
-                  { name: 'first', hex: '#4878d0' },
-                  { name: 'second', hex: '#ee854a' },
-                  { name: 'third', hex: '#6acc64' },
-                  { name: 'fourth', hex: '#d65f5f' },
-                  { name: 'fifth', hex: '#956cb4'}
-                ],
-        'husl': [
-          {name: 'first', hex: '#f77189'},
-          {name: 'second', hex: '#ce9032'},
-          {name: 'third', hex: '#97a431'},
-          {name: 'fourth', hex: '#32b166'},
-          {name: 'fifth', hex: '#1f968b'}
-        ],
-        'viridis': [
-          {name: 'first', hex: '#440154'},
-          {name: 'second', hex: '#3a528b'},
-          {name: 'third', hex: '#20908d'},
-          {name: 'fourth', hex: '#5dc963'},
-          {name: 'fifth', hex: '#fde725'}
-        ],
-        'rocket': [
-          {name: 'first', hex: '#35193e'},
-          {name: 'second', hex: '#701f57'},
-          {name: 'third', hex: '#ad1759'},
-          {name: 'fourth', hex: '#e13342'},
-          {name: 'fifth', hex: '#f37651'}
-        ],
+        'muted': ['#4878d0', '#ee854a', '#6acc64', '#d65f5f', '#956cb4'],
+        'husl': [ '#f77189', '#ce9032', '#97a431', '#32b166', '#1f968b'],
+        'viridis': [ '#440154', '#3a528b', '#20908d', '#5dc963', '#fde725'],
+        'rocket': [ '#35193e', '#701f57', '#ad1759', '#e13342', '#f37651'],
       },
-      userSelectedPaletteCa: 'tab10',
+      userSelectedPaletteCa: 'muted',
       userSelectedPaletteCo: 'viridis',
 
       // information texts

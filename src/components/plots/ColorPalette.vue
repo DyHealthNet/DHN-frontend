@@ -5,8 +5,8 @@
       <div class="d-flex palette">
         <div
           v-for="color in colors"
-          :key="color.name"
-          :style="{ backgroundColor: color.hex }"
+          :key="color"
+          :style="{ backgroundColor: color }"
           class="palette-color"
         ></div>
       </div>

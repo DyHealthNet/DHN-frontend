@@ -1,20 +1,16 @@
 <template>
-  <div>
-    <HeatmapChartComponent :chartData="chartData" :xLabel="this.xVar" 
-    :yLabel="this.yVar" ref="heatmapComponent" />
-  </div>
+  <HeatMapChart :chart-data="this.chartData" :y-label="yVar" :x-label="xVar" ref="heatmapChart"></HeatMapChart>
 </template>
 
 <script>
 import {getCookie} from "@/components/authentication/auth.js";
 
 import {BASE_URL} from "../constants.js";
-import HeatmapChartComponent from "@/components/plots/HeatmapChartComponent.vue";
-//import testheatmap from "../data/test_heatmapData.json";
+import HeatMapChart from "@/components/plots/HeatMapChart.vue";
 
 export default {
   name: "CustomHeatmap",
-  components: { HeatmapChartComponent },
+  components: {HeatMapChart},
   props: {
     xVar: {
       type: String,
@@ -39,7 +35,7 @@ export default {
       chartData: {
         xCategories: [],
         yCategories: [],
-        datasets: [],
+        values: [],
       },
     };
   },
@@ -90,13 +86,8 @@ export default {
             credentials: 'include',
           }
         );
-        const data = await response.json();
-        this.rows = Object.keys(data).map((key) => ({
-          name: key,
-          column1: data[key],
-        })) 
         
-        this.chartData = data;
+        this.chartData = await response.json();
         console.log("this.chartData: ", this.chartData);
 
         return this.chartData;
@@ -109,8 +100,9 @@ export default {
 
     updateChart() {
       this.$nextTick(() => {
-        if (this.$refs.heatmapComponent) {
-          this.$refs.heatmapComponent.createHeatmap();
+        console.log("this.$refs.heatmapChart: ", this.$refs.heatmapChart);
+        if (this.$refs.heatmapChart) {
+          this.$refs.heatmapChart.renderChart();
         }
       });
     },
