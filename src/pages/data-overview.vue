@@ -565,9 +565,9 @@ export default {
       plotHeight: 500,
       colorPalettes: {
         'muted': ['#4878d0', '#ee854a', '#6acc64', '#d65f5f', '#956cb4'],
-        'husl': [ '#f77189', '#ce9032', '#97a431', '#32b166', '#1f968b'],
-        'viridis': [ '#440154', '#3a528b', '#20908d', '#5dc963', '#fde725'],
-        'rocket': [ '#35193e', '#701f57', '#ad1759', '#e13342', '#f37651'],
+        'husl': [ '#f67088', '#ad9c31', '#33b07a', '#38a8c5', '#cc79f4'],
+        'viridis': [ '#443982', '#30678d', '#20908c', '#35b778', '#90d643'],
+        'rocket': [ '#3e1a43', '#831e5a', '#cb1a4f', '#f05f43', '#f5aa83'],
       },
       userSelectedPaletteCa: 'muted',
       userSelectedPaletteCo: 'viridis',

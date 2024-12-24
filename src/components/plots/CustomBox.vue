@@ -192,9 +192,6 @@ export default {
       });
     },
 
-    closePopup() {
-      this.showPopup = false; // Popup schließen
-    },
   },
 
   mounted() {
