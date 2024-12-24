@@ -9,9 +9,10 @@
     <!--PopUp Alert-->
     <div class="popup">
       <v-snackbar v-model="showPopup" color="error" multi-line>
-        <p class="big-text">
+          <v-icon class="my-0 mr-2">
+            mdi-information-outline
+          </v-icon>
           Some groups could not be displayed due to privacy reasons.
-          </p>
         <template v-slot:actions>
             <v-btn variant="text" @click="showPopup = false">
               Close
@@ -92,14 +93,13 @@ export default {
       try {
         let data;
         if (this.useExampleData) {
-          // Verwende die Beispiel-Daten 
+          // Use example data
           data = testbox;
         } else {
           if (!this.xVar || !this.yVar || this.checkVariableConflict()) {
             this.chartData = { datasets: [] };
             return;
           }
-          // Daten von der API abrufen
           const url = new URL("/plotting/api/plotDataBoxPlot/", BASE_URL);
           url.searchParams.append("x", this.xVar);
           url.searchParams.append("y", this.yVar);
@@ -144,12 +144,12 @@ export default {
         for (let i = 0; i < data.labels.length; i++) {
           let validLabel = false;
 
-          // Prüfen, ob alle Boxplots für diesen Index ungültig sind
+          // Check if all boxplots are invalid
           const allBoxplotsInvalid = data.datasets.every(
-            (dataset) => dataset.data[i].min === -100
+            (dataset) => !dataset.data[i].min
           );
 
-          // Wenn nicht alle Boxplots ungültig sind, dann Label beibehalten
+          // if not, retain the label
           if (!allBoxplotsInvalid) {
             filteredData.labels.push(data.labels[i]);
             validLabel = true;
@@ -157,18 +157,9 @@ export default {
             data.datasets.forEach((dataset, datasetIndex) => {
               const boxplot = dataset.data[i];
 
-              if (boxplot.min !== -100) {
-                filteredData.datasets[datasetIndex].data.push(boxplot);
-              } else {
-                // In den anderen Gruppen einen Platzhalter einfügen
-                filteredData.datasets[datasetIndex].data.push({
-                  min: null,
-                  q1: null,
-                  median: null,
-                  mean: null,
-                  q3: null,
-                  max: null,
-                });
+              filteredData.datasets[datasetIndex].data.push(boxplot);
+
+              if (!boxplot.min) {
                 dataNanMarker = true;
               }
             });
@@ -177,7 +168,7 @@ export default {
           }
         }
 
-        // Entferne leere Datensätze (wo keine Daten vorhanden sind)
+        // remove datasets without any valid boxplot
         filteredData.datasets = filteredData.datasets.filter((dataset) =>
           dataset.data.some((boxplot) => boxplot.min !== null)
         );
@@ -185,8 +176,6 @@ export default {
         if (dataRemoved || dataNanMarker) {
           this.showPopup = true;
         }
-
-        console.log("filteredData_end: ", filteredData);
 
         this.chartData = filteredData;
       } catch (error) {
