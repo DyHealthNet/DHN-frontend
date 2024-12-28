@@ -20,7 +20,7 @@
     "echarts": "^5.5.1",
     "plotly.js-dist": "^2.34.0",
     "sweetalert2": "^11.12.4",
-    "uuid": "^11.0.2",
+    "uuid": "^9.0.1",
     "vis-network": "^9.1.9",
     "vue": "^3.4.21",
     "vue-chartjs": "^5.3.1",
