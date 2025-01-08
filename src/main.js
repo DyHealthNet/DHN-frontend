@@ -43,6 +43,8 @@ const dyHealthNetTheme = {
 
     "chart": '#707070',
     "chart-grid": '#E0E0E0',
+
+    "node-logo-background": "#CDDDE8",
   },
 }
 

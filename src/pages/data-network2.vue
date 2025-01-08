@@ -16,19 +16,27 @@
     <FilterToolbar :contexts="contexts" @cangeContext="console.log('context changed')"></FilterToolbar>
       <v-row justify="space-between" class="filter-padding">
       <!-- Left Column: Query Nodes -->
-      <v-col class="d-flex justify-center" cols="2">
+        <v-col class="d-flex justify-center" cols="12">
         <v-card rounded="lg" elevation="2"   class="responsive-card">
           <v-toolbar color="primary-darken-1" density="compact">
-            <v-toolbar-title>
+            <v-toolbar-title class="d-flex align-center">
                 Query
-                <v-tooltip bottom>
+                <v-tooltip left>
                   <template v-slot:activator="{ props }">
-                    <v-icon v-bind="props">mdi-information</v-icon>
+                    <v-icon v-bind="props" >mdi-information</v-icon>
                   </template>
                   <span>
                           Please query the database for the nodes you want to inspect in the Network.
                   </span>
                 </v-tooltip>
+                <v-btn
+                  icon
+                  class="ml-auto"
+                  @click="isExpanded = !isExpanded"
+                  :aria-label="isExpanded ? 'Collapse' : 'Expand'"
+                >
+                  <v-icon>{{ isExpanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+                </v-btn>
               </v-toolbar-title>
           </v-toolbar>
           <v-spacer></v-spacer>
@@ -108,11 +116,29 @@
               <strong>Description:</strong> {{ hoveredItem.description }}
             </div>
           </teleport>
+            <v-expand-transition>
+            <!-- Replace div with v-container -->
+            <v-container v-if="isExpanded" class="mt-4" fluid>
+              <p>Additional Settings:</p>
+              <v-form>
+                <v-row>
+                  <v-col cols="12" sm="6">
+                    <v-text-field label="Setting 1"></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field label="Setting 2"></v-text-field>
+                  </v-col>
+                </v-row>
+              </v-form>
+            </v-container>
+          </v-expand-transition>
           </v-card-text>
         </v-card>
-      </v-col>
-      <!-- Middle Column: Network -->
-      <v-col class="d-flex justify-center" cols="8">
+        </v-col>
+      </v-row>
+      <v-row justify="space-between" class="">
+        <!-- Middle Column: Network -->
+        <v-col class="d-flex justify-center" :cols="rightColExpanded ? 9 : 11">
         <v-card rounded="lg" elevation="2"   class="responsive-card">
           <v-toolbar color="primary-darken-1" density="compact">
             <v-toolbar-title>
@@ -165,23 +191,38 @@
           </v-card>
         </v-card>
       </v-col>
-      <v-col class="d-flex justify-center" cols="2">
-        <v-card rounded="lg" elevation="2"   class="responsive-card">
+      <v-col
+        :cols="rightColExpanded ? 3 : 1"
+        class="d-flex justify-center"
+      >
+        <v-card rounded="lg" elevation="2" class="responsive-card">
           <v-toolbar color="primary-darken-1" density="compact">
-            <v-toolbar-title>
-                Selected
-                <v-tooltip bottom>
-                  <template v-slot:activator="{ props }">
-                    <v-icon v-bind="props">mdi-information</v-icon>
-                  </template>
-                  <span>
-                          Detailed Information about the selected Node. To select a Node please click on it
-                  </span>
-                </v-tooltip>
-              </v-toolbar-title>
+            <v-toolbar-title v-if="rightColExpanded">
+              Selected
+              <v-tooltip flat>
+                <template v-slot:activator="{ props }">
+                  <v-icon v-bind="props">mdi-information</v-icon>
+                </template>
+                <span>
+                  Detailed Information about the selected Node. To select a Node, click on it.
+                </span>
+              </v-tooltip>
+            </v-toolbar-title>
+
+            <!-- Expand/Collapse Button -->
+            <v-btn
+              icon
+              @click="toggleRightCol"
+              class="expand-btn"
+              :aria-label="rightColExpanded ? 'Collapse' : 'Expand'"
+            >
+              <v-icon>{{ rightColExpanded ? 'mdi-fullscreen-exit' : 'mdi-fullscreen' }}</v-icon>
+            </v-btn>
           </v-toolbar>
+
           <v-spacer></v-spacer>
-          <v-card-text></v-card-text>
+          <v-card-text>
+          </v-card-text>
         </v-card>
       </v-col>
     </v-row>
@@ -215,9 +256,8 @@
 <script>
 import FilterToolbar from "@/components/FilterToolbar.vue";
 import axios from "axios";
-const BASE_URL =
-  import.meta.env.VITE_BACKEND_URL ||
-  `${window.location.protocol}//${window.location.host}`;
+import {BASE_URL} from "../components/constants.js";
+
 
 export default {
   name: "Network",
@@ -231,11 +271,15 @@ export default {
         {text: 'Cohort 4', color: '#FFFF00', lightVariant: '#dbdba3', darkVariant: '#848452'},
         {text: 'Cohort 5', color: '#FF00FF', lightVariant: '#dba3db', darkVariant: '#845284'},
       ],
+
       searchText: "",
+      isExpanded: false, // Tracks the expanded state
+
       nodeRecommendations: [],
       debounceTimeout: null,
       typeaheadresult: [],
       dropdownNodes: [],
+
       addedNodes: [],
       networkNodes: [],
       selectedNode: null,
@@ -245,6 +289,8 @@ export default {
       displayedElement: null,
       displayedElementType: null,
       selectedNodes: [],
+
+      rightColExpanded: true,
     };
   },
   computed: {
@@ -254,6 +300,10 @@ export default {
     },
   },
   methods: {
+    toggleRightCol() {
+      this.rightColExpanded = !this.rightColExpanded;
+    },
+
     hoverNode(item) {
       this.hoveredItem = item;
       if (item) {

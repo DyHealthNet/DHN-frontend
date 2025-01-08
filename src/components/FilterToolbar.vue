@@ -13,7 +13,7 @@
         :prepend-icon="isSticky ? '' : 'mdi-filter-outline'"
         v-model="selectedContext"
         :items="contexts"
-        label="Static network"
+        placeholder="Static network"
         hide-details
         single-line
         :class="isSticky ? '' : 'ml-3'"
@@ -145,5 +145,11 @@ export default {
   transform: translateX(calc(48vw - 80px));
   width: 12%;
   left: 0;
+}
+
+.v-combobox input::placeholder {
+  color: #000; /* Make it black */
+  font-weight: normal; /* Adjust weight to match normal text */
+  opacity: 1; /* Ensure it's fully opaque */
 }
 </style>

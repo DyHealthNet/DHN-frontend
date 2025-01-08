@@ -8,7 +8,7 @@
       style="position: absolute; right: 0;"
     >
     <v-img
-    :src="getIcon(node.source_table)"
+    :src="getIcon(node.type)"
     alt="icon"
     max-width="40"
     max-height="40"

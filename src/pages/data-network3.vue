@@ -42,6 +42,10 @@
               :clearable="!isReadOnly && (searchText && searchText.length > 0)"
               label="Select one or a list of nodes"
               @input="fetchNodeRecommendations"
+              @keydown.arrow-down.prevent="moveFocus('down')"
+              @keydown.arrow-up.prevent="moveFocus('up')"
+              @keydown.enter.prevent="selectFocusedItem"
+              @keydown.esc.prevent="closeDropdown"
               hide-details
               class="mb-0"
               @focus="showDropdown = true"
@@ -73,14 +77,17 @@
             <v-col cols="12">
               <v-card class="dropdown"
                 v-if="showDropdown && limitedDropdownNodes.length"
-                ref="dropdownMenu">
+                ref="dropdownMenu"
+                tabindex="0">
                 <v-list>
                   <v-list-item
                         v-for="(item, index) in limitedDropdownNodes"
                         :key="index"
                         @click="addPerDropDown(item)"
-                        @mouseover="hoverNode($event, item)"
+                        @mouseover="hoverNode(item)"
                         @mouseleave="hoverNodeLeave"
+                        :class="{ 'text-primary': index === activeIndex }"
+                        :color="index === activeIndex ? 'primary' : ''"
                         class="d-flex align-center text-truncate"
                       >
                       <!-- Icon Section -->
@@ -90,7 +97,7 @@
                         color="transparent"
                       >
                       <v-img
-                      :src="getIcon(item.source_table)"
+                      :src="getIcon(getPrettyType(item.source_table))"
                       alt="icon"
                       max-width="32"
                       max-height="32"
@@ -183,7 +190,7 @@
                 />
               </template>
               <template v-else-if="displayedElementType === 'edge'">
-                <EdgeDetails :edge="displayedElement" />
+                <EdgeDetails :getIcon="getIcon" :edge="displayedElement" :selectedTests="selectedTests"/>
               </template>
               <p v-else>No element selected. You can inspect a node or an edge by clicking on it.</p>
             </v-expansion-panel-text>
@@ -209,7 +216,7 @@
                   <tbody>
                     <tr v-for="(node, index) in selectedNetworkNodes" :key="node.id">
                       <td>{{ node.description }}</td>
-                      <td>{{ node.source_table }}</td>
+                      <td>{{ this.getPrettyType(node.source_table) }}</td>
                       <td>
                         <v-btn
                           size="small"
@@ -241,20 +248,25 @@
                     </p>
                   </v-col>
                   <v-col cols="12">
+                    <!-- TODO Add a settings toggle to set the significance threshold and possibly the multiple testing
+                    correction if changeable and if we don't want the user to only be able to set it
+                    in Advanced Settings -->
                     <v-btn
                       :disabled="selectedNetworkNodes.length !== 1"
                       color="primary-darken-1"
                       block
                       :class="{'grey lighten-2': selectedNetworkNodes.length !== 1}"
+                      @click="connectIndividualNode()"
                     >Significance Filtering</v-btn>
                   </v-col>
+                  <!-- TODO Add a settings toggle to set the amount of Nodes to be retrieved per type like Manuel did-->
                   <v-col cols="12">
                     <v-btn
                       :disabled="selectedNetworkNodes.length !== 1"
                       color="primary-darken-1"
                       block
                       :class="{'grey lighten-2': selectedNetworkNodes.length !== 1}"
-                      @click="indivualNetworkNodeCount"
+                      @click="connectIndividualNode(count=true)"
                     >Node Count</v-btn>
                   </v-col>
                 </v-row>
@@ -312,7 +324,9 @@
                     <v-icon v-bind="props">mdi-information</v-icon>
                   </template>
                   <span>
-                    Here you can inspect the Network that is build based on your retrieved Nodes from the Database.
+                    Here you can inspect the Network that is build based on your retrieved Nodes from the Database.<br>
+                    With the buttons you can save an image of your network, the network itself or clear the network
+                    to start over.
                   </span>
                 </v-tooltip>
               </v-toolbar-title>
@@ -324,22 +338,38 @@
             </v-btn>
             <v-btn
               icon
-              @click="console.log('saveNetworkFile')"
+              @click="saveNetworkFile"
             >
               <v-icon class="m-3">mdi-download</v-icon> <!-- mdi-abacus-->
+            </v-btn>
+            <v-btn
+              icon
+              @click="clearNetwork"
+            >
+              <v-icon class="m-3">mdi-trash-can-outline</v-icon> <!-- mdi-abacus-->
             </v-btn>
           </v-toolbar>
 
           <!-- Card Content -->
-          <v-card-text>
-            <!-- Legend -->
+          <v-card-text ref="wholeNetwork">
             <!-- Network Visualization -->
             <v-row>
-              <v-col>
-                <div ref="network" id="network" style="height: 400px;"></div>
-              </v-col>
-            </v-row>
-          </v-card-text>
+                <v-col>
+                  <div ref="network" id="network" style="height: 400px;"></div>
+                  <!-- Legend -->
+                  <div class="legend">
+                    <v-row v-for="(group, groupKey) in groups" :key="groupKey" align="center" class="mb-2" no-gutters>
+                      <v-col v-if="this.includedNodeTypes.has(groupKey)" cols="auto" class="legend-dot">
+                        <div class="legend-color" :style="getShapeStyle(group.color, groupKey)"></div>
+                      </v-col>
+                      <v-col v-if="this.includedNodeTypes.has(groupKey)" cols="auto" class="legend-text">
+                        <span>{{ capitalizeFirstLetter(groupKey) }}</span>
+                      </v-col>
+                    </v-row>
+                  </div>
+                </v-col>
+              </v-row>
+            </v-card-text>
 
           <!-- Card Actions
           <v-card-actions>
@@ -372,12 +402,20 @@ import AdvancedSettings from "@/components/AdvancedSettings.vue";
 import axios from "axios";
 import FilterToolbar from "@/components/FilterToolbar.vue";
 import {BASE_URL} from "@/components/constants.js";
-import {groups} from "@/pages/networkData.js";
+import { groups } from "../components/network/networkData.js";
 import NodeDetails from '@/components/network/NodeDetails.vue';
 import EdgeDetails from '@/components/network/EdgeDetails.vue';
 import {DataSet, Network} from "vis-network/standalone/esm/vis-network.js";
 import {getCookie} from "@/components/authentication/auth.js";
-import StatisticalTestLine from "@/components/network/StatisticalTestLine.vue";
+import StatisticalTestLine from "@/components/StatisticalTestLine.vue";
+import { useTheme } from 'vuetify';
+import html2canvas from "html2canvas"; // Only if using npm/yarn
+import { nextTick } from 'vue';
+
+
+
+
+
 
 
 export default {
@@ -388,7 +426,7 @@ export default {
     return {
       // context filter
       contextValue: null,
-      disableSelections: null,
+      disableSelections: { contCont: false, catCat: false, multTest: false , catContB: false, catContM: false},
 
       // Network Input values
       searchText: "",
@@ -401,26 +439,37 @@ export default {
 
       hoveredItem: null,
       tooltipStyle: {},
+      activeIndex: -1, // Tracks which item is focused
 
       // Network Visualization & Settings
       networkNodes: [],//test_data["nodes"],
       networkEdges: [],//test_data["edges"],
+      vis_network_nodes: [],
+      vis_network_edges: [],
       displayedNodes:  null,
       displayedEdges:  null,
+      allInternalEdges: [],
+      allExternalEdges: [],
+
+      nodeStyle: groups,
+      selectedBorderColor: '', //TODO don't set this in mounted, maybe make it reactive
+      nodeRetrivalLimit: "4",
 
       displayedElement: null,
       displayedElementType: null,   // 'node' or 'edge'
       isDetailsNodeSelected: false,
+      includedNodeTypes: new Set(), // stores type currently present in network for Legend
 
       selectedNetworkNodes: [],
 
 
-      // Advanced Settings values
-      selectedTests: this.content?.tests ?? {
+      // Advanced Settings (default) values
+      selectedTests: {
         catCat: {label: 'Chi-squared test', value: 'chi2'}, catContM: {label: 'ANOVA', value: 'anova'},
-        multTest: {label: 'Benjamini Hochberg (FDR)', value: 'bh'},
-        catContB: {label: 'T-test', value: 't-test'}, contCont: {label: 'Pearson correlation', value: 'pearson'}
+        multTest: {label: 'Benjamini Hochberg (FDR)', value: 'benjamini_hb'},
+        catContB: {label: 'T-test', value: 'ttest'}, contCont: {label: 'Pearson correlation', value: 'pearson'}
       },
+      signThresh: "0.999",
     };
   },
   computed: {
@@ -477,6 +526,7 @@ export default {
           }
         } else {
           this.typeaheadresult = [];
+          this.hoveredItem = null;
         }
 
         this.dropdownNodes = [];
@@ -514,25 +564,25 @@ export default {
         input.setSelectionRange(this.searchText.length, this.searchText.length);
       });
     },
-    hoverNode(event, item) {
-      if (!this.hoveredItem) {
+    hoverNode(item) {
+      if (!this.hoveredItem || this.hoveredItem !== item) {
         this.hoveredItem = item;
 
         if (item) {
-          // Get the bounding rect of the target item
-          const nodeRect = event.target.getBoundingClientRect();
+          const dropdown = this.$refs.dropdownMenu?.$el; // Accessing the actual DOM element
+          const dropdownRect = dropdown.getBoundingClientRect();
+          const centerX = (window.innerWidth) / 2; // Center of the page
 
-          // Calculate tooltip position based on the item’s bounding rect
+          // Calculate fixed position: right-center of the dropdown
           this.tooltipStyle = {
-            backgroundColor: `rgb(var(--v-theme-primary-darken-1))`, // Dark background color
-            color: `rgb(var(--v-theme-surface))`,  // White text color
+            backgroundColor: `rgb(var(--v-theme-primary-darken-1))`,
+            color: `rgb(var(--v-theme-surface))`,
             borderRadius: '5px',
             padding: '10px',
-
             position: 'absolute',
-            top: `${nodeRect.bottom + 5}px`, // Adjust position slightly below the node
-            left: `${nodeRect.left}px`,      // Align tooltip horizontally with the node
-            zIndex: 1000,                   // Ensure it appears above other elements
+            top: `${dropdownRect.top + dropdownRect.height / 2 + window.scrollY - 80}px`, // Vertically centered
+            left: `${centerX}px`,  // Right of the dropdown
+            zIndex: 1000,
           };
         }
       }
@@ -540,14 +590,15 @@ export default {
     hoverNodeLeave() {
       // Hide the tooltip when the item is no longer hovered
       this.hoveredItem = null;
+      this.activeIndex = -1;
     },
     getIcon(sourceTable) {
       switch (sourceTable) {
-        case 'cohort_protein':
+        case 'Protein':
           return new URL('../assets/figures/proteins.png', import.meta.url).href;
-        case 'cohort_metabolite':
+        case 'Metabolite':
           return new URL('../assets/figures/metabolites.png', import.meta.url).href;
-        case 'cohort_variants':
+        case 'Variants':
           return new URL('../assets/figures/genetic_variants.png', import.meta.url).href;
         default:
           return new URL('../assets/figures/phenotypes.png', import.meta.url).href;
@@ -569,25 +620,13 @@ export default {
           return 'None';
       }
     },
-    sendToNetwork() {
-      // Send selectedNodes to networkNodes and reset selectedNodes
-      this.networkNodes= [];
-      this.networkNodes.push(...this.selectedNodes);
-      // make searchText pretty
-      const nodeNames = this.selectedNodes
-        .filter(node => node && node.display_name)
-        .map(node => node.display_name);
-      this.searchText = nodeNames.length > 0 ? nodeNames.join(", ") : "";
-      this.showDropdown = false; // Hide dropdown
-      this.isReadOnly = true;
-      //this.selectedNodes = []; // Clear the selection
-      console.log("Updated networkNodes:", this.networkNodes);
-
-      this.initializeNetwork();
+    capitalizeFirstLetter(str) {
+      if (typeof str !== "string" || str.length === 0) return str;
+      return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
     },
     handleClickOutside(event) {
       if (this.isReadOnly){
-        this.showDropdown = false;
+        this.closeDropdown()
         return;
       }
       const dropdown = this.$refs.dropdownMenu?.$el; // Accessing the actual DOM element
@@ -598,7 +637,7 @@ export default {
         dropdown && !dropdown.contains(event.target) &&
         textField && !textField.contains(event.target)
       ) {
-        this.showDropdown = false;
+        this.closeDropdown()
         return;
       }
     },
@@ -611,21 +650,82 @@ export default {
       this.searchText = "";
       this.selectedNodes = [];
     },
+    moveFocus(direction) {
+      if (this.isReadOnly) return;
+      const length = this.limitedDropdownNodes.length;
+      if (direction === "down") {
+        this.activeIndex = (this.activeIndex + 1) % length;
+      } else if (direction === "up") {
+        if (this.activeIndex === -1) {
+          this.activeIndex = length - 1;  // Start from the last item if moving up from -1
+        } else {
+          this.activeIndex = (this.activeIndex - 1 + length) % length;
+        }
+      }
+       if (this.activeIndex === -1) {
+         return;
+       }
+      this.hoverNode(this.limitedDropdownNodes[this.activeIndex]);
+    },
+    selectFocusedItem() {
+      if (this.activeIndex === -1) {
+         return;
+       }
+      const selectedItem = this.limitedDropdownNodes[this.activeIndex];
+      if (selectedItem) {
+        this.addPerDropDown(selectedItem);
+      }
+    },
+    closeDropdown() {
+      this.showDropdown = false;
+      this.hoveredItem = null;
+      this.activeIndex = -1;
+    },
+    sendToNetwork() {
+      // Send selectedNodes to networkNodes and reset selectedNodes
+      this.networkNodes= [];
+      this.networkNodes = this.selectedNodes.map((node) => ({
+          ...node,
+          set: "CHRIS", //TODO change to internal/cohort or smth when backend became more modular
+        }));
+      // make searchText pretty
+      const nodeNames = this.selectedNodes
+        .filter(node => node && node.display_name)
+        .map(node => node.display_name);
+      this.searchText = nodeNames.length > 0 ? nodeNames.join(", ") : "";
+      this.isReadOnly = true;
+      this.closeDropdown();
+      //this.selectedNodes = []; // Clear the selection
+      console.log("Updated networkNodes:", this.networkNodes);
+
+      this.initializeNetwork();
+      this.updateDesign();
+    },
 
     //Network Visualization
     initializeNetwork() {
-      const options = {};
+      console.log("initializeNetwork")
+      console.log("networkEdges: ", this.networkEdges)
+      const options = {physics: {enabled:true}};
       const container = this.$refs.network;
       if (!container) return;
 
-      const DisplayNodesFromNetwork = this.networkNodes;
+      //TODO possibly discard displayedNodes and set to networkNodes and the same for the Edges?
 
-      this.displayedNodes = new DataSet(DisplayNodesFromNetwork);
+      console.log("networkNodes: ",this.networkNodes)
+      console.log("networkEdges: ",this.networkEdges)
+      this.vis_network_nodes = new DataSet(this.networkNodes);
+      this.vis_network_edges = new DataSet(this.networkEdges);
+      console.log("network_nodes: ",this.vis_network_nodes)
+      console.log("network_edges: ",this.vis_network_edges)
 
-      const data = { nodes: this.displayedNodes};
+      const data = { nodes: this.vis_network_nodes, edges: this.vis_network_edges};
 
       this.network = new Network(container, data, options);
 
+      this.includedNodeTypes = new Set(this.networkNodes.map((node) => node.source_table.split("_")[1]));
+
+      // Click Event -> display node in Details Field
       this.network.on(
         "click",
         function (params) {
@@ -643,10 +743,10 @@ export default {
             this.displayedElement = null;
             this.displayedElementType = null;
           }
-          //this.updateHighlighting();
+          this.updateDesign();
         }.bind(this)
       );
-
+      // Double Click Event -> select Node, consequently shown in Selection field
       this.network.on(
         "doubleClick",
         function (params) {
@@ -664,10 +764,12 @@ export default {
             }
             this.displayNode(clickedNode);
           }
+          this.updateDesign();
         }.bind(this)
       );
     },
     displayNode(node) {
+      node.type = this.getPrettyType(node.source_table);
       this.displayedElement = node;
       this.displayedElementType = "node";
       this.isDetailsNodeSelected = this.isNodeInNetworkSelected(node);
@@ -681,12 +783,8 @@ export default {
       edge.node1_descr = node1.description;
       edge.node0_label = node0.display_name;
       edge.node1_label = node1.display_name;
-      edge.node0_type = this.capitalizeFirstLetter(
-        node0.source_table.split("_")[1]
-      );
-      edge.node1_type = this.capitalizeFirstLetter(
-        node1.source_table.split("_")[1]
-      );
+      edge.node0_type = this.getPrettyType(node0.source_table);
+      edge.node1_type = this.getPrettyType(node1.source_table);
       this.displayedElement = edge;
       this.displayedElementType = "edge";
     },
@@ -698,40 +796,294 @@ export default {
 
       if (this.isDetailsNodeSelected && index === -1) {
         this.selectedNetworkNodes.push(this.displayedElement);
+        this.updateDesign();
       } else if (!this.isDetailsNodeSelected && index !== -1) {
         this.selectedNetworkNodes.splice(index, 1);
       }
     },
     removeSelectedNetworkNode(index){
       this.selectedNetworkNodes.splice(index, 1);
+      this.updateDesign();
     },
-    indivualNetworkNodeCount() {
-      if (this.displayedElementType === "node") {
-        if (this.displayedElement.set === "CHRIS") {
-          this.fetchNodesAndEdges(this.displayedElementType);
+    async connectIndividualNode(count=false) {
+      // Use the first element of selectedNetworkNodes
+      const firstNode = this.selectedNetworkNodes?.[0];
+
+      if (firstNode) {
+
+        if (firstNode.set === "CHRIS") { //TODO change to internal/cohort or smth when backend became more modular
+          await this.fetchNodesAndEdges(firstNode, count); // Pass the first node to fetchNodesAndEdges
+          this.filterForNetworkEdges();
+          this.initializeNetwork();
+          this.updateDesign();
         }
+      } else {
+        console.warn("No nodes in selectedNetworkNodes to process.");
       }
     },
+    async connectNodeGroupNode() {
+      console.log("connectNodeGroupNode");
 
+      // Check if selectedNetworkNodes is not null/undefined and has at least one element
+      const nodeGroup = this.selectedNetworkNodes && this.selectedNetworkNodes.length > 0 ? this.selectedNetworkNodes[0] : null;
 
+      console.log("firstNode: ", nodeGroup);
+
+      if (nodeGroup) {
+        console.log("Using the first selectedNetworkNode: ", nodeGroup);
+
+        if (nodeGroup.set === "CHRIS") { //TODO change to internal/cohort or something when the backend becomes more modular
+          await this.fetchNodesAndEdges(nodeGroup); // Pass the first node to fetchNodesAndEdges
+          this.filterForNetworkEdges();
+          this.initializeNetwork();
+          this.updateDesign();
+        }
+      } else {
+        console.warn("No nodes in selectedNetworkNodes to process.");
+      }
+    },
+    async fetchNodesAndEdges(node, count=false) {
+      const nodeID = node.id;
+      const type = node.source_table.split("_")[1];
+      const limit = count ? this.nodeRetrivalLimit : "";
+      const api_string =
+        BASE_URL +
+        "/network/api/getNetwork/?q=" +
+        nodeID +
+        "&t=" +
+        type +
+        "&l=" +
+        limit +
+        "&s=" +
+        this.signThresh +
+        "&o=" +
+        JSON.stringify(this.selectedTests);
+      try {
+        // add nodes to the (hidden) network
+        const response = await axios.get(api_string);
+
+        const nodes = response.data.Nodes;
+        // Get existingNodeIds beforehand as set for faster loop
+        const existingNodeIds = new Set(this.networkNodes.map((locnode) => locnode.id));
+
+        for (const key in nodes) {
+          if (Array.isArray(nodes[key])) {
+            nodes[key].forEach((node) => {
+              if (!existingNodeIds.has(node.id)) {
+                node.set = "CHRIS"; //TODO change to internal/cohort or smth when backend became more modular
+                this.networkNodes.push(node);
+                existingNodeIds.add(node.id); // Track new node
+              }
+            });
+          }
+        }
+
+        // add edges to the network
+        const internalEdges = response.data.Edges;
+        console.log("These are the returned Edges: ", internalEdges)
+        const externalEdges = response.data["External Edges"];
+
+        // Get existing*EdgeIds beforehand as set for faster loop
+        const existingInternalEdgeIds = new Set(this.allInternalEdges.map((edge) => edge.id));
+        const existingExternalEdgeIds = new Set(this.allExternalEdges.map((edge) => edge.id));
+
+        for (const key in internalEdges) {
+          if (Array.isArray(internalEdges[key])) {
+            internalEdges[key].forEach((edge) => {
+              const renamedEdge = Object.entries(edge).reduce((acc, [k, v]) => {
+                if (k.includes("_id")) {
+                  if (!acc.from) {
+                    acc.from = v;
+                  } else {
+                    acc.to = v;
+                  }
+                } else {
+                  acc[k] = v;
+                }
+                return acc;
+              }, {});
+              if (!existingInternalEdgeIds.has(edge.id)) {
+                this.allInternalEdges.push({
+                  ...renamedEdge,
+                  type: key,
+                  set: "cohort (calculated)",
+                  color: "black",
+                  width: -Math.log10(renamedEdge.final_p_value) * 1.5,
+                });
+                existingInternalEdgeIds.add(edge.id);
+              }
+            });
+          }
+        }
+        externalEdges.forEach((edge) => {
+          if (!existingExternalEdgeIds.has(edge.id)) {
+            this.allExternalEdges.push({
+              ...edge,
+              set: "external",
+              to: edge.source_cohort_id,
+              from: edge.target_cohort_id,
+            });
+            existingExternalEdgeIds.add(edge.id);
+          }
+        });
+      } catch (error) {
+        console.error("Error fetching edges:", error);
+      }
+    },
+    filterForNetworkEdges() {
+      console.log("filterForNetworkEdges")
+      const networkNodeIds = new Set(this.networkNodes.map((node) => node.id));
+      const uniqueEdges = new Set();
+
+      console.log("this.allInternalEdges: ",this.allInternalEdges)
+      console.log("this.networkNodeIds: ",this.networkNodeIds)
+
+      const isValidEdge = (edge) =>
+        networkNodeIds.has(edge.from) && networkNodeIds.has(edge.to);
+
+      // Filter and process all edges in one step
+      this.networkEdges = [
+        ...this.allInternalEdges.filter(isValidEdge),
+        ...this.allExternalEdges.filter(isValidEdge).map((edge) => ({
+          ...edge,
+          color: "grey",
+          dashes: [10, 10],
+          width: 6,
+        })),
+      ].filter((edge) => {
+        // Use a consistent key format for undirected edges
+        const key = edge.from < edge.to ? `${edge.from}-${edge.to}` : `${edge.to}-${edge.from}`;
+        if (!uniqueEdges.has(key)) {
+          uniqueEdges.add(key);
+          return true;
+        }
+        return false;
+      });
+      console.log("In filterForNetworkEdges this.networkEdges: ",this.networkEdges)
+    },
+    //TODO split this into smaller functions that update only the needed Design changes?
+    // Function to bulk update the highlighting
+    updateDesign() {
+      // Update nodes with conditional styling
+      const updatedNodes = this.vis_network_nodes.get().map(node => {
+        const isDisplayed = this.displayedElementType === 'node' && this.displayedElement.id === node.id;
+        const isSelected = this.selectedNetworkNodes.some(n => n.id === node.id);
+
+        let updatedNode = {
+          ...node,
+          color: groups[node.source_table.split('_')[1]].color,
+          shape: 'dot', // 'dot' text below, 'circle' text inside
+          size: 15,
+          borderWidth: 0,
+          borderWidthSelected: node.borderWidth,
+          font: { size: 10, color: 'black' },
+          label: node.display_name,
+          is_highlighted: isSelected,
+        };
+
+        if (isSelected) {
+          updatedNode.borderWidth = 4;
+          updatedNode.borderWidthSelected =  updatedNode.borderWidth,
+          updatedNode.color = {
+            border: this.selectedBorderColor,
+            background: updatedNode.color,
+            highlight: {  border: this.selectedBorderColor, background: updatedNode.color },
+          };
+        }
+
+        if (node.set === 'external') {
+          updatedNode.color = {
+            border: 'black',
+            background: updatedNode.color,
+            highlight: {  border: 'black', background: updatedNode.color },
+          };
+        }
+
+        return updatedNode;
+      });
+      this.vis_network_nodes.update(updatedNodes);
+    },
+    getShapeStyle(color, key) {
+      // not applicable right now or only for externals
+      if (key === "gene" || key === "disorder") {
+        return {
+          borderRadius: "50%",
+          backgroundColor: color,
+          width: "20px",
+          height: "20px",
+          border: "3px solid black",
+        };
+      }
+      return { borderRadius: "50%", backgroundColor: color, width: "20px", height: "20px" };
+    },
+    clearNetwork(){
+      this.networkNodes = [];
+      this.networkEdges = [];
+      this.vis_network_nodes = [];
+      this.vis_network_edges = [];
+      this.displayedNodes = null;
+      this.displayedEdges = null;
+      this.allInternalEdges = [];
+      this.allExternalEdges = [];
+      this.displayedElement = null;
+      this.displayedElementType = null;
+      this.isDetailsNodeSelected = false;
+      this.selectedNetworkNodes = [];
+      this.initializeNetwork();
+      this.updateDesign();
+    },
+    saveNetworkFile() {
+      console.log("Saving network data...");
+      if (this.vis_network_nodes.length > 0) {
+        const nodes = this.vis_network_nodes.get();
+        const edges = this.vis_network_edges.get();
+
+        const exportData = { options: this.selectedTests, nodes: nodes, edges: edges };
+        const dataStr = JSON.stringify(exportData, null, 2);
+        const blob = new Blob([dataStr], { type: "application/json" });
+
+        // Create a link element
+        const link = document.createElement("a");
+
+        const timestamp = new Date().toISOString();
+        link.download = `network-data-${timestamp}.json`;
+
+        // Create a URL for the Blob and set it as the href attribute
+        link.href = window.URL.createObjectURL(blob);
+
+        // Append the link to the body (needed for triggering the click event)
+        document.body.appendChild(link);
+
+        // Programmatically click the link to trigger the download
+        link.click();
+
+        // Remove the link from the document
+        document.body.removeChild(link);
+      } else {
+        console.log("No network displayed");
+        // Optionally, show an alert to the user
+        alert("No network available to save.");
+      }
+    },
+    saveNetworkImage() {
+    }
 
     // Advanced Settings methods
     addTests(data) {
       this.selectedTests = data;
+      this.clearNetwork();
     },
 
     // Context methods
     async updateData(val) {
-      console.log("updateData called, val: ",val)
       this.contextValue = val ? val.value : null;
       const context = await this.getContexts(this.contextValue);
-      console.log("context: ", context)
       if (context) {
         this.selectedTests = context.content.tests
-        this.disableSelections = true
+        this.disableSelections = { contCont: true, catCat: true, multTest: false , catContB: true, catContM: true}
       }
       else{
-        this.disableSelections = false
+        this.disableSelections = { contCont: false, catCat: false, multTest: false , catContB: false, catContM: false}
       }
     },
     async getContexts(val) {
@@ -750,7 +1102,6 @@ export default {
         const data = await response.json();
 
         const context = data.result.filter(item => item.contextValue === val)[0];
-        console.log(context);
 
         return context;  // Return the first matched item directly
       } catch (error) {
@@ -764,6 +1115,7 @@ export default {
       // Add or remove the global click listener when dropdown visibility changes
       if (newVal) {
         document.addEventListener('click', this.handleClickOutside);
+        this.activeIndex = -1;
       } else {
         document.removeEventListener('click', this.handleClickOutside);
       }
@@ -773,6 +1125,10 @@ export default {
       // Clean up event listener when component is destroyed
       document.removeEventListener('click', this.handleClickOutside);
     },
+  mounted() {
+    const theme = useTheme();
+    this.selectedBorderColor = theme.current.value.colors['primary']; // Correct way to access the primary color
+  },
 };
 </script>
 
@@ -784,6 +1140,22 @@ export default {
   .responsive-card {
     width: 100%;
   }
+}
+.legend-color {
+  margin-right: 10px; /* Space between the color and the text */
+}
+/* Style for the legend container */
+.legend {
+  position: absolute;  /* Position relative to the nearest positioned ancestor (network container) */
+  bottom: 10px;  /* Adjust the bottom margin */
+  left: 10px;    /* Adjust the left margin */
+  background: transparent;  /* Transparent background */
+  z-index: 10;  /* Ensure it appears above other elements */
+}
+
+/* Style for the network container */
+#network {
+  position: relative;  /* Make this container the reference for absolute positioning */
 }
 
 </style>

@@ -3,18 +3,17 @@
 //and show in the browser
 
 import { createRouter, createWebHistory } from 'vue-router'
-import AboutUs from './pages/data-network2.vue'//'./pages/about-us.vue'
+import AboutUs from './pages/data-network.vue'
 import Home from './pages/Home.vue'
 import CHRISDataIntro from './pages/chris-data-intro.vue'
 import DataOverview from './pages/data-overview.vue'
-import NetworkPage from './pages/data-network.vue'
+import NetworkPage from './pages/data-network3.vue'
 import ContextCreation from './pages/context-creation.vue'
 import Login from './pages/user-login.vue'
 import Logout from './pages/user-logout.vue'
 import {checkLogin} from "@/components/authentication/auth.js";
-const BASE_URL =
-  import.meta.env.VITE_BACKEND_URL ||
-  `${window.location.protocol}//${window.location.host}`;
+import {BASE_URL} from "@/components/constants.js";
+
 
 
 const routes = [

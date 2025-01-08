@@ -29,8 +29,14 @@ export default {
       required: false,
     },
     disableSelections: {
-      type: Boolean,
-      default: false,
+    type: Object,
+    default: () => ({
+      contCont: false,
+      catCat: false,
+      multTest: true,
+      catContB: false,
+      catContM: false
+    })
     },
     expansionPanelVariant: {
       type: String,

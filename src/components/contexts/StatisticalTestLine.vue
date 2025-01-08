@@ -91,20 +91,20 @@ export default {
       ],
 
       contCatItemsB: [
-        {label: 'T-test', value: 't-test'},
+        {label: 'T-test', value: 'ttest'},
         {label: 'ANOVA', value: 'anova'},
-        {label: 'Kruskal-Wallis', value: 'kruskal-wallis'},
-        {label: 'Mann-Whitney U', value: 'mann-whitney u'},
+        {label: 'Kruskal-Wallis', value: 'kruskal'},
+        {label: 'Mann-Whitney U', value: 'mwu'},
       ],
 
       contCatItemsM: [
-        {label: 'Kruskal-Wallis', value: 'kruskal-wallis'},
+        {label: 'Kruskal-Wallis', value: 'kruskal'},
         {label: 'ANOVA', value: 'anova'},
       ],
 
       contCont: this.selectedTests?.contCont ?? {label: 'Pearson correlation', value: 'pearson'},
       catCat: this.selectedTests?.catCat ?? {label: 'Chi-squared test', value: 'chi2'},
-      catContB: this.selectedTests?.catContB ?? {label: 'T-test', value: 't-test'},
+      catContB: this.selectedTests?.catContB ?? {label: 'T-test', value: 'ttest'},
       catContM: this.selectedTests?.catContM ?? {label: 'ANOVA', value: 'anova'},
     }
   },

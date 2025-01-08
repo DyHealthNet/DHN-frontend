@@ -294,7 +294,7 @@ export default {
 
       defaultSelectedTests: {
         catCat: {label: 'Chi-squared test', value: 'chi2'}, catContM: {label: 'ANOVA', value: 'anova'},
-        catContB: {label: 'T-test', value: 't-test'}, contCont: {label: 'Pearson correlation', value: 'pearson'}
+        catContB: {label: 'T-test', value: 'ttest'}, contCont: {label: 'Pearson correlation', value: 'pearson'}
       },
       selectedTests: this.content?.tests ?? this.defaultSelectedTests,
 

@@ -506,13 +506,11 @@
 
 <script>
 import FilterToolbar from "@/components/FilterToolbar.vue";
+import {BASE_URL} from "../components/constants.js";
 
-const BASE_URL =
-  import.meta.env.VITE_BACKEND_URL ||
-  `${window.location.protocol}//${window.location.host}`;
 import { DataSet, Network } from "vis-network/standalone/esm/vis-network";
 import axios from "axios";
-import { groups } from "./networkData";
+import { groups } from "../components/network/networkData.js";
 import Swal from 'sweetalert2';
 
 export default {
@@ -1062,7 +1060,7 @@ export default {
                   type: key,
                   set: "cohort",
                   color: "black",
-                  width: -Math.log10(renamedEdge.p_value) * 1.5,
+                  width: -Math.log10(renamedEdge.final_p_value) * 1.5,
                 });
               }
             });

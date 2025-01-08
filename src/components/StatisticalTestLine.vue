@@ -21,7 +21,7 @@
       <v-select
           v-model="contCont"
           :items="contContItems"
-          :readonly="disableSelections"
+          :readonly="disableSelections.contCont"
           variant="outlined"
           density="compact"
           @update:model-value="changeTest"
@@ -34,7 +34,7 @@
       <v-select
           v-model="catCat"
           :items="catCatItems"
-          :readonly="disableSelections"
+          :readonly="disableSelections.catCat"
           variant="outlined"
           density="compact"
           @update:model-value="changeTest"
@@ -47,7 +47,7 @@
       <v-select
           v-model="multTest"
           :items="multTestItems"
-          :readonly="disableSelections"
+          :readonly="disableSelections.multTest"
           variant="outlined"
           density="compact"
           @update:model-value="changeTest"
@@ -67,7 +67,7 @@
       <v-select
           v-model="catContB"
           :items="contCatItemsB"
-          :readonly="disableSelections"
+          :readonly="disableSelections.catContB"
           label="Binary categories"
           variant="outlined"
           density="compact"
@@ -81,7 +81,7 @@
       <v-select
           v-model="catContM"
           :items="contCatItemsM"
-          :readonly="disableSelections"
+          :readonly="disableSelections.catContM"
           label="Multicategorical"
           variant="outlined"
           density="compact"
@@ -103,8 +103,14 @@ name: "StatisticalTestLine",
       required: false
     },
     disableSelections: {
-      type: Boolean,
-      default: false,
+    type: Object,
+    default: () => ({
+      contCont: false,
+      catCat: false,
+      multTest: true,
+      catContB: false,
+      catContM: false
+    })
     },
     showHeader: {
       type: Boolean,
@@ -131,20 +137,20 @@ name: "StatisticalTestLine",
       ],
 
       multTestItems: [
-        {label: 'Bonferroni', value: 'bf'},
-        {label: 'Benjamini Hochberg (FDR)', value: 'bh'},
-        {label: 'Benjamini–Yekutieli', value: 'by'},
+        {label: 'Bonferroni', value: 'bonferroni'},
+        {label: 'Benjamini Hochberg (FDR)', value: 'benjamini_hb'},
+        {label: 'Benjamini–Yekutieli', value: 'benjamini_yek'},
       ],
 
       contCatItemsB: [
-        {label: 'T-test', value: 't-test'},
+        {label: 'T-test', value: 'ttest'},
         {label: 'ANOVA', value: 'anova'},
-        {label: 'Kruskal-Wallis', value: 'kruskal-wallis'},
-        {label: 'Mann-Whitney U', value: 'mann-whitney u'},
+        {label: 'Kruskal-Wallis', value: 'kruskal'},
+        {label: 'Mann-Whitney U', value: 'mwu'},
       ],
 
       contCatItemsM: [
-        {label: 'Kruskal-Wallis', value: 'kruskal-wallis'},
+        {label: 'Kruskal-Wallis', value: 'kruskal'},
         {label: 'ANOVA', value: 'anova'},
       ],
 
@@ -152,7 +158,7 @@ name: "StatisticalTestLine",
       contCont: this.selectedTests?.contCont ?? {label: 'Pearson correlation', value: 'pearson'},
       catCat: this.selectedTests?.catCat ?? {label: 'Chi-squared test', value: 'chi2'},
       multTest: this.selectedTests?.multTest ?? {label: 'Benjamini Hochberg (FDR)', value: 'bh'},
-      catContB: this.selectedTests?.catContB ?? {label: 'T-test', value: 't-test'},
+      catContB: this.selectedTests?.catContB ?? {label: 'T-test', value: 'ttest'},
       catContM: this.selectedTests?.catContM ?? {label: 'ANOVA', value: 'anova'},
     }
   },

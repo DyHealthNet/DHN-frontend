@@ -382,7 +382,7 @@
           <p>&nbsp;</p>
           <p>
             <strong>P Value:</strong>
-            {{ displayedElement.p_value.toPrecision(3) }}
+            {{ displayedElement.final_p_value.toPrecision(3) }}
           </p>
           <p>
             <strong>Adjusted P Value:</strong>
@@ -479,7 +479,7 @@ import {BASE_URL} from "../components/constants.js";
 
 import { DataSet, Network } from "vis-network/standalone/esm/vis-network";
 import axios from "axios";
-import { groups } from "./networkData";
+import { groups } from "../components/network/networkData.js";
 
 export default {
   data() {
@@ -859,7 +859,7 @@ export default {
                   type: key,
                   set: "cohort",
                   color: "black",
-                  width: -Math.log10(renamedEdge.p_value) * 1.5,
+                  width: -Math.log10(renamedEdge.final_p_value) * 1.5,
                 });
               }
             });
