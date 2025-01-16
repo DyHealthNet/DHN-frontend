@@ -58,7 +58,6 @@ export default {
             tests: {contCont: 'Spearman', catCat: 'Chi-square', catContM: 'ANOVA', catContB: 'ANOVA'},
             layers: ['Metabolomics', 'Phenomics'],
             contextName: "Test" },
-            contextValue: 2,
             status:"Finished",
         },
         { contextName: "Context 3", contextValue: 3, content: null, status:"Waiting"},

@@ -3,7 +3,7 @@
 //and show in the browser
 
 import { createRouter, createWebHistory } from 'vue-router'
-import AboutUs from './pages/data-network.vue'
+import AboutUs from './pages/about-us.vue'
 import Home from './pages/Home.vue'
 import CHRISDataIntro from './pages/chris-data-intro.vue'
 import DataOverview from './pages/data-overview.vue'

@@ -135,6 +135,7 @@ export default {
       } else {
         return this.$vuetify.theme.themes.dyHealthNetThemeDark.colors[colorName];
       }
+
     },
     updateChart() {
       this.$nextTick(() => {

@@ -58,7 +58,7 @@
               icon
               @click="editText"
             >
-              <v-icon>mdi-pencil</v-icon>
+              <v-icon color="primary-darken-1">mdi-pencil</v-icon>
             </v-btn>
           </template></v-text-field>
             </v-col>
@@ -125,6 +125,22 @@
       </teleport>
     </v-card>
 
+        <!-- Advanced Settings -->
+    <v-card outlined class="mt-4">
+      <AdvancedSettings :selected-tests="selectedTests"
+                        :signThresh="signThresh"
+                        :disable-selections="disableSelections"
+                        :show-mult-test="true"
+                        :show-header="true"
+                        :use-advanced-title="true"
+                        expansion-panel-variant="default"
+                        header-text="Network Statistics Configuration"
+                        @data-changed="addSettings"
+                        :topNodesNumber="topNodesNumber"
+                        :topPerNodeCount="topPerNodeCount"
+                        />
+    </v-card>
+
     <!-- Network Visualization & Analysis -->
     <v-card outlined class="mt-4 responsive-card" expand>
       <v-card-title class="d-flex align-center">
@@ -142,7 +158,7 @@
       </v-card-title>
       <v-row no-gutters>
         <v-col cols="4">
-          <v-expansion-panels variant="accordion">
+          <v-expansion-panels variant="accordion" class="scrollable-panels">
             <!-- Network Overview -->
             <v-expansion-panel>
               <v-expansion-panel-title>
@@ -236,11 +252,14 @@
             <v-expansion-panel>
               <v-expansion-panel-title>
                 <v-icon color="primary-darken-1" size="20" class="ml-0 mr-3 my-0">mdi-transit-connection-variant</v-icon>
-                Connect Nodes</v-expansion-panel-title>
+                Connect Nodes
+              </v-expansion-panel-title>
                 <v-expansion-panel-text>
-                  <v-divider class="my-4"></v-divider>
               <!-- Individual Node Section -->
               <v-container class="pa-0">
+                <v-row>
+                </v-row>
+                <v-divider class="my-4"></v-divider>
                 <v-row>
                   <v-col cols="12">
                     <p>
@@ -266,7 +285,7 @@
                       color="primary-darken-1"
                       block
                       :class="{'grey lighten-2': selectedNetworkNodes.length !== 1}"
-                      @click="connectIndividualNode(count=true)"
+                      @click="connectIndividualNode(true)"
                     >Node Count</v-btn>
                   </v-col>
                 </v-row>
@@ -285,6 +304,7 @@
                       color="primary-darken-1"
                       block
                       :class="{'grey lighten-2': selectedNetworkNodes.length <= 1}"
+                      @click="connectGroupNodes"
                     >Significance Filtering</v-btn>
                     </v-col>
                   <v-col cols="12">
@@ -330,6 +350,13 @@
                   </span>
                 </v-tooltip>
               </v-toolbar-title>
+                <v-switch
+                  v-model="physics_on"
+                  @change="updatePhysics"
+                  :label="physics_on ? 'Disable Physics' : 'Enable Physics'"
+                  color="surface"
+                  class="mt-5 mr-3"
+                />
             <v-btn
               icon
               @click="console.log('saveNetworkImage')"
@@ -355,7 +382,7 @@
             <!-- Network Visualization -->
             <v-row>
                 <v-col>
-                  <div ref="network" id="network" style="height: 400px;"></div>
+                  <div ref="network" id="network" style="height: 500px;"></div>
                   <!-- Legend -->
                   <div class="legend">
                     <v-row v-for="(group, groupKey) in groups" :key="groupKey" align="center" class="mb-2" no-gutters>
@@ -381,19 +408,6 @@
         </v-col>
       </v-row>
     </v-card>
-
-    <!-- Advanced Settings -->
-    <v-card outlined class="mt-4">
-      <AdvancedSettings :selected-tests="selectedTests"
-                        :disable-selections="disableSelections"
-                        :show-mult-test="true"
-                        :show-header="true"
-                        :use-advanced-title="true"
-                        expansion-panel-variant="default"
-                        header-text="Network Statistics Configuration"
-                        @data-changed="addTests"
-                        />
-    </v-card>
   </v-container>
 </template>
 
@@ -408,25 +422,20 @@ import EdgeDetails from '@/components/network/EdgeDetails.vue';
 import {DataSet, Network} from "vis-network/standalone/esm/vis-network.js";
 import {getCookie} from "@/components/authentication/auth.js";
 import StatisticalTestLine from "@/components/StatisticalTestLine.vue";
+import NetworkEdgeLine from "@/components/network/NetworkEdgeLine.vue"
 import { useTheme } from 'vuetify';
 import html2canvas from "html2canvas"; // Only if using npm/yarn
 import { nextTick } from 'vue';
 
-
-
-
-
-
-
 export default {
   components: {
-    StatisticalTestLine, FilterToolbar, AdvancedSettings, NodeDetails,
+    StatisticalTestLine, FilterToolbar, AdvancedSettings, NodeDetails, NetworkEdgeLine,
     EdgeDetails},
   data() {
     return {
       // context filter
       contextValue: null,
-      disableSelections: { contCont: false, catCat: false, multTest: false , catContB: false, catContM: false},
+      disableSelections: { contCont: false, catCat: false, multTest: false , catContB: false, catContM: false, signThresh: false},
 
       // Network Input values
       searchText: "",
@@ -452,8 +461,8 @@ export default {
       allExternalEdges: [],
 
       nodeStyle: groups,
+      physics_on: true,
       selectedBorderColor: '', //TODO don't set this in mounted, maybe make it reactive
-      nodeRetrivalLimit: "4",
 
       displayedElement: null,
       displayedElementType: null,   // 'node' or 'edge'
@@ -469,7 +478,10 @@ export default {
         multTest: {label: 'Benjamini Hochberg (FDR)', value: 'benjamini_hb'},
         catContB: {label: 'T-test', value: 'ttest'}, contCont: {label: 'Pearson correlation', value: 'pearson'}
       },
-      signThresh: "0.999",
+      signThresh: 0.999,
+      fixThreshold: true,
+      topNodesNumber: 5,
+      topPerNodeCount: true
     };
   },
   computed: {
@@ -493,7 +505,7 @@ export default {
       // Split by commas, trim whitespace, and return the last part
       const parts = this.searchText.split(",").map((part) => part.trim());
       return parts[parts.length - 1];
-  },
+    },
     async fetchNodeRecommendations() {
       console.log("fetchNodeRecommendations, this.selectedNodes: ",this.selectedNodes)
       const search = this.getLastTypedString();
@@ -506,28 +518,47 @@ export default {
       this.debounceTimeout = setTimeout(async () => {
         if (search) {
           try {
-            const response = await axios.get(
-              BASE_URL +
-                `/network/api/getTypeaheadResults/?s=${encodeURIComponent(
-                  search
-                )}`
-            );
-            console.log("response.data: ", response.data)
-            this.typeaheadresult = Object.entries(response.data).map(([id, details]) => ({
-              id,
-              display_name: details.display_name,
-              description: details.description,
-              source_table: details.source_table,
-              x_refs: details.x_refs,
-            }));
-          } catch (error) {
-            console.error("Error fetching data:", error);
-            this.typeaheadresult = [];
-          }
-        } else {
-          this.typeaheadresult = [];
-          this.hoveredItem = null;
+        const csrfToken = getCookie('csrftoken');
+        const api_string =
+                BASE_URL +
+                "/network/api/getTypeaheadResults/" +
+                "?s=" +
+                encodeURIComponent(search) +
+                "&c=" +
+                (this.contextValue != null ? encodeURIComponent(this.contextValue) : "");
+
+        const response = await fetch(api_string, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+          },
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          throw new Error("Network response was not ok");
         }
+        const data = await response.json();
+
+        console.log("data ", data)
+
+          console.log("response.data: ", data)
+          this.typeaheadresult = Object.entries(data).map(([id, details]) => ({
+            id,
+            display_name: details.display_name,
+            description: details.description,
+            source_table: details.source_table,
+            x_refs: details.x_refs,
+          }));
+        } catch (error) {
+          console.error("Error fetching data:", error);
+          this.typeaheadresult = [];
+        }
+      } else {
+        this.typeaheadresult = [];
+        this.hoveredItem = null;
+      }
 
         this.dropdownNodes = [];
         console.log("this.typeaheadresult: ", this.typeaheadresult)
@@ -705,19 +736,14 @@ export default {
     //Network Visualization
     initializeNetwork() {
       console.log("initializeNetwork")
-      console.log("networkEdges: ", this.networkEdges)
-      const options = {physics: {enabled:true}};
+      //console.log("networkEdges: ", this.networkEdges)
+      const options = {physics: {enabled: this.physics_on}};
       const container = this.$refs.network;
       if (!container) return;
 
       //TODO possibly discard displayedNodes and set to networkNodes and the same for the Edges?
-
-      console.log("networkNodes: ",this.networkNodes)
-      console.log("networkEdges: ",this.networkEdges)
       this.vis_network_nodes = new DataSet(this.networkNodes);
       this.vis_network_edges = new DataSet(this.networkEdges);
-      console.log("network_nodes: ",this.vis_network_nodes)
-      console.log("network_edges: ",this.vis_network_edges)
 
       const data = { nodes: this.vis_network_nodes, edges: this.vis_network_edges};
 
@@ -805,6 +831,19 @@ export default {
       this.selectedNetworkNodes.splice(index, 1);
       this.updateDesign();
     },
+    // editThreshold(){
+    //   if (this.fixThreshold){
+    //     // do a popup here asking the user if he/she really wants to change the significance threshold as this
+    //     // would result in inconcistencies or would delete the current network
+    //     this.fixThreshold = false;
+    //   } else {
+    //     // do a popup here asking the user if he/she really wants to change the significance threshold as this
+    //     // would result in inconcistencies or would delete the current network
+    //     this.fixThreshold = true;
+    //     this.signThresh = this.signThreshTemp
+    //     this.clearNetwork();
+    //   }
+    // },
     async connectIndividualNode(count=false) {
       // Use the first element of selectedNetworkNodes
       const firstNode = this.selectedNetworkNodes?.[0];
@@ -821,114 +860,175 @@ export default {
         console.warn("No nodes in selectedNetworkNodes to process.");
       }
     },
-    async connectNodeGroupNode() {
-      console.log("connectNodeGroupNode");
+    async connectGroupNodes() {
+      console.log("connectNodeGroupNodes");
 
-      // Check if selectedNetworkNodes is not null/undefined and has at least one element
-      const nodeGroup = this.selectedNetworkNodes && this.selectedNetworkNodes.length > 0 ? this.selectedNetworkNodes[0] : null;
+      // Check if selectedNetworkNodes is not null/undefined and has at least two elements
+      const nodeGroup = this.selectedNetworkNodes && this.selectedNetworkNodes.length > 1 ? this.selectedNetworkNodes[0] : null;
 
       console.log("firstNode: ", nodeGroup);
 
-      if (nodeGroup) {
-        console.log("Using the first selectedNetworkNode: ", nodeGroup);
-
-        if (nodeGroup.set === "CHRIS") { //TODO change to internal/cohort or something when the backend becomes more modular
-          await this.fetchNodesAndEdges(nodeGroup); // Pass the first node to fetchNodesAndEdges
-          this.filterForNetworkEdges();
-          this.initializeNetwork();
-          this.updateDesign();
-        }
-      } else {
+      const filteredNodeIds = this.selectedNetworkNodes
+        .filter(node => node.set === "CHRIS")  // Filter nodes with .set == "CHRIS"
+        .map(node => node.id);  // Extract the node IDs
+      if (filteredNodeIds.length === 0){
         console.warn("No nodes in selectedNetworkNodes to process.");
       }
+      await this.fetchNodeGroupEdges(filteredNodeIds);
+      this.filterForNetworkEdges();
+      this.initializeNetwork();
+      this.updateDesign();
     },
     async fetchNodesAndEdges(node, count=false) {
-      const nodeID = node.id;
-      const type = node.source_table.split("_")[1];
-      const limit = count ? this.nodeRetrivalLimit : "";
-      const api_string =
-        BASE_URL +
-        "/network/api/getNetwork/?q=" +
-        nodeID +
-        "&t=" +
-        type +
-        "&l=" +
-        limit +
-        "&s=" +
-        this.signThresh +
-        "&o=" +
-        JSON.stringify(this.selectedTests);
       try {
-        // add nodes to the (hidden) network
-        const response = await axios.get(api_string);
-
-        const nodes = response.data.Nodes;
-        // Get existingNodeIds beforehand as set for faster loop
-        const existingNodeIds = new Set(this.networkNodes.map((locnode) => locnode.id));
-
-        for (const key in nodes) {
-          if (Array.isArray(nodes[key])) {
-            nodes[key].forEach((node) => {
-              if (!existingNodeIds.has(node.id)) {
-                node.set = "CHRIS"; //TODO change to internal/cohort or smth when backend became more modular
-                this.networkNodes.push(node);
-                existingNodeIds.add(node.id); // Track new node
-              }
-            });
-          }
+        const csrfToken = getCookie('csrftoken');
+        const nodeID = node.id;
+        const type = node.source_table.split("_")[1];
+        const limit = count ? this.topNodesNumber : "";
+        console.log("limit", limit);
+        console.log("this.selectedTests)", this.selectedTests);
+        let funct = "getNetwork"
+        if (this.contextValue != null){
+          funct = "getNetworkContext"
         }
+        const api_string =
+          BASE_URL +
+          "/network/api/" + funct + "/?q=" +
+          encodeURIComponent(nodeID) +
+          "&t=" +
+          encodeURIComponent(type) +
+          "&l=" +
+          encodeURIComponent(limit) +
+          "&p=" +
+          encodeURIComponent(this.fixThreshold) +
+          "&s=" +
+          this.signThresh +
+            (this.contextValue != null ? "&c=" + encodeURIComponent(this.contextValue) : "") +
+          "&o=" +
+          JSON.stringify(this.selectedTests);
 
-        // add edges to the network
-        const internalEdges = response.data.Edges;
-        console.log("These are the returned Edges: ", internalEdges)
-        const externalEdges = response.data["External Edges"];
-
-        // Get existing*EdgeIds beforehand as set for faster loop
-        const existingInternalEdgeIds = new Set(this.allInternalEdges.map((edge) => edge.id));
-        const existingExternalEdgeIds = new Set(this.allExternalEdges.map((edge) => edge.id));
-
-        for (const key in internalEdges) {
-          if (Array.isArray(internalEdges[key])) {
-            internalEdges[key].forEach((edge) => {
-              const renamedEdge = Object.entries(edge).reduce((acc, [k, v]) => {
-                if (k.includes("_id")) {
-                  if (!acc.from) {
-                    acc.from = v;
-                  } else {
-                    acc.to = v;
-                  }
-                } else {
-                  acc[k] = v;
-                }
-                return acc;
-              }, {});
-              if (!existingInternalEdgeIds.has(edge.id)) {
-                this.allInternalEdges.push({
-                  ...renamedEdge,
-                  type: key,
-                  set: "cohort (calculated)",
-                  color: "black",
-                  width: -Math.log10(renamedEdge.final_p_value) * 1.5,
-                });
-                existingInternalEdgeIds.add(edge.id);
-              }
-            });
-          }
-        }
-        externalEdges.forEach((edge) => {
-          if (!existingExternalEdgeIds.has(edge.id)) {
-            this.allExternalEdges.push({
-              ...edge,
-              set: "external",
-              to: edge.source_cohort_id,
-              from: edge.target_cohort_id,
-            });
-            existingExternalEdgeIds.add(edge.id);
-          }
+        const response = await fetch(api_string, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+          },
+          credentials: 'include',
         });
+
+        if (!response.ok) {
+          throw new Error("Network response was not ok");
+        }
+        const data = await response.json();
+
+        this.setNetworkNodes(data);
       } catch (error) {
         console.error("Error fetching edges:", error);
       }
+    },
+    async fetchNodeGroupEdges(nodes) {
+      try {
+        const csrfToken = getCookie('csrftoken');
+        let funct = "getGroupNetwork"
+        if (this.contextValue != null){
+          funct = "getGroupNetworkContext"
+        }
+        const api_string =
+          BASE_URL +
+          "/network/api/" + funct + "/?q=" +
+          JSON.stringify(nodes) +
+          "&s=" +
+          this.signThresh +
+            (this.contextValue != null ? "&c=" + encodeURIComponent(this.contextValue) : "") +
+          "&o=" +
+          JSON.stringify(this.selectedTests);
+
+        const response = await fetch(api_string, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+          },
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          throw new Error("Network response was not ok");
+        }
+        const data = await response.json();
+        this.setNetworkNodes(data);
+
+      } catch (error) {
+        console.error("Error fetching edges:", error);
+      }
+    },
+    setNetworkNodes(data){
+      console.log("data ", data)
+
+      const nodes = data.Nodes;
+      // Get existingNodeIds beforehand as set for faster loop
+      const existingNodeIds = new Set(this.networkNodes.map((locnode) => locnode.id));
+
+      for (const key in nodes) {
+        if (Array.isArray(nodes[key])) {
+          nodes[key].forEach((node) => {
+            if (!existingNodeIds.has(node.id)) {
+              node.set = "CHRIS"; //TODO change to internal/cohort or smth when backend became more modular
+              this.networkNodes.push(node);
+              existingNodeIds.add(node.id); // Track new node
+            }
+          });
+        }
+      }
+
+      // add edges to the network
+      const internalEdges = data.Edges;
+      console.log("These are the returned Edges: ", internalEdges)
+      const externalEdges = data["External Edges"];
+
+      // Get existing*EdgeIds beforehand as set for faster loop
+      const existingInternalEdgeIds = new Set(this.allInternalEdges.map((edge) => edge.id));
+      const existingExternalEdgeIds = new Set(this.allExternalEdges.map((edge) => edge.id));
+
+      for (const key in internalEdges) {
+        if (Array.isArray(internalEdges[key])) {
+          internalEdges[key].forEach((edge) => {
+            const renamedEdge = Object.entries(edge).reduce((acc, [k, v]) => {
+              if (k.includes("_id")) {
+                if (!acc.from) {
+                  acc.from = v;
+                } else {
+                  acc.to = v;
+                }
+              } else {
+                acc[k] = v;
+              }
+              return acc;
+            }, {});
+            if (!existingInternalEdgeIds.has(edge.id)) {
+              this.allInternalEdges.push({
+                ...renamedEdge,
+                type: key,
+                set: "cohort (calculated)",
+                color: "black",
+                width: -Math.log10(renamedEdge.final_p_value) * 1.5,
+              });
+              existingInternalEdgeIds.add(edge.id);
+            }
+          });
+        }
+      }
+      externalEdges.forEach((edge) => {
+        if (!existingExternalEdgeIds.has(edge.id)) {
+          this.allExternalEdges.push({
+            ...edge,
+            set: "external",
+            to: edge.source_cohort_id,
+            from: edge.target_cohort_id,
+          });
+          existingExternalEdgeIds.add(edge.id);
+        }
+      });
     },
     filterForNetworkEdges() {
       console.log("filterForNetworkEdges")
@@ -936,7 +1036,7 @@ export default {
       const uniqueEdges = new Set();
 
       console.log("this.allInternalEdges: ",this.allInternalEdges)
-      console.log("this.networkNodeIds: ",this.networkNodeIds)
+      console.log("this.networkNodeIds: ",networkNodeIds)
 
       const isValidEdge = (edge) =>
         networkNodeIds.has(edge.from) && networkNodeIds.has(edge.to);
@@ -1016,7 +1116,18 @@ export default {
       }
       return { borderRadius: "50%", backgroundColor: color, width: "20px", height: "20px" };
     },
-    clearNetwork(){
+    updatePhysics() {
+      // Update the physics option dynamically
+      const newPhysicsOption = {
+        physics: {
+          enabled: this.physics_on  // Set to true or false based on v-switch
+        }
+      };
+
+      // Update the options of the existing network
+      this.network.setOptions(newPhysicsOption);
+    },
+    clearNetwork(full = true){
       this.networkNodes = [];
       this.networkEdges = [];
       this.vis_network_nodes = [];
@@ -1029,8 +1140,12 @@ export default {
       this.displayedElementType = null;
       this.isDetailsNodeSelected = false;
       this.selectedNetworkNodes = [];
-      this.initializeNetwork();
-      this.updateDesign();
+      if(full){
+        this.initializeNetwork();
+        this.updateDesign();
+      } else{
+        this.sendToNetwork()
+      }
     },
     saveNetworkFile() {
       console.log("Saving network data...");
@@ -1066,24 +1181,49 @@ export default {
       }
     },
     saveNetworkImage() {
-    }
+    },
 
     // Advanced Settings methods
-    addTests(data) {
-      this.selectedTests = data;
-      this.clearNetwork();
+    addSettings(data) {
+      //console.log("data: ", data)
+      Object.entries(data).forEach(([key, value]) => {
+        if (key in this) {
+          this[key] = value; // Update the corresponding variable in the parent
+        } else {
+          console.warn(`Unhandled key: ${key}`);
+        }
+      });
+      this.clearNetwork(false);
     },
 
     // Context methods
     async updateData(val) {
       this.contextValue = val ? val.value : null;
       const context = await this.getContexts(this.contextValue);
+      console.log("retrieved context ", context)
       if (context) {
-        this.selectedTests = context.content.tests
-        this.disableSelections = { contCont: true, catCat: true, multTest: false , catContB: true, catContM: true}
+        this.selectedTests['catCat'] = context.content.tests['catCat'];
+        this.selectedTests['catContM'] = context.content.tests['catContM'];
+        this.selectedTests['catContB'] = context.content.tests['catContB'];
+        this.selectedTests['contCont'] = context.content.tests['contCont'];
+        //this.selectedTests = context.content.tests
+        this.disableSelections = { contCont: true, catCat: true, multTest: false , catContB: true, catContM: true, signThresh: false};
+        this.clearNetwork(false);
+        this.searchText = "";
+        this.selectedNodes = [];
+        this.isReadOnly = false;
+        console.log("this.selectedTests ", this.selectedTests)
       }
       else{
-        this.disableSelections = { contCont: false, catCat: false, multTest: false , catContB: false, catContM: false}
+        this.selectedTests =  {
+          catCat: {label: 'Chi-squared test', value: 'chi2'}, catContM: {label: 'ANOVA', value: 'anova'},
+          multTest: {label: 'Benjamini Hochberg (FDR)', value: 'benjamini_hb'},
+          catContB: {label: 'T-test', value: 'ttest'}, contCont: {label: 'Pearson correlation', value: 'pearson'}};
+        this.disableSelections = { contCont: false, catCat: false, multTest: false , catContB: false, catContM: false, signThresh: false};
+        this.clearNetwork(false);
+        this.searchText = "";
+        this.selectedNodes = [];
+        this.isReadOnly = false;
       }
     },
     async getContexts(val) {
@@ -1151,6 +1291,10 @@ export default {
   left: 10px;    /* Adjust the left margin */
   background: transparent;  /* Transparent background */
   z-index: 10;  /* Ensure it appears above other elements */
+}
+.scrollable-panels {
+  max-height: 580px;  /* You can adjust the height as needed */
+  overflow-y: auto;   /* This will make the content scrollable */
 }
 
 /* Style for the network container */

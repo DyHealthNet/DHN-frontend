@@ -7,11 +7,18 @@
         </v-expansion-panel-title>
         <v-expansion-panel-text>
           <StatisticalTestLine :selected-tests="selectedTests"
+                               :signThresh="signThresh"
                                :disable-selections="disableSelections"
                                :show-mult-test="showMultTest"
                                :showHeader="showHeader"
                                :headerText="headerText"
                                @data-changed="updateData" />
+          <template v-if="topNodesNumber != null && topPerNodeCount != null">
+            <v-divider class="my-4"></v-divider>
+            <NetworkEdgeLine :topNodesNumber="topNodesNumber"
+                             :topPerNodeCount="topPerNodeCount"
+                               @data-changed="updateData" />
+          </template>
         </v-expansion-panel-text>
       </v-expansion-panel>
     </v-expansion-panels>
@@ -19,24 +26,30 @@
 
 <script>
 import StatisticalTestLine from "@/components/StatisticalTestLine.vue";
+import NetworkEdgeLine from "@/components/network/NetworkEdgeLine.vue";
 
 export default {
   name: "AdvancedSettings",
-  components: { StatisticalTestLine },
+  components: { StatisticalTestLine, NetworkEdgeLine },
   props: {
     selectedTests: {
       type: Object,
       required: false,
     },
+    signThresh: {
+      type: Number,
+      required: false,
+    },
     disableSelections: {
-    type: Object,
-    default: () => ({
-      contCont: false,
-      catCat: false,
-      multTest: true,
-      catContB: false,
-      catContM: false
-    })
+      type: Object,
+      default: () => ({
+        contCont: false,
+        catCat: false,
+        multTest: false,
+        catContB: false,
+        catContM: false,
+        signThresh: false,
+      })
     },
     expansionPanelVariant: {
       type: String,
@@ -58,9 +71,18 @@ export default {
       type: String,
       default: "Network Statistics Configuration",
     },
+    topNodesNumber: {
+      type: Number,
+      required: false,
+    },
+    topPerNodeCount: {
+      type: Boolean,
+      required: false,
+    },
   },
   methods: {
     updateData(data) {
+      console.log("data ", data)
       this.$emit("data-changed", data);
     },
   },

@@ -15,6 +15,7 @@
     class="me-0 rounded-circle"
     ></v-img>
       </v-icon>
+    <p><span class="label-title">Node</span></p>
     <p><span class="label">Name:</span><br>
       <span class="display-name">{{ node.display_name }}</span></p>
     <p><span class="label">Description:</span> <br>
@@ -95,6 +96,13 @@ export default {
 .label {
   font-size: 12px;
   color: rgb(var(--v-theme-primary-darken-1));
+}
+.label-title {
+  font-size: 24px;
+  color: rgb(var(--v-theme-primary-darken-1));
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 .display-name {
   font-size: 18px; /* Larger text size */

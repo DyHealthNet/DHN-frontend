@@ -1,4 +1,5 @@
 <template>
+    <p><span class="label-title">Edge</span></p>
     <p><span class="label">Ranking P Value:</span><br>
       <span class="value">{{ formatValue(edge.final_p_value) }}</span>
     </p>
@@ -10,7 +11,7 @@
       <!-- P-Value Related Attributes -->
       <v-expansion-panel >
         <v-expansion-panel-title>
-          <span class="label-title" >Statistical Significance</span>
+          <span class="label-subtitle" >Statistical Significance</span>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
           <!-- Table for P-Value Related Attributes -->
@@ -38,7 +39,7 @@
       <!-- Effect-Size Related Attributes -->
       <v-expansion-panel>
         <v-expansion-panel-title>
-          <span class="label-title" >Effect-Size</span>
+          <span class="label-subtitle" >Effect-Size</span>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
           <v-table dense>
@@ -62,7 +63,7 @@
         </v-expansion-panel-text>
       </v-expansion-panel>
     </v-expansion-panels>
-  <p><span class="label-title" >Connected Nodes:</span></p>
+  <p><span class="label-subtitle" >Connected Nodes:</span></p>
     <v-table dense v-if="edge">
       <thead>
       </thead>
@@ -159,9 +160,17 @@ export default {
   color: rgb(var(--v-theme-primary-darken-1));
 }
 
-.label-title {
+.label-subtitle {
   font-size: 16px;
   color: rgb(var(--v-theme-primary-darken-1));
+}
+
+.label-title {
+  font-size: 24px;
+  color: rgb(var(--v-theme-primary-darken-1));
+  display: flex;
+  justify-content: center; /* Horizontal centering */
+  align-items: center; /* Vertical centering */
 }
 
 .value {

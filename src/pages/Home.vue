@@ -21,7 +21,7 @@
         <v-row class="my-5">
           <!-- Part 2 Context page-->
           <v-col cols="12" md="12" lg="6" class="text-center">
-            <v-sheet rounded="lg" elevation="1" min-height="240px" min-width="620px" class="d-flex align-center">
+            <v-sheet rounded="lg" elevation="1" class="d-flex align-center sheet">
               <v-row>
                 <v-col cols="4" class="d-flex justify-center align-center">
                   <v-img>
@@ -36,7 +36,7 @@
                     {{ loremIpsum }}
                   </p>
                   <v-btn size="x-large" to="/context" color="primary"
-                         class="mt-5 mx-3 align-self-end" prepend-icon="mdi-tune-vertical">Contexts</v-btn>
+                         class="mt-5 mb-5 mx-3 align-self-end" prepend-icon="mdi-tune-vertical">Contexts</v-btn>
                 </v-col>
               </v-row>
             </v-sheet>
@@ -44,7 +44,7 @@
 
           <!-- Part 2 Network page-->
           <v-col cols="12" md="12" lg="6" class="text-center">
-            <v-sheet rounded="lg" elevation="1" min-height="240px" min-width="620px" class="d-flex align-center">
+            <v-sheet rounded="lg" elevation="1"  class="d-flex align-center sheet">
               <v-row>
                 <v-col cols="4" class="d-flex justify-center align-center">
                   <v-img>
@@ -59,7 +59,7 @@
                     {{ networkDescription }}
                   </p>
                   <v-btn size="x-large" to="/network" color="primary"
-                         class="mt-5 mx-3 align-self-end" prepend-icon="mdi-graph-outline">Network</v-btn>
+                         class="mt-5 mb-5 mx-3 align-self-end" prepend-icon="mdi-graph-outline">Network</v-btn>
                 </v-col>
               </v-row>
             </v-sheet>
@@ -67,7 +67,7 @@
 
           <!-- Part 2 Overview page-->
           <v-col cols="12" md="12" lg="6" class="text-center">
-            <v-sheet rounded="lg" elevation="1" min-height="240px" min-width="620px" class="d-flex align-center">
+            <v-sheet rounded="lg" elevation="1"  class="d-flex align-center sheet">
               <v-row>
                 <v-col cols="4" class="d-flex justify-center align-center">
                   <v-img>
@@ -89,7 +89,7 @@
                     </p>
                   </div>
                   <v-btn size="x-large" to="/overview" color="primary"
-                         class="mt-5 mx-3 align-self-end" prepend-icon="mdi-chart-line">Overview</v-btn>
+                         class="mt-5 mb-5 mx-3 align-self-end" prepend-icon="mdi-chart-line">Overview</v-btn>
                 </v-col>
               </v-row>
             </v-sheet>
@@ -97,7 +97,7 @@
 
           <!-- Do it yourself page-->
           <v-col cols="12" md="12" lg="6" class="text-center">
-            <v-sheet rounded="lg" elevation="1" min-height="240px" min-width="620px" class="d-flex align-center">
+            <v-sheet rounded="lg" elevation="1"  class="d-flex align-center sheet">
               <v-row>
                 <v-col cols="4" class="d-flex justify-center align-center">
                   <v-img>
@@ -112,7 +112,7 @@
                     {{ loremIpsum }}
                   </p>
                   <v-btn size="x-large" to="/about-us" color="primary"
-                         class="mt-5 mx-3 align-self-end" prepend-icon="mdi-book-outline">Documentation</v-btn>
+                         class="mt-5 mb-5 mx-3 align-self-end" prepend-icon="mdi-book-outline">Documentation</v-btn>
                 </v-col>
               </v-row>
             </v-sheet>
@@ -260,6 +260,7 @@ export default {
 <style scoped>
 
 .home-background {
+  //background: radial-gradient(ellipse, rgb(var(--v-theme-primary)) 30%, rgba(255, 255, 255, 0) 100%);
   background: linear-gradient(to bottom right,  rgb(var(--v-theme-primary)),  rgb(var(--v-theme-background)));
   padding: 20px;
   border-radius: 10px;
@@ -300,5 +301,10 @@ export default {
 .round-border {
   border-radius: 10px;
   background-color: rgb(var(--v-theme-surface));
+}
+.sheet {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 </style>
