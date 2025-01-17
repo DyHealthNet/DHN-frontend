@@ -13,7 +13,7 @@
     </v-row>
   </v-container>
   <v-container class="justify-center mt-4">
-    <FilterToolbar @change-context="updateData"></FilterToolbar>
+    <FilterToolbar :disable-move="true" @change-context="updateData"></FilterToolbar>
     <!-- Network Input -->
     <v-card outlined class="responsive-card">
       <v-card-title class="d-flex align-center">

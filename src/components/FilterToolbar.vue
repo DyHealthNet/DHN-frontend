@@ -46,6 +46,13 @@ export default {
   name: 'FilterToolbar',
   emits: ['changeContext'],
 
+  props: {
+    disableMove: {
+      type: Boolean,
+      default: false
+    }
+  },
+
   data() {
     return {
       // only show toolbar if user is logged in
@@ -106,8 +113,15 @@ export default {
   },
 
   mounted() {
+    if (this.disableMove) {
+      this.$refs.filterToolbar.$el.classList.remove('stick-to-top');
+      return;
+    }
     window.addEventListener('scroll', () => {
       try {
+        if (this.disableMove) {
+          return;
+        }
         const toolbar = this.$refs.filterToolbar.$el.getBoundingClientRect();
         this.isSticky = toolbar.top === 140;
       } catch (error) {
@@ -148,8 +162,8 @@ export default {
 }
 
 .v-combobox input::placeholder {
-  color: #000; /* Make it black */
-  font-weight: normal; /* Adjust weight to match normal text */
-  opacity: 1; /* Ensure it's fully opaque */
+  color: #000;
+  font-weight: normal;
+  opacity: 1;
 }
 </style>
