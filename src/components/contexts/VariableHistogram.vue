@@ -70,18 +70,19 @@
         default: () => ({})
       }
     },
-    data: () => ({
-      width: 2,
-      radius: true,
-      padding: 8,
-      lineCap: 'round',
-      value: [],
-      valueLabels: [],
-      barType: 'bar',
-      fill: true,
-      dialogActive: false,
-      autoLineWidth: true,
-    }),
+    data() {
+      return {
+        radius: true,
+        padding: 8,
+        lineCap: 'round',
+        value: [],
+        valueLabels: [],
+        barType: 'bar',
+        fill: true,
+        dialogActive: false,
+        autoLineWidth: true,
+      };
+    },
     watch: {
       barData: {
         handler() {
@@ -90,6 +91,11 @@
           this.barType = this.barData?.type || 'bar'
         },
         immediate: true
+      }
+    },
+    computed: {
+      width() {
+        return 200 / this.barData?.values?.length || 100
       }
     }
   }
