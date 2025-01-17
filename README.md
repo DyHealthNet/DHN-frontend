@@ -24,3 +24,6 @@ npm install
 npm run dev
 ```
 
+### Adjusting the Backend URL
+The backend URL is set in the .env file via the `VITE_BACKEND_URL`. Change the URL to the backend server and make sure the backend server is 
+properly called. Don't mix 127.0.0.1 with localhost if you want to save yourself from hours of debugging.
