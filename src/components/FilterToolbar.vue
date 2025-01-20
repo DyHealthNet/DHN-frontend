@@ -113,7 +113,7 @@ export default {
   },
 
   mounted() {
-    if (this.disableMove) {
+    if (this.disableMove && this.$refs.filterToolbar) {
       this.$refs.filterToolbar.$el.classList.remove('stick-to-top');
       return;
     }

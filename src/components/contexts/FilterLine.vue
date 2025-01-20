@@ -191,9 +191,15 @@ export default  {
     },
 
     getHistogramData(distribution, type) {
+      let labels = distribution.labels.map(value => {
+        let label = this.possibleValues.find(val => String(val.value) === value);
+        return label ? label.label : value;
+      });
+      console.log("mapped values");
+      console.log(labels);
       this.histogramData = {
         values: distribution.values,
-        labels: distribution.labels,
+        labels: labels,
         type: type || 'bar'
       }
     },
@@ -218,6 +224,7 @@ export default  {
           .then(response => response.json())
           .then(data => {
             this.possibleValues = data.result;
+            console.log(data);
             this.getHistogramData(data.distribution, data.type);
           })
     }

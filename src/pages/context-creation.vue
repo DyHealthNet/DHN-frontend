@@ -14,7 +14,7 @@
   </v-container>
 
   <v-container class="d-flex justify-center mt-4">
-    <v-card rounded="lg" elevation="2" class="responsive-card">
+    <v-card rounded="lg" elevation="1" class="responsive-card">
       <v-tabs v-model="contextTab" align-tabs="center" bg-color="primary-darken-1" show-arrows>
         <v-tab v-for="tab in tabs" :key="tab.contextValue" :text="tab.contextName" :value="tab.contextValue"></v-tab>
       </v-tabs>
