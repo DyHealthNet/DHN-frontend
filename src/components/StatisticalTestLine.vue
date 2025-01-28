@@ -210,15 +210,18 @@ name: "StatisticalTestLine",
         catContM: this.catContM,
       })
     },
-  },
-  watch: {
     internalSignThresh(newValue) {
       const numericValue = parseFloat(newValue);
-      console.log("internalsignThresh: newValue", numericValue)
-      console.log("{signThresh: newValue}", {signThresh: numericValue})
+      //console.log("internalsignThresh: newValue", numericValue)
+      //console.log("{signThresh: newValue}", {signThresh: numericValue})
       this.$emit("data-changed", {signThresh: numericValue});
     },
-  }
+  },
+  watch: {
+    signThresh(newValue) {
+      this.internalSignThresh = parseFloat(newValue); // Update local state when prop changes
+    },
+  },
 }
 </script>
 

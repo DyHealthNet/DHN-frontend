@@ -28,14 +28,10 @@
           color="primary"
         >
           <template #prepend>
-            <span :class="!internalTopPerNodeCount ? 'text-muted' : 'text-muted'">
-              Overall
-            </span>
+            <span class="text-muted">Overall</span>
           </template>
           <template #append>
-            <span :class="internalTopPerNodeCount ? 'text-muted' : 'text-muted'">
-              Per Node Type
-            </span>
+            <span class="text-muted">Per Node Type</span>
           </template>
         </v-switch>
       </v-col>
@@ -70,12 +66,9 @@ export default {
   },
   watch: {
     internalTopNodesNumber(newValue) {
-      const numericValue = parseFloat(newValue);
-      console.log("internalTopNodesNumber: newValue", numericValue)
-      this.$emit("data-changed", { topNodesNumber: numericValue });
+      this.$emit("data-changed", { topNodesNumber: newValue });
     },
     internalTopPerNodeCount(newValue) {
-      console.log("internalTopPerNodeCount: newValue", newValue)
       this.$emit("data-changed", { topPerNodeCount: newValue });
     },
   },

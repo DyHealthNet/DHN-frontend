@@ -158,7 +158,7 @@ export default {
     return {
       isDark: false,
       darkModeText: "",
-      isLoggedIn: false,
+      isLoggedIn: false, //TODO remove?
 
       taskStarted: false,
       taskInfo: "",

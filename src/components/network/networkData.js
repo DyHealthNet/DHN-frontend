@@ -26,6 +26,49 @@ export const options = {
    }
 };
 
+//import crypto from "crypto";
+//import {authState, checkLogin, getCookie} from '@/components/authentication/auth.js';
+
+
+export function saveNetworkState(contextValue, networkState) {
+  if (contextValue) {
+    const key = `context_${contextValue}`;
+    // const csrfToken = getCookie('csrftoken');
+    // const hashedToken = crypto.createHash("sha256").update(csrfToken).digest("hex");
+    console.log("saveNetworkState key", key)
+    localStorage.setItem(key, JSON.stringify(networkState));
+  } else {
+    const key = `staticNetwork`;
+    console.log("saveNetworkState key", key)
+    localStorage.setItem(key, JSON.stringify(networkState));
+  }
+}
+
+export function loadNetworkState(contextValue) {
+  if (contextValue) {
+    const key = `context_${contextValue}`;
+    console.log("loadNetworkState key", key)
+    console.log("loadNetworkState savedState", contextValue)
+    const savedState = localStorage.getItem(key);
+    return savedState ? JSON.parse(savedState) : null;
+  } else {
+    const key = `staticNetwork`;
+    const savedState = localStorage.getItem(key);
+    console.log("loadNetworkState key", key)
+    return savedState ? JSON.parse(savedState) : null;
+  }
+}
+
+export function clearNetworkState(contextValue) {
+  if (contextValue) {
+      const key = `context_${contextValue}`;
+      localStorage.removeItem(key);
+  } else {
+      const key = `staticNetwork`;
+      localStorage.removeItem(key);
+  }
+}
+
 
 export const nodeData = [
   { id: 1, label: 'EGFR', group: 'Protein' },

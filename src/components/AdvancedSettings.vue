@@ -1,5 +1,5 @@
 <template>
-  <v-expansion-panels :variant="expansionPanelVariant">
+  <v-expansion-panels :variant="expansionPanelVariant" :key="panelKey">
       <v-expansion-panel>
         <v-expansion-panel-title>
             <v-icon color="primary-darken-1" size="30" class="mr-3 my-0">mdi-cog-outline</v-icon>
@@ -80,10 +80,18 @@ export default {
       required: false,
     },
   },
+  data() {
+    return {
+      panelKey: 0,  // Initial key to trigger re-render
+      expandedPanels: [0], // Track the panel's open/closed state
+    };
+  },
+  emits: ['data-changed'], // Declare the event
   methods: {
     updateData(data) {
-      console.log("data ", data)
+      //this.panelKey++;
       this.$emit("data-changed", data);
+      console.log("data ", data)
     },
   },
 };
