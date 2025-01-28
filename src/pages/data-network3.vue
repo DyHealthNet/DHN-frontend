@@ -304,7 +304,7 @@
                       color="primary-darken-1"
                       block
                       :class="{'grey lighten-2': selectedNetworkNodes.length <= 1}"
-                      @click="connectGroupNodes"
+                      @click="connectGroupNodes(false)"
                     >Significance Filtering</v-btn>
                     </v-col>
                   <v-col cols="12">
@@ -314,6 +314,7 @@
                       color="primary-darken-1"
                       block
                       :class="{'grey lighten-2': selectedNetworkNodes.length <= 1}"
+                      @click="connectGroupNodes(true)"
                     >Minimum Spanning Tree</v-btn>
                     </v-col>
                     </v-row>
@@ -416,11 +417,11 @@ import AdvancedSettings from "@/components/AdvancedSettings.vue";
 import axios from "axios";
 import FilterToolbar from "@/components/FilterToolbar.vue";
 import {BASE_URL} from "@/components/constants.js";
-import { groups } from "../components/network/networkData.js";
+import { groups, saveNetworkState, loadNetworkState } from "../components/network/networkData.js";
 import NodeDetails from '@/components/network/NodeDetails.vue';
 import EdgeDetails from '@/components/network/EdgeDetails.vue';
 import {DataSet, Network} from "vis-network/standalone/esm/vis-network.js";
-import {getCookie} from "@/components/authentication/auth.js";
+import {authState, getCookie} from "@/components/authentication/auth.js";
 import StatisticalTestLine from "@/components/StatisticalTestLine.vue";
 import NetworkEdgeLine from "@/components/network/NetworkEdgeLine.vue"
 import { useTheme } from 'vuetify';
@@ -471,7 +472,6 @@ export default {
 
       selectedNetworkNodes: [],
 
-
       // Advanced Settings (default) values
       selectedTests: {
         catCat: {label: 'Chi-squared test', value: 'chi2'}, catContM: {label: 'ANOVA', value: 'anova'},
@@ -507,19 +507,29 @@ export default {
       return parts[parts.length - 1];
     },
     async fetchNodeRecommendations() {
-      console.log("fetchNodeRecommendations, this.selectedNodes: ",this.selectedNodes)
-      const search = this.getLastTypedString();
-      // Clear the previous timeout
-      if (this.debounceTimeout) {
-        clearTimeout(this.debounceTimeout);
+      const lastChar = this.searchText[this.searchText.length - 1];
+      if (lastChar === ","){
+        await this.findNodeMatch();
+        this.typeaheadresult = [];
+        this.hoveredItem = null;
+        return;
       }
+      const search = this.getLastTypedString();
 
-      // Set a new timeout
+      // Clear any previous debounce timeout
+      if (this.debounceTimeout) clearTimeout(this.debounceTimeout);
+
+      // Set a new debounce timeout
       this.debounceTimeout = setTimeout(async () => {
-        if (search) {
-          try {
-        const csrfToken = getCookie('csrftoken');
-        const api_string =
+        if (!search) {
+          this.typeaheadresult = [];
+          this.hoveredItem = null;
+          return;
+        }
+
+        try {
+          const csrfToken = getCookie('csrftoken');
+          const apiUrl =
                 BASE_URL +
                 "/network/api/getTypeaheadResults/" +
                 "?s=" +
@@ -527,23 +537,20 @@ export default {
                 "&c=" +
                 (this.contextValue != null ? encodeURIComponent(this.contextValue) : "");
 
-        const response = await fetch(api_string, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken
-          },
-          credentials: 'include',
-        });
+          const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken,
+            },
+            credentials: 'include',
+          });
 
-        if (!response.ok) {
-          throw new Error("Network response was not ok");
-        }
-        const data = await response.json();
+          if (!response.ok) throw new Error("Network response was not ok");
 
-        console.log("data ", data)
+          const data = await response.json();
 
-          console.log("response.data: ", data)
+          // Map the response data and filter out already selected nodes
           this.typeaheadresult = Object.entries(data).map(([id, details]) => ({
             id,
             display_name: details.display_name,
@@ -551,37 +558,38 @@ export default {
             source_table: details.source_table,
             x_refs: details.x_refs,
           }));
+
+          this.dropdownNodes = this.typeaheadresult.filter(node =>
+            !this.selectedNodes.some(selected => selected.id === node.id)
+          );
         } catch (error) {
           console.error("Error fetching data:", error);
           this.typeaheadresult = [];
+          this.dropdownNodes = [];
         }
-      } else {
-        this.typeaheadresult = [];
-        this.hoveredItem = null;
-      }
-
-        this.dropdownNodes = [];
-        console.log("this.typeaheadresult: ", this.typeaheadresult)
-        this.typeaheadresult.forEach((node) => {
-          const nodeExistsInNetwork = this.selectedNodes.some(
-            (networkNode) => networkNode.id === node.id
-          );
-          if (!nodeExistsInNetwork) {
-            this.dropdownNodes.push(node);
-          }
-        });
-      }, 300); // Delay in milliseconds, adjust as needed (e.g., 300ms)
+      }, 300); // Debounce delay in milliseconds
+    },
+    updateSearchText(){
+      console.log("updateSearchText");
+      const search = this.getLastTypedString();
+      console.log("search", search);
+      console.log("this.selectedNodes", this.selectedNodes);
+      const nodeNames = this.selectedNodes
+        .filter(node => node && node.display_name)
+        .map(node => node.display_name);
+      console.log("searchText", this.searchText);
+      console.log("nodeNames", nodeNames);
+      this.searchText = nodeNames.length > 0 ? nodeNames.join(", ") + (search ? ", " + search : ",") : search;
+      console.log("searchText", this.searchText);
     },
     addPerDropDown(item) {
       // Re-join the array into comma-separated searchText
       //this.searchText = searchTextParts.join(', ') + ', ';
+      this.selectedNodes = this.selectedNodes.filter(node =>
+        this.searchText.includes(node.display_name) || this.searchText.includes(node.id)
+      );
       this.selectedNodes.push(item);
-      const search = this.getLastTypedString();
-      const nodeNames = this.selectedNodes
-        .filter(node => node && node.display_name)
-        .map(node => node.display_name);
-
-      this.searchText = nodeNames.length > 0 ? nodeNames.join(", ") + ", " + search : search;
+      this.updateSearchText();
       this.fetchNodeRecommendations();
       // this.dropdownNodes = [];
       // this.hoverNodeLeave();
@@ -594,6 +602,66 @@ export default {
         input.focus();
         input.setSelectionRange(this.searchText.length, this.searchText.length);
       });
+    },
+    async fetchNodeMatch(search) {
+      if (!search) return [];
+      try {
+        const csrfToken = getCookie('csrftoken');
+        const apiUrl =
+                BASE_URL +
+                "/network/api/getTypeaheadResults/" +
+                "?s=" +
+                encodeURIComponent(search) +
+                "&c=" +
+                (this.contextValue != null ? encodeURIComponent(this.contextValue) : "");
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+          },
+          credentials: 'include',
+        });
+
+        if (!response.ok) throw new Error("Network response was not ok");
+
+        const data = await response.json();
+
+        // Map response data and filter out already selected nodes
+        return Object.entries(data)
+          .map(([id, details]) => ({
+            id,
+            display_name: details.display_name,
+            description: details.description,
+            source_table: details.source_table,
+            x_refs: details.x_refs,
+          }))
+          .filter(node => !this.selectedNodes.some(selected => selected.id === node.id));
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        return [];
+      }
+    },
+    async findNodeMatch() {
+      const searchElements = this.searchText.split(',').map(element => element.trim()).slice(0, -1);
+      const lastElement = searchElements[searchElements.length - 1];
+
+      try {
+          const response = await this.fetchNodeMatch(lastElement); // Assume this function exists
+          if (response && response.length === 1) {
+            const match = response[0];
+            if (match.display_name === lastElement || match.id === lastElement)
+              console.log("match matched")
+              console.log("match", match)
+              console.log("this.selectedNodes", this.selectedNodes)
+              if (!this.selectedNodes.some(node => node.id === match.id)) {
+                this.selectedNodes.push(match); // Add the matched node from backend
+            }
+          }
+        } catch (error) {
+          console.error(`Backend search failed for: ${lastElement}`, error);
+        }
+      this.updateSearchText();
     },
     hoverNode(item) {
       if (!this.hoveredItem || this.hoveredItem !== item) {
@@ -680,6 +748,7 @@ export default {
     handleClearNodeInput(){
       this.searchText = "";
       this.selectedNodes = [];
+      this.saveState();
     },
     moveFocus(direction) {
       if (this.isReadOnly) return;
@@ -715,6 +784,10 @@ export default {
     sendToNetwork() {
       // Send selectedNodes to networkNodes and reset selectedNodes
       this.networkNodes= [];
+      // filter selected Nodes for presence in searchText (if user deletes them)
+      this.selectedNodes = this.selectedNodes.filter(node =>
+        this.searchText.includes(node.display_name) || this.searchText.includes(node.id)
+      );
       this.networkNodes = this.selectedNodes.map((node) => ({
           ...node,
           set: "CHRIS", //TODO change to internal/cohort or smth when backend became more modular
@@ -736,7 +809,7 @@ export default {
     //Network Visualization
     initializeNetwork() {
       console.log("initializeNetwork")
-      //console.log("networkEdges: ", this.networkEdges)
+      console.log("networkEdges: ", this.networkEdges)
       const options = {physics: {enabled: this.physics_on}};
       const container = this.$refs.network;
       if (!container) return;
@@ -769,7 +842,7 @@ export default {
             this.displayedElement = null;
             this.displayedElementType = null;
           }
-          this.updateDesign();
+          this.updateDesign(false);
         }.bind(this)
       );
       // Double Click Event -> select Node, consequently shown in Selection field
@@ -780,12 +853,15 @@ export default {
             const clickedNode = this.networkNodes.find(
               (currentNode) => currentNode.id === params.nodes[0]
             );
-            if (this.selectedNetworkNodes.includes(clickedNode)) {
-              this.selectedNetworkNodes.splice(
-                this.selectedNetworkNodes.indexOf(clickedNode),
-                1
-              );
+            const existingNodeIndex = this.selectedNetworkNodes.findIndex(
+              (node) => node.id === clickedNode.id
+            );
+
+            if (existingNodeIndex !== -1) {
+              // If the node exists, remove it from the array
+              this.selectedNetworkNodes.splice(existingNodeIndex, 1);
             } else {
+              // If the node doesn't exist, add it to the array
               this.selectedNetworkNodes.push(clickedNode);
             }
             this.displayNode(clickedNode);
@@ -815,7 +891,11 @@ export default {
       this.displayedElementType = "edge";
     },
     isNodeInNetworkSelected(node) {
-      return this.selectedNetworkNodes.includes(node);
+      console.log("this.selectedNetworkNodes",this.selectedNetworkNodes)
+      console.log("node",node)
+      console.log("this.selectedNetworkNodes.includes(node)",this.selectedNetworkNodes.includes(node))
+      return this.selectedNetworkNodes.some(existingNode => existingNode.id === node.id);
+
     },
     toggleNetworkNodeSelection() {
       const index = this.selectedNetworkNodes.findIndex(n => n.id === this.displayedElement.id); // Check for the node by unique identifier (id)
@@ -860,24 +940,20 @@ export default {
         console.warn("No nodes in selectedNetworkNodes to process.");
       }
     },
-    async connectGroupNodes() {
-      console.log("connectNodeGroupNodes");
-
+    async connectGroupNodes(minSpanTree) {
       // Check if selectedNetworkNodes is not null/undefined and has at least two elements
-      const nodeGroup = this.selectedNetworkNodes && this.selectedNetworkNodes.length > 1 ? this.selectedNetworkNodes[0] : null;
-
-      console.log("firstNode: ", nodeGroup);
-
-      const filteredNodeIds = this.selectedNetworkNodes
-        .filter(node => node.set === "CHRIS")  // Filter nodes with .set == "CHRIS"
-        .map(node => node.id);  // Extract the node IDs
-      if (filteredNodeIds.length === 0){
-        console.warn("No nodes in selectedNetworkNodes to process.");
+      if (this.selectedNetworkNodes && this.selectedNetworkNodes.length > 1) {
+        const filteredNodeIds = this.selectedNetworkNodes
+            .filter(node => node.set === "CHRIS")  // Filter nodes with .set == "CHRIS"
+            .map(node => node.id);  // Extract the node IDs
+        if (filteredNodeIds.length === 0) {
+          console.warn("No nodes in selectedNetworkNodes to process.");
+        }
+        await this.fetchNodeGroupEdges(filteredNodeIds, minSpanTree);
+        this.filterForNetworkEdges();
+        this.initializeNetwork();
+        this.updateDesign();
       }
-      await this.fetchNodeGroupEdges(filteredNodeIds);
-      this.filterForNetworkEdges();
-      this.initializeNetwork();
-      this.updateDesign();
     },
     async fetchNodesAndEdges(node, count=false) {
       try {
@@ -885,8 +961,6 @@ export default {
         const nodeID = node.id;
         const type = node.source_table.split("_")[1];
         const limit = count ? this.topNodesNumber : "";
-        console.log("limit", limit);
-        console.log("this.selectedTests)", this.selectedTests);
         let funct = "getNetwork"
         if (this.contextValue != null){
           funct = "getNetworkContext"
@@ -926,7 +1000,7 @@ export default {
         console.error("Error fetching edges:", error);
       }
     },
-    async fetchNodeGroupEdges(nodes) {
+    async fetchNodeGroupEdges(nodes, minSpanTree) {
       try {
         const csrfToken = getCookie('csrftoken');
         let funct = "getGroupNetwork"
@@ -941,7 +1015,10 @@ export default {
           this.signThresh +
             (this.contextValue != null ? "&c=" + encodeURIComponent(this.contextValue) : "") +
           "&o=" +
-          JSON.stringify(this.selectedTests);
+          JSON.stringify(this.selectedTests) +
+          "&m=" +
+          encodeURIComponent(minSpanTree);
+
 
         const response = await fetch(api_string, {
           method: 'GET',
@@ -956,6 +1033,20 @@ export default {
           throw new Error("Network response was not ok");
         }
         const data = await response.json();
+        const nodeSet = new Set(nodes);
+        console.log("nodes",nodes);
+        console.log(" this.vis_network_edges", this.vis_network_edges);
+        if (minSpanTree){
+          const edgesToRemove = [];
+          this.vis_network_edges.forEach(edge => {
+            if (nodeSet.has(edge.from) && nodeSet.has(edge.to)) {
+              edgesToRemove.push({ id: edge.id }); // Collect the IDs of the edges to remove
+            }
+          });
+          console.log("Removed edges: ", edgesToRemove);
+          console.log("Sample edge:", this.vis_network_edges.get(483670)); // Example with an id from the array
+          this.vis_network_edges.remove(edgesToRemove);
+        }
         this.setNetworkNodes(data);
 
       } catch (error) {
@@ -983,7 +1074,6 @@ export default {
 
       // add edges to the network
       const internalEdges = data.Edges;
-      console.log("These are the returned Edges: ", internalEdges)
       const externalEdges = data["External Edges"];
 
       // Get existing*EdgeIds beforehand as set for faster loop
@@ -1011,7 +1101,7 @@ export default {
                 type: key,
                 set: "cohort (calculated)",
                 color: "black",
-                width: -Math.log10(renamedEdge.final_p_value) * 1.5,
+                width: -Math.log10(renamedEdge.final_p_value) * 2,
               });
               existingInternalEdgeIds.add(edge.id);
             }
@@ -1031,12 +1121,8 @@ export default {
       });
     },
     filterForNetworkEdges() {
-      console.log("filterForNetworkEdges")
       const networkNodeIds = new Set(this.networkNodes.map((node) => node.id));
       const uniqueEdges = new Set();
-
-      console.log("this.allInternalEdges: ",this.allInternalEdges)
-      console.log("this.networkNodeIds: ",networkNodeIds)
 
       const isValidEdge = (edge) =>
         networkNodeIds.has(edge.from) && networkNodeIds.has(edge.to);
@@ -1059,11 +1145,10 @@ export default {
         }
         return false;
       });
-      console.log("In filterForNetworkEdges this.networkEdges: ",this.networkEdges)
     },
     //TODO split this into smaller functions that update only the needed Design changes?
     // Function to bulk update the highlighting
-    updateDesign() {
+    updateDesign(saveState=true) {
       // Update nodes with conditional styling
       const updatedNodes = this.vis_network_nodes.get().map(node => {
         const isDisplayed = this.displayedElementType === 'node' && this.displayedElement.id === node.id;
@@ -1102,6 +1187,9 @@ export default {
         return updatedNode;
       });
       this.vis_network_nodes.update(updatedNodes);
+      if(saveState){
+        this.saveState();
+      }
     },
     getShapeStyle(color, key) {
       // not applicable right now or only for externals
@@ -1127,7 +1215,7 @@ export default {
       // Update the options of the existing network
       this.network.setOptions(newPhysicsOption);
     },
-    clearNetwork(full = true){
+    clearNetwork(full = true, saveState=true){
       this.networkNodes = [];
       this.networkEdges = [];
       this.vis_network_nodes = [];
@@ -1142,13 +1230,12 @@ export default {
       this.selectedNetworkNodes = [];
       if(full){
         this.initializeNetwork();
-        this.updateDesign();
+        this.updateDesign(saveState);
       } else{
         this.sendToNetwork()
       }
     },
     saveNetworkFile() {
-      console.log("Saving network data...");
       if (this.vis_network_nodes.length > 0) {
         const nodes = this.vis_network_nodes.get();
         const edges = this.vis_network_edges.get();
@@ -1200,7 +1287,10 @@ export default {
     async updateData(val) {
       this.contextValue = val ? val.value : null;
       const context = await this.getContexts(this.contextValue);
-      console.log("retrieved context ", context)
+      this.searchText = "";
+      this.selectedNodes = [];
+      this.isReadOnly = false;
+      this.dropdownNodes= [];
       if (context) {
         this.selectedTests['catCat'] = context.content.tests['catCat'];
         this.selectedTests['catContM'] = context.content.tests['catContM'];
@@ -1208,11 +1298,7 @@ export default {
         this.selectedTests['contCont'] = context.content.tests['contCont'];
         //this.selectedTests = context.content.tests
         this.disableSelections = { contCont: true, catCat: true, multTest: false , catContB: true, catContM: true, signThresh: false};
-        this.clearNetwork(false);
-        this.searchText = "";
-        this.selectedNodes = [];
-        this.isReadOnly = false;
-        console.log("this.selectedTests ", this.selectedTests)
+        this.clearNetwork(true,false);
       }
       else{
         this.selectedTests =  {
@@ -1220,11 +1306,9 @@ export default {
           multTest: {label: 'Benjamini Hochberg (FDR)', value: 'benjamini_hb'},
           catContB: {label: 'T-test', value: 'ttest'}, contCont: {label: 'Pearson correlation', value: 'pearson'}};
         this.disableSelections = { contCont: false, catCat: false, multTest: false , catContB: false, catContM: false, signThresh: false};
-        this.clearNetwork(false);
-        this.searchText = "";
-        this.selectedNodes = [];
-        this.isReadOnly = false;
+        this.clearNetwork(true, false);
       }
+      this.loadState();
     },
     async getContexts(val) {
       try {
@@ -1249,6 +1333,48 @@ export default {
         return null;  // Return null in case of error
       }
     },
+
+    // Page/ State Reload
+    saveState() {
+      const nodes = this.vis_network_nodes.get();
+      const edges = this.vis_network_edges.get();
+      const user_settings = {
+        selectedNodes: this.selectedNodes,
+        selectedNetworkNodes: this.selectedNetworkNodes,
+        selectedTests: this.selectedTests,
+        signThresh: this.signThresh,
+        fixThreshold: this.fixThreshold,
+        topNodesNumber: this.topNodesNumber,
+        topPerNodeCount: this.topPerNodeCount
+      }
+
+      const exportData = { nodes: nodes, edges: edges ,
+        vis_options: {physics: {enabled: this.physics_on}}, user_settings: { ...user_settings }};
+      //console.log("Save State exportData", exportData)
+      saveNetworkState(this.contextValue, exportData);
+    },
+    loadState() {
+      const savedState = loadNetworkState(this.contextValue);
+      if (savedState) {
+        //console.log("Load State savedState", savedState)
+        const { nodes, edges, vis_options, user_settings } = savedState;
+        this.networkNodes = nodes;
+        this.networkEdges = edges;
+        this.physics_on = vis_options.physics.enabled;
+
+        this.selectedNodes = user_settings.selectedNodes;
+        this.updateSearchText();
+
+        this.selectedNetworkNodes = user_settings.selectedNetworkNodes;
+        this.selectedTests = user_settings.selectedTests;
+        this.signThresh = user_settings.signThresh;
+        this.fixThreshold = user_settings.fixThreshold;
+        this.topNodesNumber = user_settings.topNodesNumber;
+        this.topPerNodeCount = user_settings.topPerNodeCount;
+        this.initializeNetwork(); // Example: Reapply the state to your network
+        this.updateDesign(false);
+      }
+    },
   },
   watch: {
     showDropdown(newVal) {
@@ -1267,6 +1393,7 @@ export default {
     },
   mounted() {
     const theme = useTheme();
+    this.loadState(); // Load state when the component is mounted
     this.selectedBorderColor = theme.current.value.colors['primary']; // Correct way to access the primary color
   },
 };

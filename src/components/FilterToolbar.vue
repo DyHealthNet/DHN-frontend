@@ -1,6 +1,6 @@
 <template>
   <v-toolbar
-      v-if="showToolbar"
+      v-if="authState.isLoggedIn"
       :color="filterToolbarColor"
       density="compact"
       class="stick-to-top mt-2 mb-5 filter-toolbar"
@@ -44,12 +44,17 @@ import {authState, getCookie} from "@/components/authentication/auth.js";
 
 export default {
   name: 'FilterToolbar',
+  computed: {
+    authState() {
+      return authState
+    }
+  },
   emits: ['changeContext'],
 
   data() {
     return {
       // only show toolbar if user is logged in
-      showToolbar: authState.isLoggedIn,
+      //showToolbar: authState.isLoggedIn, // Exclude so that state is also correct upon page reload
       contexts: [{'text': 'Context1', 'color': '#00000', 'lightVariant': '#00000', 'darkVariant': '#00000'}],
 
       selectedContext: null,
