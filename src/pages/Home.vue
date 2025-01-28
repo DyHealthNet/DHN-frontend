@@ -28,15 +28,17 @@
                     <img :src="contexts" alt="Network" width="200" height="200"/>
                   </v-img>
                 </v-col>
-                <v-col cols="8" class="d-flex flex-column justify-space-between text-justify">
-                  <h3 class="secondary-header mx-3">
-                    Define your Context
+                <v-col cols="8" class="d-flex flex-column text-left">
+                  <h3 class="secondary-header mx-3 mt-1">
+                    Define Your Context
                   </h3>
                   <p class="description-text mx-3">
-                    {{ loremIpsum }}
+                    {{ contextDescription }}
                   </p>
-                  <v-btn size="x-large" to="/context" color="primary"
-                         class="mt-5 mb-5 mx-3 align-self-end" prepend-icon="mdi-tune-vertical">Contexts</v-btn>
+                  <div class="d-flex justify-end align-end mt-auto">
+                    <v-btn size="x-large" to="/context" color="primary"
+                           class="mb-5 mx-3" prepend-icon="mdi-tune-vertical">Contexts</v-btn>
+                  </div>
                 </v-col>
               </v-row>
             </v-sheet>
@@ -51,15 +53,18 @@
                     <img :src="network" alt="Network" width="200" height="200"/>
                   </v-img>
                 </v-col>
-                <v-col cols="8" class="d-flex flex-column justify-space-between text-justify">
-                  <h3 class="secondary-header mx-3">
+                <v-col cols="8" class="d-flex flex-column text-left">
+                  <h3 class="secondary-header mx-3 mt-1">
                     Build a Network
                   </h3>
                   <p class="description-text mx-3">
                     {{ networkDescription }}
                   </p>
+                  <div class="d-flex justify-end align-end mt-auto">
                   <v-btn size="x-large" to="/network" color="primary"
-                         class="mt-5 mb-5 mx-3 align-self-end" prepend-icon="mdi-graph-outline">Network</v-btn>
+                         class="mt-5 mb-5 mx-3" prepend-icon="mdi-graph-outline">Network</v-btn>
+                  </div>
+
                 </v-col>
               </v-row>
             </v-sheet>
@@ -79,17 +84,19 @@
                     />
                   </v-img>
                 </v-col>
-                <v-col cols="8" class="d-flex flex-column justify-space-between text-justify">
+                <v-col cols="8" class="d-flex flex-column text-left">
                   <div>
-                    <h3 class="secondary-header mx-3">
+                    <h3 class="secondary-header mx-3 mt-1">
                       Get a Data Overview
                     </h3>
                     <p class="description-text mx-3">
                       {{ overviewDescription }}
                     </p>
                   </div>
+                  <div class="d-flex justify-end align-end mt-auto">
                   <v-btn size="x-large" to="/overview" color="primary"
-                         class="mt-5 mb-5 mx-3 align-self-end" prepend-icon="mdi-chart-line">Overview</v-btn>
+                         class="mt-5 mb-5 mx-3" prepend-icon="mdi-chart-line">Overview</v-btn>
+                  </div>
                 </v-col>
               </v-row>
             </v-sheet>
@@ -104,15 +111,17 @@
                     <img :src="documentation" alt="Network" width="200" height="200"/>
                   </v-img>
                 </v-col>
-                <v-col cols="8" class="d-flex flex-column justify-space-between text-justify">
-                  <h3 class="secondary-header mx-3">
-                    Apply to your Cohort
+                <v-col cols="8" class="d-flex flex-column text-left">
+                  <h3 class="secondary-header mx-3 mt-1">
+                    Apply to Your Cohort
                   </h3>
                   <p class="description-text mx-3">
-                    {{ loremIpsum }}
+                    {{ applyCohortDescription }}
                   </p>
+                  <div class="d-flex justify-end align-end mt-auto">
                   <v-btn size="x-large" to="/about-us" color="primary"
-                         class="mt-5 mb-5 mx-3 align-self-end" prepend-icon="mdi-book-outline">Documentation</v-btn>
+                         class="mt-5 mb-5 mx-3" prepend-icon="mdi-book-outline">Documentation</v-btn>
+                  </div>
                 </v-col>
               </v-row>
             </v-sheet>
@@ -243,6 +252,13 @@ export default {
       aboutUsDescription:
           "More information about the research group and collaborators\n" +
           "you can find here",
+      contextDescription:
+          "Define your context by selecting only the patients\n" +
+          "that interest you and explore the data in a more\n" +
+          "focused way.",
+      applyCohortDescription:
+          "Use our documentation to apply the DyHealthNet\n" +
+          "platform to your own cohort",
       collaboratorsDescription:
           "The DyHealthNet project is a collaboration between the\n" +
           "Technical University of Munich (TUM), Free University of\n" +
@@ -268,13 +284,14 @@ export default {
 
 .description-text {
   margin-top: 10px;
-  font-size: 14px;
+  font-size: 1rem;
   color: rgb(var(--v-theme-darken));
 }
 
 .plain-text {
   font-size: 1.2rem;
   line-height: 2;
+  max-width: 80ch;
   color: rgb(var(--v-theme-primary-darken-1));
 }
 
@@ -302,6 +319,7 @@ export default {
   border-radius: 10px;
   background-color: rgb(var(--v-theme-surface));
 }
+
 .sheet {
   display: flex;
   flex-direction: column;

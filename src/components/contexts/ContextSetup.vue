@@ -145,7 +145,12 @@
 
     <v-row>
        <v-col>
-      <AdvancedSettings :selected-tests="selectedTests" @data-changed="addTests"/>
+         <!-- opinion: show header could be a default value that's always true, it is always useful
+              opinion: show mult test could also be shown by default
+              opinion: disableSelections could maybe be an object so that we can disable certain options
+              opinion: I don't get useAdvancedTitle, what's the point?
+          -->
+      <AdvancedSettings :selected-tests="selectedTests" :show-header="true" @data-changed="addTests"/>
        </v-col>
     </v-row>
 

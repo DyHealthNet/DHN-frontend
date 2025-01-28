@@ -16,7 +16,7 @@ import App from './App.vue'
 const dyHealthNetTheme = {
   dark: false,
     colors: {
-    "background": "#FFFFFF",
+    "background": "#F5F5F5",
     "surface": "#FAFAFA",
     "surface-bright": "#FFFFFF",
     "surface-light": "#F5F5F5",

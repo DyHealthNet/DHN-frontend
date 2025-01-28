@@ -2,7 +2,7 @@
   <v-app>
     <!--structure define-->
     <v-main>
-      <!--main content-->
+      <!--header -->
       <v-container class="text-center">
         <v-row class="d-flex align-center justify-center">
           <v-col cols="12">
@@ -15,10 +15,11 @@
           </v-col>
         </v-row>
       </v-container>
+      <!--main content-->
       <v-container class="mt-4 ">
         <FilterToolbar @change-context="updateData"></FilterToolbar>
         <v-row class="my-2 justify-center">
-          <v-card rounded="lg" elevation="2" class="responsive-card">
+          <v-card rounded="lg" elevation="1" class="responsive-card">
             <v-toolbar color="primary-darken-1" density="compact">
               <v-toolbar-title>
                 Variable Summary
@@ -70,7 +71,7 @@
         <v-spacer class="my-10"></v-spacer>
         <!--Tab bar-->
         <v-row class="my-2 justify-center">
-          <v-card rounded="lg" elevation="2" class="responsive-card">
+          <v-card rounded="lg" elevation="1" class="responsive-card">
             <!--Tab bar name-->
             <v-toolbar color="primary-darken-1" density="compact">
               <v-toolbar-title>

@@ -10,7 +10,7 @@
     :stroke-linecap="lineCap"
     :type="barType"
     auto-draw
-    @click="dialogActive = true"
+    @click="barData?.values?.length > 0 && (dialogActive = true)"
   >
   </v-sparkline>
 <v-dialog max-width="1000" v-model="dialogActive">
@@ -34,12 +34,16 @@
             {{ valueLabels[index] }}
           </template>
           </v-sparkline>
+        <!--
+        Interactive Plot would need some work still to be used properly
+        <InteractivePlot v-if="barType === 'trend'" :barData="barData" />
+        -->
         <v-sparkline
             v-if="barType === 'bar'"
             :model-value="value"
             color="primary-darken-1"
             :type="barType"
-            :auto-line-width="autoLineWidth"
+            :line-width="width"
             auto-draw
             @click="dialogActive = true"
           >
@@ -63,25 +67,29 @@
 
 <script>
 
+  import InteractivePlot from "@/components/contexts/InteractivePlot.vue";
+
   export default {
+    components: {InteractivePlot},
     props: {
       barData: {
         type: Object,
         default: () => ({})
       }
     },
-    data: () => ({
-      width: 2,
-      radius: true,
-      padding: 8,
-      lineCap: 'round',
-      value: [],
-      valueLabels: [],
-      barType: 'bar',
-      fill: true,
-      dialogActive: false,
-      autoLineWidth: true,
-    }),
+    data() {
+      return {
+        radius: true,
+        padding: 8,
+        lineCap: 'round',
+        value: [],
+        valueLabels: [],
+        barType: 'bar',
+        fill: true,
+        dialogActive: false,
+        autoLineWidth: true,
+      };
+    },
     watch: {
       barData: {
         handler() {
@@ -91,6 +99,11 @@
         },
         immediate: true
       }
+    },
+    computed: {
+      width() {
+        return 200 / this.barData?.values?.length || 100
+      },
     }
   }
 </script>
