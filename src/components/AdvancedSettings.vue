@@ -7,7 +7,7 @@
         </v-expansion-panel-title>
         <v-expansion-panel-text>
           <StatisticalTestLine :selected-tests="selectedTests"
-                               :signThresh="signThresh"
+                               v-model:signThresh="signThresh"
                                :disable-selections="disableSelections"
                                :show-mult-test="showMultTest"
                                :showHeader="showHeader"
@@ -86,11 +86,11 @@ export default {
       expandedPanels: [0], // Track the panel's open/closed state
     };
   },
-  emits: ['data-changed'], // Declare the event
+  emits: ['dataChanged'], // Declare the event
   methods: {
     updateData(data) {
       //this.panelKey++;
-      this.$emit("data-changed", data);
+      this.$emit("dataChanged", data);
       console.log("data ", data)
     },
   },

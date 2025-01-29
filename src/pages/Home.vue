@@ -24,20 +24,18 @@
             <v-sheet rounded="lg" elevation="1" class="d-flex align-center sheet">
               <v-row>
                 <v-col cols="4" class="d-flex justify-center align-center">
-                  <v-img>
-                    <img :src="contexts" alt="Network" width="200" height="200"/>
-                  </v-img>
+                  <v-img :src="contexts" alt="Network" max-width="200" max-height="200" contain />
                 </v-col>
                 <v-col cols="8" class="d-flex flex-column text-left">
-                  <h3 class="secondary-header mx-3 mt-1">
+                  <h3 class="secondary-header mt-1 mr-3">
                     Define Your Context
                   </h3>
-                  <p class="description-text mx-3">
+                  <p class="description-text mr-3">
                     {{ contextDescription }}
                   </p>
                   <div class="d-flex justify-end align-end mt-auto">
                     <v-btn size="x-large" to="/context" color="primary"
-                           class="mb-5 mx-3" prepend-icon="mdi-tune-vertical">Contexts</v-btn>
+                           class="mb-5 mx-5" prepend-icon="mdi-tune-vertical">Contexts</v-btn>
                   </div>
                 </v-col>
               </v-row>
@@ -49,20 +47,18 @@
             <v-sheet rounded="lg" elevation="1"  class="d-flex align-center sheet">
               <v-row>
                 <v-col cols="4" class="d-flex justify-center align-center">
-                  <v-img>
-                    <img :src="network" alt="Network" width="200" height="200"/>
-                  </v-img>
+                  <v-img :src="network" alt="Network" width="200" height="200" contain/>
                 </v-col>
                 <v-col cols="8" class="d-flex flex-column text-left">
-                  <h3 class="secondary-header mx-3 mt-1">
+                  <h3 class="secondary-header mt-1 mr-3">
                     Build a Network
                   </h3>
-                  <p class="description-text mx-3">
+                  <p class="description-text mr-3">
                     {{ networkDescription }}
                   </p>
                   <div class="d-flex justify-end align-end mt-auto">
                   <v-btn size="x-large" to="/network" color="primary"
-                         class="mt-5 mb-5 mx-3" prepend-icon="mdi-graph-outline">Network</v-btn>
+                         class="mt-5 mb-5 mx-5" prepend-icon="mdi-graph-outline">Network</v-btn>
                   </div>
 
                 </v-col>
@@ -75,27 +71,24 @@
             <v-sheet rounded="lg" elevation="1"  class="d-flex align-center sheet">
               <v-row>
                 <v-col cols="4" class="d-flex justify-center align-center">
-                  <v-img>
-                    <img
-                        :src="overview"
+                  <v-img :src="overview"
                         alt="Data Overview"
                         width="200"
                         height="200"
-                    />
-                  </v-img>
+                        contain/>
                 </v-col>
                 <v-col cols="8" class="d-flex flex-column text-left">
                   <div>
-                    <h3 class="secondary-header mx-3 mt-1">
+                    <h3 class="secondary-header mt-1 mr-3">
                       Get a Data Overview
                     </h3>
-                    <p class="description-text mx-3">
+                    <p class="description-text mr-3">
                       {{ overviewDescription }}
                     </p>
                   </div>
                   <div class="d-flex justify-end align-end mt-auto">
                   <v-btn size="x-large" to="/overview" color="primary"
-                         class="mt-5 mb-5 mx-3" prepend-icon="mdi-chart-line">Overview</v-btn>
+                         class="mt-5 mb-5 mx-5" prepend-icon="mdi-chart-line">Overview</v-btn>
                   </div>
                 </v-col>
               </v-row>
@@ -107,20 +100,18 @@
             <v-sheet rounded="lg" elevation="1"  class="d-flex align-center sheet">
               <v-row>
                 <v-col cols="4" class="d-flex justify-center align-center">
-                  <v-img>
-                    <img :src="documentation" alt="Network" width="200" height="200"/>
-                  </v-img>
+                  <v-img :src="documentation" alt="Network" width="200" height="200" contain/>
                 </v-col>
                 <v-col cols="8" class="d-flex flex-column text-left">
-                  <h3 class="secondary-header mx-3 mt-1">
+                  <h3 class="secondary-header mr-3 mt-1 mr-3">
                     Apply to Your Cohort
                   </h3>
-                  <p class="description-text mx-3">
+                  <p class="description-text mr-3">
                     {{ applyCohortDescription }}
                   </p>
                   <div class="d-flex justify-end align-end mt-auto">
                   <v-btn size="x-large" to="/about-us" color="primary"
-                         class="mt-5 mb-5 mx-3" prepend-icon="mdi-book-outline">Documentation</v-btn>
+                         class="mt-5 mb-5 mx-5" prepend-icon="mdi-book-outline">Documentation</v-btn>
                   </div>
                 </v-col>
               </v-row>
@@ -153,8 +144,7 @@
             <v-row>
               <v-col cols="6" class="text-center align-content-center">
                 <a href="https://www.tum.de/" target="_blank">
-                  <v-img :src="tum_logo" alt="TUM Logo" width="225" class="mx-auto">
-                  </v-img>
+                  <v-img :src="tum_logo" alt="TUM Logo" width="225" class="mx-auto" contain/>
                 </a>
               </v-col>
               <v-col cols="6" class="text-center">

@@ -110,6 +110,7 @@
           :rules="[value => (value >= 0 && value <= 1) || 'Must be between 0 and 1']"
           density="compact"
           variant="outlined"
+          @update:model-value="updateSignThresh"
           @blur="validateThresholdInput"
         />
       </v-col>
@@ -119,6 +120,7 @@
 
 <script>
 export default {
+emits: ["dataChanged"],
 name: "StatisticalTestLine",
   props: {
     selectedTests: {
@@ -127,7 +129,8 @@ name: "StatisticalTestLine",
     },
     signThresh: {
       type: Number,
-      required: false
+      required: false,
+      default: 0.05,
     },
     disableSelections: {
     type: Object,
@@ -194,32 +197,34 @@ name: "StatisticalTestLine",
     validateThresholdInput() {
       const parsedValue = parseFloat(this.internalsignThresh);
       if (isNaN(parsedValue) || parsedValue < 0 || parsedValue > 1) {
-        // Reset to default if the input is invalid
         this.internalsignThresh = 0.05;
       } else {
-        // Optionally: Clamp the value to the allowed range
-        this.internalsignThresh = Math.min(Math.max(parsedValue, 0), 1);
+        this.$emit("update:signThresh", this.internalSignThresh);
       }
     },
     changeTest() {
-      this.$emit('data-changed', {
-        contCont: this.contCont,
-        catCat: this.catCat,
-        multTest: this.multTest,
-        catContB: this.catContB,
-        catContM: this.catContM,
-      })
+      console.log("changeTest")
+      this.$emit('dataChanged', {
+        selectedTests: {
+          contCont: this.contCont,
+            catCat: this.catCat,
+          multTest: this.multTest,
+          catContB: this.catContB,
+          catContM: this.catContM,
+      },
+        signThresh: this.internalSignThresh, // Include signThresh)
+      });
     },
-    internalSignThresh(newValue) {
-      const numericValue = parseFloat(newValue);
-      //console.log("internalsignThresh: newValue", numericValue)
-      //console.log("{signThresh: newValue}", {signThresh: numericValue})
-      this.$emit("data-changed", {signThresh: numericValue});
+    updateSignThresh(newValue) {
+      console.log("internalSignThresh")
+      this.internalSignThresh = parseFloat(newValue);
+      this.$emit("dataChanged", { signThresh: this.internalSignThresh });
     },
   },
   watch: {
     signThresh(newValue) {
-      this.internalSignThresh = parseFloat(newValue); // Update local state when prop changes
+      this.internalSignThresh = parseFloat(newValue); // do we need this
+      this.$emit("dataChanged", { signThresh: this.internalSignThresh });
     },
   },
 }

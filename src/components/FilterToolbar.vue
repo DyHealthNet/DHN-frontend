@@ -55,7 +55,7 @@ export default {
     disableMove: {
       type: Boolean,
       default: false
-    }
+    },
   },
 
   data() {
@@ -122,17 +122,19 @@ export default {
       this.$refs.filterToolbar.$el.classList.remove('stick-to-top');
       return;
     }
-    window.addEventListener('scroll', () => {
-      try {
-        if (this.disableMove) {
-          return;
+    if (!this.disableMove) {
+      window.addEventListener('scroll', () => {
+        try {
+          if (this.disableMove) {
+            return;
+          }
+          const toolbar = this.$refs.filterToolbar.$el.getBoundingClientRect();
+          this.isSticky = toolbar.top === 140;
+        } catch (error) {
+          // ignore
         }
-        const toolbar = this.$refs.filterToolbar.$el.getBoundingClientRect();
-        this.isSticky = toolbar.top === 140;
-      } catch (error) {
-        // ignore
-      }
-    });
+      });
+    }
   },
   created() {
     this.retrieveContexts();

@@ -41,6 +41,7 @@
 
 <script>
 export default {
+  emits: ["dataChanged"],
   name: "NetworkEdgeLine",
   props: {
     topNodesNumber: { type: Number, required: true },
@@ -66,10 +67,10 @@ export default {
   },
   watch: {
     internalTopNodesNumber(newValue) {
-      this.$emit("data-changed", { topNodesNumber: newValue });
+      this.$emit("dataChanged", { topNodesNumber: newValue });
     },
     internalTopPerNodeCount(newValue) {
-      this.$emit("data-changed", { topPerNodeCount: newValue });
+      this.$emit("dataChanged", { topPerNodeCount: newValue });
     },
   },
 };

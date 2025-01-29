@@ -37,11 +37,11 @@
           <v-col cols="10" class="d-flex align-center">
           <v-text-field
               v-model="searchText"
-              outlined
-              dense
+              density="compact"
+              variant="outlined"
               :clearable="!isReadOnly && (searchText && searchText.length > 0)"
               label="Select one or a list of nodes"
-              @input="fetchNodeRecommendations"
+              @input="fetchNodeRecommendations($event)"
               @keydown.arrow-down.prevent="moveFocus('down')"
               @keydown.arrow-up.prevent="moveFocus('up')"
               @keydown.enter.prevent="selectFocusedItem"
@@ -218,6 +218,18 @@
                 <v-icon color="primary-darken-1" size="20" class="ml-0 mr-3 my-0">mdi-filter</v-icon>
                 Selection</v-expansion-panel-title>
               <v-expansion-panel-text>
+                <v-row justify="center" align="center">
+                  <v-col cols="auto">
+                    <v-switch
+                      v-model="selectAll"
+                      :label="selectAll ? 'Unselect all' : 'Select All'"
+                      @change="toggleALLNetworkNodeSelection"
+                      color="primary-darken-1"
+                      class="ml-2"
+                    />
+                  </v-col>
+                </v-row>
+                <v-divider class="my-4"></v-divider>
                 <span v-if="selectedNetworkNodes.length === 0">
                       No node selected. Double click on a node to add it to this panel or select it via the Details panel.
                 </span>
@@ -409,6 +421,28 @@
         </v-col>
       </v-row>
     </v-card>
+    <v-row>
+      <div class="text-center ma-2">
+        <v-snackbar
+            v-model="showInfo"
+            :color="infoType"
+        >
+          <v-icon class="my-0 mr-2">
+            mdi-information-outline
+          </v-icon>
+          {{ infoText }}
+
+          <template v-slot:actions>
+            <v-btn
+                variant="text"
+                @click="showInfo = false"
+            >
+              Close
+            </v-btn>
+          </template>
+        </v-snackbar>
+      </div>
+    </v-row>
   </v-container>
 </template>
 
@@ -471,6 +505,7 @@ export default {
       includedNodeTypes: new Set(), // stores type currently present in network for Legend
 
       selectedNetworkNodes: [],
+      selectAll: false,
 
       // Advanced Settings (default) values
       selectedTests: {
@@ -481,7 +516,13 @@ export default {
       signThresh: 0.999,
       fixThreshold: true,
       topNodesNumber: 5,
-      topPerNodeCount: true
+      topPerNodeCount: true,
+
+      // Popup
+      showInfo: false,
+      infoType: "info", // "error" "success"
+      infoText: "",
+
     };
   },
   computed: {
@@ -506,13 +547,28 @@ export default {
       const parts = this.searchText.split(",").map((part) => part.trim());
       return parts[parts.length - 1];
     },
-    async fetchNodeRecommendations() {
-      const lastChar = this.searchText[this.searchText.length - 1];
-      if (lastChar === ","){
-        await this.findNodeMatch();
-        this.typeaheadresult = [];
-        this.hoveredItem = null;
-        return;
+    deleteNodesNotInSearchText(){
+      this.selectedNodes = this.selectedNodes.filter(node =>
+        this.searchText.includes(node.display_name) || this.searchText.includes(node.id)
+      );
+    },
+    async fetchNodeRecommendations(event) {
+      if (event && event.inputType) {
+        if (event.inputType === "deleteContentBackward" || event.inputType === "deleteContentForward") {
+          console.log("Somethings getting deleted");
+          this.deleteNodesNotInSearchText();
+          console.log("this.selectedNodes", this.selectedNodes);
+        }
+        else if (event.inputType === "insertText" || event.inputType === "insertFromPaste") {
+          const lastChar = this.searchText[this.searchText.length - 1];
+          if (lastChar === ",") {
+            console.log("Comma was typed.");
+            await this.findNodeMatch();
+            this.typeaheadresult = [];
+            this.hoveredItem = null;
+            return;
+          }
+        }
       }
       const search = this.getLastTypedString();
 
@@ -585,9 +641,7 @@ export default {
     addPerDropDown(item) {
       // Re-join the array into comma-separated searchText
       //this.searchText = searchTextParts.join(', ') + ', ';
-      this.selectedNodes = this.selectedNodes.filter(node =>
-        this.searchText.includes(node.display_name) || this.searchText.includes(node.id)
-      );
+      this.deleteNodesNotInSearchText();
       this.selectedNodes.push(item);
       this.updateSearchText();
       this.fetchNodeRecommendations();
@@ -644,23 +698,28 @@ export default {
     },
     async findNodeMatch() {
       const searchElements = this.searchText.split(',').map(element => element.trim()).slice(0, -1);
-      const lastElement = searchElements[searchElements.length - 1];
-
-      try {
-          const response = await this.fetchNodeMatch(lastElement); // Assume this function exists
-          if (response && response.length === 1) {
-            const match = response[0];
-            if (match.display_name === lastElement || match.id === lastElement)
-              console.log("match matched")
-              console.log("match", match)
-              console.log("this.selectedNodes", this.selectedNodes)
-              if (!this.selectedNodes.some(node => node.id === match.id)) {
-                this.selectedNodes.push(match); // Add the matched node from backend
+      for (const element of searchElements) {
+        console.log("curr element", element)
+        if (!this.selectedNodes.some(node => node.display_name === element || node.id === element)) {
+          console.log("not in selected nodes")
+          try {
+            const response = await this.fetchNodeMatch(element); // Assume this function exists
+            if (response && response.length === 1) {
+              const match = response[0];
+              if (match.display_name === element || match.id === element) {
+                console.log("match matched")
+                console.log("match", match)
+                console.log("this.selectedNodes", this.selectedNodes)
+                if (!this.selectedNodes.some(node => node.id === match.id)) {
+                  this.selectedNodes.push(match); // Add the matched node from backend
+                }
+              }
             }
+          } catch (error) {
+            console.error(`Backend search failed for: ${element}`, error);
           }
-        } catch (error) {
-          console.error(`Backend search failed for: ${lastElement}`, error);
         }
+      }
       this.updateSearchText();
     },
     hoverNode(item) {
@@ -907,6 +966,19 @@ export default {
         this.selectedNetworkNodes.splice(index, 1);
       }
     },
+    toggleALLNetworkNodeSelection(){
+      if(this.selectAll) {
+        for (const node of this.networkNodes) {
+          if (!this.selectedNetworkNodes.includes(node)) {
+            this.selectedNetworkNodes.push(node);  // Add the node if it's not already selected
+          }
+        }
+      }
+      else{
+        this.selectedNetworkNodes = [];
+      }
+      this.updateDesign();
+    },
     removeSelectedNetworkNode(index){
       this.selectedNetworkNodes.splice(index, 1);
       this.updateDesign();
@@ -949,8 +1021,11 @@ export default {
         if (filteredNodeIds.length === 0) {
           console.warn("No nodes in selectedNetworkNodes to process.");
         }
+        console.log("this.networkEdges",this.networkEdges)
         await this.fetchNodeGroupEdges(filteredNodeIds, minSpanTree);
+        console.log("1 this.networkEdges",this.networkEdges)
         this.filterForNetworkEdges();
+        console.log("2 this.networkEdges",this.networkEdges)
         this.initializeNetwork();
         this.updateDesign();
       }
@@ -1044,10 +1119,21 @@ export default {
             }
           });
           console.log("Removed edges: ", edgesToRemove);
-          console.log("Sample edge:", this.vis_network_edges.get(483670)); // Example with an id from the array
           this.vis_network_edges.remove(edgesToRemove);
+          this.networkEdges = this.networkEdges.filter(edge =>
+            !edgesToRemove.some(edgeToRemove => edgeToRemove.id === edge.id)
+          );
+          this.allInternalEdges = this.networkEdges;
+        }
+        console.log(" data", data);
+        if (data.message != ""){
+          this.infoText = data.message;
+          console.log(" data.message", data.message);
+          this.infoType = "error";
+          this.showInfo = true;
         }
         this.setNetworkNodes(data);
+
 
       } catch (error) {
         console.error("Error fetching edges:", error);
@@ -1075,6 +1161,7 @@ export default {
       // add edges to the network
       const internalEdges = data.Edges;
       const externalEdges = data["External Edges"];
+      console.log("internalEdges ", internalEdges)
 
       // Get existing*EdgeIds beforehand as set for faster loop
       const existingInternalEdgeIds = new Set(this.allInternalEdges.map((edge) => edge.id));
@@ -1115,6 +1202,7 @@ export default {
             set: "external",
             to: edge.source_cohort_id,
             from: edge.target_cohort_id,
+            width: 0.03,
           });
           existingExternalEdgeIds.add(edge.id);
         }
@@ -1127,6 +1215,7 @@ export default {
       const isValidEdge = (edge) =>
         networkNodeIds.has(edge.from) && networkNodeIds.has(edge.to);
 
+      console.log("allInternalEdges", this.allInternalEdges)
       // Filter and process all edges in one step
       this.networkEdges = [
         ...this.allInternalEdges.filter(isValidEdge),
@@ -1217,7 +1306,7 @@ export default {
     },
     clearNetwork(full = true, saveState=true){
       this.networkNodes = [];
-      this.networkEdges = [];
+      this.networkEdges = []; // do i also need allInternalEdges??
       this.vis_network_nodes = [];
       this.vis_network_edges = [];
       this.displayedNodes = null;
@@ -1272,7 +1361,7 @@ export default {
 
     // Advanced Settings methods
     addSettings(data) {
-      //console.log("data: ", data)
+      console.log("data: ", data)
       Object.entries(data).forEach(([key, value]) => {
         if (key in this) {
           this[key] = value; // Update the corresponding variable in the parent
@@ -1285,6 +1374,7 @@ export default {
 
     // Context methods
     async updateData(val) {
+      console.log("updateData val ", val)
       this.contextValue = val ? val.value : null;
       const context = await this.getContexts(this.contextValue);
       this.searchText = "";

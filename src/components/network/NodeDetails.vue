@@ -21,8 +21,8 @@
     <p><span class="label">Description:</span> <br>
       <span class="value">{{ node.description }}</span></p>
       <p title="We use Uniprot for proteins, HMDB for metabolites and SNOMED for phenotypes">
-        <span class="label">Reference:</span><br>
         <span v-if="node.x_refs && node.x_refs.length">
+          <span class="label">Reference:</span><br>
           <v-chip
             v-for="(xref, index) in node.x_refs.split('|')"
             :key="index"
@@ -37,7 +37,6 @@
             </a>
           </v-chip>
         </span>
-        <span v-else> none</span>
       </p>
       <!-- No chip alternative
       <p title="We use Uniprot for proteins, HMDB for metabolites and SNOMED for phenotypes">
