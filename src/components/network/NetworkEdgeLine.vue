@@ -19,12 +19,14 @@
           :rules="[value => (value >= 1 && value <= 50) || 'Must be between 1 and 50']"
           density="compact"
           variant="outlined"
+          @update:model-value="updateTopNodesNumber"
           @blur="validateNodesNumberInput"
         />
       </v-col>
       <v-col cols="4" class="d-flex pa-0 justify-center">
         <v-switch
           v-model="internalTopPerNodeCount"
+          @update:model-value="updateTopPerNodeCount"
           color="primary"
         >
           <template #prepend>
@@ -49,28 +51,39 @@ export default {
   },
   data() {
     return {
-      internalTopNodesNumber: this.topNodesNumber,
+      internalTopNodesNumber: parseInt(this.topNodesNumber),
       internalTopPerNodeCount: this.topPerNodeCount,
     };
   },
   methods: {
     validateNodesNumberInput() {
       const parsedValue = parseInt(this.internalTopNodesNumber);
-      if (isNaN(parsedValue) || parsedValue < 1 || parsedValue > 50) {
+      if (isNaN(parsedValue) || parsedValue < 1 ) {
         // Reset to default if the input is invalid
-        this.internalTopNodesNumber = 5;
-      } else {
+        this.internalTopNodesNumber = 1;
+      } else if (isNaN(parsedValue) || parsedValue > 50){
         // Optionally: Clamp the value to the allowed range
-        this.internalTopNodesNumber = Math.min(Math.max(parsedValue, 1), 50);
+        this.internalTopNodesNumber = 50;
       }
     },
-  },
-  watch: {
-    internalTopNodesNumber(newValue) {
-      this.$emit("dataChanged", { topNodesNumber: newValue });
+    // Watch for changes in local data and emit event
+    updateTopNodesNumber(newValue) {
+      this.internalTopNodesNumber = newValue;
+      this.$emit("dataChanged", { topNodesNumber: this.internalTopNodesNumber });
     },
-    internalTopPerNodeCount(newValue) {
-      this.$emit("dataChanged", { topPerNodeCount: newValue });
+    updateTopPerNodeCount(newValue) {
+      this.internalTopPerNodeCount = newValue;
+      this.$emit("dataChanged", { topPerNodeCount: this.internalTopPerNodeCount });
+    },
+  },
+  // So that changes in the parent are shown in the child component (e.g. if context changes correct
+  // values are immediately re-rendered)
+  watch: {
+    topNodesNumber(newValue) {
+      this.internalTopNodesNumber = newValue;
+    },
+    topPerNodeCount(newValue) {
+      this.internalTopPerNodeCount = newValue;
     },
   },
 };

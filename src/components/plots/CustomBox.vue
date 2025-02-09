@@ -73,6 +73,7 @@ export default {
     yVar: "fetchAndUpdateChart",
     cVar: "fetchAndUpdateChart",
     contextValue: "fetchAndUpdateChart",
+    palette: "fetchAndUpdateChart",
   },
 
   methods: {

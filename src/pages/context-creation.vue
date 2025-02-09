@@ -23,7 +23,10 @@
           <v-card color="surface">
             <v-card-text>
               <v-row>
-                <ContextSetup :title="tab.contextName" :content="tab.content" :status="tab.status" :value="tab.contextValue" @data-changed="updateTabName" />
+                <ContextSetup :title="tab.contextName" :content="tab.content" :status="tab.status"
+                              :value="tab.contextValue" @data-changed="updateTabName"
+                              :calculating="calculating" @calculation-start="calculating = true"
+                              @calculation-end="calculating = false" />
               </v-row>
             </v-card-text>
           </v-card>
@@ -65,6 +68,7 @@ export default {
         { contextName: "Context 5", contextValue: 5, content: null, status:"Waiting"}
       ],
       tabs: [],
+      calculating : false,
     };
   },
   methods: {
@@ -81,6 +85,11 @@ export default {
       }
       this.tabs[this.contextTab - 1].contextName = newTabName;
     },
+
+    handleCalculationStatus(isCalculating) {
+      this.calculating = isCalculating;
+    },
+
     fillTabNames() {
       // for all tabs that have content, fill the tab name with the context name
       this.tabs.forEach((tab) => {

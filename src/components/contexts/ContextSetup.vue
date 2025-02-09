@@ -150,16 +150,26 @@
               opinion: disableSelections could maybe be an object so that we can disable certain options
               opinion: I don't get useAdvancedTitle, what's the point?
           -->
-      <AdvancedSettings :selected-tests="selectedTests" :show-header="true" @data-changed="addTests"/>
+      <AdvancedSettings :selected-tests="selectedTests"
+                        :show-header="true"
+                        @data-changed="addTests"
+                        :disable-selections="disableSelections"/>
        </v-col>
     </v-row>
 
     <v-row>
       <v-col cols="2">
-        <v-btn color="primary-darken-1" @click="sendContext" :disabled="sendDisabled">
-          <v-icon class="my-0 mr-2">mdi-check-outline</v-icon>
-          Submit Context
-        </v-btn>
+        <v-tooltip bottom :disabled="!calculating">
+          <template v-slot:activator="{ props }">
+              <div v-bind="props" class="d-inline-block">
+                <v-btn color="primary-darken-1" @click="sendContext" :disabled="sendDisabled || calculating">
+                    <v-icon class="my-0 mr-2">mdi-check-outline</v-icon>
+                    Submit Context
+                  </v-btn>
+              </div>
+          </template>
+          <span>{{'A context calculation is already in progress. Please wait...'}}</span>
+        </v-tooltip>
       </v-col>
       <v-spacer></v-spacer>
       <v-col cols="2">
@@ -234,7 +244,7 @@ export default {
     }
   },
   components: {AdvancedSettings, NewFilterButton, ConnectorLine, FilterLine, ConnectorButton, StatusBox},
-  emits: ['data-changed'],
+  emits: ['data-changed','calculation-start','calculation-end'],
   props: {
     title: {
       type: String,
@@ -251,6 +261,10 @@ export default {
     status: {
       type: String,
       required: true
+    },
+    calculating: {
+      type: Boolean,
+      required: true,
     }
   },
   data() {
@@ -272,7 +286,7 @@ export default {
     }
 
     return {
-      contextName: this.content?.contextName ?? "",
+      contextName: this.content?.contextName ?? `Context ${this.value}`,
       contextNameMaxLength: [v => v.length <= 40 || 'Max 40 characters'],
 
       deleteWarn: false,
@@ -302,12 +316,13 @@ export default {
         catContB: {label: 'T-test', value: 'ttest'}, contCont: {label: 'Pearson correlation', value: 'pearson'}
       },
       selectedTests: this.content?.tests ?? this.defaultSelectedTests,
+      disableSelections: false,
 
       taskMessage: null,
       taskStarted: false,
       taskInfo: "",
       taskType: "",
-      sendDisabled: false
+      sendDisabled: false,
     };
   },
   methods: {
@@ -453,6 +468,7 @@ export default {
             console.log(this.progressIcon)
             contextState.processFinished = data.status === "SUCCESS";
             if (contextState.processFinished) {
+              this.$emit('calculation-end');
               contextState.taskInfo = "Context Creation of context " + this.contextName + " is finished.";
               contextState.taskStarted = true;
               contextState.taskType = "success";
@@ -480,7 +496,14 @@ export default {
     },
 
     addTests(data) {
-      this.selectedTests = data;
+      //console.log("data: ", data)
+      Object.entries(data).forEach(([key, value]) => {
+        if (key in this) {
+          this[key] = value; // Update the corresponding variable in the parent
+        } else {
+          console.warn(`Unhandled key: ${key}`);
+        }
+      });
     },
 
     filterVariables() {
@@ -546,6 +569,8 @@ export default {
     },
 
     async sendContext() {
+      this.$emit('calculation-start')
+      console.log("sendContext()");
       // check for validity
       if (this.selectedLayers.length === 0) {
         this.taskStarted = true;
@@ -591,6 +616,8 @@ export default {
             this.taskInfo = "Context calculation started successfully";
             this.taskType = data.status;
             this.sendDisabled = true;
+            this.disableSelections = true;
+            console.log("this.disableSelections", this.disableSelections);
             //contextState.indicatorSeen = true;
             this.getProgressStatus();
           })
@@ -682,6 +709,7 @@ export default {
     if (this.progressStatus === 'Finished') {
       // disable the send button if the context is already created
       this.sendDisabled = true;
+      this.disableSelections = true;
     }
   }
 };

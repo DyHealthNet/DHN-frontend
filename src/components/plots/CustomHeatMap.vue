@@ -44,6 +44,7 @@ export default {
     xVar: "fetchAndUpdateChart",
     yVar: "fetchAndUpdateChart",
     contextValue: "fetchAndUpdateChart",
+    palette: "fetchAndUpdateChart",
   },
 
   methods: {

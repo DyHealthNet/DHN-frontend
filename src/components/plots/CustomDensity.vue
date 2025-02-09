@@ -18,6 +18,7 @@ import {
   LineElement,
   LinearScale,
   CategoryScale,
+  Filler,
   PointElement,
 } from "chart.js";
 
@@ -29,11 +30,12 @@ ChartJS.register(
   LineElement,
   LinearScale,
   CategoryScale,
+  Filler,
   PointElement
 );
 
 export default {
-  name: "CustomLine",
+  name: "CustomDensity",
 
   components: {
     Line,
@@ -41,10 +43,6 @@ export default {
 
   props: {
     xVar: {
-      type: String,
-      required: true,
-    },
-    yVar: {
       type: String,
       required: true,
     },
@@ -59,12 +57,17 @@ export default {
     palette: {
       type: String,
       required: false,
+    },
+    bandwidth:{
+      type: Number,
+      required: true,
     }
   },
 
   data() {
     return {
       chartData: {
+        labels: [],
         datasets: [],
       },
       defaultChart: true,
@@ -73,8 +76,9 @@ export default {
 
   computed: {
     computedChartData() {
-      if (!this.xVar || !this.yVar || this.checkVariableConflict()) {
+      if (!this.xVar || this.checkVariableConflict()) {
         return {
+          labels: [],
           datasets: [],
         };
       }
@@ -95,7 +99,7 @@ export default {
               color: this.labelColor(),
             },
             ticks: {
-              minRotation: 25, 
+              minRotation: 25,
               maxRotation: 25,
               color: this.labelColor(),
             },
@@ -104,10 +108,10 @@ export default {
             },
           },
           y: {
-            beginAtZero: false,
+            beginAtZero: true,
             title: {
               display: true,
-              text: this.yVar || "Y Label",
+              text: "Density",
               color: this.labelColor(),
             },
             ticks: {
@@ -117,6 +121,14 @@ export default {
               color: this.labelColor(true),
             },
           },
+        },
+        elements: {
+          line: {
+            tension: 0.5,  // Adjust this value for smoother curves (range 0 to 1)
+          },
+          point: {
+          radius: 0,  // This hides the dots on the line chart
+        },
         },
       };
     },
@@ -137,30 +149,35 @@ export default {
       }
 
     },
+    checkVariableConflict() {
+      if (this.xVar === this.cVar) {
+        alert(
+          "The selected variabels are same. Please choose different variables."
+        );
+        return true;
+      }
+      return false;
+    },
     updateChart() {
+      console.log("updateChart")
+      console.log("cVar", this.cVar)
       this.$nextTick(() => {
         if (this.$refs.lineComponent && this.$refs.lineComponent.lineInstance) {
           this.$refs.lineComponent.lineInstance.update();
         }
       });
     },
-    checkVariableConflict() {
-      if (this.xVar === this.yVar || this.xVar === this.cVar|| this.yVar === this.cVar) {
-        alert("The selected variabels are same. Please choose different variables.");
-        return true;
-      }
-      return false;
-    },
 
     async fetchChartData() {
-      if (!this.xVar || !this.yVar) {
-        this.chartData = { datasets: [] };
+      console.log("this.yVar: ", this.yVar)
+      console.log("this.contextValue: ", this.contextValue)
+      if (!this.xVar) {
+        this.chartData = { labels: [], datasets: [] };
         return;
       }
       try {
-        const url = new URL("/plotting/api/plotDataLine/", BASE_URL);
+        const url = new URL("/plotting/api/plotDataDensity/", BASE_URL);
         url.searchParams.append("x", this.xVar);
-        url.searchParams.append("y", this.yVar);
         if (this.cVar) {
           url.searchParams.append("c", this.cVar);
         }
@@ -170,6 +187,7 @@ export default {
         if (this.palette) {
           url.searchParams.append("colors", this.palette);
         }
+        url.searchParams.append("bandwidth", this.bandwidth);
 
         // If the chart is the default chart, add the default parameter to the URL to enable the backend
         // to send a cached version of the data
@@ -194,17 +212,20 @@ export default {
 
         this.chartData = data;
 
+        console.log("this.chartData: ", this.chartData)
+
         this.defaultChart = false;
 
         return this.chartData;
       } catch (error) {
         console.error("Error fetching variable data:", error);
-        this.chartData = { datasets: [] };
+        this.chartData = { labels: [], datasets: [] };
       }
     },
   },
 
   mounted() {
+    console.log("Density Plot mounted")
     //this.updateChart();
   },
 };

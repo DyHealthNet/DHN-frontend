@@ -372,22 +372,40 @@
                 />
             <v-btn
               icon
-              @click="console.log('saveNetworkImage')"
+              @click="saveNetworkImage"
             >
               <v-icon class="m-3">mdi-camera</v-icon> <!-- mdi-abacus-->
             </v-btn>
-            <v-btn
+            <a ref="downloadLink" style="display: none" :href="imageUrl" :download="downloadFileName"></a>
+            <!--<v-btn
               icon
               @click="saveNetworkFile"
             >
-              <v-icon class="m-3">mdi-download</v-icon> <!-- mdi-abacus-->
-            </v-btn>
+              <v-icon class="m-3">mdi-download</v-icon>  mdi-abacus
+            </v-btn>-->
             <v-btn
               icon
-              @click="clearNetwork"
+              @click="clearNetworkWarn=true;"
             >
               <v-icon class="m-3">mdi-trash-can-outline</v-icon> <!-- mdi-abacus-->
             </v-btn>
+              <v-dialog width="auto" v-model="clearNetworkWarn">
+                <v-card color="primary" rounded="lg">
+                  <v-card-title class="headline text-white" >
+                    <v-icon class="my-0 mr-2">mdi-information-outline</v-icon>
+                    <b>You are about to clear the displayed Network.</b>
+                  </v-card-title>
+                  <v-card-text class="text-white">
+                    Would you like to clear the entire network or keep the selected subnetwork and remove <br>
+                    the unselected nodes? You can also cancel this action if you change your mind.
+                  </v-card-text>
+                  <v-card-actions>
+                    <v-btn class="text-white" @click="clearNetwork">Clear all</v-btn>
+                    <v-btn class="text-white" @click="clearUnselectedNodes">Clear unselected</v-btn>
+                    <v-btn class="text-white" @click="clearNetworkWarn = false">Cancel</v-btn>
+                  </v-card-actions>
+                </v-card>
+              </v-dialog>
           </v-toolbar>
 
           <!-- Card Content -->
@@ -448,19 +466,17 @@
 
 <script>
 import AdvancedSettings from "@/components/AdvancedSettings.vue";
-import axios from "axios";
 import FilterToolbar from "@/components/FilterToolbar.vue";
 import {BASE_URL} from "@/components/constants.js";
-import { groups, saveNetworkState, loadNetworkState } from "../components/network/networkData.js";
+import {groups, loadNetworkState, saveNetworkState} from "../components/network/networkData.js";
 import NodeDetails from '@/components/network/NodeDetails.vue';
 import EdgeDetails from '@/components/network/EdgeDetails.vue';
 import {DataSet, Network} from "vis-network/standalone/esm/vis-network.js";
-import {authState, getCookie} from "@/components/authentication/auth.js";
+import {getCookie} from "@/components/authentication/auth.js";
 import StatisticalTestLine from "@/components/StatisticalTestLine.vue";
-import NetworkEdgeLine from "@/components/network/NetworkEdgeLine.vue"
-import { useTheme } from 'vuetify';
-import html2canvas from "html2canvas"; // Only if using npm/yarn
-import { nextTick } from 'vue';
+import NetworkEdgeLine from "@/components/network/NetworkEdgeLine.vue";
+import {useTheme} from 'vuetify';
+
 
 export default {
   components: {
@@ -470,7 +486,7 @@ export default {
     return {
       // context filter
       contextValue: null,
-      disableSelections: { contCont: false, catCat: false, multTest: false , catContB: false, catContM: false, signThresh: false},
+      disableSelections: false,
 
       // Network Input values
       searchText: "",
@@ -484,6 +500,9 @@ export default {
       hoveredItem: null,
       tooltipStyle: {},
       activeIndex: -1, // Tracks which item is focused
+
+      imageUrl: null, // Holds the image URL to be downloaded
+      imageText: "static-network",
 
       // Network Visualization & Settings
       networkNodes: [],//test_data["nodes"],
@@ -506,6 +525,7 @@ export default {
 
       selectedNetworkNodes: [],
       selectAll: false,
+      clearNetworkWarn: false,
 
       // Advanced Settings (default) values
       selectedTests: {
@@ -532,6 +552,10 @@ export default {
     // Limit the number of displayed nodes to 5
     limitedDropdownNodes() {
       return this.dropdownNodes.slice(0, 5);
+    },
+    downloadFileName() {
+      const currentDate = new Date().toLocaleDateString().replace(/\//g, '-'); // Formatting the date as 'MM-DD-YYYY'
+      return `network-image-${this.imageText}-${currentDate}.png`; // Append the date to the filename
     },
   },
   methods: {
@@ -697,6 +721,7 @@ export default {
       }
     },
     async findNodeMatch() {
+      console.log("findNodeMatch")
       const searchElements = this.searchText.split(',').map(element => element.trim()).slice(0, -1);
       for (const element of searchElements) {
         console.log("curr element", element)
@@ -704,8 +729,19 @@ export default {
           console.log("not in selected nodes")
           try {
             const response = await this.fetchNodeMatch(element); // Assume this function exists
-            if (response && response.length === 1) {
+            if (response) {
               const match = response[0];
+              if (response.length > 1){
+                const match_sec = response[1];
+                if (match_sec.display_name === element || match_sec.id === element) {
+                  console.log("response.length >= 1")
+                  this.infoText = "The typed node description is not unique. " +
+                      "Please select the desired node from the dropdown menu or use the unique internal id."
+                  this.infoType = "info";
+                  this.showInfo = true;
+                  continue;
+                }
+              }
               if (match.display_name === element || match.id === element) {
                 console.log("match matched")
                 console.log("match", match)
@@ -717,6 +753,9 @@ export default {
             }
           } catch (error) {
             console.error(`Backend search failed for: ${element}`, error);
+            this.infoText = "The typed node cannot be found in the database."
+            this.infoType =  "info";
+            this.showInfo =  true;
           }
         }
       }
@@ -777,6 +816,15 @@ export default {
         default:
           return 'None';
       }
+    },
+    labelColor(colorName) {
+      // chartjs does not support theme colors so we just directly call the theme color
+      if (this.$vuetify.theme.global.name === 'dyHealthNetTheme') {
+        return this.$vuetify.theme.themes.dyHealthNetTheme.colors[colorName];
+      } else {
+        return this.$vuetify.theme.themes.dyHealthNetThemeDark.colors[colorName];
+      }
+
     },
     capitalizeFirstLetter(str) {
       if (typeof str !== "string" || str.length === 0) return str;
@@ -867,8 +915,7 @@ export default {
 
     //Network Visualization
     initializeNetwork() {
-      console.log("initializeNetwork")
-      console.log("networkEdges: ", this.networkEdges)
+      //console.log("initializeNetwork")
       const options = {physics: {enabled: this.physics_on}};
       const container = this.$refs.network;
       if (!container) return;
@@ -924,10 +971,12 @@ export default {
               this.selectedNetworkNodes.push(clickedNode);
             }
             this.displayNode(clickedNode);
+            this.checkSelectAll();
           }
           this.updateDesign();
         }.bind(this)
       );
+      this.network.on("afterDrawing", this.captureImage);
     },
     displayNode(node) {
       node.type = this.getPrettyType(node.source_table);
@@ -950,9 +999,6 @@ export default {
       this.displayedElementType = "edge";
     },
     isNodeInNetworkSelected(node) {
-      console.log("this.selectedNetworkNodes",this.selectedNetworkNodes)
-      console.log("node",node)
-      console.log("this.selectedNetworkNodes.includes(node)",this.selectedNetworkNodes.includes(node))
       return this.selectedNetworkNodes.some(existingNode => existingNode.id === node.id);
 
     },
@@ -965,6 +1011,7 @@ export default {
       } else if (!this.isDetailsNodeSelected && index !== -1) {
         this.selectedNetworkNodes.splice(index, 1);
       }
+      this.checkSelectAll();
     },
     toggleALLNetworkNodeSelection(){
       if(this.selectAll) {
@@ -982,6 +1029,14 @@ export default {
     removeSelectedNetworkNode(index){
       this.selectedNetworkNodes.splice(index, 1);
       this.updateDesign();
+      this.checkSelectAll();
+    },
+    checkSelectAll(){
+      if (this.selectedNetworkNodes.length === 0){
+        this.selectAll = false;
+      } else if (this.selectedNetworkNodes.length === this.networkNodes.length) {
+        this.selectAll = true;
+      }
     },
     // editThreshold(){
     //   if (this.fixThreshold){
@@ -1021,11 +1076,8 @@ export default {
         if (filteredNodeIds.length === 0) {
           console.warn("No nodes in selectedNetworkNodes to process.");
         }
-        console.log("this.networkEdges",this.networkEdges)
         await this.fetchNodeGroupEdges(filteredNodeIds, minSpanTree);
-        console.log("1 this.networkEdges",this.networkEdges)
         this.filterForNetworkEdges();
-        console.log("2 this.networkEdges",this.networkEdges)
         this.initializeNetwork();
         this.updateDesign();
       }
@@ -1109,8 +1161,6 @@ export default {
         }
         const data = await response.json();
         const nodeSet = new Set(nodes);
-        console.log("nodes",nodes);
-        console.log(" this.vis_network_edges", this.vis_network_edges);
         if (minSpanTree){
           const edgesToRemove = [];
           this.vis_network_edges.forEach(edge => {
@@ -1118,17 +1168,14 @@ export default {
               edgesToRemove.push({ id: edge.id }); // Collect the IDs of the edges to remove
             }
           });
-          console.log("Removed edges: ", edgesToRemove);
           this.vis_network_edges.remove(edgesToRemove);
           this.networkEdges = this.networkEdges.filter(edge =>
             !edgesToRemove.some(edgeToRemove => edgeToRemove.id === edge.id)
           );
           this.allInternalEdges = this.networkEdges;
         }
-        console.log(" data", data);
         if (data.message != ""){
           this.infoText = data.message;
-          console.log(" data.message", data.message);
           this.infoType = "error";
           this.showInfo = true;
         }
@@ -1140,7 +1187,7 @@ export default {
       }
     },
     setNetworkNodes(data){
-      console.log("data ", data)
+      //console.log("data ", data)
 
       const nodes = data.Nodes;
       // Get existingNodeIds beforehand as set for faster loop
@@ -1161,7 +1208,6 @@ export default {
       // add edges to the network
       const internalEdges = data.Edges;
       const externalEdges = data["External Edges"];
-      console.log("internalEdges ", internalEdges)
 
       // Get existing*EdgeIds beforehand as set for faster loop
       const existingInternalEdgeIds = new Set(this.allInternalEdges.map((edge) => edge.id));
@@ -1187,7 +1233,6 @@ export default {
                 ...renamedEdge,
                 type: key,
                 set: "cohort (calculated)",
-                color: "black",
                 width: -Math.log10(renamedEdge.final_p_value) * 2,
               });
               existingInternalEdgeIds.add(edge.id);
@@ -1215,13 +1260,12 @@ export default {
       const isValidEdge = (edge) =>
         networkNodeIds.has(edge.from) && networkNodeIds.has(edge.to);
 
-      console.log("allInternalEdges", this.allInternalEdges)
       // Filter and process all edges in one step
       this.networkEdges = [
         ...this.allInternalEdges.filter(isValidEdge),
         ...this.allExternalEdges.filter(isValidEdge).map((edge) => ({
           ...edge,
-          color: "grey",
+          color: "black",
           dashes: [10, 10],
           width: 6,
         })),
@@ -1250,7 +1294,7 @@ export default {
           size: 15,
           borderWidth: 0,
           borderWidthSelected: node.borderWidth,
-          font: { size: 10, color: 'black' },
+          font: { size: 10, color: this.labelColor("text") },
           label: node.display_name,
           is_highlighted: isSelected,
         };
@@ -1259,9 +1303,9 @@ export default {
           updatedNode.borderWidth = 4;
           updatedNode.borderWidthSelected =  updatedNode.borderWidth,
           updatedNode.color = {
-            border: this.selectedBorderColor,
+            border: this.labelColor("node-border"),
             background: updatedNode.color,
-            highlight: {  border: this.selectedBorderColor, background: updatedNode.color },
+            highlight: {  border:this.labelColor("node-border"), background: updatedNode.color },
           };
         }
 
@@ -1276,6 +1320,15 @@ export default {
         return updatedNode;
       });
       this.vis_network_nodes.update(updatedNodes);
+      const updatedEdges = this.vis_network_edges.get().map(edge => {
+      return {
+        ...edge,
+        color: {
+          color: this.labelColor("text"), // Normal color
+        },
+      };
+    });
+    this.vis_network_edges.update(updatedEdges);
       if(saveState){
         this.saveState();
       }
@@ -1305,6 +1358,7 @@ export default {
       this.network.setOptions(newPhysicsOption);
     },
     clearNetwork(full = true, saveState=true){
+      this.clearNetworkWarn = false;
       this.networkNodes = [];
       this.networkEdges = []; // do i also need allInternalEdges??
       this.vis_network_nodes = [];
@@ -1324,44 +1378,113 @@ export default {
         this.sendToNetwork()
       }
     },
-    saveNetworkFile() {
-      if (this.vis_network_nodes.length > 0) {
-        const nodes = this.vis_network_nodes.get();
-        const edges = this.vis_network_edges.get();
-
-        const exportData = { options: this.selectedTests, nodes: nodes, edges: edges };
-        const dataStr = JSON.stringify(exportData, null, 2);
-        const blob = new Blob([dataStr], { type: "application/json" });
-
-        // Create a link element
-        const link = document.createElement("a");
-
-        const timestamp = new Date().toISOString();
-        link.download = `network-data-${timestamp}.json`;
-
-        // Create a URL for the Blob and set it as the href attribute
-        link.href = window.URL.createObjectURL(blob);
-
-        // Append the link to the body (needed for triggering the click event)
-        document.body.appendChild(link);
-
-        // Programmatically click the link to trigger the download
-        link.click();
-
-        // Remove the link from the document
-        document.body.removeChild(link);
+    clearUnselectedNodes(){
+      console.log("clearUnselectedNodes", this.vis_network_nodes);
+      this.clearNetworkWarn = false;
+      this.allInternalEdges = this.networkEdges;
+      this.networkNodes = this.selectedNetworkNodes;
+      this.filterForNetworkEdges();
+      this.initializeNetwork();
+      console.log("clearUnselectedNodes", this.vis_network_nodes);
+      this.updateDesign(true);
+    },
+    // saveNetworkFile() {
+    //   if (this.vis_network_nodes.length > 0) {
+    //     const nodes = this.vis_network_nodes.get();
+    //     const edges = this.vis_network_edges.get();
+    //
+    //     const exportData = { options: this.selectedTests, nodes: nodes, edges: edges };
+    //     const dataStr = JSON.stringify(exportData, null, 2);
+    //     const blob = new Blob([dataStr], { type: "application/json" });
+    //
+    //     // Create a link element
+    //     const link = document.createElement("a");
+    //
+    //     const timestamp = new Date().toISOString();
+    //     link.download = `network-data-${timestamp}.json`;
+    //
+    //     // Create a URL for the Blob and set it as the href attribute
+    //     link.href = window.URL.createObjectURL(blob);
+    //
+    //     // Append the link to the body (needed for triggering the click event)
+    //     document.body.appendChild(link);
+    //
+    //     // Programmatically click the link to trigger the download
+    //     link.click();
+    //
+    //     // Remove the link from the document
+    //     document.body.removeChild(link);
+    //   } else {
+    //     console.log("No network displayed");
+    //     // Optionally, show an alert to the user
+    //     alert("No network available to save.");
+    //   }
+    // },
+    saveNetworkImage() {
+      this.captureImage();
+      if (this.imageUrl) {
+        this.$refs.downloadLink.click();
       } else {
-        console.log("No network displayed");
-        // Optionally, show an alert to the user
-        alert("No network available to save.");
+        console.error("Image URL is not available yet");
       }
     },
-    saveNetworkImage() {
+    captureImage() {
+      const canvas = this.network.canvas.frame.canvas;
+      const ctx = canvas.getContext('2d'); // Get the context of the canvas
+
+      if (canvas && ctx) {
+
+        // Create a temporary offscreen canvas to avoid triggering redraw
+        const offscreenCanvas = document.createElement('canvas');
+        const offscreenCtx = offscreenCanvas.getContext('2d');
+        offscreenCanvas.width = canvas.width;
+        offscreenCanvas.height = canvas.height;
+
+        // Draw the current content of the network on the offscreen canvas
+        offscreenCtx.drawImage(canvas, 0, 0);
+
+        // Filter groups based on includedNodeTypes
+        const includedGroups = Object.keys(groups).filter(groupKey =>
+          this.includedNodeTypes.has(groupKey)
+        );
+
+        // Adjust legend height dynamically based on included groups
+        const legendHeight = 40 + includedGroups.length * 35; // Title + 35px per group
+
+        // Define the position for the legend (left bottom corner)
+        const legendX = 20;
+        const legendY = Math.min(offscreenCanvas.height - legendHeight - 20, offscreenCanvas.height - 180);
+
+        // Loop over the groups to draw the legend dynamically
+        let yOffset = 50; // Starting Y position for the first item
+        includedGroups.forEach((groupKey) => {
+          const group = groups[groupKey]; // Get the group object (color)
+
+          // Draw larger color circles
+          offscreenCtx.beginPath();
+          offscreenCtx.arc(legendX + 25, legendY + yOffset + 15, 15, 0, 2 * Math.PI, false); // Radius increased to 15
+          offscreenCtx.fillStyle = group.color; // Set the color
+          offscreenCtx.fill();
+
+          // Draw larger label text
+          offscreenCtx.fillStyle = 'black';
+          offscreenCtx.font = '18px Arial'; // Increased font size to 18px
+          offscreenCtx.fillText(this.capitalizeFirstLetter(groupKey), legendX + 55, legendY + yOffset + 20);
+
+          // Increment Y offset for the next item
+          yOffset += 35; // Increased spacing for clarity
+        });
+
+        // Generate the image URL
+        this.imageUrl = offscreenCanvas.toDataURL();
+      } else {
+        console.error('Canvas or context is undefined');
+      }
     },
 
     // Advanced Settings methods
     addSettings(data) {
-      console.log("data: ", data)
+      //console.log("data: ", data)
       Object.entries(data).forEach(([key, value]) => {
         if (key in this) {
           this[key] = value; // Update the corresponding variable in the parent
@@ -1370,11 +1493,12 @@ export default {
         }
       });
       this.clearNetwork(false);
+      this.selectAll = false;
     },
 
     // Context methods
     async updateData(val) {
-      console.log("updateData val ", val)
+      //console.log("updateData val ", val)
       this.contextValue = val ? val.value : null;
       const context = await this.getContexts(this.contextValue);
       this.searchText = "";
@@ -1382,12 +1506,14 @@ export default {
       this.isReadOnly = false;
       this.dropdownNodes= [];
       if (context) {
+        console.log("context.content.contextName",context.content.contextName)
+        console.log("context.content.tests",context.content.tests)
         this.selectedTests['catCat'] = context.content.tests['catCat'];
         this.selectedTests['catContM'] = context.content.tests['catContM'];
         this.selectedTests['catContB'] = context.content.tests['catContB'];
         this.selectedTests['contCont'] = context.content.tests['contCont'];
         //this.selectedTests = context.content.tests
-        this.disableSelections = { contCont: true, catCat: true, multTest: false , catContB: true, catContM: true, signThresh: false};
+        this.disableSelections = true;
         this.clearNetwork(true,false);
       }
       else{
@@ -1395,37 +1521,42 @@ export default {
           catCat: {label: 'Chi-squared test', value: 'chi2'}, catContM: {label: 'ANOVA', value: 'anova'},
           multTest: {label: 'Benjamini Hochberg (FDR)', value: 'benjamini_hb'},
           catContB: {label: 'T-test', value: 'ttest'}, contCont: {label: 'Pearson correlation', value: 'pearson'}};
-        this.disableSelections = { contCont: false, catCat: false, multTest: false , catContB: false, catContM: false, signThresh: false};
+        this.disableSelections = false;
         this.clearNetwork(true, false);
       }
       this.loadState();
     },
     async getContexts(val) {
-      try {
-        const wantedFields = ['contextValue', 'content']
-        let url = new URL(`${BASE_URL}/context/api/retrieveContexts/`);
-        url.search = new URLSearchParams({fields: wantedFields});
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie("csrftoken")
-          },
-          credentials: 'include',
-        });
-        const data = await response.json();
+      if(val){
+        try {
+          const wantedFields = ['contextValue', 'content']
+          let url = new URL(`${BASE_URL}/context/api/retrieveContexts/`);
+          url.search = new URLSearchParams({fields: wantedFields});
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCookie("csrftoken")
+            },
+            credentials: 'include',
+          });
+          const data = await response.json();
 
-        const context = data.result.filter(item => item.contextValue === val)[0];
+          const context = data.result.filter(item => item.contextValue === val)[0];
+          this.imageText = context.content.contextName.replace(/\s+/g, '-');
 
-        return context;  // Return the first matched item directly
-      } catch (error) {
-        console.error('Error:', error);
-        return null;  // Return null in case of error
+          return context;  // Return the first matched item directly
+        } catch (error) {
+          console.error('Error:', error);
+          return null;  // Return null in case of error
+        }
       }
+      return null;  // Return null if contextVal/ val = null
     },
 
     // Page/ State Reload
     saveState() {
+      //console.log("saveState")
       const nodes = this.vis_network_nodes.get();
       const edges = this.vis_network_edges.get();
       const user_settings = {
@@ -1435,31 +1566,33 @@ export default {
         signThresh: this.signThresh,
         fixThreshold: this.fixThreshold,
         topNodesNumber: this.topNodesNumber,
-        topPerNodeCount: this.topPerNodeCount
+        topPerNodeCount: this.topPerNodeCount,
+        selectAll: this.selectAll,
       }
 
       const exportData = { nodes: nodes, edges: edges ,
         vis_options: {physics: {enabled: this.physics_on}}, user_settings: { ...user_settings }};
-      //console.log("Save State exportData", exportData)
+      console.log("Save State exportData", exportData)
       saveNetworkState(this.contextValue, exportData);
     },
     loadState() {
       const savedState = loadNetworkState(this.contextValue);
       if (savedState) {
-        //console.log("Load State savedState", savedState)
+        console.log("Load State savedState", savedState)
         const { nodes, edges, vis_options, user_settings } = savedState;
         this.networkNodes = nodes;
         this.networkEdges = edges;
         this.physics_on = vis_options.physics.enabled;
 
         this.selectedNodes = user_settings.selectedNodes;
+        this.selectAll = user_settings.selectAll;
         this.updateSearchText();
 
         this.selectedNetworkNodes = user_settings.selectedNetworkNodes;
         this.selectedTests = user_settings.selectedTests;
-        this.signThresh = user_settings.signThresh;
+        this.signThresh = parseFloat(user_settings.signThresh);
         this.fixThreshold = user_settings.fixThreshold;
-        this.topNodesNumber = user_settings.topNodesNumber;
+        this.topNodesNumber = parseInt(user_settings.topNodesNumber);
         this.topPerNodeCount = user_settings.topPerNodeCount;
         this.initializeNetwork(); // Example: Reapply the state to your network
         this.updateDesign(false);
@@ -1476,11 +1609,16 @@ export default {
         document.removeEventListener('click', this.handleClickOutside);
       }
     },
+    '$vuetify.theme.global.name'(newTheme, oldTheme) {
+      console.log(`Theme changed from ${oldTheme} to ${newTheme}`);
+      this.updateDesign(false); // Trigger the network update
+    },
     },
     beforeUnmount() {
       // Clean up event listener when component is destroyed
       document.removeEventListener('click', this.handleClickOutside);
     },
+
   mounted() {
     const theme = useTheme();
     this.loadState(); // Load state when the component is mounted

@@ -45,6 +45,9 @@ const dyHealthNetTheme = {
     "chart-grid": '#E0E0E0',
 
     "node-logo-background": "#CDDDE8",
+
+    "text": "#000000",
+    "node-border": "#A5BFDC",
   },
 }
 
@@ -76,6 +79,9 @@ const dyHealthNetThemeDark = {
 
     "chart": '#B0B0B0',
     "chart-grid": '#555555',
+
+    "text": "#FFFFFF",
+    "node-border": "#A5BFDC",
   },
 }
 

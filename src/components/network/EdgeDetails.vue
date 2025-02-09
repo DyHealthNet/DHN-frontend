@@ -147,7 +147,7 @@ export default {
      * Formats the value to handle numbers and nulls gracefully.
      */
     formatValue(value) {
-      if (typeof value === 'number') return value.toPrecision(3); // Format numbers
+      if (typeof value === 'number') return value.toPrecision(6); // Format numbers
       return value; // Default case
     },
   },

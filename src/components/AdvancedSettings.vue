@@ -7,7 +7,7 @@
         </v-expansion-panel-title>
         <v-expansion-panel-text>
           <StatisticalTestLine :selected-tests="selectedTests"
-                               v-model:signThresh="signThresh"
+                               :sign-thresh="signThresh"
                                :disable-selections="disableSelections"
                                :show-mult-test="showMultTest"
                                :showHeader="showHeader"
@@ -41,15 +41,8 @@ export default {
       required: false,
     },
     disableSelections: {
-      type: Object,
-      default: () => ({
-        contCont: false,
-        catCat: false,
-        multTest: false,
-        catContB: false,
-        catContM: false,
-        signThresh: false,
-      })
+      type: Boolean,
+      default: false,
     },
     expansionPanelVariant: {
       type: String,

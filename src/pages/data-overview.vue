@@ -211,7 +211,7 @@
                                     v-bind="props"
                                 ></v-autocomplete>
                               </template>
-                              <span>Categorical variable possible</span>
+                              <span>Categorical variable</span>
                             </v-tooltip>
 
                             <!--Select Y variables-->
@@ -228,7 +228,7 @@
                                     v-bind="props"
                                 ></v-autocomplete>
                               </template>
-                              <span>Continous variable possible</span>
+                              <span>Continous variable</span>
                             </v-tooltip>
 
                             <!--Colored by which variables-->
@@ -245,7 +245,7 @@
                                     v-bind="props"
                                 ></v-autocomplete>
                               </template>
-                              <span>Categorical variable as grouping</span>
+                              <span>Categorical variable for grouping</span>
                             </v-tooltip>
                           </div>
                         </v-col>
@@ -286,9 +286,8 @@
                                 ></v-autocomplete>
                               </template>
                               <span
-                              >Categorical and Countinous variable
-                                  possible</span
-                              >
+                              >Categorical or Countinous variable
+                                  </span>
                             </v-tooltip>
 
                             <!--Select Y variables-->
@@ -305,7 +304,7 @@
                                     v-bind="props"
                                 ></v-autocomplete>
                               </template>
-                              <span>Continous variable possible</span>
+                              <span>Continous variable</span>
                             </v-tooltip>
 
                             <!--Colored by which variables-->
@@ -322,7 +321,7 @@
                                     v-bind="props"
                                 ></v-autocomplete>
                               </template>
-                              <span>Categorical variable as grouping</span>
+                              <span>Categorical variable for grouping</span>
                             </v-tooltip>
                           </div>
                         </v-col>
@@ -362,7 +361,7 @@
                                     v-bind="props"
                                 ></v-autocomplete>
                               </template>
-                              <span>Categorical variable possible</span>
+                              <span>Categorical variable</span>
                             </v-tooltip>
 
                             <!--Select variable 2-->
@@ -379,7 +378,7 @@
                                     v-bind="props"
                                 ></v-autocomplete>
                               </template>
-                              <span>Categorical variable possible </span>
+                              <span>Categorical variable</span>
                             </v-tooltip>
                           </div>
                         </v-col>
@@ -419,7 +418,7 @@
                                     v-bind="props"
                                 ></v-autocomplete>
                               </template>
-                              <span>Categorical variable possible</span>
+                              <span>Categorical variable</span>
                             </v-tooltip>
                             <!--Colored by which variables-->
                             <v-tooltip location="top" open-on-hover>
@@ -435,7 +434,7 @@
                                     v-bind="props"
                                 ></v-autocomplete>
                               </template>
-                              <span>Categorical variable as grouping</span>
+                              <span>Categorical variable for grouping</span>
                             </v-tooltip>
                           </div>
                         </v-col>
@@ -450,6 +449,63 @@
                                 :palette="userSelectedPaletteCa"
                             />
                             </v-sheet>
+                        </v-col>
+                      </v-row>
+                    </template>
+                    <!-- Content for Density Plot -->
+                    <template v-else-if="tab.value === 7">
+                      <v-row>
+                        <!--Drop Down list-->
+                        <v-col cols="12" align="center">
+                          <div class="d-flex justify-space-around">
+                            <!--Select X variables-->
+                            <v-tooltip location="top" open-on-hover>
+                              <template v-slot:activator="{ props }">
+                                <v-autocomplete
+                                    v-model="selectedXvariableDensity"
+                                    clearable
+                                    variant="outlined"
+                                    density="compact"
+                                    label="X Variable"
+                                    :items="xItemsDensity"
+                                    class="variable-field"
+                                    v-bind="props"
+                                ></v-autocomplete>
+                              </template>
+                              <span
+                              >Countinous variable</span>
+                            </v-tooltip>
+
+                            <!--Colored by which variables-->
+                            <v-tooltip location="top" open-on-hover>
+                              <template v-slot:activator="{ props }">
+                                <v-autocomplete
+                                    v-model="selectedCvariableDensity"
+                                    clearable
+                                    variant="outlined"
+                                    density="compact"
+                                    label="Colored by (optional)"
+                                    :items="colorItemsDensity"
+                                    class="variable-field"
+                                    v-bind="props"
+                                ></v-autocomplete>
+                              </template>
+                              <span>Categorical variable for grouping</span>
+                            </v-tooltip>
+                          </div>
+                        </v-col>
+
+                        <!--Line Chart-->
+                        <v-col cols="12" align="center">
+                          <v-sheet :max-width="plotWidth" :min-height="plotHeight" :max-height="plotHeight">
+                            <CustomDensity
+                                :x-var="selectedXvariableDensity"
+                                :c-var="selectedCvariableDensity"
+                                :context-value="contextValue"
+                                :palette="userSelectedPaletteCa"
+                                :bandwidth="bandwidth"
+                            />
+                          </v-sheet>
                         </v-col>
                       </v-row>
                     </template>
@@ -470,6 +526,7 @@ import CustomLine from "../components/plots/CustomLine.vue";
 import CustomBar from "../components/plots/CustomBar.vue";
 import CustomBox from "../components/plots/CustomBox.vue";
 import CustomHeatmap from "../components/plots/CustomHeatMap.vue";
+import CustomDensity from "../components/plots/CustomDensity.vue"
 // Simulation of test data
 //import test_table from "../data/test_dataTableOverview.json";
 
@@ -497,7 +554,7 @@ ChartJS.register(
 
 export default {
   name: "DataOverview",
-  components: {ColorPalette, FilterToolbar, CustomBar, CustomLine, CustomBox, CustomHeatmap},
+  components: {CustomDensity, ColorPalette, FilterToolbar, CustomBar, CustomLine, CustomBox, CustomHeatmap},
   data() {
     return {
       data_table: null,
@@ -506,6 +563,7 @@ export default {
       //Tab names
       tabs: [
         {name: "Variable counts", value: 6},
+        {name: "Density Plot", value: 7},
         {name: "Box Plot", value: 1},
         {name: "Line Plot", value: 2},
         {name: "Heatmap", value: 3},
@@ -521,6 +579,11 @@ export default {
       xItemsBar: [],
       //yItemsBar: [],
       colorItemsBar: [],
+
+      //Density Plot: Different variables for the dropdown list
+      xItemsDensity: [],
+      colorItemsDensity: [],
+      bandwidth: 0.1,
 
       //Line Plot: Different variables for the dropdown list
       xItemsLine: [],
@@ -540,6 +603,9 @@ export default {
       selectedXvariableBar: "Food frequency: Meat (x0fd01)",
       //selectedYvariableBar: null,
       selectedCvariableBar: "Sex (x0_sex)",
+
+      selectedXvariableDensity: "NEIL2 / Protein (x0so3291)",
+      selectedCvariableDensity: "Sex (x0_sex)",
 
       selectedXvariableLine: "Type of diabetes (x0dm02)",
       selectedYvariableLine: "NEIL2 / Protein (x0so3291)",
@@ -602,6 +668,7 @@ export default {
 
     // Execute the next methods
     this.getVariableDataBar();
+    this.getVariableDataDensity();
     this.getVariableDataLine();
     this.getVariableDataBox();
     this.getVariableDataHeatmap();
@@ -732,6 +799,19 @@ export default {
       }
     },
 
+        // Assemble valid data for the dropdown lists in the different plots
+    getVariableDataDensity() {
+      try {
+        //[...new Set(data.nonbinaryCategorical.concat(data.binaryCategorical))]
+        this.xItemsDensity = this.allVariables.continuous;
+        this.colorItemsDensity = this.allVariables.binaryCategorical.concat(
+            this.allVariables.nonbinaryCategorical
+        );
+      } catch (error) {
+        console.error("Error fetching variable data:", error);
+      }
+    },
+
     getVariableDataLine() {
       try {
         this.xItemsLine = this.allVariables.nonbinaryCategorical.concat(this.allVariables.continuous);
@@ -765,12 +845,31 @@ export default {
         this.itemHeatmap1 = this.allVariables.nonbinaryCategorical.concat(
             this.allVariables.binaryCategorical
         );
-        this.itemHeatmap2 = this.allVariables.nonbinaryCategorical.concat(
-            this.allVariables.binaryCategorical
+        this.itemHeatmap2 = this.allVariables.binaryCategorical.concat(
+            this.allVariables.nonbinaryCategorical
         );
       } catch (error) {
         console.error("Error fetching variable data:", error);
       }
+    },
+
+    checkCurrentVariables(){
+      this.selectedXvariableBar = this.selectedXvariableBar in this.xItemsBar ? this.selectedXvariableBar : this.xItemsBar[0];
+      this.selectedCvariableBar = this.selectedCvariableBar in this.colorItemsBar ? this.selectedCvariableBar : this.colorItemsBar[0];
+
+      this.selectedXvariableDensity = this.selectedXvariableDensity in this.xItemsDensity ? this.selectedXvariableDensity : this.xItemsDensity[0];
+      this.selectedCvariableDensity = this.selectedCvariableDensity in this.colorItemsDensity ? this.selectedCvariableDensity : this.colorItemsDensity[0];
+
+      this.selectedXvariableLine = this.selectedXvariableLine in this.xItemsLine ? this.selectedXvariableLine : this.xItemsLine[0];
+      this.selectedYvariableLine = this.selectedYvariableLine in this.yItemsLine ? this.selectedYvariableLine : this.yItemsLine[0];
+      this.selectedCvariableLine = this.selectedCvariableLine in this.colorItemsLine ? this.selectedCvariableLine : this.colorItemsLine[0];
+
+      this.selectedXvariableBox = this.selectedXvariableBox in this.xItemsBox ? this.selectedXvariableBox : this.xItemsBox[0];
+      this.selectedYvariableBox = this.selectedYvariableBox in this.yItemsBox ? this.selectedYvariableBox : this.yItemsBox[0];
+      this.selectedCvariableBox = this.selectedCvariableBox in this.colorItemsBox ? this.selectedCvariableBox : this.colorItemsBox[0];
+
+      this.selectedVariableHeatmap1 = this.selectedVariableHeatmap1 in this.itemHeatmap1 ? this.selectedVariableHeatmap1 : this.itemHeatmap1[0];
+      this.selectedVariableHeatmap2 = this.selectedVariableHeatmap2 in this.itemHeatmap2 ? this.selectedVariableHeatmap2 : this.itemHeatmap2[0];
     },
 
     toggleDescription() {
@@ -779,13 +878,16 @@ export default {
 
     async updateData(val) {
       this.contextValue = val ? val.value : null;
-      await this.getTableDataFromApi();
       await this.getAllVariables();
 
       this.getVariableDataBar();
+      this.getVariableDataDensity();
       this.getVariableDataLine();
       this.getVariableDataBox();
       this.getVariableDataHeatmap();
+
+      this.checkCurrentVariables();
+      await this.getTableDataFromApi();
     }
   },
 };

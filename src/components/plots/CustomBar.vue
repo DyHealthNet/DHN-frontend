@@ -112,9 +112,10 @@ export default {
     },
   },
   watch: {
-    xVar: "fetchChartData",
-    cVar: "fetchChartData",
-    contextValue: "fetchChartData",
+    xVar: "fetchAndUpdateChart",
+    cVar: "fetchAndUpdateChart",
+    contextValue: "fetchAndUpdateChart",
+    palette: "fetchAndUpdateChart",
   },
   methods: {
     labelColor(grid=false) {
@@ -145,6 +146,11 @@ export default {
           this.$refs.chartComponent.chartInstance.update();
         }
       });
+    },
+
+    async fetchAndUpdateChart() {
+      await this.fetchChartData();
+      this.updateChart();
     },
 
     async fetchChartData() {
@@ -187,8 +193,6 @@ export default {
         this.chartData = data;
 
         this.defaultChart = false;
-
-        this.updateChart();
 
       } catch (error) {
         console.error("Error fetching variable data:", error);

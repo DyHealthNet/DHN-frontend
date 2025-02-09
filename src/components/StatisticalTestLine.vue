@@ -23,7 +23,7 @@
       <v-select
           v-model="contCont"
           :items="contContItems"
-          :readonly="disableSelections.contCont"
+          :readonly="disableSelections"
           variant="outlined"
           density="compact"
           @update:model-value="changeTest"
@@ -36,7 +36,7 @@
       <v-select
           v-model="catCat"
           :items="catCatItems"
-          :readonly="disableSelections.catCat"
+          :readonly="disableSelections"
           variant="outlined"
           density="compact"
           @update:model-value="changeTest"
@@ -50,7 +50,6 @@
       <v-select
           v-model="multTest"
           :items="multTestItems"
-          :readonly="disableSelections.multTest"
           variant="outlined"
           density="compact"
           @update:model-value="changeTest"
@@ -76,7 +75,7 @@
       <v-select
           v-model="catContB"
           :items="contCatItemsB"
-          :readonly="disableSelections.catContB"
+          :readonly="disableSelections"
           label="Binary categories"
           variant="outlined"
           density="compact"
@@ -90,7 +89,7 @@
       <v-select
           v-model="catContM"
           :items="contCatItemsM"
-          :readonly="disableSelections.catContM"
+          :readonly="disableSelections"
           label="Multicategorical"
           variant="outlined"
           density="compact"
@@ -104,7 +103,6 @@
     <v-col cols="3" v-if="showMultTest">
         <v-text-field
           v-model="internalSignThresh"
-          :readonly="disableSelections.signThresh"
           type="number"
           step="0.01"
           :rules="[value => (value >= 0 && value <= 1) || 'Must be between 0 and 1']"
@@ -133,15 +131,8 @@ name: "StatisticalTestLine",
       default: 0.05,
     },
     disableSelections: {
-    type: Object,
-    default: () => ({
-        contCont: false,
-        catCat: false,
-        multTest: false,
-        catContB: false,
-        catContM: false,
-        signThresh: false,
-      })
+      type: Boolean,
+      default: false,
     },
     showHeader: {
       type: Boolean,
@@ -195,11 +186,13 @@ name: "StatisticalTestLine",
   },
   methods: {
     validateThresholdInput() {
-      const parsedValue = parseFloat(this.internalsignThresh);
-      if (isNaN(parsedValue) || parsedValue < 0 || parsedValue > 1) {
-        this.internalsignThresh = 0.05;
-      } else {
-        this.$emit("update:signThresh", this.internalSignThresh);
+      const parsedValue = parseFloat(this.internalSignThresh);
+      if (isNaN(parsedValue) || parsedValue < 0) {
+        this.internalSignThresh = 0.05;
+        this.$emit("dataChanged", { signThresh: this.internalSignThresh });
+      } else if (isNaN(parsedValue) || parsedValue > 1){
+        this.internalSignThresh = 1.0;
+        this.$emit("dataChanged", { signThresh: this.internalSignThresh });
       }
     },
     changeTest() {
@@ -211,20 +204,49 @@ name: "StatisticalTestLine",
           multTest: this.multTest,
           catContB: this.catContB,
           catContM: this.catContM,
-      },
-        signThresh: this.internalSignThresh, // Include signThresh)
-      });
+      }});
     },
     updateSignThresh(newValue) {
-      console.log("internalSignThresh")
       this.internalSignThresh = parseFloat(newValue);
       this.$emit("dataChanged", { signThresh: this.internalSignThresh });
     },
   },
+  // So that changes in the parent are shown in the child component (e.g. if context changes correct
+  // values are immediately re-rendered)
   watch: {
     signThresh(newValue) {
-      this.internalSignThresh = parseFloat(newValue); // do we need this
+      this.internalSignThresh = parseFloat(newValue);
       this.$emit("dataChanged", { signThresh: this.internalSignThresh });
+    },
+
+    selectedTests: {
+      handler(newValue) {
+        // Only emit the change if necessary (if newValue is different from current state)
+        if (
+          newValue["contCont"] !== this.contCont ||
+          newValue["catCat"] !== this.catCat ||
+          newValue["multTest"] !== this.multTest ||
+          newValue["catContB"] !== this.catContB ||
+          newValue["catContM"] !== this.catContM
+        ) {
+          this.contCont = newValue["contCont"];
+          this.catCat = newValue["catCat"];
+          this.multTest = newValue["multTest"];
+          this.catContB = newValue["catContB"];
+          this.catContM = newValue["catContM"];
+
+          this.$emit("dataChanged", {
+            selectedTests: {
+              contCont: this.contCont,
+              catCat: this.catCat,
+              multTest: this.multTest,
+              catContB: this.catContB,
+              catContM: this.catContM,
+            },
+          });
+        }
+      },
+      deep: true, // Only apply deep to the nested object
     },
   },
 }
