@@ -34,65 +34,10 @@ export default {
     },
     yLabelList() {
       return this.chartData?.yCategories || [];
-    }
-  },
-  mounted() {
-    Chart.register(MatrixController, MatrixElement);
-    this.renderChart();
-  },
-  methods: {
-    labelColor(grid=false) {
-      // chartjs does not support theme colors so we just directly call the theme color
-      let colorName = grid ? "chart-grid" : "chart";
-      if (this.$vuetify.theme.global.name === 'dyHealthNetTheme') {
-        return this.$vuetify.theme.themes.dyHealthNetTheme.colors[colorName];
-      } else {
-        return this.$vuetify.theme.themes.dyHealthNetThemeDark.colors[colorName];
-      }
     },
-
-    renderChart() {
-     if (this.chartInstance) {
-       this.chartInstance.destroy();
-     }
-     console.log("Rendering chart");
-     console.log(this.chartData);
-
-     if (this.dataValues.length === 0) {
-       return;
-     }
-     console.log(this.chartData);
-
-     const ctx = this.$refs.canvas.getContext('2d');
-     this.chartInstance = new Chart(ctx, {
-       type: 'matrix',
-       data: {
-          datasets: [{
-						label: 'Cohort',
-						data: this.dataValues,
-						backgroundColor(context) {
-							return context.dataset.data[context.dataIndex].c;
-						},
-						width(context) {
-							const a = context.chart.chartArea;
-              const cols = context.chart.data.datasets[0].data.filter(d => d.y === context.dataset.data[context.dataIndex].y);
-							if (!a) {
-								return 0;
-							}
-							return (a.right - a.left) / cols.length - 2;
-						},
-						height(context) {
-							const a = context.chart.chartArea;
-              const rows = context.chart.data.datasets[0].data.filter(d => d.x === context.dataset.data[context.dataIndex].x);
-							if (!a) {
-								return 0;
-							}
-							return (a.bottom - a.top) / rows.length - 2;
-						}
-					}],
-        },
-       options: {
-          color: this.labelColor(),
+    computedOptions() {
+      return {
+          color: this.labelColor,
           scales: {
             x: {
               type: 'category',
@@ -141,10 +86,83 @@ export default {
            legend: {
              display: false
            }
-         }
         }
+      }
+    }
+  },
+  mounted() {
+    Chart.register(MatrixController, MatrixElement);
+    this.renderChart();
+  },
+  watch: {
+    chartData: {
+      handler() {
+        this.renderChart();
+      },
+      deep: true
+    },
+    $vuetify: {
+      handler() {
+        this.renderChart();
+      },
+      deep: true
+    }
+  },
+  methods: {
+    labelColor(grid=false) {
+      // chartjs does not support theme colors so we just directly call the theme color
+      let colorName = grid ? "chart-grid" : "chart";
+      if (this.$vuetify.theme.global.name === 'dyHealthNetTheme') {
+        return this.$vuetify.theme.themes.dyHealthNetTheme.colors[colorName];
+      } else {
+        return this.$vuetify.theme.themes.dyHealthNetThemeDark.colors[colorName];
+      }
+    },
+    renderChart() {
+     if (this.chartInstance) {
+       this.chartInstance.destroy();
+     }
+     console.log("Rendering chart");
+     console.log(this.chartData);
+
+     if (this.dataValues.length === 0) {
+       return;
+     }
+     console.log(this.chartData);
+
+     const ctx = this.$refs.canvas.getContext('2d');
+     this.chartInstance = new Chart(ctx, {
+       type: 'matrix',
+       data: {
+          datasets: [{
+						label: 'Cohort',
+						data: this.dataValues,
+						backgroundColor(context) {
+							return context.dataset.data[context.dataIndex].c;
+						},
+						width(context) {
+							const a = context.chart.chartArea;
+              const cols = context.chart.data.datasets[0].data.filter(d => d.y === context.dataset.data[context.dataIndex].y);
+							if (!a) {
+								return 0;
+							}
+							return (a.right - a.left) / cols.length - 2;
+						},
+						height(context) {
+							const a = context.chart.chartArea;
+              const rows = context.chart.data.datasets[0].data.filter(d => d.x === context.dataset.data[context.dataIndex].x);
+							if (!a) {
+								return 0;
+							}
+							return (a.bottom - a.top) / rows.length - 2;
+						}
+					}],
+        },
+       options:
+           this.computedOptions
      });
    },
+
   }
 };
 </script>

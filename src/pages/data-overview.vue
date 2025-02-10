@@ -112,10 +112,10 @@
                       <p>Plot size</p>
                     </v-col>
                     <v-col cols="3">
-                      <p>Color palette continuous</p>
+                      <p>Color palette categorical</p>
                     </v-col>
                     <v-col>
-                      <p>Color palette categorical</p>
+                      <p>Color palette continuous</p>
                     </v-col>
                   </v-row>
                   <v-row>
@@ -391,6 +391,7 @@
                                 :y-var="selectedVariableHeatmap2"
                                 :context-value="contextValue"
                                 :palette="userSelectedPaletteCo"
+                                :legendHeight="plotHeight"
                             />
                           </v-sheet>
                         </v-col>

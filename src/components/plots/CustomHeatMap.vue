@@ -1,5 +1,12 @@
 <template>
-  <HeatMapChart :chart-data="this.chartData" :y-label="yVar" :x-label="xVar" ref="heatmapChart"></HeatMapChart>
+  <div class="chart-container">
+    <div class="chart">
+      <HeatMapChart :chart-data="chartData" :y-label="yVar" :x-label="xVar" ref="heatmapChart" />
+    </div>
+    <div class="legend">
+      <ContinuousLegend :min="minValue" :max="maxValue" :palette="palette" :height="this.legendHeight - 200" />
+    </div>
+  </div>
 </template>
 
 <script>
@@ -7,10 +14,11 @@ import {getCookie} from "@/components/authentication/auth.js";
 
 import {BASE_URL} from "../constants.js";
 import HeatMapChart from "@/components/plots/HeatMapChart.vue";
+import ContinuousLegend from "@/components/plots/ContinuousLegend.vue";
 
 export default {
   name: "CustomHeatmap",
-  components: {HeatMapChart},
+  components: {ContinuousLegend, HeatMapChart},
   props: {
     xVar: {
       type: String,
@@ -28,6 +36,10 @@ export default {
       type: String,
       required: false,
     },
+    legendHeight: {
+      type: Number,
+      required: false,
+    }
   },
 
   data() {
@@ -37,6 +49,8 @@ export default {
         yCategories: [],
         values: [],
       },
+      minValue: 0,
+      maxValue: 0,
     };
   },
 
@@ -89,7 +103,13 @@ export default {
         );
         
         this.chartData = await response.json();
-        console.log("this.chartData: ", this.chartData);
+        if (this.chartData?.values?.length > 0) {
+          const rValues = this.chartData.values.map(v => v.r);
+          this.minValue = Math.min(...rValues);
+          this.maxValue = Math.max(...rValues);
+        } else {
+          console.warn("No values in chartData");
+        }
 
         return this.chartData;
       } catch (error) {
@@ -114,3 +134,23 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.chart-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  height: 100%;
+}
+
+.chart {
+  flex: 1 1 0; /* Takes up most of the space */
+  min-width: 0;
+  margin-right: 30px;
+}
+
+.legend {
+  width: 40px;
+  display: flex;
+}
+</style>
