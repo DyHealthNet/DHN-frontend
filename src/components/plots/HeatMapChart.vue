@@ -129,9 +129,6 @@ export default {
               },
             }
           },
-          legend: {
-            display: false
-          },
          plugins: {
            tooltip: {
              callbacks: {
@@ -140,6 +137,9 @@ export default {
                  return `${v.y}: ${v.r}`;
                }
              }
+           },
+           legend: {
+             display: false
            }
          }
         }
