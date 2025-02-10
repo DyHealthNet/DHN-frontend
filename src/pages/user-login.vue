@@ -352,7 +352,7 @@ export default {
 
 <style scoped>
 .title {
-  font-weight: bold;
+  font-size: 2rem;
 }
 
 .divider {

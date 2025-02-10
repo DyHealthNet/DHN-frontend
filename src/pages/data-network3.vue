@@ -1628,6 +1628,10 @@ export default {
 </script>
 
 <style scoped>
+.title {
+  font-size: 2rem;
+}
+
 .mt-4 {
   margin-top: 16px;
 }

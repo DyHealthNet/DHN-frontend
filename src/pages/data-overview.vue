@@ -906,8 +906,7 @@ export default {
 }
 
 .title {
-  font-size: 3rem;
-  color: rgb(var(--v-theme-darken-1));
+  font-size: 2rem;
 }
 
 .small-title {
