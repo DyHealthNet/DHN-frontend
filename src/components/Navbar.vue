@@ -44,6 +44,8 @@
             Network</v-btn>
       </template>
     </v-menu>
+    <!--
+    Add back once documentation is available
     <v-menu transition="slide-x-transition">
       <template v-slot:activator="{ props }">
           <v-btn to="/about-us" color="primary-darken-1" class="mx-1" v-bind="props">
@@ -53,6 +55,7 @@
             Documentation</v-btn>
       </template>
     </v-menu>
+    -->
 
     <v-icon color="primary-darken-1">mdi-white-balance-sunny</v-icon>
     <v-switch
