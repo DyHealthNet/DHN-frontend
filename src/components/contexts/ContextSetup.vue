@@ -83,24 +83,9 @@
       <v-col cols="2">
         <p><b>Operator</b></p>
       </v-col>
-      <template v-if="columnType === 'value'">
-        <v-col cols="4">
-          <p><b>Value</b></p>
-        </v-col>
-      </template>
-      <template v-if="columnType === 'range'">
-        <v-col cols="2">
-          <p><b>Min</b></p>
-        </v-col>
-        <v-col cols="2" class="text-end">
-          <p><b>Max</b></p>
-        </v-col>
-      </template>
-      <template v-if="columnType === 'category'">
-        <v-col cols="4">
-          <p><b>Categories</b></p>
-        </v-col>
-      </template>
+      <v-col cols="4">
+        <p><b>Value</b></p>
+      </v-col>
     </v-row>
 
     <div id="allRules">

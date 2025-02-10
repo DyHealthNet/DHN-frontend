@@ -1,3 +1,4 @@
+<!-- THIS COMPONENT IS NOT BEING USED BUT MAY PROVIDE A TEMPLATE FOR ANYONE THAT WANTS TO PURSUE THIS LATER ON -->
 <template>
   <v-sheet>
     <v-card-text class="sparkline-container">

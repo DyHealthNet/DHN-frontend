@@ -28,7 +28,6 @@
             :stroke-linecap="lineCap"
             :type="barType"
             auto-draw
-            @click="dialogActive = true"
           >
             <template v-slot:label="{ index }">
             {{ valueLabels[index] }}
@@ -38,6 +37,8 @@
         Interactive Plot would need some work still to be used properly
         <InteractivePlot v-if="barType === 'trend'" :barData="barData" />
         -->
+        <!--
+        Replace this sparkline with a reference to the Overview page to get proper visualization
         <v-sparkline
             v-if="barType === 'bar'"
             :model-value="value"
@@ -51,6 +52,7 @@
             {{ valueLabels[index] }}
           </template>
         </v-sparkline>
+        -->
       </v-card-text>
 
       <v-card-actions>
