@@ -220,6 +220,7 @@ import AdvancedSettings from "@/components/AdvancedSettings.vue";
 import {v4 as uuidv4} from 'uuid';
 import { getCookie } from "@/components/authentication/auth.js";
 import { contextState } from '@/components/contexts/contextStatus.js';
+import {clearNetworkState} from "@/components/network/networkData.js";
 
 
 export default {
@@ -599,6 +600,8 @@ export default {
             this.taskMessage = data.message;
             this.taskStarted = true;
             this.taskInfo = "Context calculation started successfully";
+            // should not be needed unless database get cleaned and restarted
+            clearNetworkState(this.value);
             this.taskType = data.status;
             this.sendDisabled = true;
             this.disableSelections = true;
@@ -660,6 +663,7 @@ export default {
               this.taskInfo = data.message;
               this.taskType = "success";
               this.sendDisabled = false;
+              clearNetworkState(this.value);
             })
             .catch((error) => {
               console.error('Error:', error);

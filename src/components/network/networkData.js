@@ -62,9 +62,11 @@ export function loadNetworkState(contextValue) {
 export function clearNetworkState(contextValue) {
   if (contextValue) {
       const key = `context_${contextValue}`;
+      console.log("clearNetworkState key", key)
       localStorage.removeItem(key);
   } else {
       const key = `staticNetwork`;
+      console.log("clearNetworkState key", key)
       localStorage.removeItem(key);
   }
 }
