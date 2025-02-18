@@ -1637,7 +1637,7 @@ export default {
 }
 @media (max-width: 1500px) {
   .responsive-card {
-    width: 100%;
+    width: 95%;
   }
 }
 .legend-color {

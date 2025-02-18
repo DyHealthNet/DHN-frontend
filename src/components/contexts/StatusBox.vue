@@ -49,7 +49,7 @@ export default {
   name: 'StatusBox',
   data() {
     return {
-      tooltipText: 'Annette B., Thomas M., Werner H. and 97 more',
+      tooltipText: '',
       // make the icon spin if the title is 'In Progress'
     };
   },

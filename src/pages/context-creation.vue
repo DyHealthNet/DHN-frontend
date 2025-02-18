@@ -2,7 +2,7 @@
   <v-container class="text-center">
     <v-row>
       <v-col cols="12">
-        <h1 class="title mt-4">Create a custom context</h1>
+        <h1 class="title mt-4">Custom Context Creation</h1>
       </v-col>
     </v-row>
 
@@ -130,7 +130,7 @@ export default {
 
 <style scoped>
 .responsive-card {
-  width: 80%;
+  width: 95%;
   transition: width 0.3s ease;
 }
 @media (max-width: 1500px) {

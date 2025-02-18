@@ -15,7 +15,9 @@
           </v-col>
         </v-row>
       </v-container>
+
       <!--main content-->
+      
       <v-container class="mt-4 ">
         <FilterToolbar @change-context="updateData"></FilterToolbar>
         <v-row class="my-2 justify-center">
@@ -772,7 +774,7 @@ export default {
           imagePath: new URL("../assets/figures/metabolites.png", import.meta.url).href,
         },
         {
-          name: "Genetic Variants",
+          name: "Variants",
           imagePath: new URL("../assets/figures/genetic_variants.png", import.meta.url).href,
         },
       ];
@@ -896,7 +898,7 @@ export default {
 
 <style scoped>
 .responsive-card {
-  width: 80%;
+  width: 95%;
   transition: width 0.3s ease;
 }
 
