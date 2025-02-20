@@ -1,5 +1,5 @@
 <template>
-  <v-container>
+  <v-responsive class="pa-4">
     <!--First row (name & layers) -->
     <v-row class="py-1">
       <v-col cols="3" class="no-bottom-padding">
@@ -142,7 +142,7 @@
        </v-col>
     </v-row>
 
-    <v-row>
+    <v-row justify="space-between">
       <v-col cols="2">
         <v-tooltip bottom :disabled="!calculating">
           <template v-slot:activator="{ props }">
@@ -156,12 +156,13 @@
           <span>{{'A context calculation is already in progress. Please wait...'}}</span>
         </v-tooltip>
       </v-col>
-      <v-spacer></v-spacer>
       <v-col cols="2">
+        <div class="d-inline-block">
         <v-btn color="error" elevation="1" @click="deleteWarn = true">
           <v-icon class="my-0 mr-2">mdi-close-circle-outline</v-icon>
           Clear context
         </v-btn>
+          </div>
       </v-col>
       <v-dialog width="auto" v-model="deleteWarn">
         <v-card color="error" rounded="lg">
@@ -204,7 +205,7 @@
       </div>
     </v-row>
 
-  </v-container>
+  </v-responsive>
 </template>
 
 <script>

@@ -269,7 +269,7 @@
               </v-expansion-panel-title>
                 <v-expansion-panel-text>
               <!-- Individual Node Section -->
-              <v-container class="pa-0">
+              <v-responsive class="pa-0">
                 <v-row>
                 </v-row>
                 <v-divider class="my-4"></v-divider>
@@ -331,7 +331,7 @@
                     >Minimum Spanning Tree</v-btn>
                     </v-col>
                     </v-row>
-                  </v-container>
+                  </v-responsive>
                   </v-expansion-panel-text>
             </v-expansion-panel>
 
