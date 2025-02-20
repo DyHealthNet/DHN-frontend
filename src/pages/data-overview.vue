@@ -14,7 +14,7 @@
   </v-container>
 
       <!--main content-->
-      <v-container class="mt-4 ">
+      <v-container class="mt-4">
         <FilterToolbar @change-context="updateData"></FilterToolbar>
         <v-row class="my-2 justify-center">
           <v-card rounded="lg" elevation="1" class="responsive-card">
@@ -38,7 +38,7 @@
               <v-card>
                 <v-card-text>
                   <!-- Cards filling the entire row, equally spaced -->
-                  <v-row class="fill-height" justify="space-around" align="stretch">
+                  <v-row class="fill-height" justify="space-around" align="stretch" id="coolrow">
                     <v-col
                         :cols="12 / rows1.length"
                         v-for="(item, index) in rows1"
@@ -49,8 +49,8 @@
                         <v-img
                           :src="getImageForCard(item.name)"
                           :alt="item.name"
-                          max-width="40"
-                          max-height="40"
+                          width="40"
+                          height="40"
                           class="mx-3 bg-layer"
                         ></v-img>
                         <div class="text-left mr-3 my-2 d-flex flex-column justify-center">
@@ -900,6 +900,10 @@ export default {
   .responsive-card {
     width: 100%;
   }
+}
+
+.v-container {
+  max-width: min(95%, 1800px);
 }
 
 .title {

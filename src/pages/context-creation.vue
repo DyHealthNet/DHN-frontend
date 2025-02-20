@@ -143,6 +143,10 @@ export default {
   font-size: 2rem;
 }
 
+.v-container {
+  max-width: min(95%, 1800px);
+}
+
 .divider {
   width: 10%;
   margin-top: 16px;

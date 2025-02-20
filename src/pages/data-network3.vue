@@ -1633,6 +1633,10 @@ export default {
   font-size: 2rem;
 }
 
+.v-container {
+  max-width: min(95%, 1800px);
+}
+
 .mt-4 {
   margin-top: 16px;
 }
