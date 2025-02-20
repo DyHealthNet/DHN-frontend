@@ -851,22 +851,34 @@ export default {
     },
 
     checkCurrentVariables(){
-      this.selectedXvariableBar = this.selectedXvariableBar in this.xItemsBar ? this.selectedXvariableBar : this.xItemsBar[0];
-      this.selectedCvariableBar = this.selectedCvariableBar in this.colorItemsBar ? this.selectedCvariableBar : this.colorItemsBar[0];
+      this.selectedXvariableBar = this.xItemsBar.includes(this.selectedXvariableBar) ?
+          this.selectedXvariableBar : this.xItemsBar[0];
+      this.selectedCvariableBar = this.colorItemsBar.includes(this.selectedCvariableBar) ?
+          this.selectedCvariableBar : this.colorItemsBar[0];
 
-      this.selectedXvariableDensity = this.selectedXvariableDensity in this.xItemsDensity ? this.selectedXvariableDensity : this.xItemsDensity[0];
-      this.selectedCvariableDensity = this.selectedCvariableDensity in this.colorItemsDensity ? this.selectedCvariableDensity : this.colorItemsDensity[0];
+      this.selectedXvariableDensity = this.xItemsDensity.includes(this.selectedXvariableDensity) ?
+          this.selectedXvariableDensity : this.xItemsDensity[0];
+      this.selectedCvariableDensity = this.colorItemsDensity.includes(this.selectedCvariableDensity) ?
+          this.selectedCvariableDensity : this.colorItemsDensity[0];
 
-      this.selectedXvariableLine = this.selectedXvariableLine in this.xItemsLine ? this.selectedXvariableLine : this.xItemsLine[0];
-      this.selectedYvariableLine = this.selectedYvariableLine in this.yItemsLine ? this.selectedYvariableLine : this.yItemsLine[0];
-      this.selectedCvariableLine = this.selectedCvariableLine in this.colorItemsLine ? this.selectedCvariableLine : this.colorItemsLine[0];
+      this.selectedXvariableLine = this.xItemsLine.includes(this.selectedXvariableLine) ?
+          this.selectedXvariableLine : this.xItemsLine[0];
+      this.selectedYvariableLine = this.yItemsLine.includes(this.selectedYvariableLine) ?
+          this.selectedYvariableLine : this.yItemsLine[0];
+      this.selectedCvariableLine = this.colorItemsLine.includes(this.selectedCvariableLine) ?
+          this.selectedCvariableLine : this.colorItemsLine[0];
 
-      this.selectedXvariableBox = this.selectedXvariableBox in this.xItemsBox ? this.selectedXvariableBox : this.xItemsBox[0];
-      this.selectedYvariableBox = this.selectedYvariableBox in this.yItemsBox ? this.selectedYvariableBox : this.yItemsBox[0];
-      this.selectedCvariableBox = this.selectedCvariableBox in this.colorItemsBox ? this.selectedCvariableBox : this.colorItemsBox[0];
+      this.selectedXvariableBox = this.xItemsBox.includes(this.selectedXvariableBox) ?
+          this.selectedXvariableBox : this.xItemsBox[0];
+      this.selectedYvariableBox = this.yItemsBox.includes(this.selectedYvariableBox) ?
+          this.selectedYvariableBox : this.yItemsBox[0];
+      this.selectedCvariableBox = this.colorItemsBox.includes(this.selectedCvariableBox) ?
+          this.selectedCvariableBox : this.colorItemsBox[0];
 
-      this.selectedVariableHeatmap1 = this.selectedVariableHeatmap1 in this.itemHeatmap1 ? this.selectedVariableHeatmap1 : this.itemHeatmap1[0];
-      this.selectedVariableHeatmap2 = this.selectedVariableHeatmap2 in this.itemHeatmap2 ? this.selectedVariableHeatmap2 : this.itemHeatmap2[0];
+      this.selectedVariableHeatmap1 = this.itemHeatmap1.includes(this.selectedVariableHeatmap1) ?
+          this.selectedVariableHeatmap1 : this.itemHeatmap1[0];
+      this.selectedVariableHeatmap2 = this.itemHeatmap2.includes(this.selectedVariableHeatmap2) ?
+          this.selectedVariableHeatmap2 : this.itemHeatmap2[0];
     },
 
     toggleDescription() {
