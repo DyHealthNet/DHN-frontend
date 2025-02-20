@@ -45,7 +45,7 @@
 
       <v-col cols="auto" class="filter-padding">
         <StatusBox
-            :title="participantNumber"
+            :title="participantNumber.toString()"
             :remove="removedPatients"
             subtitle="Participants"
             icon="mdi-account-multiple-outline"
@@ -294,7 +294,8 @@ export default {
       progressStatus: this.status ?? "Waiting",
       progressIcon: this.progressStatus === "Success" ? "mdi-check-circle-outline" : "mdi-clock-outline",
 
-      participantNumber: "13 000",
+      participantNumber: 13000,
+      initialParticipants: null,
       removedPatients: "",
 
       defaultSelectedTests: {
@@ -364,6 +365,39 @@ export default {
         return this.columnType = data;
     },
 
+    async getTableDataFromApi() {
+      try {
+        const csrfToken = getCookie('csrftoken');
+        let url = `${BASE_URL}/plotting/api/table/`;
+
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+          },
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          throw new Error("Network response was not ok");
+        }
+        const data = await response.json();
+
+        this.initialParticipants = data.Participants;
+        console.log(this.initialParticipants);
+
+        this.participantNumber = this.spacedNumber(this.initialParticipants);
+
+
+        // return simulated data
+        return data;
+      } catch (error) {
+        console.error("There was a problem with the fetch operation:", error);
+        throw error;
+      }
+    },
+
     async fetchVariables() {
       await fetch(`${BASE_URL}/general/api/variables`, {
         method: 'GET',
@@ -388,9 +422,9 @@ export default {
       let newParticipants = '';
 
       if (Object.keys(params.conditions).length === 0) {
-        this.removedPatients = ("+ " + Math.abs(parseInt(this.participantNumber.replace(/\s/g, ''))
-                                                - 13000)).replace(/\B(?=(\d{3})+(?!\d))/g, " ")
-        this.participantNumber = "13 000";
+        this.removedPatients = ("+ " + this.spacedNumber(Math.abs(parseInt(this.participantNumber.replace(/\s/g, ''))
+            - this.initialParticipants)))
+        this.participantNumber = this.spacedNumber(this.initialParticipants);
         return;
       }
       // fetch the participants
@@ -415,13 +449,13 @@ export default {
 
       // calculate the number of removed patients
       const minusPatients = this.participantNumber === '' ? 0 : parseInt(this.participantNumber.replace(/\s/g, '')) - newParticipants;
-      const patientsString = ("" + Math.abs(minusPatients)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+      const patientsString = ("" + this.spacedNumber(Math.abs(minusPatients)))
       if (minusPatients === 0) {
         return;
       }
       this.removedPatients = minusPatients > 0 ? "- " + patientsString : "+ " + patientsString;
       // go backwards and add a space every 3 characters to comply with Resolution 10 of CGPM
-      this.participantNumber = ('' + newParticipants).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+      this.participantNumber = this.spacedNumber(newParticipants);
     },
 
     async getProgressStatus() {
@@ -687,10 +721,15 @@ export default {
          this.progressIcon = "mdi-clock-outline"; // Default to WAITING for any other value
       }
     },
+
+    spacedNumber(number) {
+      return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    },
   },
   mounted() {
     this.intervalProgress();
     this.fetchVariables();
+    this.getTableDataFromApi()
   },
   created() {
     this.fetchParticipants(this.createParams());
