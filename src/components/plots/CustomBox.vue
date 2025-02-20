@@ -161,10 +161,18 @@ export default {
               filteredData.datasets[datasetIndex].data.push(boxplot);
 
               if (!boxplot.min) {
+                console.log(
+                  "Data for label",
+                  data.labels[i],
+                  "in dataset",
+                  dataset.label,
+                  "is invalid"
+                );
                 dataNanMarker = true;
               }
             });
           } else {
+            console.log("Data for label", data.labels[i], "is invalid");
             dataRemoved = true;
           }
         }

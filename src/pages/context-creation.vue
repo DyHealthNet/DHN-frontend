@@ -133,7 +133,7 @@ export default {
   width: 80%;
   transition: width 0.3s ease;
 }
-@media (max-width: 1500px) {
+@media (max-width: 1919px) {
   .responsive-card {
     width: 100%;
   }

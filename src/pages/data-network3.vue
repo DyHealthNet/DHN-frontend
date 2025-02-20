@@ -12,6 +12,7 @@
       </v-col>
     </v-row>
   </v-container>
+
   <v-container class="justify-center mt-4">
     <FilterToolbar :disable-move="true" @change-context="updateData"></FilterToolbar>
     <!-- Network Input -->
@@ -1635,7 +1636,7 @@ export default {
 .mt-4 {
   margin-top: 16px;
 }
-@media (max-width: 1500px) {
+@media (max-width: 1919px) {
   .responsive-card {
     width: 100%;
   }

@@ -49,14 +49,14 @@ export default {
   name: 'StatusBox',
   data() {
     return {
-      tooltipText: 'Annette B., Thomas M., Werner H. and 97 more',
+      tooltipText: 'Rounded number of participants in your context',
       // make the icon spin if the title is 'In Progress'
     };
   },
   methods: {
     disableTooltip() {
       if (this.subtitle !== 'Participants') {
-        this.tooltipText = '';
+        this.tooltipText = 'Status of the context calculation';
       }
     },
   },

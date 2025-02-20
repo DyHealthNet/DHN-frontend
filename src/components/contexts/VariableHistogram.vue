@@ -10,7 +10,7 @@
     :stroke-linecap="lineCap"
     :type="barType"
     auto-draw
-    @click="barData?.values?.length > 0 && (dialogActive = true)"
+    @click="barData?.values?.length > 0"
   >
   </v-sparkline>
 <v-dialog max-width="1000" v-model="dialogActive">

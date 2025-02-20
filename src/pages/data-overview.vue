@@ -1,20 +1,18 @@
 <template>
-  <v-app>
-    <!--structure define-->
-    <v-main>
-      <!--header -->
-      <v-container class="text-center">
-        <v-row class="d-flex align-center justify-center">
-          <v-col cols="12">
-            <h1 class="title mt-4">Data Overview</h1>
-          </v-col>
-        </v-row>
-        <v-row class="d-flex align-center justify-center">
-          <v-col class="d-flex justify-center">
-            <v-divider class="my-2" thickness="2"></v-divider>
-          </v-col>
-        </v-row>
-      </v-container>
+<v-container class="text-center">
+    <v-row>
+      <v-col cols="12">
+        <h1 class="title mt-4">Data Overview</h1>
+      </v-col>
+    </v-row>
+
+    <v-row>
+      <v-col class="d-flex justify-center">
+        <v-divider class="my-2" thickness="2"></v-divider>
+      </v-col>
+    </v-row>
+  </v-container>
+
       <!--main content-->
       <v-container class="mt-4 ">
         <FilterToolbar @change-context="updateData"></FilterToolbar>
@@ -517,8 +515,6 @@
           </v-card>
         </v-row>
       </v-container>
-    </v-main>
-  </v-app>
 </template>
 
 <script>
@@ -900,7 +896,7 @@ export default {
   transition: width 0.3s ease;
 }
 
-@media (max-width: 1500px) {
+@media (max-width: 1919px) {
   .responsive-card {
     width: 100%;
   }
