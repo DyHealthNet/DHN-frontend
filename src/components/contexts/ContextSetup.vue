@@ -138,6 +138,7 @@
       <AdvancedSettings :selected-tests="selectedTests"
                         :show-header="true"
                         @data-changed="addTests"
+                        expansion-panel-variant="default"
                         :disable-selections="disableSelections"/>
        </v-col>
     </v-row>
@@ -156,15 +157,15 @@
           <span>{{'A context calculation is already in progress. Please wait...'}}</span>
         </v-tooltip>
       </v-col>
-      <v-col cols="2">
-        <div class="d-inline-block">
+      <v-col cols="auto" class="d-flex justify-end">
         <v-btn color="error" elevation="1" @click="deleteWarn = true">
           <v-icon class="my-0 mr-2">mdi-close-circle-outline</v-icon>
           Clear context
         </v-btn>
-          </div>
       </v-col>
-      <v-dialog width="auto" v-model="deleteWarn">
+    </v-row>
+
+    <v-dialog width="auto" v-model="deleteWarn">
         <v-card color="error" rounded="lg">
           <v-card-title class="headline">
             <v-icon class="my-0 mr-2">mdi-alert-outline</v-icon>
@@ -180,7 +181,6 @@
         </v-card>
 
       </v-dialog>
-    </v-row>
 
     <v-row>
       <div class="text-center ma-2">
