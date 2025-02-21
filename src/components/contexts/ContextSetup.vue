@@ -295,7 +295,7 @@ export default {
       progressStatus: this.status ?? "Waiting",
       progressIcon: this.progressStatus === "Success" ? "mdi-check-circle-outline" : "mdi-clock-outline",
 
-      participantNumber: 13000,
+      participantNumber: "0",
       initialParticipants: null,
       removedPatients: "",
 
@@ -419,9 +419,8 @@ export default {
     },
 
     async fetchParticipants(params) {
-      console.log(JSON.stringify(params));
       let newParticipants = '';
-
+      console.log("Fetching participants");
       if (Object.keys(params.conditions).length === 0) {
         this.removedPatients = ("+ " + this.spacedNumber(Math.abs(parseInt(this.participantNumber.replace(/\s/g, ''))
             - this.initialParticipants)))
@@ -724,6 +723,9 @@ export default {
     },
 
     spacedNumber(number) {
+      if (!number) {
+        return "";
+      }
       return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
     },
   },
