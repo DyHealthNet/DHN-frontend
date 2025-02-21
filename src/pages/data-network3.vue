@@ -1234,7 +1234,7 @@ export default {
                 ...renamedEdge,
                 type: key,
                 set: "cohort (calculated)",
-                width: -Math.log10(renamedEdge.final_p_value) * 2,
+                width: Math.min(Math.max(-Math.log10(renamedEdge.final_p_value) * 2, 0.01), 10), // TODO: adjust width
               });
               existingInternalEdgeIds.add(edge.id);
             }
