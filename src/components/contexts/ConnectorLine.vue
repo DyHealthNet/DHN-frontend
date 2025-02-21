@@ -1,11 +1,11 @@
 <template>
-  <v-col cols="1" class="filter-padding position-relative">
+  <v-col cols="1" class="filter-padding d-flex flex-column align-center position-relative">
     <template v-if="inner">
-      <div class="vertical-line-top"></div>
+      <div :class="`vertical-line-top ${connection === 'AND' ? 'light-background' : 'dark-background'}`"></div>
     </template>
     <v-btn :class="btnClasses" variant="flat" :color="buttonColor">{{ connection }}</v-btn>
     <template v-if="inner">
-      <div class="vertical-line-bottom"></div>
+      <div :class="`vertical-line-bottom ${connection === 'AND' ? 'light-background' : 'dark-background'}`"></div>
     </template>
   </v-col>
 </template>
@@ -53,12 +53,18 @@ export default {
   z-index: 2;
 }
 
+.dark-background {
+  background-color: rgb(var(--v-theme-primary-darken-1));
+}
+.light-background {
+  background-color: rgb(var(--v-theme-primary));
+}
+
 .vertical-line-bottom {
   width: 4px;
   height: 20px;
-  background-color: #D8EBFF;
   position: absolute;
-  left: 41%;
+  left: 50%;
   top: 60%;
   transform: translateX(-50%);
   z-index: 1;
@@ -67,9 +73,8 @@ export default {
 .vertical-line-top {
   width: 4px;
   height: 20px;
-  background-color: #D8EBFF;
   position: absolute;
-  left: 41%;
+  left: 50%;
   top: -70%;
   transform: translateX(-50%);
   z-index: 1;
