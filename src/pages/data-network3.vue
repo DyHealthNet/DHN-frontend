@@ -23,7 +23,7 @@
         <v-spacer></v-spacer>
         <v-tooltip bottom>
           <template v-slot:activator="{ props }">
-            <v-icon color="primary" v-bind="props" size="30" class="mr-3 my-0">mdi-information</v-icon>
+            <v-icon v-bind="props" size="30" class="mr-3 my-0">mdi-information</v-icon>
           </template>
           <span>
             Find Nodes by their internal ID, display name or description and send them to the Network display.
@@ -150,7 +150,7 @@
         <v-spacer></v-spacer>
         <v-tooltip bottom>
           <template v-slot:activator="{ props }">
-            <v-icon color="primary" v-bind="props" size="30" class="mr-3 my-0">mdi-information</v-icon>
+            <v-icon v-bind="props" size="30" class="mr-3 my-0">mdi-information</v-icon>
           </template>
           <span>
             Here you can inspect, analyse and manipulate the Network..
