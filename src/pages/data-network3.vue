@@ -1,468 +1,472 @@
 <template>
-<v-container class="text-center">
-    <v-row>
-      <v-col cols="12">
-        <h1 class="title mt-4">Network Exploration</h1>
-      </v-col>
-    </v-row>
+  <v-app>
+    <v-main>
+      <v-container class="text-center flex-column">
+        <v-row>
+          <v-col cols="12">
+            <h1 class="title mt-4">Network Exploration</h1>
+          </v-col>
+        </v-row>
 
-    <v-row>
-      <v-col class="d-flex justify-center">
-        <v-divider class="my-2" thickness="2"></v-divider>
-      </v-col>
-    </v-row>
-  </v-container>
+        <v-row>
+          <v-col class="d-flex justify-center">
+            <v-divider class="my-2" thickness="2"></v-divider>
+          </v-col>
+        </v-row>
+      </v-container>
 
-  <v-container class="justify-center mt-4">
-    <FilterToolbar :disable-move="true" @change-context="updateData"></FilterToolbar>
-    <!-- Network Input -->
-    <v-card outlined class="responsive-card">
-      <v-card-title class="d-flex align-center">
-        <v-icon color="primary-darken-1" size="30" class="mr-3 my-0">mdi-square-edit-outline</v-icon> <!-- mdi-abacus-->
-        Network Input
-        <v-spacer></v-spacer>
-        <v-tooltip bottom>
-          <template v-slot:activator="{ props }">
-            <v-icon v-bind="props" size="30" class="mr-3 my-0">mdi-information</v-icon>
-          </template>
-          <span>
-            Find Nodes by their internal ID, display name or description and send them to the Network display.
-          </span>
-        </v-tooltip>
-      </v-card-title>
-      <v-card-subtitle>
-        <b>Node Selection</b>
-      </v-card-subtitle>
-      <v-card-text>
-        <v-row align="center">
-          <v-col cols="10" class="d-flex align-center">
-          <v-text-field
-              v-model="searchText"
-              density="compact"
-              variant="outlined"
-              :clearable="!isReadOnly && (searchText && searchText.length > 0)"
-              label="Select one or a list of nodes"
-              @input="fetchNodeRecommendations($event)"
-              @keydown.arrow-down.prevent="moveFocus('down')"
-              @keydown.arrow-up.prevent="moveFocus('up')"
-              @keydown.enter.prevent="selectFocusedItem"
-              @keydown.esc.prevent="closeDropdown"
-              hide-details
-              class="mb-0"
-              @focus="showDropdown = true"
-              ref="textField"
-              :readonly="isReadOnly"
-              @click:clear="handleClearNodeInput"
-            ><template v-slot:append>
-            <v-btn
-              v-if="isReadOnly"
-              icon
-              @click="editText"
-            >
-              <v-icon color="primary-darken-1">mdi-pencil</v-icon>
-            </v-btn>
-          </template></v-text-field>
+      <v-container class="justify-center mt-4">
+        <FilterToolbar :disable-move="true" @change-context="updateData"></FilterToolbar>
+        <!-- Network Input -->
+        <v-card outlined class="responsive-card">
+          <v-card-title class="d-flex align-center">
+            <v-icon color="primary-darken-1" size="30" class="mr-3 my-0">mdi-square-edit-outline</v-icon> <!-- mdi-abacus-->
+            Network Input
+            <v-spacer></v-spacer>
+            <v-tooltip bottom>
+              <template v-slot:activator="{ props }">
+                <v-icon v-bind="props" size="30" class="mr-3 my-0">mdi-information</v-icon>
+              </template>
+              <span>
+                Find Nodes by their internal ID, display name or description and send them to the Network display.
+              </span>
+            </v-tooltip>
+          </v-card-title>
+          <v-card-subtitle>
+            <b>Node Selection</b>
+          </v-card-subtitle>
+          <v-card-text>
+            <v-row align="center">
+              <v-col cols="10" class="d-flex align-center">
+              <v-text-field
+                  v-model="searchText"
+                  density="compact"
+                  variant="outlined"
+                  :clearable="!isReadOnly && (searchText && searchText.length > 0)"
+                  label="Select one or a list of nodes"
+                  @input="fetchNodeRecommendations($event)"
+                  @keydown.arrow-down.prevent="moveFocus('down')"
+                  @keydown.arrow-up.prevent="moveFocus('up')"
+                  @keydown.enter.prevent="selectFocusedItem"
+                  @keydown.esc.prevent="closeDropdown"
+                  hide-details
+                  class="mb-0"
+                  @focus="showDropdown = true"
+                  ref="textField"
+                  :readonly="isReadOnly"
+                  @click:clear="handleClearNodeInput"
+                ><template v-slot:append>
+                <v-btn
+                  v-if="isReadOnly"
+                  icon
+                  @click="editText"
+                >
+                  <v-icon color="primary-darken-1">mdi-pencil</v-icon>
+                </v-btn>
+              </template></v-text-field>
+                </v-col>
+              <v-col cols="2" class="d-flex align-center">
+              <v-btn
+              color="primary-darken-1"
+              block
+              class="mt-0 mb-0"
+              @click="sendToNetwork"
+              :disabled="!selectedNodes.length"
+            >Send to Network</v-btn>
             </v-col>
-          <v-col cols="2" class="d-flex align-center">
-          <v-btn
-          color="primary-darken-1"
-          block
-          class="mt-0 mb-0"
-          @click="sendToNetwork"
-          :disabled="!selectedNodes.length"
-        >Send to Network</v-btn>
-        </v-col>
-      </v-row>
-        <!-- Dropdown List -->
-          <v-row v-if="limitedDropdownNodes.length && !isReadOnly">
-            <v-col cols="12">
-              <v-card class="dropdown"
-                v-if="showDropdown && limitedDropdownNodes.length"
-                ref="dropdownMenu"
-                tabindex="0">
-                <v-list>
-                  <v-list-item
-                        v-for="(item, index) in limitedDropdownNodes"
-                        :key="index"
-                        @click="addPerDropDown(item)"
-                        @mouseover="hoverNode(item)"
-                        @mouseleave="hoverNodeLeave"
-                        :class="{ 'text-primary': index === activeIndex }"
-                        :color="index === activeIndex ? 'primary' : ''"
-                        class="d-flex align-center text-truncate"
-                      >
-                      <!-- Icon Section -->
-                      <v-icon
-                        class="me-3"
-                        size="32"
-                        color="transparent"
-                      >
-                      <v-img
-                      :src="getIcon(getPrettyType(item.source_table))"
-                      alt="icon"
-                      max-width="32"
-                      max-height="32"
-                      class="me-0 rounded-circle"
-                      ></v-img>
-                        </v-icon>
-                      <!-- Text Section -->
-                    <span class="text-subtitle-1">
-                      {{`${item.display_name} (${item.id})` }}
+          </v-row>
+            <!-- Dropdown List -->
+              <v-row v-if="limitedDropdownNodes.length && !isReadOnly">
+                <v-col cols="12">
+                  <v-card class="dropdown"
+                    v-if="showDropdown && limitedDropdownNodes.length"
+                    ref="dropdownMenu"
+                    tabindex="0">
+                    <v-list>
+                      <v-list-item
+                            v-for="(item, index) in limitedDropdownNodes"
+                            :key="index"
+                            @click="addPerDropDown(item)"
+                            @mouseover="hoverNode(item)"
+                            @mouseleave="hoverNodeLeave"
+                            :class="{ 'text-primary': index === activeIndex }"
+                            :color="index === activeIndex ? 'primary' : ''"
+                            class="d-flex align-center text-truncate"
+                          >
+                          <!-- Icon Section -->
+                          <v-icon
+                            class="me-3"
+                            size="32"
+                            color="transparent"
+                          >
+                          <v-img
+                          :src="getIcon(getPrettyType(item.source_table))"
+                          alt="icon"
+                          max-width="32"
+                          max-height="32"
+                          class="me-0 rounded-circle"
+                          ></v-img>
+                            </v-icon>
+                          <!-- Text Section -->
+                        <span class="text-subtitle-1">
+                          {{`${item.display_name} (${item.id})` }}
+                          </span>
+                      </v-list-item>
+                    </v-list>
+                  </v-card>
+                </v-col>
+              </v-row>
+          </v-card-text>
+          <!-- Tooltip for Hovered Item (outside dropdown) -->
+          <teleport to="body">
+            <div v-if="hoveredItem" class="tooltip" :style="tooltipStyle">
+              <strong>ID:</strong> {{ hoveredItem.id }}<br />
+              <strong>Display Name:</strong> {{ hoveredItem.display_name }}<br />
+              <strong>Node Type:</strong> {{ hoveredItem.source_table }}<br />
+              <strong>Description:</strong> {{ hoveredItem.description }}
+            </div>
+          </teleport>
+        </v-card>
+
+            <!-- Advanced Settings -->
+        <v-card outlined class="mt-4">
+          <AdvancedSettings :selected-tests="selectedTests"
+                            :signThresh="signThresh"
+                            :disable-selections="disableSelections"
+                            :show-mult-test="true"
+                            :show-header="true"
+                            :use-advanced-title="true"
+                            expansion-panel-variant="default"
+                            header-text="Network Statistics Configuration"
+                            @data-changed="addSettings"
+                            :topNodesNumber="topNodesNumber"
+                            :topPerNodeCount="topPerNodeCount"
+                            />
+        </v-card>
+
+        <!-- Network Visualization & Analysis -->
+        <v-card outlined class="mt-4 responsive-card" expand>
+          <v-card-title class="d-flex align-center">
+            <v-icon color="primary-darken-1" size="30" class="mr-3 my-0">mdi-graph-outline</v-icon>
+            Network Visualization & Analysis
+            <v-spacer></v-spacer>
+            <v-tooltip bottom>
+              <template v-slot:activator="{ props }">
+                <v-icon v-bind="props" size="30" class="mr-3 my-0">mdi-information</v-icon>
+              </template>
+              <span>
+                Here you can inspect, analyse and manipulate the Network..
+              </span>
+            </v-tooltip>
+          </v-card-title>
+          <v-row no-gutters>
+            <v-col cols="4">
+              <v-expansion-panels multiple class="scrollable-panels">
+                <!-- Network Overview -->
+                <v-expansion-panel>
+                  <v-expansion-panel-title>
+                    <v-icon color="primary-darken-1" size="20" class="ml-0 mr-3 my-0">mdi-information-outline</v-icon>
+                    Network Overview</v-expansion-panel-title>
+                    <v-expansion-panel-text>
+                      <v-card outlined class="network-overview">
+                        <v-card-text>
+                          <v-row justify="center" align="center" class="mt-2 mb-2">
+                            <!-- Nodes -->
+                            <v-col cols="6" class="text-center">
+                              <v-label class="text-caption">NODES</v-label>
+                              <v-sheet color="transparent" class="text-h4 font-weight-bold">
+                                {{ networkNodes.length }}
+                              </v-sheet>
+                            </v-col>
+                            <!-- Edges -->
+                            <v-col cols="6" class="text-center">
+                              <v-label class="text-caption">EDGES</v-label>
+                              <v-sheet color="transparent" class="text-h4 font-weight-bold">
+                                {{ networkEdges.length }}
+                              </v-sheet>
+                            </v-col>
+                          </v-row>
+                        </v-card-text>
+                      </v-card>
+                    </v-expansion-panel-text>
+                </v-expansion-panel>
+
+                <!-- Node Details -->
+                <v-expansion-panel>
+                  <v-expansion-panel-title>
+                    <v-icon color="primary-darken-1" size="20" class="ml-0 mr-3 my-0">mdi-magnify</v-icon>
+                    Details</v-expansion-panel-title>
+                  <v-expansion-panel-text>
+                    <v-divider class="my-4"></v-divider>
+                  <template v-if="displayedElementType === 'node'">
+                    <NodeDetails :getIcon="getIcon" :node="displayedElement" />
+                    <v-switch
+                      v-model="isDetailsNodeSelected"
+                      :label="isDetailsNodeSelected ? 'Selected' : 'Not Selected'"
+                      @change="toggleNetworkNodeSelection"
+                      color="primary"
+                      class="ml-2"
+                    />
+                  </template>
+                  <template v-else-if="displayedElementType === 'edge'">
+                    <EdgeDetails :getIcon="getIcon" :edge="displayedElement" :selectedTests="selectedTests"/>
+                  </template>
+                  <p v-else>No element selected. You can inspect a node or an edge by clicking on it.</p>
+                </v-expansion-panel-text>
+                </v-expansion-panel>
+
+                <!-- Selection -->
+                <v-expansion-panel>
+                  <v-expansion-panel-title>
+                    <v-icon color="primary-darken-1" size="20" class="ml-0 mr-3 my-0">mdi-filter</v-icon>
+                    Selection</v-expansion-panel-title>
+                  <v-expansion-panel-text>
+                    <v-row justify="center" align="center">
+                      <v-col cols="auto">
+                        <v-switch
+                          v-model="selectAll"
+                          :label="selectAll ? 'Unselect all' : 'Select All'"
+                          @change="toggleALLNetworkNodeSelection"
+                          color="primary-darken-1"
+                          class="ml-2"
+                        />
+                      </v-col>
+                    </v-row>
+                    <v-divider class="my-4"></v-divider>
+                    <span v-if="selectedNetworkNodes.length === 0">
+                          No node selected. Double click on a node to add it to this panel or select it via the Details panel.
+                    </span>
+                    <v-table dense v-else="selectedNetworkNodes.length === 0">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Type</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="(node, index) in selectedNetworkNodes" :key="node.id">
+                          <td>{{ node.description }}</td>
+                          <td>{{ this.getPrettyType(node.source_table) }}</td>
+                          <td>
+                            <v-btn
+                              size="small"
+                              icon
+                              color="error"
+                              @click="removeSelectedNetworkNode(index)">
+                              <v-icon size="20" color="background">mdi-trash-can-outline</v-icon>
+                            </v-btn>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </v-table>
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
+
+                <!-- Connect Nodes -->
+                <v-expansion-panel>
+                  <v-expansion-panel-title>
+                    <v-icon color="primary-darken-1" size="20" class="ml-0 mr-3 my-0">mdi-transit-connection-variant</v-icon>
+                    Connect Nodes
+                  </v-expansion-panel-title>
+                    <v-expansion-panel-text>
+                  <!-- Individual Node Section -->
+                  <v-responsive class="pa-0">
+                    <v-row>
+                    </v-row>
+                    <v-divider class="my-4"></v-divider>
+                    <v-row>
+                      <v-col cols="12">
+                        <p>
+                          Individual Node
+                        </p>
+                      </v-col>
+                      <v-col cols="12">
+                        <!-- TODO Add a settings toggle to set the significance threshold and possibly the multiple testing
+                        correction if changeable and if we don't want the user to only be able to set it
+                        in Advanced Settings -->
+                        <v-btn
+                          :disabled="selectedNetworkNodes.length !== 1"
+                          color="primary-darken-1"
+                          block
+                          :class="{'grey lighten-2': selectedNetworkNodes.length !== 1}"
+                          @click="connectIndividualNode()"
+                        >Significance Filtering</v-btn>
+                      </v-col>
+                      <!-- TODO Add a settings toggle to set the amount of Nodes to be retrieved per type like Manuel did-->
+                      <v-col cols="12">
+                        <v-btn
+                          :disabled="selectedNetworkNodes.length !== 1"
+                          color="primary-darken-1"
+                          block
+                          :class="{'grey lighten-2': selectedNetworkNodes.length !== 1}"
+                          @click="connectIndividualNode(true)"
+                        >Node Count</v-btn>
+                      </v-col>
+                    </v-row>
+                    <v-divider class="my-4"></v-divider>
+                    <!-- Set of Nodes Section -->
+                    <v-row>
+                      <v-col cols="12">
+                        <p>
+                          Set of Nodes
+                        </p>
+                      </v-col>
+                      <v-col cols="12">
+                        <v-btn
+                          class="mt-2"
+                          :disabled="selectedNetworkNodes.length <= 1"
+                          color="primary-darken-1"
+                          block
+                          :class="{'grey lighten-2': selectedNetworkNodes.length <= 1}"
+                          @click="connectGroupNodes(false)"
+                        >Significance Filtering</v-btn>
+                        </v-col>
+                      <v-col cols="12">
+                        <v-btn
+                          class="mt-2"
+                          :disabled="selectedNetworkNodes.length <= 1"
+                          color="primary-darken-1"
+                          block
+                          :class="{'grey lighten-2': selectedNetworkNodes.length <= 1}"
+                          @click="connectGroupNodes(true)"
+                        >Minimum Spanning Tree</v-btn>
+                        </v-col>
+                        </v-row>
+                      </v-responsive>
+                      </v-expansion-panel-text>
+                </v-expansion-panel>
+
+                <!-- Analysis -->
+                <v-expansion-panel>
+                  <v-expansion-panel-title>
+                    <v-icon color="primary-darken-1" size="20" class="ml-0 mr-3 my-0">mdi-flask-outline</v-icon>
+                    Analysis</v-expansion-panel-title>
+                  <v-expansion-panel-text>
+                    <v-divider class="my-4"></v-divider>
+                    <p>Network analysis options coming here...</p>
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
+              </v-expansion-panels>
+            </v-col>
+            <!-- Put this in its own file -->
+            <v-col cols="8" >
+              <v-card outlined class="network-container">
+              <!-- Card Header -->
+              <v-toolbar color="primary-darken-1" density="compact">
+                <v-toolbar-title>
+                    <v-tooltip bottom>
+                      <template v-slot:activator="{ props }">
+                        <v-icon v-bind="props">mdi-information</v-icon>
+                      </template>
+                      <span>
+                        Here you can inspect the Network that is build based on your retrieved Nodes from the Database.<br>
+                        With the buttons you can save an image of your network, the network itself or clear the network
+                        to start over.
                       </span>
-                  </v-list-item>
-                </v-list>
+                    </v-tooltip>
+                  </v-toolbar-title>
+                    <v-switch
+                      v-model="physics_on"
+                      @change="updatePhysics"
+                      :label="physics_on ? 'Disable Physics' : 'Enable Physics'"
+                      color="surface"
+                      class="mt-5 mr-3"
+                    />
+                <v-btn
+                  icon
+                  @click="saveNetworkImage"
+                >
+                  <v-icon class="m-3">mdi-camera</v-icon> <!-- mdi-abacus-->
+                </v-btn>
+                <a ref="downloadLink" style="display: none" :href="imageUrl" :download="downloadFileName"></a>
+                <!--<v-btn
+                  icon
+                  @click="saveNetworkFile"
+                >
+                  <v-icon class="m-3">mdi-download</v-icon>  mdi-abacus
+                </v-btn>-->
+                <v-btn
+                  icon
+                  @click="clearNetworkWarn=true;"
+                >
+                  <v-icon class="m-3">mdi-trash-can-outline</v-icon> <!-- mdi-abacus-->
+                </v-btn>
+                  <v-dialog width="auto" v-model="clearNetworkWarn">
+                    <v-card color="primary" rounded="lg">
+                      <v-card-title class="headline text-white" >
+                        <v-icon class="my-0 mr-2">mdi-information-outline</v-icon>
+                        <b>You are about to clear the displayed Network.</b>
+                      </v-card-title>
+                      <v-card-text class="text-white">
+                        Would you like to clear the entire network or keep the selected subnetwork and remove <br>
+                        the unselected nodes? You can also cancel this action if you change your mind.
+                      </v-card-text>
+                      <v-card-actions>
+                        <v-btn class="text-white" @click="clearNetwork">Clear all</v-btn>
+                        <v-btn class="text-white" @click="clearUnselectedNodes">Clear unselected</v-btn>
+                        <v-btn class="text-white" @click="clearNetworkWarn = false">Cancel</v-btn>
+                      </v-card-actions>
+                    </v-card>
+                  </v-dialog>
+              </v-toolbar>
+
+              <!-- Card Content -->
+              <v-card-text ref="wholeNetwork">
+                <!-- Network Visualization -->
+                <v-row>
+                    <v-col>
+                      <div ref="network" id="network" style="height: 500px;"></div>
+                      <!-- Legend -->
+                      <div class="legend">
+                        <v-row v-for="(group, groupKey) in groups" :key="groupKey" align="center" class="mb-2" no-gutters>
+                          <v-col v-if="this.includedNodeTypes.has(groupKey)" cols="auto" class="legend-dot">
+                            <div class="legend-color" :style="getShapeStyle(group.color, groupKey)"></div>
+                          </v-col>
+                          <v-col v-if="this.includedNodeTypes.has(groupKey)" cols="auto" class="legend-text">
+                            <span>{{ capitalizeFirstLetter(groupKey) }}</span>
+                          </v-col>
+                        </v-row>
+                      </div>
+                    </v-col>
+                  </v-row>
+                </v-card-text>
+
+              <!-- Card Actions
+              <v-card-actions>
+                <v-btn color="primary" @click="console.log('saveNetwork')" title="Save network to .json and download it">
+                  Save Network
+                </v-btn>
+              </v-card-actions>-->
               </v-card>
             </v-col>
           </v-row>
-      </v-card-text>
-      <!-- Tooltip for Hovered Item (outside dropdown) -->
-      <teleport to="body">
-        <div v-if="hoveredItem" class="tooltip" :style="tooltipStyle">
-          <strong>ID:</strong> {{ hoveredItem.id }}<br />
-          <strong>Display Name:</strong> {{ hoveredItem.display_name }}<br />
-          <strong>Node Type:</strong> {{ hoveredItem.source_table }}<br />
-          <strong>Description:</strong> {{ hoveredItem.description }}
-        </div>
-      </teleport>
-    </v-card>
+        </v-card>
+        <v-row>
+          <div class="text-center ma-2">
+            <v-snackbar
+                v-model="showInfo"
+                :color="infoType"
+            >
+              <v-icon class="my-0 mr-2">
+                mdi-information-outline
+              </v-icon>
+              {{ infoText }}
 
-        <!-- Advanced Settings -->
-    <v-card outlined class="mt-4">
-      <AdvancedSettings :selected-tests="selectedTests"
-                        :signThresh="signThresh"
-                        :disable-selections="disableSelections"
-                        :show-mult-test="true"
-                        :show-header="true"
-                        :use-advanced-title="true"
-                        expansion-panel-variant="default"
-                        header-text="Network Statistics Configuration"
-                        @data-changed="addSettings"
-                        :topNodesNumber="topNodesNumber"
-                        :topPerNodeCount="topPerNodeCount"
-                        />
-    </v-card>
-
-    <!-- Network Visualization & Analysis -->
-    <v-card outlined class="mt-4 responsive-card" expand>
-      <v-card-title class="d-flex align-center">
-        <v-icon color="primary-darken-1" size="30" class="mr-3 my-0">mdi-graph-outline</v-icon>
-        Network Visualization & Analysis
-        <v-spacer></v-spacer>
-        <v-tooltip bottom>
-          <template v-slot:activator="{ props }">
-            <v-icon v-bind="props" size="30" class="mr-3 my-0">mdi-information</v-icon>
-          </template>
-          <span>
-            Here you can inspect, analyse and manipulate the Network..
-          </span>
-        </v-tooltip>
-      </v-card-title>
-      <v-row no-gutters>
-        <v-col cols="4">
-          <v-expansion-panels multiple class="scrollable-panels">
-            <!-- Network Overview -->
-            <v-expansion-panel>
-              <v-expansion-panel-title>
-                <v-icon color="primary-darken-1" size="20" class="ml-0 mr-3 my-0">mdi-information-outline</v-icon>
-                Network Overview</v-expansion-panel-title>
-                <v-expansion-panel-text>
-                  <v-card outlined class="network-overview">
-                    <v-card-text>
-                      <v-row justify="center" align="center" class="mt-2 mb-2">
-                        <!-- Nodes -->
-                        <v-col cols="6" class="text-center">
-                          <v-label class="text-caption">NODES</v-label>
-                          <v-sheet color="transparent" class="text-h4 font-weight-bold">
-                            {{ networkNodes.length }}
-                          </v-sheet>
-                        </v-col>
-                        <!-- Edges -->
-                        <v-col cols="6" class="text-center">
-                          <v-label class="text-caption">EDGES</v-label>
-                          <v-sheet color="transparent" class="text-h4 font-weight-bold">
-                            {{ networkEdges.length }}
-                          </v-sheet>
-                        </v-col>
-                      </v-row>
-                    </v-card-text>
-                  </v-card>
-                </v-expansion-panel-text>
-            </v-expansion-panel>
-
-            <!-- Node Details -->
-            <v-expansion-panel>
-              <v-expansion-panel-title>
-                <v-icon color="primary-darken-1" size="20" class="ml-0 mr-3 my-0">mdi-magnify</v-icon>
-                Details</v-expansion-panel-title>
-              <v-expansion-panel-text>
-                 <v-divider class="my-4"></v-divider>
-              <template v-if="displayedElementType === 'node'">
-                <NodeDetails :getIcon="getIcon" :node="displayedElement" />
-                <v-switch
-                  v-model="isDetailsNodeSelected"
-                  :label="isDetailsNodeSelected ? 'Selected' : 'Not Selected'"
-                  @change="toggleNetworkNodeSelection"
-                  color="primary"
-                  class="ml-2"
-                />
+              <template v-slot:actions>
+                <v-btn
+                    variant="text"
+                    @click="showInfo = false"
+                >
+                  Close
+                </v-btn>
               </template>
-              <template v-else-if="displayedElementType === 'edge'">
-                <EdgeDetails :getIcon="getIcon" :edge="displayedElement" :selectedTests="selectedTests"/>
-              </template>
-              <p v-else>No element selected. You can inspect a node or an edge by clicking on it.</p>
-            </v-expansion-panel-text>
-            </v-expansion-panel>
-
-            <!-- Selection -->
-            <v-expansion-panel>
-              <v-expansion-panel-title>
-                <v-icon color="primary-darken-1" size="20" class="ml-0 mr-3 my-0">mdi-filter</v-icon>
-                Selection</v-expansion-panel-title>
-              <v-expansion-panel-text>
-                <v-row justify="center" align="center">
-                  <v-col cols="auto">
-                    <v-switch
-                      v-model="selectAll"
-                      :label="selectAll ? 'Unselect all' : 'Select All'"
-                      @change="toggleALLNetworkNodeSelection"
-                      color="primary-darken-1"
-                      class="ml-2"
-                    />
-                  </v-col>
-                </v-row>
-                <v-divider class="my-4"></v-divider>
-                <span v-if="selectedNetworkNodes.length === 0">
-                      No node selected. Double click on a node to add it to this panel or select it via the Details panel.
-                </span>
-                <v-table dense v-else="selectedNetworkNodes.length === 0">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Type</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(node, index) in selectedNetworkNodes" :key="node.id">
-                      <td>{{ node.description }}</td>
-                      <td>{{ this.getPrettyType(node.source_table) }}</td>
-                      <td>
-                        <v-btn
-                          size="small"
-                          icon
-                          color="error"
-                          @click="removeSelectedNetworkNode(index)">
-                          <v-icon size="20" color="background">mdi-trash-can-outline</v-icon>
-                        </v-btn>
-                      </td>
-                    </tr>
-                  </tbody>
-                </v-table>
-              </v-expansion-panel-text>
-            </v-expansion-panel>
-
-            <!-- Connect Nodes -->
-            <v-expansion-panel>
-              <v-expansion-panel-title>
-                <v-icon color="primary-darken-1" size="20" class="ml-0 mr-3 my-0">mdi-transit-connection-variant</v-icon>
-                Connect Nodes
-              </v-expansion-panel-title>
-                <v-expansion-panel-text>
-              <!-- Individual Node Section -->
-              <v-responsive class="pa-0">
-                <v-row>
-                </v-row>
-                <v-divider class="my-4"></v-divider>
-                <v-row>
-                  <v-col cols="12">
-                    <p>
-                      Individual Node
-                    </p>
-                  </v-col>
-                  <v-col cols="12">
-                    <!-- TODO Add a settings toggle to set the significance threshold and possibly the multiple testing
-                    correction if changeable and if we don't want the user to only be able to set it
-                    in Advanced Settings -->
-                    <v-btn
-                      :disabled="selectedNetworkNodes.length !== 1"
-                      color="primary-darken-1"
-                      block
-                      :class="{'grey lighten-2': selectedNetworkNodes.length !== 1}"
-                      @click="connectIndividualNode()"
-                    >Significance Filtering</v-btn>
-                  </v-col>
-                  <!-- TODO Add a settings toggle to set the amount of Nodes to be retrieved per type like Manuel did-->
-                  <v-col cols="12">
-                    <v-btn
-                      :disabled="selectedNetworkNodes.length !== 1"
-                      color="primary-darken-1"
-                      block
-                      :class="{'grey lighten-2': selectedNetworkNodes.length !== 1}"
-                      @click="connectIndividualNode(true)"
-                    >Node Count</v-btn>
-                  </v-col>
-                </v-row>
-                <v-divider class="my-4"></v-divider>
-                <!-- Set of Nodes Section -->
-                <v-row>
-                  <v-col cols="12">
-                    <p>
-                      Set of Nodes
-                    </p>
-                  </v-col>
-                  <v-col cols="12">
-                    <v-btn
-                      class="mt-2"
-                      :disabled="selectedNetworkNodes.length <= 1"
-                      color="primary-darken-1"
-                      block
-                      :class="{'grey lighten-2': selectedNetworkNodes.length <= 1}"
-                      @click="connectGroupNodes(false)"
-                    >Significance Filtering</v-btn>
-                    </v-col>
-                  <v-col cols="12">
-                    <v-btn
-                      class="mt-2"
-                      :disabled="selectedNetworkNodes.length <= 1"
-                      color="primary-darken-1"
-                      block
-                      :class="{'grey lighten-2': selectedNetworkNodes.length <= 1}"
-                      @click="connectGroupNodes(true)"
-                    >Minimum Spanning Tree</v-btn>
-                    </v-col>
-                    </v-row>
-                  </v-responsive>
-                  </v-expansion-panel-text>
-            </v-expansion-panel>
-
-            <!-- Analysis -->
-            <v-expansion-panel>
-              <v-expansion-panel-title>
-                <v-icon color="primary-darken-1" size="20" class="ml-0 mr-3 my-0">mdi-flask-outline</v-icon>
-                Analysis</v-expansion-panel-title>
-              <v-expansion-panel-text>
-                 <v-divider class="my-4"></v-divider>
-                <p>Network analysis options coming here...</p>
-              </v-expansion-panel-text>
-            </v-expansion-panel>
-          </v-expansion-panels>
-        </v-col>
-        <!-- Put this in its own file -->
-        <v-col cols="8" >
-          <v-card outlined class="network-container">
-          <!-- Card Header -->
-          <v-toolbar color="primary-darken-1" density="compact">
-            <v-toolbar-title>
-                <v-tooltip bottom>
-                  <template v-slot:activator="{ props }">
-                    <v-icon v-bind="props">mdi-information</v-icon>
-                  </template>
-                  <span>
-                    Here you can inspect the Network that is build based on your retrieved Nodes from the Database.<br>
-                    With the buttons you can save an image of your network, the network itself or clear the network
-                    to start over.
-                  </span>
-                </v-tooltip>
-              </v-toolbar-title>
-                <v-switch
-                  v-model="physics_on"
-                  @change="updatePhysics"
-                  :label="physics_on ? 'Disable Physics' : 'Enable Physics'"
-                  color="surface"
-                  class="mt-5 mr-3"
-                />
-            <v-btn
-              icon
-              @click="saveNetworkImage"
-            >
-              <v-icon class="m-3">mdi-camera</v-icon> <!-- mdi-abacus-->
-            </v-btn>
-            <a ref="downloadLink" style="display: none" :href="imageUrl" :download="downloadFileName"></a>
-            <!--<v-btn
-              icon
-              @click="saveNetworkFile"
-            >
-              <v-icon class="m-3">mdi-download</v-icon>  mdi-abacus
-            </v-btn>-->
-            <v-btn
-              icon
-              @click="clearNetworkWarn=true;"
-            >
-              <v-icon class="m-3">mdi-trash-can-outline</v-icon> <!-- mdi-abacus-->
-            </v-btn>
-              <v-dialog width="auto" v-model="clearNetworkWarn">
-                <v-card color="primary" rounded="lg">
-                  <v-card-title class="headline text-white" >
-                    <v-icon class="my-0 mr-2">mdi-information-outline</v-icon>
-                    <b>You are about to clear the displayed Network.</b>
-                  </v-card-title>
-                  <v-card-text class="text-white">
-                    Would you like to clear the entire network or keep the selected subnetwork and remove <br>
-                    the unselected nodes? You can also cancel this action if you change your mind.
-                  </v-card-text>
-                  <v-card-actions>
-                    <v-btn class="text-white" @click="clearNetwork">Clear all</v-btn>
-                    <v-btn class="text-white" @click="clearUnselectedNodes">Clear unselected</v-btn>
-                    <v-btn class="text-white" @click="clearNetworkWarn = false">Cancel</v-btn>
-                  </v-card-actions>
-                </v-card>
-              </v-dialog>
-          </v-toolbar>
-
-          <!-- Card Content -->
-          <v-card-text ref="wholeNetwork">
-            <!-- Network Visualization -->
-            <v-row>
-                <v-col>
-                  <div ref="network" id="network" style="height: 500px;"></div>
-                  <!-- Legend -->
-                  <div class="legend">
-                    <v-row v-for="(group, groupKey) in groups" :key="groupKey" align="center" class="mb-2" no-gutters>
-                      <v-col v-if="this.includedNodeTypes.has(groupKey)" cols="auto" class="legend-dot">
-                        <div class="legend-color" :style="getShapeStyle(group.color, groupKey)"></div>
-                      </v-col>
-                      <v-col v-if="this.includedNodeTypes.has(groupKey)" cols="auto" class="legend-text">
-                        <span>{{ capitalizeFirstLetter(groupKey) }}</span>
-                      </v-col>
-                    </v-row>
-                  </div>
-                </v-col>
-              </v-row>
-            </v-card-text>
-
-          <!-- Card Actions
-          <v-card-actions>
-            <v-btn color="primary" @click="console.log('saveNetwork')" title="Save network to .json and download it">
-              Save Network
-            </v-btn>
-          </v-card-actions>-->
-          </v-card>
-        </v-col>
-      </v-row>
-    </v-card>
-    <v-row>
-      <div class="text-center ma-2">
-        <v-snackbar
-            v-model="showInfo"
-            :color="infoType"
-        >
-          <v-icon class="my-0 mr-2">
-            mdi-information-outline
-          </v-icon>
-          {{ infoText }}
-
-          <template v-slot:actions>
-            <v-btn
-                variant="text"
-                @click="showInfo = false"
-            >
-              Close
-            </v-btn>
-          </template>
-        </v-snackbar>
-      </div>
-    </v-row>
-  </v-container>
+            </v-snackbar>
+          </div>
+        </v-row>
+      </v-container>
+    </v-main>
+  </v-app>
 </template>
 
 <script>
@@ -1629,6 +1633,7 @@ export default {
 </script>
 
 <style scoped>
+
 .title {
   font-size: 2rem;
 }
@@ -1637,14 +1642,12 @@ export default {
   max-width: min(95%, 1800px);
 }
 
-.mt-4 {
-  margin-top: 16px;
-}
 @media (max-width: 1919px) {
   .responsive-card {
     width: 95%;
   }
 }
+
 .legend-color {
   margin-right: 10px; /* Space between the color and the text */
 }

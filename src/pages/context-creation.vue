@@ -1,39 +1,43 @@
 <template>
-  <v-container class="text-center">
-    <v-row>
-      <v-col cols="12">
-        <h1 class="title mt-4">Custom Context Creation</h1>
-      </v-col>
-    </v-row>
+  <v-app>
+    <v-main>
+      <v-container class="text-center">
+        <v-row>
+          <v-col cols="12">
+            <h1 class="title mt-4">Custom Context Creation</h1>
+          </v-col>
+        </v-row>
 
-    <v-row>
-      <v-col class="d-flex justify-center">
-        <v-divider class="my-2" thickness="2"></v-divider>
-      </v-col>
-    </v-row>
-  </v-container>
+        <v-row>
+          <v-col class="d-flex justify-center">
+            <v-divider class="my-2" thickness="2"></v-divider>
+          </v-col>
+        </v-row>
+      </v-container>
 
-  <v-container class="d-flex justify-center mt-4">
-    <v-card rounded="lg" elevation="1" class="responsive-card">
-      <v-tabs v-model="contextTab" align-tabs="center" bg-color="primary-darken-1" show-arrows>
-        <v-tab v-for="tab in tabs" :key="tab.contextValue" :text="tab.contextName" :value="tab.contextValue"></v-tab>
-      </v-tabs>
-      <v-window v-model="contextTab">
-        <v-window-item v-for="tab in tabs" :key="tab.contextValue" :value="tab.contextValue">
-          <v-card color="surface">
-            <v-card-text>
-              <v-row>
-                <ContextSetup :title="tab.contextName" :content="tab.content" :status="tab.status"
-                              :value="tab.contextValue" @data-changed="updateTabName"
-                              :calculating="calculating" @calculation-start="calculating = true"
-                              @calculation-end="calculating = false" />
-              </v-row>
-            </v-card-text>
-          </v-card>
-        </v-window-item>
-      </v-window>
-    </v-card>
-  </v-container>
+      <v-container class="justify-center mt-4">
+        <v-card outlined class="responsive-card">
+          <v-tabs v-model="contextTab" align-tabs="center" bg-color="primary-darken-1" show-arrows>
+            <v-tab v-for="tab in tabs" :key="tab.contextValue" :text="tab.contextName" :value="tab.contextValue"></v-tab>
+          </v-tabs>
+          <v-window v-model="contextTab">
+            <v-window-item v-for="tab in tabs" :key="tab.contextValue" :value="tab.contextValue">
+              <v-card color="surface">
+                <v-card-text>
+                  <v-row>
+                    <ContextSetup :title="tab.contextName" :content="tab.content" :status="tab.status"
+                                  :value="tab.contextValue" @data-changed="updateTabName"
+                                  :calculating="calculating" @calculation-start="calculating = true"
+                                  @calculation-end="calculating = false" />
+                  </v-row>
+                </v-card-text>
+              </v-card>
+            </v-window-item>
+          </v-window>
+        </v-card>
+      </v-container>
+    </v-main>
+  </v-app>
 </template>
 
 <script>
@@ -129,6 +133,7 @@ export default {
 </script>
 
 <style scoped>
+
 .responsive-card {
   width: 95%;
   transition: width 0.3s ease;
