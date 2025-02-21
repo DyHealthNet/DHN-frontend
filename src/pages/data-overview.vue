@@ -1,7 +1,7 @@
 <template>
   <v-app>
     <v-main>
-      <v-container class="text-center flex-column">
+      <v-container class="text-center">
         <v-row>
           <v-col cols="12">
             <h1 class="title mt-4">Data Overview</h1>
@@ -15,12 +15,11 @@
         </v-row>
       </v-container>
 
-      <!--main content-->
       <v-container class="justify-center mt-4">
         <FilterToolbar @change-context="updateData"></FilterToolbar>
 
         <!--Variable Counts-->
-        <v-card outlined class="responsive-card">
+        <v-card outlined>
           <v-toolbar color="primary-darken-1" density="compact">
             <v-toolbar-title>
               Variable Summary
@@ -72,7 +71,7 @@
         </v-card>
         <v-spacer class="my-10"></v-spacer>
         <!--Tab bar-->
-        <v-card rounded="lg" elevation="1" class="responsive-card">
+        <v-card outlined>
           <!--Tab bar name-->
           <v-toolbar color="primary-darken-1" density="compact">
             <v-toolbar-title>
@@ -949,7 +948,7 @@ export default {
   border-left: 5px solid rgb(var(--v-theme-info)); /* Accent border to the left */
   padding: 15px 10px; /* Padding around the text */
   margin-bottom: 0px; /* Spacing below the description */
-  #/border-radius: 4px; /* Rounded corners for a modern look */
+  border-radius: 4px; /* Rounded corners for a modern look */
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
   font-family: "Arial", sans-serif; /* A clean, modern font */
   width: 1445px; /* Fixed width of 1200px */

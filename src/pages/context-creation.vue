@@ -7,7 +7,6 @@
             <h1 class="title mt-4">Custom Context Creation</h1>
           </v-col>
         </v-row>
-
         <v-row>
           <v-col class="d-flex justify-center">
             <v-divider class="my-2" thickness="2"></v-divider>
@@ -15,8 +14,8 @@
         </v-row>
       </v-container>
 
-      <v-container class="justify-center mt-4">
-        <v-card outlined class="responsive-card">
+      <v-container class="mt-4">
+        <v-card outlined>
           <v-tabs v-model="contextTab" align-tabs="center" bg-color="primary-darken-1" show-arrows>
             <v-tab v-for="tab in tabs" :key="tab.contextValue" :text="tab.contextName" :value="tab.contextValue"></v-tab>
           </v-tabs>
@@ -134,16 +133,6 @@ export default {
 
 <style scoped>
 
-.responsive-card {
-  width: 95%;
-  transition: width 0.3s ease;
-}
-@media (max-width: 1919px) {
-  .responsive-card {
-    width: 100%;
-  }
-}
-
 .title {
   font-size: 2rem;
 }
@@ -152,14 +141,10 @@ export default {
   max-width: min(95%, 1800px);
 }
 
-.divider {
-  width: 10%;
-  margin-top: 16px;
-  margin-bottom: 16px;
+@media (max-width: 1919px) {
+  .responsive-card {
+    width: 95%;
+  }
 }
 
-.outlined-card {
-  width: 80%;
-  border-radius: 10px;
-}
 </style>

@@ -1,7 +1,7 @@
 <template>
   <v-app>
     <v-main>
-      <v-container class="text-center flex-column">
+      <v-container class="text-center">
         <v-row>
           <v-col cols="12">
             <h1 class="title mt-4">Network Exploration</h1>
@@ -15,10 +15,10 @@
         </v-row>
       </v-container>
 
-      <v-container class="justify-center mt-4">
+      <v-container class="mt-4">
         <FilterToolbar :disable-move="true" @change-context="updateData"></FilterToolbar>
         <!-- Network Input -->
-        <v-card outlined class="responsive-card">
+        <v-card outlined>
           <v-card-title class="d-flex align-center">
             <v-icon color="primary-darken-1" size="30" class="mr-3 my-0">mdi-square-edit-outline</v-icon> <!-- mdi-abacus-->
             Network Input
@@ -145,7 +145,7 @@
         </v-card>
 
         <!-- Network Visualization & Analysis -->
-        <v-card outlined class="mt-4 responsive-card" expand>
+        <v-card outlined class="mt-4" expand>
           <v-card-title class="d-flex align-center">
             <v-icon color="primary-darken-1" size="30" class="mr-3 my-0">mdi-graph-outline</v-icon>
             Network Visualization & Analysis

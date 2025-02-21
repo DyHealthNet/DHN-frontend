@@ -1,15 +1,13 @@
 <template>
   <v-app>
-    <!--structure define-->
     <v-main>
-      <!--header -->
       <v-container class="text-center">
-        <v-row class="d-flex align-center justify-center">
+        <v-row>
           <v-col cols="12">
             <h1 class="title mt-4">About</h1>
           </v-col>
         </v-row>
-        <v-row class="d-flex align-center justify-center">
+        <v-row>
           <v-col class="d-flex justify-center">
             <v-divider class="my-2" thickness="2"></v-divider>
           </v-col>
