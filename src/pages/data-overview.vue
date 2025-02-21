@@ -781,7 +781,7 @@ export default {
           imagePath: new URL("../assets/figures/metabolites.png", import.meta.url).href,
         },
         {
-          name: "Genetic Variants",
+          name: "Variants",
           imagePath: new URL("../assets/figures/genetic_variants.png", import.meta.url).href,
         },
       ];
@@ -917,7 +917,7 @@ export default {
 
 <style scoped>
 .responsive-card {
-  width: 80%;
+  width: 95%;
   transition: width 0.3s ease;
 }
 

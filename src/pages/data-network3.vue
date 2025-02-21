@@ -159,7 +159,7 @@
       </v-card-title>
       <v-row no-gutters>
         <v-col cols="4">
-          <v-expansion-panels variant="accordion" class="scrollable-panels">
+          <v-expansion-panels multiple class="scrollable-panels">
             <!-- Network Overview -->
             <v-expansion-panel>
               <v-expansion-panel-title>
@@ -1642,7 +1642,7 @@ export default {
 }
 @media (max-width: 1919px) {
   .responsive-card {
-    width: 100%;
+    width: 95%;
   }
 }
 .legend-color {
@@ -1657,7 +1657,7 @@ export default {
   z-index: 10;  /* Ensure it appears above other elements */
 }
 .scrollable-panels {
-  max-height: 580px;  /* You can adjust the height as needed */
+  max-height: 750px;  /* You can adjust the height as needed */
   overflow-y: auto;   /* This will make the content scrollable */
 }
 

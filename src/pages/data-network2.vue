@@ -411,7 +411,7 @@ export default {
 
 <style scoped>
 .responsive-card {
-  width: 80%;
+  width: 95%;
   transition: width 0.3s ease;
 }
 @media (max-width: 1500px) {

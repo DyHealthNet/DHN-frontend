@@ -25,10 +25,9 @@
                   <h3 class="secondary-header mt-1 mr-3">Define Your Context</h3>
                   <p class="description-text mr-3">{{ contextDescription }}</p>
                   <div class="right-align">
-                  <v-btn size="x-large" to="/network" color="primary"
-                         class="mt-5 mb-5 mx-5" prepend-icon="mdi-graph-outline">Contexts</v-btn>
+                  <v-btn size="x-large" to="/context" color="primary>
+                      class="mt-5 mb-5 mx-5" prepend-icon="mdi-tune-vertical">Contexts</v-btn>
                   </div>
-
                 </v-col>
               </v-row>
             </v-sheet>
@@ -43,7 +42,7 @@
                 </v-col>
                 <v-col cols="8" class="d-flex flex-column text-left">
                   <h3 class="secondary-header mt-1 mr-3">
-                    Build a Network
+                    Explore the Network
                   </h3>
                   <p class="description-text mr-3">
                     {{ networkDescription }}
@@ -88,8 +87,8 @@
                   <h3 class="secondary-header mt-1 mr-3">Apply to Your Cohort</h3>
                   <p class="description-text mr-3">{{ applyCohortDescription }}</p>
                   <div class="right-align">
-                    <v-btn size="x-large" to="/about-us" color="primary" class="mt-5 mb-5 mx-5" disabled
-                           prepend-icon="mdi-book-outline">Documentation</v-btn>
+                    <v-btn size="x-large" to="/about-us" color="primary" class="mt-5 mb-5 mx-5"
+                           prepend-icon="mdi-book-outline">About</v-btn>
                   </div>
                 </v-col>
               </v-row>
@@ -97,6 +96,72 @@
           </v-col>
 
         </v-row>
+
+        <v-divider class="my-10" thickness="2"></v-divider>
+
+        <!-- Part 3 Explanation-->
+        <v-row class="my-5">
+          <v-col cols="6" class="d-flex justify-center">
+            <h1 class="secondary-header">
+              What is DyHealthNet?
+            </h1>
+          </v-col>
+          <v-col cols="6">
+            <p class="plain-text text-justify">
+              {{ detailedExplanation }}
+            </p>
+          </v-col>
+        </v-row>
+
+        <v-divider class="my-10" thickness="2"></v-divider>
+
+        <!-- Part 4 Foundation-->
+       <v-row class="my-5">
+        <!-- Logos Section -->
+        <v-col cols="12" lg="6" md="12">
+          <v-container fluid>
+            <v-row justify="space-around" align="center" no-gutters>
+              <!-- TUM -->
+              <v-col cols="6" md="3" lg="3" class="text-center">
+                <a href="https://www.tum.de/" target="_blank">
+                  <v-img :src="tum_logo" alt="TUM Logo" contain class="mx-auto logo-img"/>
+                </a>
+              </v-col>
+
+              <!-- Unibz -->
+              <v-col cols="6" md="3" lg="3" class="text-center">
+                <a href="https://www.unibz.it/" target="_blank">
+                  <v-img :src="unibz_logo" alt="Unibz" contain class="mx-auto logo-img"/>
+                </a>
+              </v-col>
+
+              <!-- FAU -->
+              <v-col cols="6" md="3" lg="3" class="text-center">
+                <a href="https://www.fau.de/" target="_blank">
+                  <v-img :src="fau_logo" alt="FAU" contain class="mx-auto logo-img"/>
+                </a>
+              </v-col>
+
+              <!-- Eurac -->
+              <v-col cols="6" md="3" lg="3" class="text-center">
+                <a href="https://www.eurac.edu/en" target="_blank">
+                  <v-img :src="eurac_logo" alt="Eurac" contain class="mx-auto logo-img"/>
+                </a>
+              </v-col>
+            </v-row>
+          </v-container>
+        </v-col>
+
+        <!-- Collaborators Section -->
+        <v-col cols="12" lg="6" md="12" class="d-flex flex-column align-center text-center">
+          <h2 class="secondary-header">
+            Our Collaborators
+          </h2>
+          <p class="plain-text my-5 text-justify">
+            {{ collaboratorsDescription }}
+          </p>
+        </v-col>
+      </v-row>
       </v-container>
     </v-main>
   </v-app>
@@ -121,11 +186,27 @@ export default {
       mainSubheader: "A Dynamic Approach to Network Medicine in the CHRIS Study",
 
 
-      overviewDescription: "Get a comprehensive summary of data variables and visualize data through diverse methods.",
-      networkDescription: "Build a network of variables from the CHRIS study and explore interactions with health outcomes.",
-      contextDescription: "Define your context by selecting patients of interest for a more focused exploration.",
-      applyCohortDescription: "Use our documentation to apply the DyHealthNet platform to your own cohort.",
+      detailedExplanation:
+          "DyHealthNet is a platform that addresses the dynamic\n" +
+          "exploration of epidemiological population cohorts via\n" +
+          "multi-level network medicine. This platform is connected to a\n" +
+          "open-source backend and a multi-omics database comprising\n" +
+          "knowledge from other reliable databases as well as various\n" +
+          "association scores among genetic variants, metabolites, and\n" +
+          "additional information from CHRIS data.\n" +
+          "In this first developed prototype, we mainly focus on the visualization of\n" +
+          "phenotype data and the network-based data correlation.",
 
+      overviewDescription: "Get a comprehensive understanding of the data variables and explore the various data types through diverse visualizations.",
+      networkDescription: "Investigate the network of associations between various types of variables to confirm existing hypothesis or uncover novel associations.",
+      contextDescription: "Define your own sample-based context by selecting participants of interest based on different rules for a more focused exploration.",
+      applyCohortDescription: "Find additional information about the platform and use our documentation to apply the DyHealthNet platform to your own cohort.",
+
+      collaboratorsDescription:
+          "The DyHealthNet project is a collaboration between the\n" +
+          "Technical University of Munich (TUM), Free University of\n" +
+          "Bolzano (Unibz), Friedrich-Alexander University Erlangen-\n" +
+          "Nuremberg (FAU), and Eurac Research.",
     };
   },
 };

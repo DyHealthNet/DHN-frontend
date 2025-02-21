@@ -1,122 +1,146 @@
-<!-- About Us Page -->
-
 <template>
   <v-app>
+    <!--structure define-->
     <v-main>
-      <v-container fluid>
-        <v-row>
-          <v-col cols="12" class="text-center">
-            <h1 class="title1" style="color: #104d63">About Us</h1>
-            <h3 style="color: #104d63">
-              This project is a collaborative effort among students and
-              supervisors for the Bioinformatics Master Practicum 2024. Learn
-              more about our team, supervisors, and project collaborators.
-            </h3>
-          </v-col>
+      <!--header -->
+      <v-container class="text-center">
+        <v-row class="d-flex align-center justify-center">
           <v-col cols="12">
-            <div style="color: #104d63">
-              <h2>Bioinformatik Master Praktikum 2024</h2>
-            </div>
-            <div style="color: #104d63">
-              <h3>Team Members:</h3>
-              <p>
-                Elias Albrecht, Manuel Gander, Grace Zhuoyun Han, Andrea
-                Raithel, Bastienne Rehor, Leo Sprengel
-              </p>
-              <h3>Supervisors:</h3>
-              <p>Prof. Dr. Markus List, Lis Arend, Fabian Woller</p>
-            </div>
+            <h1 class="title mt-4">About</h1>
           </v-col>
-          <v-col cols="12">
-            <div style="color: #104d63">
-              <h2>Project Partners</h2>
-            </div>
+        </v-row>
+        <v-row class="d-flex align-center justify-center">
+          <v-col class="d-flex justify-center">
+            <v-divider class="my-2" thickness="2"></v-divider>
           </v-col>
-
-          <v-row style="color: #104d63">
-            <v-col cols="12" md="3" lg="3">
-              <!-- TUM -->
-              <a href="https://www.tum.de/" target="_blank">
-                <v-img>
-                  <img
-                    :src="tum_logo"
-                    alt=""
-                    style="width: 225px; height: auto"
-                  />
-                </v-img>
-              </a>
-              <h3>Data Science in Systems Biology (DaiSyBio)</h3>
-              <p>Prof. Dr. Markus List,<br />PhD Student Lis Arend</p>
-            </v-col>
-
-            <v-col cols="12" md="3" lg="3">
-              <!-- Unibz -->
-              <a href="https://www.unibz.it/" target="_blank">
-                <v-img>
-                  <img
-                    :src="unibz_logo"
-                    alt="Unibz"
-                    style="width: 225px; height: auto"
-                  />
-                </v-img>
-              </a>
-              <h3>Database Systems Group at the Faculty of Engineering</h3>
-              <p>Prof. Dr. Johann Gamper,<br />RTD Researcher Anton Dignös</p>
-            </v-col>
-
-            <v-col cols="12" md="3" lg="3">
-              <!-- fau -->
-              <a href="https://www.fau.de/" target="_blank">
-                <v-img>
-                  <img
-                    :src="fau_logo"
-                    alt="FAU"
-                    style="width: 225px; height: auto"
-                  />
-                </v-img>
-              </a>
-              <h3>Biomedical Network Science (BIONETS)</h3>
-              <p>Prof. Dr. David Blumenthal,<br />PhD Student Fabian Woller</p>
-            </v-col>
-
-            <v-col cols="12" md="3" lg="3">
-              <!-- Eurac -->
-              <a href="https://www.eurac.edu/en" target="_blank">
-                <v-img>
-                  <img
-                    :src="eurac_logo"
-                    alt="Eurac"
-                    style="width: 225px; height: auto"
-                  />
-                </v-img>
-              </a>
-              <h3>Institute for Biomedicine</h3>
-              <p>Dr. Christian Fuchsberger</p>
-            </v-col>
-          </v-row>
         </v-row>
       </v-container>
+
+      <v-container>
+        <v-expansion-panels v-model="panels" multiple>
+          <!-- What is DyHealthNet -->
+          <v-expansion-panel :value="0" class="expansion-item">
+            <v-expansion-panel-title class="panel-title" color="primary-darken-1">
+              <v-icon left class="icon-custom">mdi-help-circle-outline</v-icon>
+               What is DyHealthNet?
+            </v-expansion-panel-title>
+            <v-expansion-panel-text>
+              <p class="plain-text">TODO</p>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+
+          <!-- About Us -->
+          <v-expansion-panel :value="1" class="expansion-item" >
+            <v-expansion-panel-title class="panel-title" color="primary-darken-1">
+              <v-icon left class="icon-custom">mdi-account-multiple-outline</v-icon>
+               About Us
+            </v-expansion-panel-title>
+            <v-expansion-panel-text>
+              <p class="plain-text">TODO</p>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+
+          <!-- Contact -->
+          <v-expansion-panel :value="2" class="expansion-item" >
+            <v-expansion-panel-title class="panel-title" color="primary-darken-1">
+              <v-icon left class="icon-custom">mdi-email-outline</v-icon>
+               Contact
+            </v-expansion-panel-title>
+            <v-expansion-panel-text>
+              <p class="plain-text">TODO</p>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+
+          <!-- FAQ -->
+          <v-expansion-panel :value="3" class="expansion-item">
+            <v-expansion-panel-title class="panel-title" color="primary-darken-1">
+              <v-icon left class="icon-custom">mdi-frequently-asked-questions</v-icon>
+               FAQ
+            </v-expansion-panel-title>
+            <v-expansion-panel-text>
+              <strong class="plain-text">Q: Can I use DyHealthNet for my cohort study?</strong>
+              <p class="plain-text">A: TODO.</p>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+
+          <!-- Citation -->
+          <v-expansion-panel :value="4" class="expansion-item">
+            <v-expansion-panel-title class="panel-title" color="primary-darken-1">
+              <v-icon left class="icon-custom">mdi-border-color</v-icon>
+               Citation
+            </v-expansion-panel-title>
+            <v-expansion-panel-text>
+              <p class="plain-text">
+                If you use DyHealthNet in your research, please cite our work:
+              </p>
+              <p class="citation-text">
+                Author(s), "Title of the Paper", Journal Name, Year, DOI: 10.1234/dyhealthnet
+              </p>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+        </v-expansion-panels>
+      </v-container>
+
+       <!-- Large Centered Image -->
+      <v-container class="d-flex justify-center align-center">
+        <img src="../assets/figures/DyHealthNet_Logo.png" width="500" height="auto"/>
+      </v-container>
+      
     </v-main>
   </v-app>
 </template>
 
 <script>
+
+import {BASE_URL} from "../components/constants.js";
+
 export default {
-  name: "AboutUs",
   data() {
     return {
-      tum_logo: new URL("../assets/figures/TUM.png", import.meta.url).href,
-      eurac_logo: new URL("../assets/figures/Eurac.png", import.meta.url).href,
-      fau_logo: new URL("../assets/figures/FAU.png", import.meta.url).href,
-      unibz_logo: new URL("../assets/figures/Unibz.png", import.meta.url).href,
-      about_us: new URL("../assets/figures/About_Us.png", import.meta.url).href,
-      overview: new URL("../assets/figures/Data_Overview.png", import.meta.url)
-        .href,
-      network: new URL(
-        "../assets/figures/DyHealthNet_Icon.png",
-        import.meta.url
-      ).href,
+      panels: [0],
     };
   },
 };
+
 </script>
+
+<style scoped>
+
+.icon-custom {
+  margin-right: 8px; /* Adjust spacing as needed */
+  font-weight: 100 ! important;
+}
+
+.expansion-item {
+  margin-bottom: 10px;
+}
+
+/* Custom header (similar to card toolbar) */
+.panel-title {
+  padding: 10px 16px;
+  font-size: 20px;
+}
+
+.responsive-card {
+  width: 95%;
+  transition: width 0.3s ease;
+}
+
+@media (max-width: 1500px) {
+  .responsive-card {
+    width: 100%;
+  }
+}
+
+.title {
+  font-size: 2rem;
+}
+
+.plain-text {
+  font-size: 1.2rem;
+  line-height: 2;
+  max-width: 80ch;
+  color: rgb(var(--v-theme-primary-darken-1));
+}
+
+</style>
