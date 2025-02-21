@@ -25,7 +25,7 @@
                   <h3 class="secondary-header mt-1 mr-3">Define Your Context</h3>
                   <p class="description-text mr-3">{{ contextDescription }}</p>
                   <div class="right-align">
-                  <v-btn size="x-large" to="/context" color="primary>
+                  <v-btn size="x-large" to="/context" color="primary"
                       class="mt-5 mb-5 mx-5" prepend-icon="mdi-tune-vertical">Contexts</v-btn>
                   </div>
                 </v-col>
