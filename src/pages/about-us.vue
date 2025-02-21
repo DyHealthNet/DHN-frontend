@@ -1,22 +1,20 @@
 <template>
   <v-app>
-    <!--structure define-->
     <v-main>
-      <!--header -->
       <v-container class="text-center">
-        <v-row class="d-flex align-center justify-center">
+        <v-row>
           <v-col cols="12">
             <h1 class="title mt-4">About</h1>
           </v-col>
         </v-row>
-        <v-row class="d-flex align-center justify-center">
+        <v-row>
           <v-col class="d-flex justify-center">
             <v-divider class="my-2" thickness="2"></v-divider>
           </v-col>
         </v-row>
       </v-container>
 
-      <v-container>
+      <v-container class="mt-4">
         <v-expansion-panels v-model="panels" multiple>
           <!-- What is DyHealthNet -->
           <v-expansion-panel :value="0" class="expansion-item">
@@ -106,6 +104,20 @@ export default {
 
 <style scoped>
 
+.title {
+  font-size: 2rem;
+}
+
+.v-container {
+  max-width: min(95%, 1800px);
+}
+
+@media (max-width: 1919px) {
+  .responsive-card {
+    width: 95%;
+  }
+}
+
 .icon-custom {
   margin-right: 8px; /* Adjust spacing as needed */
   font-weight: 100 ! important;
@@ -119,21 +131,6 @@ export default {
 .panel-title {
   padding: 10px 16px;
   font-size: 20px;
-}
-
-.responsive-card {
-  width: 95%;
-  transition: width 0.3s ease;
-}
-
-@media (max-width: 1500px) {
-  .responsive-card {
-    width: 100%;
-  }
-}
-
-.title {
-  font-size: 2rem;
 }
 
 .plain-text {
