@@ -6,7 +6,7 @@
         <v-expansion-panel-title>
           <div class="d-flex align-center">
             <v-icon color="primary-darken-1" size="30" class="mr-3 my-0">mdi-cog-outline</v-icon>
-            <span>Advanced settings</span>
+            <span>Advanced Settings</span>
           </div>
         </v-expansion-panel-title>
         <v-expansion-panel-text>

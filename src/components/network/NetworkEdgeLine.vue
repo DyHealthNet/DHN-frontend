@@ -1,44 +1,43 @@
 <template>
-  <v-container>
-    <v-row>
-      <v-col cols="12">
-        <p><b>Network Build Configurations</b></p>
-      </v-col>
-    </v-row>
-    <v-row>
-      <v-col cols="4">
-        <p>Node Count Configuration (Connect Nodes)</p>
-      </v-col>
-    </v-row>
-    <v-row>
-      <v-col cols="4">
-        <v-text-field
-          v-model="internalTopNodesNumber"
-          :label="internalTopPerNodeCount ? 'Top significant Nodes per Type' : 'Top significant Nodes'"
-          type="number"
-          :rules="[value => (value >= 1 && value <= 50) || 'Must be between 1 and 50']"
-          density="compact"
-          variant="outlined"
-          @update:model-value="updateTopNodesNumber"
-          @blur="validateNodesNumberInput"
-        />
-      </v-col>
-      <v-col cols="4" class="d-flex pa-0 justify-center">
-        <v-switch
-          v-model="internalTopPerNodeCount"
-          @update:model-value="updateTopPerNodeCount"
-          color="primary"
-        >
-          <template #prepend>
-            <span class="text-muted">Overall</span>
-          </template>
-          <template #append>
-            <span class="text-muted">Per Node Type</span>
-          </template>
-        </v-switch>
-      </v-col>
-    </v-row>
-  </v-container>
+  <v-row>
+    <v-col cols="12">
+      <p><b>Network Build Configurations</b></p>
+    </v-col>
+  </v-row>
+  <v-row>
+    <v-col cols="4">
+      <p>Node Count Configuration (Connect Nodes)</p>
+    </v-col>
+  </v-row>
+  <v-row>
+    <v-col cols="4">
+      <v-text-field
+        v-model="internalTopNodesNumber"
+        :label="internalTopPerNodeCount ? 'Top significant Nodes per Type' : 'Top significant Nodes'"
+        type="number"
+        :rules="[value => (value >= 1 && value <= 50) || 'Must be between 1 and 50']"
+        density="compact"
+        variant="outlined"
+        @update:model-value="updateTopNodesNumber"
+        @blur="validateNodesNumberInput"
+      />
+    </v-col>
+    <v-col cols="4" class="d-flex pa-0 justify-center">
+      <v-switch
+        v-model="internalTopPerNodeCount"
+        @update:model-value="updateTopPerNodeCount"
+        color="primary"
+      >
+        <template #prepend>
+          <span class="text-muted">Overall</span>
+        </template>
+        <template #append>
+          <span class="text-muted">Per Node Type</span>
+        </template>
+      </v-switch>
+    </v-col>
+  </v-row>
+
 </template>
 
 <script>

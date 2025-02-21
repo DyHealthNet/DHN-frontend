@@ -3,7 +3,7 @@
       <v-expansion-panel>
         <v-expansion-panel-title>
             <v-icon color="primary-darken-1" size="30" class="mr-3 my-0">mdi-cog-outline</v-icon>
-            <span :class="{ 'text-h6': useAdvancedTitle }">Advanced settings</span>
+            <span>Advanced Settings</span>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
           <StatisticalTestLine :selected-tests="selectedTests"
@@ -91,6 +91,7 @@ export default {
 </script>
 
 <style scoped>
+
 .advanced-title {
   font-size: 2rem !important; /* Add !important to force the style */
   font-weight: 800;
