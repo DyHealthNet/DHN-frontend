@@ -8,7 +8,7 @@
 
 <script>
 import { Bar } from "vue-chartjs";
-import { BASE_URL } from "@/components/constants.js";
+import {BASE_URL, setIsLoading} from "@/components/constants.js";
 import {
   Chart as ChartJS,
   Title,
@@ -154,6 +154,7 @@ export default {
     },
 
     async fetchChartData() {
+      setIsLoading(true);
       if (!this.xVar) {
         this.chartData = { labels: [], datasets: [] };
         return;
@@ -198,6 +199,7 @@ export default {
         console.error("Error fetching variable data:", error);
         this.chartData = { labels: [], datasets: [] };
       }
+      setIsLoading(false);
     },
   },
   mounted() {

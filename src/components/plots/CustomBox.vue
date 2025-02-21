@@ -25,7 +25,7 @@
 <script>
 import {getCookie} from "@/components/authentication/auth.js";
 
-import {BASE_URL} from "../constants.js";
+import {BASE_URL, setIsLoading} from "../constants.js";
 import BoxPlotChartComponent from "@/components/plots/BoxPlotChartComponent.vue";
 import testbox from "../../data/test_boxplotData.json";
 //import testbox from "../data/test_boxPlotWithTimeAsX.json";
@@ -91,6 +91,7 @@ export default {
     },
 
     async fetchChartData() {
+      setIsLoading(true);
       try {
         let data;
         if (this.useExampleData) {
@@ -191,6 +192,7 @@ export default {
         console.error("Error fetching variable data:", error);
         this.chartData = { datasets: [] };
       }
+      setIsLoading(false);
     },
 
     updateChart() {

@@ -21,6 +21,7 @@ import {
   Filler,
   PointElement,
 } from "chart.js";
+import {setIsLoading} from "@/components/constants.js";
 
 // Register the components globally
 ChartJS.register(
@@ -175,6 +176,7 @@ export default {
         this.chartData = { labels: [], datasets: [] };
         return;
       }
+      setIsLoading(true);
       try {
         const url = new URL("/plotting/api/plotDataDensity/", BASE_URL);
         url.searchParams.append("x", this.xVar);
@@ -215,12 +217,13 @@ export default {
         console.log("this.chartData: ", this.chartData)
 
         this.defaultChart = false;
-
+        setIsLoading(false);
         return this.chartData;
       } catch (error) {
         console.error("Error fetching variable data:", error);
         this.chartData = { labels: [], datasets: [] };
       }
+      setIsLoading(false);
     },
   },
 

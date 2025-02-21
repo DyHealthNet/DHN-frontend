@@ -12,7 +12,7 @@
 <script>
 import {getCookie} from "@/components/authentication/auth.js";
 
-import {BASE_URL} from "../constants.js";
+import {BASE_URL, setIsLoading} from "../constants.js";
 import HeatMapChart from "@/components/plots/HeatMapChart.vue";
 import ContinuousLegend from "@/components/plots/ContinuousLegend.vue";
 
@@ -79,6 +79,7 @@ export default {
         this.chartData = { xCategories: [], yCategories: [], datasets: [] };
         return this.chartData;
       }
+      setIsLoading(true);
       try {
 
         const url = new URL("/plotting/api/plotDataHeatmap/", BASE_URL);
@@ -110,11 +111,12 @@ export default {
         } else {
           console.warn("No values in chartData");
         }
-
+        setIsLoading(false);
         return this.chartData;
       } catch (error) {
         console.error("Error fetching heatmap data:", error);
         this.chartData = { xCategories: [], yCategories: [], datasets: [] };
+        setIsLoading(false);
         return this.chartData;
       }
     },

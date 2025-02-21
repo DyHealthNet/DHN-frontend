@@ -24,6 +24,7 @@
   <script>
   import { Chart as ChartJS, Title, Tooltip, Legend, CategoryScale, LinearScale } from 'chart.js'
   import { BoxPlotController, BoxAndWiskers } from '@sgratzl/chartjs-chart-boxplot'
+  import {setIsLoading} from "@/components/constants.js";
   
   
   
@@ -97,9 +98,9 @@
     },
     methods: {
       async fetchData() {
+        setIsLoading(true);
         try {
           const response = await fetch('http://localhost:8000/plotting/api/plotData/');
-          console.log("WE ARE IN CUSTOMBOXPLOT COMPONENT AND FETCHING DATA")
           const data = await response.json();
           this.labels = Object.keys(data[0]);
           this.sourceData = data;
@@ -110,6 +111,7 @@
         } catch (error) {
           console.error('Error fetching data:', error);
         }
+        setIsLoading(false);
       },
       transformData(data) {
         // Transform data for boxplot

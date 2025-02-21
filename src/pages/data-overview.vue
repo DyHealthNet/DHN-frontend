@@ -182,6 +182,15 @@
 
             <!--Tab content-->
             <v-tabs-window v-model="model">
+              <!-- Add a small loading overlay -->
+                <v-overlay v-model="showLoading" scroll-strategy="none" contained
+                           class="d-flex justify-center align-center">
+                  <v-progress-circular
+                      indeterminate
+                      color="primary"
+                      size="60"
+                  ></v-progress-circular>
+                </v-overlay>
               <v-tabs-window-item
                   v-for="tab in tabs"
                   :key="tab.value"
@@ -539,6 +548,7 @@ import {
 import FilterToolbar from "@/components/FilterToolbar.vue";
 import {getCookie} from "@/components/authentication/auth.js";
 import ColorPalette from "@/components/plots/ColorPalette.vue";
+import { isLoading } from "../components/constants.js";
 
 ChartJS.register(
     Title,
@@ -624,6 +634,7 @@ export default {
       contextValue: null,
 
       // options
+      showLoading: isLoading,
       showOptions: false,
       plotWidth: 900,
       plotHeight: 500,
