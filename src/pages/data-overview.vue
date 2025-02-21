@@ -49,7 +49,9 @@
                         <v-img
                           :src="getImageForCard(item.name)"
                           :alt="item.name"
+                          max-width="40"
                           width="40"
+                          max-height="40"
                           height="40"
                           class="mx-3 bg-layer"
                         ></v-img>
