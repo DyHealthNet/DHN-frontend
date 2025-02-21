@@ -1,4 +1,4 @@
-# DyHealthNet Frontend with Vue.js
+# DyHealthNet Frontend Repository
 
 Frontend is developed with Vue 3 in Vite.
 
