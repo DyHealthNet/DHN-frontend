@@ -1384,13 +1384,14 @@ export default {
       }
     },
     clearUnselectedNodes(){
-      console.log("clearUnselectedNodes", this.vis_network_nodes);
+      //console.log("clearUnselectedNodes", this.vis_network_nodes);
       this.clearNetworkWarn = false;
       this.allInternalEdges = this.networkEdges;
-      this.networkNodes = this.selectedNetworkNodes;
+      this.networkNodes =  [...this.selectedNetworkNodes];
       this.filterForNetworkEdges();
       this.initializeNetwork();
-      console.log("clearUnselectedNodes", this.vis_network_nodes);
+      //console.log("clearUnselectedNodes", this.vis_network_nodes);
+      this.checkSelectAll();
       this.updateDesign(true);
     },
     // saveNetworkFile() {
