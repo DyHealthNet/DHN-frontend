@@ -7,7 +7,7 @@ import AboutUs from './pages/about-us.vue'
 import Home from './pages/Home.vue'
 import CHRISDataIntro from './pages/chris-data-intro.vue'
 import DataOverview from './pages/data-overview.vue'
-import NetworkPage from './pages/data-network3.vue'
+import NetworkPage from './pages/data-network.vue'
 import ContextCreation from './pages/context-creation.vue'
 import Login from './pages/user-login.vue'
 import Logout from './pages/user-logout.vue'
@@ -78,23 +78,23 @@ router.beforeEach(async (to, from, next) => {
       const isLoggedIn = await checkLogin(); // Await the login status
 
     if (isLoggedIn) {
-            console.log("User authenticated, proceeding...");
-            next(); // Allow access
-          } else {
-            console.log("User not authenticated, redirecting to login...");
-            next({
-              name: 'Login',
-              query: { redirect: to.fullPath, message: 'login_required' }, // Redirect to login with original path as query
-            });
-          }
-        } catch (error) {
-          console.error('Error during authentication check:', error);
-          next({
-            name: 'Login',
-            query: { redirect: to.fullPath, message: 'login_required' }, // Redirect to login with original path as query
-          });
-        }
+        console.log("User authenticated, proceeding...");
+        next(); // Allow access
       } else {
-        next(); // Route does not require authentication, proceed
+        console.log("User not authenticated, redirecting to login...");
+        next({
+          name: 'Login',
+          query: { redirect: to.fullPath, message: 'login_required' }, // Redirect to login with original path as query
+        });
       }
+    } catch (error) {
+      console.error('Error during authentication check:', error);
+      next({
+        name: 'Login',
+        query: { redirect: to.fullPath, message: 'login_required' }, // Redirect to login with original path as query
+      });
+    }
+    } else {
+    next(); // Route does not require authentication, proceed
+    }
 });
