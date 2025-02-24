@@ -136,6 +136,7 @@ export default {
       }
       return false;
     },
+
     updateChart() {
       console.log("updateChart");
       this.$nextTick(() => {

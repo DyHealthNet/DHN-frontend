@@ -64,7 +64,7 @@ export default {
           this.$refs.chartComponent.chartInstance.update()
         }
       })
-    }
+    },
   },
   mounted() {
     this.updateChart()
