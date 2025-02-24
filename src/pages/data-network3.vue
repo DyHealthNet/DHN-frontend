@@ -19,63 +19,60 @@
         <FilterToolbar :disable-move="true" @change-context="updateData"></FilterToolbar>
         <!-- Network Input -->
         <v-card outlined>
-          <v-card-title class="d-flex align-center">
-            <v-icon color="primary-darken-1" size="30" class="mr-3 my-0">mdi-square-edit-outline</v-icon> <!-- mdi-abacus-->
-            Network Input
-            <v-spacer></v-spacer>
-            <v-tooltip bottom>
-              <template v-slot:activator="{ props }">
-                <v-icon v-bind="props" size="30" class="mr-3 my-0">mdi-information</v-icon>
-              </template>
-              <span>
-                Find Nodes by their internal ID, display name or description and send them to the Network display.
-              </span>
-            </v-tooltip>
-          </v-card-title>
-          <v-card-subtitle>
-            <b>Node Selection</b>
-          </v-card-subtitle>
+           <v-toolbar color="primary-darken-1" density="compact">
+            <v-toolbar-title>
+              Network Input
+              <v-tooltip bottom>
+                <template v-slot:activator="{ props }">
+                  <v-icon v-bind="props">mdi-information</v-icon>
+                </template>
+                <span>
+                  Find Nodes by their internal ID, display name or description and send them to the Network display.
+                </span>
+              </v-tooltip>
+            </v-toolbar-title>
+          </v-toolbar>
+
           <v-card-text>
-            <v-row align="center">
-              <v-col cols="10" class="d-flex align-center">
-              <v-text-field
-                  v-model="searchText"
-                  density="compact"
-                  variant="outlined"
-                  :clearable="!isReadOnly && (searchText && searchText.length > 0)"
-                  label="Select one or a list of nodes"
-                  @input="fetchNodeRecommendations($event)"
-                  @keydown.arrow-down.prevent="moveFocus('down')"
-                  @keydown.arrow-up.prevent="moveFocus('up')"
-                  @keydown.enter.prevent="selectFocusedItem"
-                  @keydown.esc.prevent="closeDropdown"
-                  hide-details
-                  class="mb-0"
-                  @focus="showDropdown = true"
-                  ref="textField"
-                  :readonly="isReadOnly"
-                  @click:clear="handleClearNodeInput"
-                ><template v-slot:append>
-                <v-btn
-                  v-if="isReadOnly"
-                  icon
-                  @click="editText"
-                >
-                  <v-icon color="primary-darken-1">mdi-pencil</v-icon>
-                </v-btn>
-              </template></v-text-field>
+            <div class="ma-2">
+              <v-row align="center">
+                <v-col cols="10" class="d-flex align-center">
+                  <v-text-field
+                      v-model="searchText"
+                      density="compact"
+                      variant="outlined"
+                      :clearable="!isReadOnly && (searchText && searchText.length > 0)"
+                      label="Select one or a list of nodes"
+                      @input="fetchNodeRecommendations($event)"
+                      @keydown.arrow-down.prevent="moveFocus('down')"
+                      @keydown.arrow-up.prevent="moveFocus('up')"
+                      @keydown.enter.prevent="selectFocusedItem"
+                      @keydown.esc.prevent="closeDropdown"
+                      hide-details
+                      class="mb-0"
+                      @focus="showDropdown = true"
+                      ref="textField"
+                      :readonly="isReadOnly"
+                      @click:clear="handleClearNodeInput"
+                    ><template v-slot:append>
+                    <v-btn
+                      v-if="isReadOnly"
+                      icon
+                      @click="editText"
+                    >
+                      <v-icon color="primary-darken-1">mdi-pencil</v-icon>
+                    </v-btn>
+                  </template></v-text-field>
+                    </v-col>
+                  <v-col cols="2" class="d-flex align-center">
+                  <v-btn color="primary-darken-1" block class="mt-0 mb-0" @click="sendToNetwork" :disabled="!selectedNodes.length" elevation="1">
+                    <v-icon class="my-0 mr-2">mdi-arrow-down</v-icon>
+                    Send to Network
+                  </v-btn>
                 </v-col>
-              <v-col cols="2" class="d-flex align-center">
-              <v-btn
-              color="primary-darken-1"
-              block
-              class="mt-0 mb-0"
-              @click="sendToNetwork"
-              :disabled="!selectedNodes.length"
-            >Send to Network</v-btn>
-            </v-col>
-          </v-row>
-            <!-- Dropdown List -->
+              </v-row>
+
+              <!-- Dropdown List -->
               <v-row v-if="limitedDropdownNodes.length && !isReadOnly">
                 <v-col cols="12">
                   <v-card class="dropdown"
@@ -116,56 +113,59 @@
                   </v-card>
                 </v-col>
               </v-row>
-          </v-card-text>
-          <!-- Tooltip for Hovered Item (outside dropdown) -->
-          <teleport to="body">
-            <div v-if="hoveredItem" class="tooltip" :style="tooltipStyle">
-              <strong>ID:</strong> {{ hoveredItem.id }}<br />
-              <strong>Display Name:</strong> {{ hoveredItem.display_name }}<br />
-              <strong>Node Type:</strong> {{ hoveredItem.source_table }}<br />
-              <strong>Description:</strong> {{ hoveredItem.description }}
-            </div>
-          </teleport>
-        </v-card>
 
-            <!-- Advanced Settings -->
-        <v-card outlined class="mt-4">
-          <AdvancedSettings :selected-tests="selectedTests"
-                            :signThresh="signThresh"
-                            :disable-selections="disableSelections"
-                            :show-mult-test="true"
-                            :show-header="true"
-                            :use-advanced-title="true"
-                            expansion-panel-variant="default"
-                            header-text="Network Statistics Configuration"
-                            @data-changed="addSettings"
-                            :topNodesNumber="topNodesNumber"
-                            :topPerNodeCount="topPerNodeCount"
-                            />
+              <!-- Tooltip for Hovered Item (outside dropdown) -->
+              <teleport to="body">
+                <div v-if="hoveredItem" class="tooltip" :style="tooltipStyle">
+                  <strong>ID:</strong> {{ hoveredItem.id }}<br />
+                  <strong>Display Name:</strong> {{ hoveredItem.display_name }}<br />
+                  <strong>Node Type:</strong> {{ hoveredItem.source_table }}<br />
+                  <strong>Description:</strong> {{ hoveredItem.description }}
+                </div>
+              </teleport>
+              <v-row>
+                <v-col>
+                    <AdvancedSettings :selected-tests="selectedTests"
+                                        :signThresh="signThresh"
+                                        :disable-selections="disableSelections"
+                                        :show-mult-test="true"
+                                        :show-header="true"
+                                        :use-advanced-title="true"
+                                        expansion-panel-variant="default"
+                                        header-text="Network Statistics Configuration"
+                                        @data-changed="addSettings"
+                                        :topNodesNumber="topNodesNumber"
+                                        :topPerNodeCount="topPerNodeCount"
+                                        />
+                </v-col>
+              </v-row>
+            </div>
+          </v-card-text>
         </v-card>
 
         <!-- Network Visualization & Analysis -->
         <v-card outlined class="mt-4" expand>
-          <v-card-title class="d-flex align-center">
-            <v-icon color="primary-darken-1" size="30" class="mr-3 my-0">mdi-graph-outline</v-icon>
-            Network Visualization & Analysis
-            <v-spacer></v-spacer>
-            <v-tooltip bottom>
-              <template v-slot:activator="{ props }">
-                <v-icon v-bind="props" size="30" class="mr-3 my-0">mdi-information</v-icon>
-              </template>
-              <span>
-                Here you can inspect, analyse and manipulate the Network..
-              </span>
-            </v-tooltip>
-          </v-card-title>
+          <v-toolbar color="primary-darken-1" density="compact">
+            <v-toolbar-title>
+              Network Visualization & Analysis
+              <v-tooltip bottom>
+                <template v-slot:activator="{ props }">
+                  <v-icon v-bind="props">mdi-information</v-icon>
+                </template>
+                <span>
+                  Here you can request a subnetwork to be shown and explore it using different techniques.
+                </span>
+              </v-tooltip>
+            </v-toolbar-title>
+          </v-toolbar>
+          
           <v-row no-gutters>
             <v-col cols="4">
               <v-expansion-panels multiple class="scrollable-panels">
                 <!-- Network Overview -->
                 <v-expansion-panel>
                   <v-expansion-panel-title>
-                    <v-icon color="primary-darken-1" size="20" class="ml-0 mr-3 my-0">mdi-information-outline</v-icon>
+                    <v-icon color="primary-darken-1" size="25" class="ml-0 mr-3 my-0">mdi-information-outline</v-icon>
                     Network Overview</v-expansion-panel-title>
                     <v-expansion-panel-text>
                       <v-card outlined class="network-overview">
@@ -194,7 +194,7 @@
                 <!-- Node Details -->
                 <v-expansion-panel>
                   <v-expansion-panel-title>
-                    <v-icon color="primary-darken-1" size="20" class="ml-0 mr-3 my-0">mdi-magnify</v-icon>
+                    <v-icon color="primary-darken-1" size="25" class="ml-0 mr-3 my-0">mdi-magnify</v-icon>
                     Details</v-expansion-panel-title>
                   <v-expansion-panel-text>
                     <v-divider class="my-4"></v-divider>
@@ -218,7 +218,7 @@
                 <!-- Selection -->
                 <v-expansion-panel>
                   <v-expansion-panel-title>
-                    <v-icon color="primary-darken-1" size="20" class="ml-0 mr-3 my-0">mdi-filter</v-icon>
+                    <v-icon color="primary-darken-1" size="25" class="ml-0 mr-3 my-0">mdi-filter</v-icon>
                     Selection</v-expansion-panel-title>
                   <v-expansion-panel-text>
                     <v-row justify="center" align="center">
@@ -266,7 +266,7 @@
                 <!-- Connect Nodes -->
                 <v-expansion-panel>
                   <v-expansion-panel-title>
-                    <v-icon color="primary-darken-1" size="20" class="ml-0 mr-3 my-0">mdi-transit-connection-variant</v-icon>
+                    <v-icon color="primary-darken-1" size="25" class="ml-0 mr-3 my-0">mdi-transit-connection-variant</v-icon>
                     Connect Nodes
                   </v-expansion-panel-title>
                     <v-expansion-panel-text>
@@ -340,7 +340,7 @@
                 <!-- Analysis -->
                 <v-expansion-panel>
                   <v-expansion-panel-title>
-                    <v-icon color="primary-darken-1" size="20" class="ml-0 mr-3 my-0">mdi-flask-outline</v-icon>
+                    <v-icon color="primary-darken-1" size="25" class="ml-0 mr-3 my-0">mdi-flask-outline</v-icon>
                     Analysis</v-expansion-panel-title>
                   <v-expansion-panel-text>
                     <v-divider class="my-4"></v-divider>
@@ -349,21 +349,37 @@
                 </v-expansion-panel>
               </v-expansion-panels>
             </v-col>
+            
             <!-- Put this in its own file -->
             <v-col cols="8" >
               <v-card outlined class="network-container">
+
+              <!-- Card Content -->
+              <v-card-text ref="wholeNetwork">
+                <!-- Network Visualization -->
+                <v-row>
+                    <v-col>
+                      <div ref="network" id="network" style="height: 550px;"></div>
+                      <!-- Legend -->
+                      <div class="legend">
+                        <v-row v-for="(group, groupKey) in groups" :key="groupKey" align="center" class="mb-2" no-gutters>
+                          <v-col v-if="this.includedNodeTypes.has(groupKey)" cols="auto" class="legend-dot">
+                            <div class="legend-color" :style="getShapeStyle(group.color, groupKey)"></div>
+                          </v-col>
+                          <v-col v-if="this.includedNodeTypes.has(groupKey)" cols="auto" class="legend-text">
+                            <span>{{ capitalizeFirstLetter(groupKey) }}</span>
+                          </v-col>
+                        </v-row>
+                      </div>
+                  </v-col>
+                </v-row>
+              </v-card-text>
+
               <!-- Card Header -->
               <v-toolbar color="primary-darken-1" density="compact">
                 <v-toolbar-title>
                     <v-tooltip bottom>
-                      <template v-slot:activator="{ props }">
-                        <v-icon v-bind="props">mdi-information</v-icon>
-                      </template>
-                      <span>
-                        Here you can inspect the Network that is build based on your retrieved Nodes from the Database.<br>
-                        With the buttons you can save an image of your network, the network itself or clear the network
-                        to start over.
-                      </span>
+                      
                     </v-tooltip>
                   </v-toolbar-title>
                     <v-switch
@@ -411,27 +427,6 @@
                   </v-dialog>
               </v-toolbar>
 
-              <!-- Card Content -->
-              <v-card-text ref="wholeNetwork">
-                <!-- Network Visualization -->
-                <v-row>
-                    <v-col>
-                      <div ref="network" id="network" style="height: 500px;"></div>
-                      <!-- Legend -->
-                      <div class="legend">
-                        <v-row v-for="(group, groupKey) in groups" :key="groupKey" align="center" class="mb-2" no-gutters>
-                          <v-col v-if="this.includedNodeTypes.has(groupKey)" cols="auto" class="legend-dot">
-                            <div class="legend-color" :style="getShapeStyle(group.color, groupKey)"></div>
-                          </v-col>
-                          <v-col v-if="this.includedNodeTypes.has(groupKey)" cols="auto" class="legend-text">
-                            <span>{{ capitalizeFirstLetter(groupKey) }}</span>
-                          </v-col>
-                        </v-row>
-                      </div>
-                    </v-col>
-                  </v-row>
-                </v-card-text>
-
               <!-- Card Actions
               <v-card-actions>
                 <v-btn color="primary" @click="console.log('saveNetwork')" title="Save network to .json and download it">
@@ -443,7 +438,7 @@
           </v-row>
         </v-card>
         <v-row>
-          <div class="text-center ma-2">
+          <div class="ma-2">
             <v-snackbar
                 v-model="showInfo"
                 :color="infoType"
@@ -1238,7 +1233,7 @@ export default {
                 ...renamedEdge,
                 type: key,
                 set: "cohort (calculated)",
-                width: Math.min(Math.max(-Math.log10(renamedEdge.final_p_value) * 2, 0.01), 10), // TODO: adjust width
+                width: 2, //Math.min(Math.max(-Math.log10(renamedEdge.final_p_value) * 2, 0.01), 10), // TODO: adjust width
               });
               existingInternalEdgeIds.add(edge.id);
             }
@@ -1458,7 +1453,7 @@ export default {
 
         // Define the position for the legend (left bottom corner)
         const legendX = 20;
-        const legendY = Math.min(offscreenCanvas.height - legendHeight - 20, offscreenCanvas.height - 180);
+        const legendY = Math.min(offscreenCanvas.height - legendHeight + 100, offscreenCanvas.height - 50);
 
         // Loop over the groups to draw the legend dynamically
         let yOffset = 50; // Starting Y position for the first item
@@ -1654,13 +1649,13 @@ export default {
 /* Style for the legend container */
 .legend {
   position: absolute;  /* Position relative to the nearest positioned ancestor (network container) */
-  bottom: 10px;  /* Adjust the bottom margin */
+  bottom: 25px;  /* Adjust the bottom margin */
   left: 10px;    /* Adjust the left margin */
   background: transparent;  /* Transparent background */
   z-index: 10;  /* Ensure it appears above other elements */
 }
 .scrollable-panels {
-  max-height: 750px;  /* You can adjust the height as needed */
+  max-height: 625px;  /* You can adjust the height as needed */
   overflow-y: auto;   /* This will make the content scrollable */
 }
 
