@@ -160,6 +160,14 @@
           </v-toolbar>
 
           <v-row no-gutters>
+            <v-overlay v-model="showLoading" scroll-strategy="none" contained
+                        class="d-flex justify-center align-center">
+                <v-progress-circular
+                    indeterminate
+                    color="primary"
+                    size="60"
+                ></v-progress-circular>
+            </v-overlay>
             <v-col cols="4">
               <v-expansion-panels multiple class="scrollable-panels">
                 <!-- Network Overview -->
@@ -467,7 +475,7 @@
 <script>
 import AdvancedSettings from "@/components/AdvancedSettings.vue";
 import FilterToolbar from "@/components/FilterToolbar.vue";
-import {BASE_URL} from "@/components/constants.js";
+import {BASE_URL, isLoading, setIsLoading} from "@/components/constants.js";
 import {groups, loadNetworkState, saveNetworkState} from "../components/network/networkData.js";
 import NodeDetails from '@/components/network/NodeDetails.vue';
 import EdgeDetails from '@/components/network/EdgeDetails.vue';
@@ -476,6 +484,7 @@ import {getCookie} from "@/components/authentication/auth.js";
 import StatisticalTestLine from "@/components/StatisticalTestLine.vue";
 import NetworkEdgeLine from "@/components/network/NetworkEdgeLine.vue";
 import {useTheme} from 'vuetify';
+
 
 
 export default {
@@ -505,6 +514,7 @@ export default {
       imageText: "static-network",
 
       // Network Visualization & Settings
+      showLoading: isLoading,
       networkNodes: [],//test_data["nodes"],
       networkEdges: [],//test_data["edges"],
       vis_network_nodes: [],
@@ -1083,6 +1093,7 @@ export default {
       }
     },
     async fetchNodesAndEdges(node, count=false) {
+      setIsLoading(true);
       try {
         const csrfToken = getCookie('csrftoken');
         const nodeID = node.id;
@@ -1126,8 +1137,10 @@ export default {
       } catch (error) {
         console.error("Error fetching edges:", error);
       }
+      setIsLoading(false);
     },
     async fetchNodeGroupEdges(nodes, minSpanTree) {
+      setIsLoading(true);
       try {
         const csrfToken = getCookie('csrftoken');
         let funct = "getGroupNetwork"
@@ -1185,6 +1198,7 @@ export default {
       } catch (error) {
         console.error("Error fetching edges:", error);
       }
+      setIsLoading(false);
     },
     setNetworkNodes(data){
       //console.log("data ", data)
