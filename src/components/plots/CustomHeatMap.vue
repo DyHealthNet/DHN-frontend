@@ -7,6 +7,14 @@
       <ContinuousLegend :min="minValue" :max="maxValue" :palette="palette" :height="this.legendHeight - 200" />
     </div>
   </div>
+
+   <!--Button-->
+   <v-btn color="primary" 
+      @click="downloadPlotHeatmap" 
+      class="mt-5 mb-5 mx-5" 
+      prepend-icon="mdi-tray-arrow-down">
+      Download
+    </v-btn>
 </template>
 
 <script>
@@ -129,6 +137,14 @@ export default {
         }
       });
     },
+
+    downloadPlotHeatmap() {
+      if (this.$refs.heatmapChart) {
+        this.$refs.heatmapChart.exportChartAsImage();
+      } else {
+        console.warn("heatmapChart not found.");
+      }
+    }
   },
 
   mounted() {

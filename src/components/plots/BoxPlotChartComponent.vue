@@ -109,7 +109,7 @@ export default {
 
       // Convert to high-quality PNG
       const link = document.createElement("a");
-      link.href = tempCanvas.toDataURL("image/jpeg", 1.0); // Highest quality
+      link.href = tempCanvas.toDataURL("image/jpeg", 2.0); // Highest quality
       link.download = "boxplot_chart.jpeg";
       link.click();
     } else {
