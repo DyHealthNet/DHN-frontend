@@ -85,7 +85,9 @@ export default {
 
   computed: {
     computedChartData() {
+      console.log("computedChartData")
       if (!this.xVar || this.checkVariableConflict()) {
+        console.log("Returning nothing")
         return {
           labels: [],
           datasets: [],
@@ -169,7 +171,9 @@ export default {
     },
     updateChart() {
       console.log("updateChart")
+      console.log("xVar", this.xVar)
       console.log("cVar", this.cVar)
+      console.log(this.chartData)
       this.$nextTick(() => {
         if (this.$refs.lineComponent && this.$refs.lineComponent.lineInstance) {
           this.$refs.lineComponent.lineInstance.update();
@@ -180,7 +184,9 @@ export default {
     async fetchChartData() {
       console.log("this.yVar: ", this.yVar)
       console.log("this.contextValue: ", this.contextValue)
+
       if (!this.xVar) {
+        console.log("No charty daty")
         this.chartData = { labels: [], datasets: [] };
         return;
       }

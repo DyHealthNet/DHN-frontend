@@ -164,7 +164,7 @@ export default {
 
     async fetchChartData() {
       if (!this.xVar || !this.yVar) {
-        this.chartData = { datasets: [] };
+        this.chartData = { labels: [], datasets: [] };
         return;
       }
       try {

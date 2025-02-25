@@ -101,7 +101,6 @@ export default {
     },
 
     async fetchChartData() {
-      setIsLoading(true);
       try {
         let data;
         if (this.useExampleData) {
@@ -109,9 +108,10 @@ export default {
           data = testbox;
         } else {
           if (!this.xVar || !this.yVar || this.checkVariableConflict()) {
-            this.chartData = { datasets: [] };
             return;
           }
+          setIsLoading(true);
+
           const url = new URL("/plotting/api/plotDataBoxPlot/", BASE_URL);
           url.searchParams.append("x", this.xVar);
           url.searchParams.append("y", this.yVar);

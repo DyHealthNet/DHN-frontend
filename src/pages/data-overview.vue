@@ -237,7 +237,7 @@
                                   v-bind="props"
                               ></v-autocomplete>
                             </template>
-                            <span>Continous variable</span>
+                            <span>Continuous variable</span>
                           </v-tooltip>
 
                           <!--Colored by which variables-->
@@ -295,7 +295,7 @@
                               ></v-autocomplete>
                             </template>
                             <span
-                            >Categorical or Countinous variable
+                            >Categorical or Continuous variable
                                 </span>
                           </v-tooltip>
 
@@ -313,7 +313,7 @@
                                   v-bind="props"
                               ></v-autocomplete>
                             </template>
-                            <span>Continous variable</span>
+                            <span>Continuous variable</span>
                           </v-tooltip>
 
                           <!--Colored by which variables-->
@@ -483,7 +483,7 @@
                               ></v-autocomplete>
                             </template>
                             <span
-                            >Countinous variable</span>
+                            > Continuous variable</span>
                           </v-tooltip>
 
                           <!--Colored by which variables-->
