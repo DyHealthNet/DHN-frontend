@@ -260,7 +260,7 @@
                       </v-col>
 
                       <!--Box Chart-->
-                      <v-col cols="12" align="center">
+                      <v-col cols="12" align="center" :style="{ height: (plotHeight + 100) + 'px' }">
                         <v-sheet :width="plotWidth" :height="plotHeight">
                           <CustomBox
                               :x-var="selectedXvariableBox"
@@ -336,7 +336,7 @@
                       </v-col>
 
                       <!--Line Chart-->
-                      <v-col cols="12" align="center">
+                      <v-col cols="12" align="center" :style="{ height: (plotHeight + 100) + 'px' }">
                         <v-sheet :max-width="plotWidth" :min-height="plotHeight" :max-height="plotHeight">
                           <CustomLine
                               :x-var="selectedXvariableLine"
@@ -393,7 +393,7 @@
                       </v-col>
 
                       <!--Heatmap-->
-                      <v-col cols="12" align="center">
+                      <v-col cols="12" align="center" :style="{ height: (plotHeight + 100) + 'px' }">
                         <v-sheet :width="plotWidth" :height="plotHeight">
                           <CustomHeatmap
                               :x-var="selectedVariableHeatmap1"
@@ -450,7 +450,7 @@
                       </v-col>
 
                       <!--Bar-->
-                      <v-col cols="12" align="center">
+                      <v-col cols="12" align="center" :style="{ height: (plotHeight + 100) + 'px' }">
                         <v-sheet :max-width="plotWidth" :min-height="plotHeight" :max-height="plotHeight">
                           <CustomBar
                               :x-var="selectedXvariableBar"
@@ -506,7 +506,7 @@
                       </v-col>
 
                       <!--Line Chart-->
-                      <v-col cols="12" align="center">
+                      <v-col cols="12" align="center" :style="{ height: (plotHeight + 100) + 'px' }">
                         <v-sheet :max-width="plotWidth" :min-height="plotHeight" :max-height="plotHeight">
                           <CustomDensity
                               :x-var="selectedXvariableDensity"
@@ -782,7 +782,7 @@ export default {
           imagePath: new URL("../assets/figures/metabolites.png", import.meta.url).href,
         },
         {
-          name: "Variants",
+          name: "Genetic Variants",
           imagePath: new URL("../assets/figures/genetic_variants.png", import.meta.url).href,
         },
       ];

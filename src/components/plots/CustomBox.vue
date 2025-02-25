@@ -5,7 +5,17 @@
       :xLabel="this.xVar"
       :yLabel="this.yVar"
       ref="boxplotchartComponent"
+      @chart-ready="chartReady = true"
     />
+
+    <!--Button-->
+    <v-btn color="primary" 
+      @click="downloadPlotBox" 
+      class="mt-5 mb-5 mx-5" 
+      prepend-icon="mdi-tray-arrow-down">
+      Download
+    </v-btn>
+
     <!--PopUp Alert-->
     <div class="popup">
       <v-snackbar v-model="showPopup" color="error" multi-line>
@@ -202,6 +212,14 @@ export default {
         }
       });
     },
+
+    downloadPlotBox() {
+      if (this.$refs.boxplotchartComponent) {
+        this.$refs.boxplotchartComponent.exportChartAsImage();
+      } else {
+        console.warn("BoxPlotChartComponent not found.");
+      }
+    }
 
   },
 
