@@ -84,7 +84,6 @@ export default {
 
     async fetchChartData() {
       if (!this.xVar || !this.yVar ||this.checkVariableConflict()) {
-        this.chartData = { xCategories: [], yCategories: [], datasets: [] };
         return this.chartData;
       }
       setIsLoading(true);

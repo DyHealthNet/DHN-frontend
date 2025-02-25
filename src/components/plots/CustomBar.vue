@@ -71,12 +71,6 @@ export default {
   },
   computed: {
     computedChartData() {
-      if (!this.xVar || this.checkVariableConflict()) {
-        return {
-          labels: [],
-          datasets: [],
-        };
-      }
       return this.chartData;
     },
     computedChartOptions() {
@@ -170,11 +164,10 @@ export default {
     },
 
     async fetchChartData() {
-      setIsLoading(true);
       if (!this.xVar) {
-        this.chartData = { labels: [], datasets: [] };
         return;
       }
+      setIsLoading(true);
 
       try {
         const url = new URL("/plotting/api/plotDataBarCount/", BASE_URL);
