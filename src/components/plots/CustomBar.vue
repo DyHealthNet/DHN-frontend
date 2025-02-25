@@ -4,6 +4,14 @@
     :data="computedChartData"
     :options="computedChartOptions"
   />
+
+   <!--Button-->
+   <v-btn color="primary" 
+      @click="downloadPlotBar" 
+      class="mt-5 mb-5 mx-5" 
+      prepend-icon="mdi-tray-arrow-down">
+      Download
+    </v-btn>
 </template>
 
 <script>
@@ -117,7 +125,13 @@ export default {
     contextValue: "fetchAndUpdateChart",
     palette: "fetchAndUpdateChart",
   },
+
+  mounted() {
+    this.fetchChartData();
+  },
+
   methods: {
+
     labelColor(grid=false) {
       // chartjs does not support theme colors so we just directly call the theme color
       let colorName = grid ? "chart-grid" : "chart";
@@ -127,6 +141,7 @@ export default {
         return this.$vuetify.theme.themes.dyHealthNetThemeDark.colors[colorName];
       }
     },
+
     checkVariableConflict() {
       if (this.xVar === this.cVar) {
         alert(
@@ -202,9 +217,42 @@ export default {
       }
       setIsLoading(false);
     },
-  },
-  mounted() {
-    this.fetchChartData();
-  },
+
+    downloadPlotBar() {
+      this.$nextTick(() => {
+        const chartComponent = this.$refs.chartComponent;
+        if (chartComponent && chartComponent.chart) {
+          const canvas = chartComponent.chart.ctx.canvas;
+          const dpr = window.devicePixelRatio || 2;
+
+          // Create a temporary high-resolution canvas
+          const tempCanvas = document.createElement("canvas");
+          tempCanvas.width = canvas.width * dpr;
+          tempCanvas.height = canvas.height * dpr;
+          const tempCtx = tempCanvas.getContext("2d");
+
+          // Apply scaling
+          tempCtx.scale(dpr, dpr);
+
+          // Fill background with white
+          tempCtx.fillStyle = "#ffffff";
+          tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+          // Draw the chart onto the high-res canvas
+          tempCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height);
+
+          // Convert to high-quality PNG
+          const link = document.createElement("a");
+          link.href = tempCanvas.toDataURL("image/png"); // High-quality PNG
+          link.download = "barplot_chart.png";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } else {
+          console.warn("ChartComponent not found or not rendered yet.");
+        }
+      });
+    }
+  }
 };
 </script>

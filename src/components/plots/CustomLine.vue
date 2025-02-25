@@ -1,5 +1,13 @@
 <template>
   <Line ref="lineComponent" :data="chartData" :options="computedChartOptions" />
+
+  <!--Button-->
+  <v-btn color="primary" 
+      @click="downloadPlotLine" 
+      class="mt-5 mb-5 mx-5" 
+      prepend-icon="mdi-tray-arrow-down">
+      Download
+    </v-btn>
 </template>
 
 <script>
@@ -137,6 +145,7 @@ export default {
       }
 
     },
+
     updateChart() {
       this.$nextTick(() => {
         if (this.$refs.lineComponent && this.$refs.lineComponent.lineInstance) {
@@ -144,6 +153,7 @@ export default {
         }
       });
     },
+
     checkVariableConflict() {
       if (this.xVar === this.yVar || this.xVar === this.cVar|| this.yVar === this.cVar) {
         alert("The selected variabels are same. Please choose different variables.");
@@ -202,10 +212,46 @@ export default {
         this.chartData = { datasets: [] };
       }
     },
+
+    downloadPlotLine() {
+      this.$nextTick(() => {
+        const lineComponent = this.$refs.lineComponent;
+        if (lineComponent && lineComponent.chart) {
+          const canvas = lineComponent.chart.ctx.canvas;
+          const dpr = window.devicePixelRatio || 2;
+
+          // Create a temporary high-resolution canvas
+          const tempCanvas = document.createElement("canvas");
+          tempCanvas.width = canvas.width * dpr;
+          tempCanvas.height = canvas.height * dpr;
+          const tempCtx = tempCanvas.getContext("2d");
+
+          // Apply scaling
+          tempCtx.scale(dpr, dpr);
+
+          // Fill background with white
+          tempCtx.fillStyle = "#ffffff";
+          tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+          // Draw the chart onto the high-res canvas
+          tempCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height);
+
+          // Convert to high-quality PNG
+          const link = document.createElement("a");
+          link.href = tempCanvas.toDataURL("image/png"); // High-quality PNG
+          link.download = "line_chart.png";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } else {
+          console.warn("ChartComponent not found or not rendered yet.");
+        }
+      });
+    }
   },
 
   mounted() {
-    //this.updateChart();
+    this.fetchChartData();
   },
 };
 </script>

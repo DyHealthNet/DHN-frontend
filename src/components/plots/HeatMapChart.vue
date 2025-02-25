@@ -163,6 +163,37 @@ export default {
      });
    },
 
+   exportChartAsImage() {
+    if (this.$refs.canvas) {
+      const canvas = this.$refs.canvas;
+      const dpr = window.devicePixelRatio || 2;
+
+      // Create a temporary high-resolution canvas
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = canvas.width * dpr;
+      tempCanvas.height = canvas.height * dpr;
+      const tempCtx = tempCanvas.getContext("2d");
+
+      // Apply scaling
+      tempCtx.scale(dpr, dpr);
+
+      // Fill background with white
+      tempCtx.fillStyle = "#ffffff";
+      tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+      // Draw the chart onto the high-res canvas
+      tempCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height);
+
+      // Convert to high-quality PNG
+      const link = document.createElement("a");
+      link.href = tempCanvas.toDataURL("image/jpeg", 2.0); // Highest quality
+      link.download = "heatmap_chart.jpeg";
+      link.click();
+    } else {
+      console.warn("Canvas not found.");
+    }
+   },
+
   }
 };
 </script>
