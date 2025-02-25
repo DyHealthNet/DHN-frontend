@@ -77,6 +77,7 @@ export default {
     },
     selectedValue: {
       type: [String, Array, Number],
+      required: true
     }
   },
 
@@ -94,16 +95,6 @@ export default {
     }
   },
   watch: {
-    valueComponent(newVal) {
-      if (newVal === 'combobox') {
-        this.$emit('update:selectedValue', "")
-      } else if (newVal === 'select') {
-        this.$emit('update:selectedValue', [])
-      } else {
-        this.$emit('update:selectedValue', [0, 1])
-      }
-    },
-
     selectedValue(newVal) {
       if (this.valueComponent === 'num-text') {
         this.lowerBound = this.selectedValue[0];
@@ -129,8 +120,10 @@ export default {
     toggleAll() {
       if (this.localSelectedValue.length === this.possibleValues.length) {
         this.$emit('update:selectedValue', []);
+        this.localSelectedValue = [];
       } else {
         this.$emit('update:selectedValue', this.possibleValues);
+        this.localSelectedValue = this.possibleValues;
       }
     },
     updateSelectedValue() {
