@@ -23,7 +23,7 @@
                What is DyHealthNet?
             </v-expansion-panel-title>
             <v-expansion-panel-text>
-              <p class="plain-text">TODO</p>
+              <p class="plain-text">DyHealthNet is a network-based data analysis platform, which allows to integrate heterogeneous data and support explorative data analytics over dynamically generated subsets of the CHRIS study data. </p>
             </v-expansion-panel-text>
           </v-expansion-panel>
 
@@ -34,7 +34,58 @@
                About Us
             </v-expansion-panel-title>
             <v-expansion-panel-text>
-              <p class="plain-text">TODO</p>
+              <p class="plain-text">DyHealthNet is a DFG-funded research project run by FAU (Biomedical Network Science Lab), TUM (Big Data in Biomedicine Group), Eurac (Institute for Biomedicine), and UNIBZ (Database Systems Group).</p>
+              <v-container fluid>
+                <v-row justify="space-around" align="center" no-gutters>
+                  <!-- TUM -->
+                  <v-col cols="6" md="3" lg="3" class="text-center">
+                    <a href="https://www.tum.de/" target="_blank">
+                      <v-img :src="tum_logo" alt="TUM Logo" contain class="mx-auto logo-img"/>
+                    </a>
+                    <p class="professor-name">Prof. Dr. Markus List</p>
+                    <p class="professor-name">Data Science in Systems Biology</p>
+                    <p class="professor-name">Technical University of Munich</p>
+                    <a class="professor-name" href="mailto:markus.list@tum.de">markus.list@tum.de</a>
+                    <p class="professor-name" href="https://www.daisybio.de">https://www.daisybio.de/</p>
+                  </v-col>
+
+                  <!-- Unibz -->
+                  <v-col cols="6" md="3" lg="3" class="text-center">
+                    <a href="https://www.unibz.it/" target="_blank">
+                      <v-img :src="unibz_logo" alt="Unibz" contain class="mx-auto logo-img"/>
+                    </a>
+                    <p class="professor-name">Prof. Dr. Johann Gamper List</p>
+                    <p class="professor-name">Database Systems Group - Faculty of Engineering</p>
+                    <p class="professor-name">Free University of Bozen-Bolzano</p>
+                    <a class="professor-name" href="mailto:johann.gamper@unibz.it">johann.gamper@unibz.it</a>
+                    <p class="professor-name" href="https://dbs.inf.unibz.it/">https://dbs.inf.unibz.it/</p>
+                  </v-col>
+
+                  <!-- FAU -->
+                  <v-col cols="6" md="3" lg="3" class="text-center">
+                    <a href="https://www.fau.de/" target="_blank">
+                      <v-img :src="fau_logo" alt="FAU" contain class="mx-auto logo-img"/>
+                    </a>
+                    <p class="professor-name">Prof. Dr. David B. Blumenthal</p>
+                    <p class="professor-name">Biomedical Network Science Lab</p>
+                    <p class="professor-name">Friedrich-Alexander-University Erlangen-Nürnberg</p>
+                    <a class="professor-name" href="mailto:david.b.blumenthal@fau.de">david.b.blumenthal@fau.de</a>
+                    <p class="professor-name" href="https://www.bionets.tf.fau.de/">https://www.bionets.tf.fau.de/</p>
+                  </v-col>
+
+                  <!-- Eurac -->
+                  <v-col cols="6" md="3" lg="3" class="text-center">
+                    <a href="https://www.eurac.edu/en" target="_blank">
+                      <v-img :src="eurac_logo" alt="Eurac" contain class="mx-auto logo-img"/>
+                    </a>
+                    <p class="professor-name">Dr. Christian Fuchsberger</p>
+                    <p class="professor-name">Research Group Leader at the Institute for Biomedicine</p>
+                    <p class="professor-name">EURAC Research</p>
+                    <a class="professor-name" href="mailto:Christian.Fuchsberger@eurac.edu">Christian.Fuchsberger@eurac.edu</a>
+                    <p class="professor-name" href="https://www.eurac.edu/en/institutes-centers/institute-for-biomedicine">https://www.eurac.edu/en/institutes-centers/institute-for-biomedicine</p>
+                  </v-col>
+                </v-row>
+              </v-container>
             </v-expansion-panel-text>
           </v-expansion-panel>
 
@@ -96,6 +147,10 @@ export default {
   data() {
     return {
       panels: [0],
+      tum_logo: new URL("../assets/figures/TUM.png", import.meta.url).href,
+      eurac_logo: new URL("../assets/figures/Eurac.png", import.meta.url).href,
+      fau_logo: new URL("../assets/figures/FAU.png", import.meta.url).href,
+      unibz_logo: new URL("../assets/figures/Unibz.png", import.meta.url).href
     };
   },
 };
@@ -136,8 +191,13 @@ export default {
 .plain-text {
   font-size: 1.2rem;
   line-height: 2;
-  max-width: 80ch;
   color: rgb(var(--v-theme-primary-darken-1));
+}
+
+.professor-name {
+  font-size: 1rem;
+  line-height: 2;
+  color: rgb(var(--v-theme-primary-light-1));
 }
 
 </style>
