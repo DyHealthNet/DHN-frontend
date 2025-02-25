@@ -899,6 +899,7 @@ export default {
       this.activeIndex = -1;
     },
     sendToNetwork() {
+      console.log("this.selectedNetworkNodes", this.selectedNetworkNodes)
       // Send selectedNodes to networkNodes and reset selectedNodes
       this.networkNodes= [];
       // filter selected Nodes for presence in searchText (if user deletes them)
@@ -909,6 +910,11 @@ export default {
           ...node,
           set: "CHRIS", //TODO change to internal/cohort or smth when backend became more modular
         }));
+      console.log("this.networkNodes", this.networkNodes)
+      this.selectedNetworkNodes = this.selectedNetworkNodes.filter(node =>
+        this.networkNodes.some(networkNode => networkNode.id === node.id)
+      );
+      console.log("this.selectedNetworkNodes", this.selectedNetworkNodes)
       // make searchText pretty
       const nodeNames = this.selectedNodes
         .filter(node => node && node.display_name)
