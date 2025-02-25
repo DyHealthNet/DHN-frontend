@@ -483,6 +483,18 @@ export default {
       })
           .then(response => response.json())
           .then(data => {
+            if (data.status==="error") {
+              // something went wrong
+              this.taskStarted = true;
+              this.taskInfo = "An error occurred during context association calculations.";
+              this.taskType = "error";
+              this.$emit('calculation-end');
+              //this.status = "error";
+              this.clearContext(false);
+              this.sendDisabled = false;
+              return;
+            }
+
             this.progressStatus = data.status === "SUCCESS" ? "Finished" : "Calculating";
             this.progressIcon = data.status === "SUCCESS" ? "mdi-check-circle-outline" : "mdi-autorenew";
             console.log(this.progressIcon)
@@ -661,7 +673,7 @@ export default {
       }
     },
 
-    async clearContext() {
+    async clearContext(deleteTables=true) {
       this.deleteWarn = false;
       this.contextName = `Context ${this.value}`;
       this.selectedLayers = ["Phenomics", "Metabolomics", "Proteomics"];
@@ -679,7 +691,7 @@ export default {
       this.sendContextName();
 
       // Only call api if there was a context created for this tab otherwise merely the form was being cleared
-      if (this.status === "Finished") {
+      if (this.status === "Finished" && deleteTables) {
 
         // Send a DELETE request to the backend deleting the context
         await fetch(`${BASE_URL}/context/api/deleteContext`, {
@@ -708,7 +720,7 @@ export default {
       }
     },
 
-    updateCreationIcon(status) {
+    updateCreationIcon(status){
       if (status === "Finished") {
         //this.progressStatus = "Finished"
          this.progressIcon = "mdi-check-circle-outline";

@@ -907,7 +907,7 @@ export default {
       this.isReadOnly = true;
       this.closeDropdown();
       //this.selectedNodes = []; // Clear the selection
-      console.log("Updated networkNodes:", this.networkNodes);
+      this.filterForNetworkEdges();
 
       this.initializeNetwork();
       this.updateDesign();
@@ -1101,7 +1101,7 @@ export default {
           "&l=" +
           encodeURIComponent(limit) +
           "&p=" +
-          encodeURIComponent(this.fixThreshold) +
+          encodeURIComponent(this.topPerNodeCount) +
           "&s=" +
           this.signThresh +
             (this.contextValue != null ? "&c=" + encodeURIComponent(this.contextValue) : "") +
