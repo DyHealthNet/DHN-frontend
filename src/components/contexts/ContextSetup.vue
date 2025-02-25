@@ -427,6 +427,7 @@ export default {
         this.participantNumber = this.spacedNumber(this.initialParticipants);
         return;
       }
+
       // fetch the participants
       await fetch(`${BASE_URL}/context/api/filterContext`, {
         method: 'POST',
@@ -681,7 +682,7 @@ export default {
       this.innerRows = [{group: 'group-0', id: uuidv4(), rule: {}}];
       this.progressIcon = "mdi-clock-outline";
       this.progressStatus = "Waiting";
-      this.participantNumber = "13 000";
+      this.participantNumber = this.spacedNumber(this.initialParticipants);
       this.removedPatients = "";
       this.selectedTests = this.defaultSelectedTests;
       this.taskMessage = null;
@@ -736,7 +737,7 @@ export default {
 
     spacedNumber(number) {
       if (!number) {
-        return "";
+        return "0";
       }
       return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
     },
