@@ -909,6 +909,9 @@ export default {
           ...node,
           set: "CHRIS", //TODO change to internal/cohort or smth when backend became more modular
         }));
+      this.selectedNetworkNodes = this.selectedNetworkNodes.filter(node =>
+        this.networkNodes.includes(node.id)
+      );
       // make searchText pretty
       const nodeNames = this.selectedNodes
         .filter(node => node && node.display_name)
