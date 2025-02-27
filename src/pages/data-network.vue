@@ -1138,6 +1138,11 @@ export default {
           throw new Error("Network response was not ok");
         }
         const data = await response.json();
+        if (data.message != ""){
+          this.infoText = data.message;
+          this.infoType = "info";
+          this.showInfo = true;
+        }
 
         this.setNetworkNodes(data);
       } catch (error) {
