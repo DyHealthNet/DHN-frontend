@@ -85,7 +85,7 @@ export default {
 
 
     async retrieveContexts() {
-      const wantedFields = ['contextName', 'contextValue', 'colors']
+      const wantedFields = ['contextName', 'contextValue', 'colors', 'status']
       let url = new URL(`${BASE_URL}/context/api/retrieveContexts/`);
       url.search = new URLSearchParams({fields: wantedFields});
 
@@ -104,12 +104,15 @@ export default {
                 text: context.contextName,
                 value: context.contextValue,
                 color: context.colors.color,
+                status: context.status,
                 lightVariant: context.colors.lightVariant,
                 darkVariant: context.colors.darkVariant,
               };
             });
-            // filter out contexts where color is black
-            this.contexts = this.contexts.filter((context) => context.color !== '#000000');
+            // filter out contexts where color is black or status does not equal Finished
+            this.contexts = this.contexts.filter(
+                (context) => context.color !== '#000000' && context.status === 'Finished'
+            );
           })
           .catch((error) => {
             console.error('Error:', error);
