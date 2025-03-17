@@ -104,15 +104,16 @@ export default {
                 text: context.contextName,
                 value: context.contextValue,
                 color: context.colors.color,
+                status: context.status,
                 lightVariant: context.colors.lightVariant,
                 darkVariant: context.colors.darkVariant,
                 status: context.status
               };
             });
-            // filter out contexts where color is black
-            this.contexts = this.contexts.filter((context) => context.color !== '#000000');
-            // filter out contexts where status is not "Finished"
-            this.contexts = this.contexts.filter((context) => context.status === "Finished");
+            // filter out contexts where color is black or status does not equal Finished
+            this.contexts = this.contexts.filter(
+                (context) => context.color !== '#000000' && context.status === 'Finished'
+            );
           })
           .catch((error) => {
             console.error('Error:', error);
