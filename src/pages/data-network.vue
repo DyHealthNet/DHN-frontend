@@ -254,7 +254,7 @@
                       </thead>
                       <tbody>
                         <tr v-for="(node, index) in selectedNetworkNodes" :key="node.id">
-                          <td>{{ node.description }}</td>
+                          <td>{{ node.display_name }}</td>
                           <td>{{ this.getPrettyType(node.source_table) }}</td>
                           <td>
                             <v-btn
@@ -911,9 +911,15 @@ export default {
           set: "CHRIS", //TODO change to internal/cohort or smth when backend became more modular
         }));
       console.log("this.networkNodes", this.networkNodes)
-      this.selectedNetworkNodes = this.selectedNetworkNodes.filter(node =>
-        this.networkNodes.some(networkNode => networkNode.id === node.id)
-      );
+      // check that all selected nodes are unique and still present in the network
+      this.selectedNetworkNodes = this.selectedNetworkNodes
+        .filter(node => this.networkNodes.some(networkNode => networkNode.id === node.id))
+        .reduce((unique, node) => {
+          if (!unique.some(n => n.id === node.id)) {
+            unique.push(node);
+          }
+          return unique;
+        }, []);
       console.log("this.selectedNetworkNodes", this.selectedNetworkNodes)
       // make searchText pretty
       const nodeNames = this.selectedNodes
@@ -1138,6 +1144,11 @@ export default {
           throw new Error("Network response was not ok");
         }
         const data = await response.json();
+        if (data.message != ""){
+          this.infoText = data.message;
+          this.infoType = "info";
+          this.showInfo = true;
+        }
 
         this.setNetworkNodes(data);
       } catch (error) {
@@ -1401,9 +1412,12 @@ export default {
     clearUnselectedNodes(){
       //console.log("clearUnselectedNodes", this.vis_network_nodes);
       this.clearNetworkWarn = false;
-      this.allInternalEdges = this.networkEdges;
+      // Set to only selected Nodes
       this.networkNodes =  [...this.selectedNetworkNodes];
+      // filter edges now
       this.filterForNetworkEdges();
+      // override internal edges with filtered edges
+      this.allInternalEdges = this.networkEdges;
       this.initializeNetwork();
       //console.log("clearUnselectedNodes", this.vis_network_nodes);
       this.checkSelectAll();
@@ -1474,7 +1488,7 @@ export default {
 
         // Define the position for the legend (left bottom corner)
         const legendX = 20;
-        const legendY = Math.min(offscreenCanvas.height - legendHeight + 100, offscreenCanvas.height - 50);
+        const legendY = Math.max(50,offscreenCanvas.height/2 - legendHeight - 100);
 
         // Loop over the groups to draw the legend dynamically
         let yOffset = 50; // Starting Y position for the first item
@@ -1513,8 +1527,10 @@ export default {
           console.warn(`Unhandled key: ${key}`);
         }
       });
+      const selectedNodesSave = this.selectedNetworkNodes;
       this.clearNetwork(false);
-      this.selectAll = false;
+      this.selectedNetworkNodes = selectedNodesSave;
+      this.sendToNetwork();
     },
 
     // Context methods
