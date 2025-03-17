@@ -107,6 +107,7 @@ export default {
                 status: context.status,
                 lightVariant: context.colors.lightVariant,
                 darkVariant: context.colors.darkVariant,
+                status: context.status
               };
             });
             // filter out contexts where color is black or status does not equal Finished
