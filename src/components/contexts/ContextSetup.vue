@@ -67,13 +67,15 @@
         <p>Inner Operator / Connector</p>
       </v-col>
       <v-col cols="1" class="filter-padding">
-        <ConnectorButton :connection="innerConnection" @click="changeButtonDirection"></ConnectorButton>
+        <ConnectorButton :connection="innerConnection" :disable-selections="disableSelections"
+                         @click="changeButtonDirection"></ConnectorButton>
       </v-col>
       <v-col cols="2" class="filter-padding">
         <p>Outer Operator / Connector</p>
       </v-col>
       <v-col cols="1" class="filter-padding">
-        <ConnectorButton :connection="outerConnection" @click="changeButtonDirection"></ConnectorButton>
+        <ConnectorButton :connection="outerConnection" :disable-selections="disableSelections"
+                         @click="changeButtonDirection"></ConnectorButton>
       </v-col>
     </v-row>
 
