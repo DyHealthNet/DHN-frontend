@@ -104,7 +104,7 @@
               <FilterLine
                   :all-variables="allVariablesFiltered"
                   :connection="innerConnection"
-                  :first="outerIndex === 0 && innerIndex === 0"
+                  :only-rule="(outerRows.length + innerRows.length) === 2"
                   :rule="innerRow.rule"
                   :rule-group="innerRow.group"
                   :rule-id="innerRow.id"
@@ -336,7 +336,7 @@ export default {
         this.innerRows.push({group: action.group, id: uuidv4(), rule: {}});
       } else {
         try {
-          if (action.first) {
+          if (action.onlyRule) {
             const firstElement = this.innerRows.filter(data => data.group === action.group)[0];
             firstElement.rule = {};
           }
@@ -421,6 +421,7 @@ export default {
     async fetchParticipants(params) {
       let newParticipants = '';
       console.log("Fetching participants");
+      console.log("count of rules" , this.outerRows.length + this.innerRows.length)
       if (Object.keys(params.conditions).length === 0) {
         this.removedPatients = ("+ " + this.spacedNumber(Math.abs(parseInt(this.participantNumber.replace(/\s/g, ''))
             - this.initialParticipants)))
