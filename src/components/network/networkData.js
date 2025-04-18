@@ -26,10 +26,7 @@ export const options = {
    }
 };
 
-//import crypto from "crypto";
-//import {authState, checkLogin, getCookie} from '@/components/authentication/auth.js';
-
-
+// Save Load Network State
 export function saveNetworkState(contextValue, networkState) {
   if (contextValue) {
     const key = `context_${contextValue}`;
@@ -71,7 +68,7 @@ export function clearNetworkState(contextValue) {
   }
 }
 
-
+//TODO delete?
 export const nodeData = [
   { id: 1, label: 'EGFR', group: 'Protein' },
   { id: 2, label: 'TP53', group: 'Protein' },

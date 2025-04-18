@@ -12,7 +12,7 @@
   <v-row>
     <v-col cols="4">
       <v-text-field
-        v-model="internalTopNodesNumber"
+        v-model.number="internalTopNodesNumber"
         :label="internalTopPerNodeCount ? 'Top significant Nodes per Type' : 'Top significant Nodes'"
         type="number"
         :rules="[value => (value >= 1 && value <= 50) || 'Must be between 1 and 50']"

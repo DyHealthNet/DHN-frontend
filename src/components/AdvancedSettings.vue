@@ -10,13 +10,13 @@
                                :sign-thresh="signThresh"
                                :disable-selections="disableSelections"
                                :show-mult-test="showMultTest"
-                               :showHeader="showHeader"
+                               :show-header="showHeader"
                                :headerText="headerText"
                                @data-changed="updateData" />
           <template v-if="topNodesNumber != null && topPerNodeCount != null">
             <v-divider class="my-4"></v-divider>
-            <NetworkEdgeLine :topNodesNumber="topNodesNumber"
-                             :topPerNodeCount="topPerNodeCount"
+            <NetworkEdgeLine :top-nodes-number="topNodesNumber"
+                             :top-per-node-count="topPerNodeCount"
                                @data-changed="updateData" />
           </template>
         </v-expansion-panel-text>

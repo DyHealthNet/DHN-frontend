@@ -18,130 +18,8 @@
       <v-container class="mt-4">
         <FilterToolbar :disable-move="true" @change-context="updateData"></FilterToolbar>
         <!-- Network Input -->
-        <v-card outlined>
-           <v-toolbar color="primary-darken-1" density="compact">
-            <v-toolbar-title>
-              Network Input
-              <v-tooltip bottom>
-                <template v-slot:activator="{ props }">
-                  <v-icon v-bind="props">mdi-information</v-icon>
-                </template>
-                <span>
-                  Find Nodes by their internal ID, display name or description and send them to the Network display.
-                </span>
-              </v-tooltip>
-            </v-toolbar-title>
-          </v-toolbar>
-
-          <v-card-text>
-            <div class="ma-2">
-              <v-row align="center">
-                <v-col cols="10" class="d-flex align-center">
-                  <v-text-field
-                      v-model="searchText"
-                      density="compact"
-                      variant="outlined"
-                      :clearable="!isReadOnly && (searchText && searchText.length > 0)"
-                      label="Select one or a list of nodes"
-                      @input="fetchNodeRecommendations($event)"
-                      @keydown.arrow-down.prevent="moveFocus('down')"
-                      @keydown.arrow-up.prevent="moveFocus('up')"
-                      @keydown.enter.prevent="selectFocusedItem"
-                      @keydown.esc.prevent="closeDropdown"
-                      hide-details
-                      class="mb-0"
-                      @focus="showDropdown = true"
-                      ref="textField"
-                      :readonly="isReadOnly"
-                      @click:clear="handleClearNodeInput"
-                    ><template v-slot:append>
-                    <v-btn
-                      v-if="isReadOnly"
-                      icon
-                      @click="editText"
-                    >
-                      <v-icon color="primary-darken-1">mdi-pencil</v-icon>
-                    </v-btn>
-                  </template></v-text-field>
-                    </v-col>
-                  <v-col cols="2" class="d-flex align-center">
-                  <v-btn color="primary-darken-1" block class="mt-0 mb-0" @click="sendToNetwork" :disabled="!selectedNodes.length" elevation="1">
-                    <v-icon class="my-0 mr-2">mdi-arrow-down</v-icon>
-                    Send to Network
-                  </v-btn>
-                </v-col>
-              </v-row>
-
-              <!-- Dropdown List -->
-              <v-row v-if="limitedDropdownNodes.length && !isReadOnly">
-                <v-col cols="12">
-                  <v-card class="dropdown"
-                    v-if="showDropdown && limitedDropdownNodes.length"
-                    ref="dropdownMenu"
-                    tabindex="0">
-                    <v-list>
-                      <v-list-item
-                            v-for="(item, index) in limitedDropdownNodes"
-                            :key="index"
-                            @click="addPerDropDown(item)"
-                            @mouseover="hoverNode(item)"
-                            @mouseleave="hoverNodeLeave"
-                            :class="{ 'text-primary': index === activeIndex }"
-                            :color="index === activeIndex ? 'primary' : ''"
-                            class="d-flex align-center text-truncate"
-                          >
-                          <!-- Icon Section -->
-                          <v-icon
-                            class="me-3"
-                            size="32"
-                            color="transparent"
-                          >
-                          <v-img
-                          :src="getIcon(getPrettyType(item.source_table))"
-                          alt="icon"
-                          max-width="32"
-                          max-height="32"
-                          class="me-0 rounded-circle"
-                          ></v-img>
-                            </v-icon>
-                          <!-- Text Section -->
-                        <span class="text-subtitle-1">
-                          {{`${item.display_name} (${item.id})` }}
-                          </span>
-                      </v-list-item>
-                    </v-list>
-                  </v-card>
-                </v-col>
-              </v-row>
-
-              <!-- Tooltip for Hovered Item (outside dropdown) -->
-              <teleport to="body">
-                <div v-if="hoveredItem" class="tooltip" :style="tooltipStyle">
-                  <strong>ID:</strong> {{ hoveredItem.id }}<br />
-                  <strong>Display Name:</strong> {{ hoveredItem.display_name }}<br />
-                  <strong>Node Type:</strong> {{ hoveredItem.source_table }}<br />
-                  <strong>Description:</strong> {{ hoveredItem.description }}
-                </div>
-              </teleport>
-              <v-row>
-                <v-col>
-                    <AdvancedSettings :selected-tests="selectedTests"
-                                        :signThresh="signThresh"
-                                        :disable-selections="disableSelections"
-                                        :show-mult-test="true"
-                                        :show-header="true"
-                                        :use-advanced-title="true"
-                                        expansion-panel-variant="default"
-                                        header-text="Network Statistics Configuration"
-                                        @data-changed="addSettings"
-                                        :topNodesNumber="topNodesNumber"
-                                        :topPerNodeCount="topPerNodeCount"
-                                        />
-                </v-col>
-              </v-row>
-            </div>
-          </v-card-text>
-        </v-card>
+        <NodeInput @send-to-network="sendToNetwork" @save-state="saveState" @clear-network="clearNetwork"
+                   ref="nodeInputComponent"/>
 
         <!-- Network Visualization & Analysis -->
         <v-card outlined class="mt-4" expand>
@@ -217,7 +95,7 @@
                     />
                   </template>
                   <template v-else-if="displayedElementType === 'edge'">
-                    <EdgeDetails :getIcon="getIcon" :edge="displayedElement" :selectedTests="selectedTests"/>
+                    <EdgeDetails :getIcon="getIcon" :edge="displayedElement" :selectedTests="store.selectedTests"/>
                   </template>
                   <p v-else>No element selected. You can inspect a node or an edge by clicking on it.</p>
                 </v-expansion-panel-text>
@@ -241,10 +119,10 @@
                       </v-col>
                     </v-row>
                     <v-divider class="my-4"></v-divider>
-                    <span v-if="selectedNetworkNodes.length === 0">
+                    <span v-if="store.selectedNetworkNodes.length === 0">
                           No node selected. Double click on a node to add it to this panel or select it via the Details panel.
                     </span>
-                    <v-table dense v-else="selectedNetworkNodes.length === 0">
+                    <v-table dense v-else="store.selectedNetworkNodes.length === 0">
                       <thead>
                         <tr>
                           <th>Name</th>
@@ -253,9 +131,9 @@
                         </tr>
                       </thead>
                       <tbody>
-                        <tr v-for="(node, index) in selectedNetworkNodes" :key="node.id">
+                        <tr v-for="(node, index) in store.selectedNetworkNodes" :key="node.id">
                           <td>{{ node.display_name }}</td>
-                          <td>{{ this.getPrettyType(node.source_table) }}</td>
+                          <td>{{ getPrettyType(node.source_table) }}</td>
                           <td>
                             <v-btn
                               size="small"
@@ -294,20 +172,20 @@
                         correction if changeable and if we don't want the user to only be able to set it
                         in Advanced Settings -->
                         <v-btn
-                          :disabled="selectedNetworkNodes.length !== 1"
+                          :disabled="store.selectedNetworkNodes.length !== 1"
                           color="primary-darken-1"
                           block
-                          :class="{'grey lighten-2': selectedNetworkNodes.length !== 1}"
+                          :class="{'grey lighten-2': store.selectedNetworkNodes.length !== 1}"
                           @click="connectIndividualNode()"
                         >Significance Filtering</v-btn>
                       </v-col>
                       <!-- TODO Add a settings toggle to set the amount of Nodes to be retrieved per type like Manuel did-->
                       <v-col cols="12">
                         <v-btn
-                          :disabled="selectedNetworkNodes.length !== 1"
+                          :disabled="store.selectedNetworkNodes.length !== 1"
                           color="primary-darken-1"
                           block
-                          :class="{'grey lighten-2': selectedNetworkNodes.length !== 1}"
+                          :class="{'grey lighten-2': store.selectedNetworkNodes.length !== 1}"
                           @click="connectIndividualNode(true)"
                         >Node Count</v-btn>
                       </v-col>
@@ -323,20 +201,20 @@
                       <v-col cols="12">
                         <v-btn
                           class="mt-2"
-                          :disabled="selectedNetworkNodes.length <= 1"
+                          :disabled="store.selectedNetworkNodes.length <= 1"
                           color="primary-darken-1"
                           block
-                          :class="{'grey lighten-2': selectedNetworkNodes.length <= 1}"
+                          :class="{'grey lighten-2': store.selectedNetworkNodes.length <= 1}"
                           @click="connectGroupNodes(false)"
                         >Significance Filtering</v-btn>
                         </v-col>
                       <v-col cols="12">
                         <v-btn
                           class="mt-2"
-                          :disabled="selectedNetworkNodes.length <= 1"
+                          :disabled="store.selectedNetworkNodes.length <= 1"
                           color="primary-darken-1"
                           block
-                          :class="{'grey lighten-2': selectedNetworkNodes.length <= 1}"
+                          :class="{'grey lighten-2': store.selectedNetworkNodes.length <= 1}"
                           @click="connectGroupNodes(true)"
                         >Minimum Spanning Tree</v-btn>
                         </v-col>
@@ -446,26 +324,7 @@
           </v-row>
         </v-card>
         <v-row>
-          <div class="ma-2">
-            <v-snackbar
-                v-model="showInfo"
-                :color="infoType"
-            >
-              <v-icon class="my-0 mr-2">
-                mdi-information-outline
-              </v-icon>
-              {{ infoText }}
-
-              <template v-slot:actions>
-                <v-btn
-                    variant="text"
-                    @click="showInfo = false"
-                >
-                  Close
-                </v-btn>
-              </template>
-            </v-snackbar>
-          </div>
+          <PopUp/>
         </v-row>
       </v-container>
     </v-main>
@@ -473,42 +332,49 @@
 </template>
 
 <script>
-import AdvancedSettings from "@/components/AdvancedSettings.vue";
 import FilterToolbar from "@/components/FilterToolbar.vue";
+
+import PopUp from "@/components/PopUp.vue";
+//import AdvancedSettings from "@/components/AdvancedSettings.vue";
+//import StatisticalTestLine from "@/components/StatisticalTestLine.vue";
+//import NetworkEdgeLine from "@/components/network/NetworkEdgeLine.vue";
+
+import NodeInput from "@/components/network/NodeInput.vue";
+
 import {BASE_URL, isLoading, setIsLoading} from "@/components/constants.js";
+import {getIcon, getPrettyType, capitalizeFirstLetter} from "@/components/generalFunctions.js";
 import {groups, loadNetworkState, saveNetworkState} from "../components/network/networkData.js";
 import NodeDetails from '@/components/network/NodeDetails.vue';
 import EdgeDetails from '@/components/network/EdgeDetails.vue';
 import {DataSet, Network} from "vis-network/standalone/esm/vis-network.js";
 import {getCookie} from "@/components/authentication/auth.js";
-import StatisticalTestLine from "@/components/StatisticalTestLine.vue";
-import NetworkEdgeLine from "@/components/network/NetworkEdgeLine.vue";
 import {useTheme} from 'vuetify';
 
+import { nodeInputStore } from '@/stores/nodeInputStore'
+import { popUpStore } from '@/stores/popUpStore.js'
 
 
 export default {
   components: {
-    StatisticalTestLine, FilterToolbar, AdvancedSettings, NodeDetails, NetworkEdgeLine,
-    EdgeDetails},
+    PopUp, FilterToolbar, NodeInput, NodeDetails, EdgeDetails},
   data() {
     return {
       // context filter
       contextValue: null,
-      disableSelections: false,
+      //disableSelections: false,
 
       // Network Input values
-      searchText: "",
-      selectedNodes: [],
-      typeaheadresult: [],
-      dropdownNodes: [],
-      debounceTimeout: null,
-      showDropdown: false,
-      isReadOnly: false,  // Boolean flag to track read-only state
+      //searchText: "",
+      //selectedNodes: [],
+      //typeaheadresult: [],
+      //dropdownNodes: [],
+      //debounceTimeout: null,
+      //showDropdown: false,
+      //isReadOnly: false,  // Boolean flag to track read-only state
 
-      hoveredItem: null,
-      tooltipStyle: {},
-      activeIndex: -1, // Tracks which item is focused
+      //hoveredItem: null,
+      //tooltipStyle: {},
+      //activeIndex: -1, // Tracks which item is focused
 
       imageUrl: null, // Holds the image URL to be downloaded
       imageText: "static-network",
@@ -533,35 +399,41 @@ export default {
       isDetailsNodeSelected: false,
       includedNodeTypes: new Set(), // stores type currently present in network for Legend
 
-      selectedNetworkNodes: [],
+      //selectedNetworkNodes: [],
       selectAll: false,
       clearNetworkWarn: false,
 
       // Advanced Settings (default) values
-      selectedTests: {
-        catCat: {label: 'Chi-squared test', value: 'chi2'}, catContM: {label: 'ANOVA', value: 'anova'},
-        multTest: {label: 'Benjamini Hochberg (FDR)', value: 'benjamini_hb'},
-        catContB: {label: 'T-test', value: 'ttest'}, contCont: {label: 'Pearson correlation', value: 'pearson'}
-      },
-      signThresh: 0.999,
+      // selectedTests: {
+      //   catCat: {label: 'Chi-squared test', value: 'chi2'}, catContM: {label: 'ANOVA', value: 'anova'},
+      //   multTest: {label: 'Benjamini Hochberg (FDR)', value: 'benjamini_hb'},
+      //   catContB: {label: 'T-test', value: 'ttest'}, contCont: {label: 'Pearson correlation', value: 'pearson'}
+      // },
+      // signThresh: 0.999,
       fixThreshold: true,
-      topNodesNumber: 5,
-      topPerNodeCount: true,
+      //topNodesNumber: 5,
+      //topPerNodeCount: true,
 
       // Popup
-      showInfo: false,
-      infoType: "info", // "error" "success"
-      infoText: "",
+      //showInfo: false,
+      //infoType: "info", // "error" "success"
+      //infoText: "",
 
     };
   },
   computed: {
+    store() {
+      return nodeInputStore(); // this makes this.store available
+    },
+    popUpStore() {
+      return popUpStore(); // this makes this.store available
+    },
     groups() {
       return groups
     },
     // Limit the number of displayed nodes to 5
     limitedDropdownNodes() {
-      return this.dropdownNodes.slice(0, 5);
+      return store.dropdownNodes.slice(0, 5);
     },
     downloadFileName() {
       const currentDate = new Date().toLocaleDateString().replace(/\//g, '-'); // Formatting the date as 'MM-DD-YYYY'
@@ -569,366 +441,41 @@ export default {
     },
   },
   methods: {
-    // Network Input methods
-    // This should return the last typed string that is following the display names of the selected nodes seperated by commas
-    getLastTypedString() {
-      console.log("getLastTypedString");
-      console.log("searchText: ", this.searchText);
-      if (!this.searchText) {
-        return null; // If searchText is empty, return an empty string
-      }
-      // Split by commas, trim whitespace, and return the last part
-      const parts = this.searchText.split(",").map((part) => part.trim());
-      return parts[parts.length - 1];
-    },
-    deleteNodesNotInSearchText(){
-      this.selectedNodes = this.selectedNodes.filter(node =>
-        this.searchText.includes(node.display_name) || this.searchText.includes(node.id)
-      );
-    },
-    async fetchNodeRecommendations(event) {
-      if (event && event.inputType) {
-        if (event.inputType === "deleteContentBackward" || event.inputType === "deleteContentForward") {
-          console.log("Somethings getting deleted");
-          this.deleteNodesNotInSearchText();
-          console.log("this.selectedNodes", this.selectedNodes);
-        }
-        else if (event.inputType === "insertText" || event.inputType === "insertFromPaste") {
-          const lastChar = this.searchText[this.searchText.length - 1];
-          if (lastChar === ",") {
-            console.log("Comma was typed.");
-            await this.findNodeMatch();
-            this.typeaheadresult = [];
-            this.hoveredItem = null;
-            return;
-          }
-        }
-      }
-      const search = this.getLastTypedString();
+    getIcon,
+    getPrettyType,
+    capitalizeFirstLetter,
 
-      // Clear any previous debounce timeout
-      if (this.debounceTimeout) clearTimeout(this.debounceTimeout);
-
-      // Set a new debounce timeout
-      this.debounceTimeout = setTimeout(async () => {
-        if (!search) {
-          this.typeaheadresult = [];
-          this.hoveredItem = null;
-          return;
-        }
-
-        try {
-          const csrfToken = getCookie('csrftoken');
-          const apiUrl =
-                BASE_URL +
-                "/network/api/getTypeaheadResults/" +
-                "?s=" +
-                encodeURIComponent(search) +
-                "&c=" +
-                (this.contextValue != null ? encodeURIComponent(this.contextValue) : "");
-
-          const response = await fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': csrfToken,
-            },
-            credentials: 'include',
-          });
-
-          if (!response.ok) throw new Error("Network response was not ok");
-
-          const data = await response.json();
-
-          // Map the response data and filter out already selected nodes
-          this.typeaheadresult = Object.entries(data).map(([id, details]) => ({
-            id,
-            display_name: details.display_name,
-            description: details.description,
-            source_table: details.source_table,
-            x_refs: details.x_refs,
-          }));
-
-          this.dropdownNodes = this.typeaheadresult.filter(node =>
-            !this.selectedNodes.some(selected => selected.id === node.id)
-          );
-        } catch (error) {
-          console.error("Error fetching data:", error);
-          this.typeaheadresult = [];
-          this.dropdownNodes = [];
-        }
-      }, 300); // Debounce delay in milliseconds
-    },
-    updateSearchText(){
-      console.log("updateSearchText");
-      const search = this.getLastTypedString();
-      console.log("search", search);
-      console.log("this.selectedNodes", this.selectedNodes);
-      const nodeNames = this.selectedNodes
-        .filter(node => node && node.display_name)
-        .map(node => node.display_name);
-      console.log("searchText", this.searchText);
-      console.log("nodeNames", nodeNames);
-      this.searchText = nodeNames.length > 0 ? nodeNames.join(", ") + (search ? ", " + search : ",") : search;
-      console.log("searchText", this.searchText);
-    },
-    addPerDropDown(item) {
-      // Re-join the array into comma-separated searchText
-      //this.searchText = searchTextParts.join(', ') + ', ';
-      this.deleteNodesNotInSearchText();
-      this.selectedNodes.push(item);
-      this.updateSearchText();
-      this.fetchNodeRecommendations();
-      // this.dropdownNodes = [];
-      // this.hoverNodeLeave();
-      console.log("this.searchText: ", this.searchText)
-      console.log("this.selectedNodes: ", this.selectedNodes)
-
-      // Focus the input field and move the cursor to the end
-      this.$nextTick(() => {
-        const input = this.$refs.textField.$el.querySelector('input');
-        input.focus();
-        input.setSelectionRange(this.searchText.length, this.searchText.length);
-      });
-    },
-    async fetchNodeMatch(search) {
-      if (!search) return [];
-      try {
-        const csrfToken = getCookie('csrftoken');
-        const apiUrl =
-                BASE_URL +
-                "/network/api/getTypeaheadResults/" +
-                "?s=" +
-                encodeURIComponent(search) +
-                "&c=" +
-                (this.contextValue != null ? encodeURIComponent(this.contextValue) : "");
-        const response = await fetch(apiUrl, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken,
-          },
-          credentials: 'include',
-        });
-
-        if (!response.ok) throw new Error("Network response was not ok");
-
-        const data = await response.json();
-
-        // Map response data and filter out already selected nodes
-        return Object.entries(data)
-          .map(([id, details]) => ({
-            id,
-            display_name: details.display_name,
-            description: details.description,
-            source_table: details.source_table,
-            x_refs: details.x_refs,
-          }))
-          .filter(node => !this.selectedNodes.some(selected => selected.id === node.id));
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        return [];
-      }
-    },
-    async findNodeMatch() {
-      console.log("findNodeMatch")
-      const searchElements = this.searchText.split(',').map(element => element.trim()).slice(0, -1);
-      for (const element of searchElements) {
-        console.log("curr element", element)
-        if (!this.selectedNodes.some(node => node.display_name === element || node.id === element)) {
-          console.log("not in selected nodes")
-          try {
-            const response = await this.fetchNodeMatch(element); // Assume this function exists
-            if (response) {
-              const match = response[0];
-              if (response.length > 1){
-                const match_sec = response[1];
-                if (match_sec.display_name === element || match_sec.id === element) {
-                  console.log("response.length >= 1")
-                  this.infoText = "The typed node description is not unique. " +
-                      "Please select the desired node from the dropdown menu or use the unique internal id."
-                  this.infoType = "info";
-                  this.showInfo = true;
-                  continue;
-                }
-              }
-              if (match.display_name === element || match.id === element) {
-                console.log("match matched")
-                console.log("match", match)
-                console.log("this.selectedNodes", this.selectedNodes)
-                if (!this.selectedNodes.some(node => node.id === match.id)) {
-                  this.selectedNodes.push(match); // Add the matched node from backend
-                }
-              }
-            }
-          } catch (error) {
-            console.error(`Backend search failed for: ${element}`, error);
-            this.infoText = "The typed node cannot be found in the database."
-            this.infoType =  "info";
-            this.showInfo =  true;
-          }
-        }
-      }
-      this.updateSearchText();
-    },
-    hoverNode(item) {
-      if (!this.hoveredItem || this.hoveredItem !== item) {
-        this.hoveredItem = item;
-
-        if (item) {
-          const dropdown = this.$refs.dropdownMenu?.$el; // Accessing the actual DOM element
-          const dropdownRect = dropdown.getBoundingClientRect();
-          const centerX = (window.innerWidth) / 2; // Center of the page
-
-          // Calculate fixed position: right-center of the dropdown
-          this.tooltipStyle = {
-            backgroundColor: `rgb(var(--v-theme-primary-darken-1))`,
-            color: `rgb(var(--v-theme-surface))`,
-            borderRadius: '5px',
-            padding: '10px',
-            position: 'absolute',
-            top: `${dropdownRect.top + dropdownRect.height / 2 + window.scrollY - 80}px`, // Vertically centered
-            left: `${centerX}px`,  // Right of the dropdown
-            zIndex: 1000,
-          };
-        }
-      }
-    },
-    hoverNodeLeave() {
-      // Hide the tooltip when the item is no longer hovered
-      this.hoveredItem = null;
-      this.activeIndex = -1;
-    },
-    getIcon(sourceTable) {
-      switch (sourceTable) {
-        case 'Protein':
-          return new URL('../assets/figures/proteins.png', import.meta.url).href;
-        case 'Metabolite':
-          return new URL('../assets/figures/metabolites.png', import.meta.url).href;
-        case 'Variants':
-          return new URL('../assets/figures/genetic_variants.png', import.meta.url).href;
-        default:
-          return new URL('../assets/figures/phenotypes.png', import.meta.url).href;
-      }
-    },
-    getPrettyType(sourceTable) {
-      switch (sourceTable) {
-        case 'cohort_protein':
-          return 'Protein';
-        case 'cohort_metabolite':
-          return 'Metabolite';
-        case 'cohort_variants':
-          return 'Variant';
-        case 'cohort_disorder':
-          return 'Disorder';
-        case 'cohort_phenotype':
-          return 'Phenotype';
-        default:
-          return 'None';
-      }
-    },
-    labelColor(colorName) {
-      // chartjs does not support theme colors so we just directly call the theme color
-      if (this.$vuetify.theme.global.name === 'dyHealthNetTheme') {
-        return this.$vuetify.theme.themes.dyHealthNetTheme.colors[colorName];
-      } else {
-        return this.$vuetify.theme.themes.dyHealthNetThemeDark.colors[colorName];
-      }
-
-    },
-    capitalizeFirstLetter(str) {
-      if (typeof str !== "string" || str.length === 0) return str;
-      return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-    },
-    handleClickOutside(event) {
-      if (this.isReadOnly){
-        this.closeDropdown()
-        return;
-      }
-      const dropdown = this.$refs.dropdownMenu?.$el; // Accessing the actual DOM element
-      const textField = this.$refs.textField?.$el; // Accessing the actual DOM element
-
-      // Check if dropdown and textField are not undefined and if the clicked element is NOT inside either
-      if (
-        dropdown && !dropdown.contains(event.target) &&
-        textField && !textField.contains(event.target)
-      ) {
-        this.closeDropdown()
-        return;
-      }
-    },
-    editText() {
-      this.isReadOnly = false;
-      //this.searchText = '';  // Optionally clear the input
-      //this.selectedNodes = [];  // Optionally clear selected nodes
-    },
-    handleClearNodeInput(){
-      this.searchText = "";
-      this.selectedNodes = [];
-      this.saveState();
-    },
-    moveFocus(direction) {
-      if (this.isReadOnly) return;
-      const length = this.limitedDropdownNodes.length;
-      if (direction === "down") {
-        this.activeIndex = (this.activeIndex + 1) % length;
-      } else if (direction === "up") {
-        if (this.activeIndex === -1) {
-          this.activeIndex = length - 1;  // Start from the last item if moving up from -1
-        } else {
-          this.activeIndex = (this.activeIndex - 1 + length) % length;
-        }
-      }
-       if (this.activeIndex === -1) {
-         return;
-       }
-      this.hoverNode(this.limitedDropdownNodes[this.activeIndex]);
-    },
-    selectFocusedItem() {
-      if (this.activeIndex === -1) {
-         return;
-       }
-      const selectedItem = this.limitedDropdownNodes[this.activeIndex];
-      if (selectedItem) {
-        this.addPerDropDown(selectedItem);
-      }
-    },
-    closeDropdown() {
-      this.showDropdown = false;
-      this.hoveredItem = null;
-      this.activeIndex = -1;
-    },
-    sendToNetwork() {
-      console.log("this.selectedNetworkNodes", this.selectedNetworkNodes)
+        sendToNetwork() {
+      console.log("this.store.selectedNetworkNodes", this.store.selectedNetworkNodes)
       // Send selectedNodes to networkNodes and reset selectedNodes
-      this.networkNodes= [];
+      this.networkNodes = [];
       // filter selected Nodes for presence in searchText (if user deletes them)
-      this.selectedNodes = this.selectedNodes.filter(node =>
-        this.searchText.includes(node.display_name) || this.searchText.includes(node.id)
+      this.store.selectedNodes = this.store.selectedNodes.filter(node =>
+          this.store.searchText.includes(node.display_name) || this.store.searchText.includes(node.id)
       );
-      this.networkNodes = this.selectedNodes.map((node) => ({
-          ...node,
-          set: "CHRIS", //TODO change to internal/cohort or smth when backend became more modular
-        }));
+      this.networkNodes = this.store.selectedNodes.map((node) => ({
+        ...node,
+        set: "CHRIS", //TODO change to internal/cohort or smth when backend became more modular
+      }));
       console.log("this.networkNodes", this.networkNodes)
       // check that all selected nodes are unique and still present in the network
-      this.selectedNetworkNodes = this.selectedNetworkNodes
-        .filter(node => this.networkNodes.some(networkNode => networkNode.id === node.id))
-        .reduce((unique, node) => {
-          if (!unique.some(n => n.id === node.id)) {
-            unique.push(node);
-          }
-          return unique;
-        }, []);
-      console.log("this.selectedNetworkNodes", this.selectedNetworkNodes)
+      this.store.selectedNetworkNodes = this.store.selectedNetworkNodes
+          .filter(node => this.networkNodes.some(networkNode => networkNode.id === node.id))
+          .reduce((unique, node) => {
+            if (!unique.some(n => n.id === node.id)) {
+              unique.push(node);
+            }
+            return unique;
+          }, []);
+      console.log("this.store.selectedNetworkNodes", this.store.selectedNetworkNodes)
       // make searchText pretty
-      const nodeNames = this.selectedNodes
-        .filter(node => node && node.display_name)
-        .map(node => node.display_name);
-      this.searchText = nodeNames.length > 0 ? nodeNames.join(", ") : "";
-      this.isReadOnly = true;
-      this.closeDropdown();
-      //this.selectedNodes = []; // Clear the selection
+      const nodeNames = this.store.selectedNodes
+          .filter(node => node && node.display_name)
+          .map(node => node.display_name);
+      this.store.searchText = nodeNames.length > 0 ? nodeNames.join(", ") : "";
+      this.store.isReadOnly = true;
+      this.$refs.nodeInputComponent.closeDropdown();
+      //this.store.selectedNodes = []; // Clear the selection
       this.filterForNetworkEdges();
 
       this.initializeNetwork();
@@ -981,16 +528,16 @@ export default {
             const clickedNode = this.networkNodes.find(
               (currentNode) => currentNode.id === params.nodes[0]
             );
-            const existingNodeIndex = this.selectedNetworkNodes.findIndex(
+            const existingNodeIndex = this.store.selectedNetworkNodes.findIndex(
               (node) => node.id === clickedNode.id
             );
 
             if (existingNodeIndex !== -1) {
               // If the node exists, remove it from the array
-              this.selectedNetworkNodes.splice(existingNodeIndex, 1);
+              this.store.selectedNetworkNodes.splice(existingNodeIndex, 1);
             } else {
               // If the node doesn't exist, add it to the array
-              this.selectedNetworkNodes.push(clickedNode);
+              this.store.selectedNetworkNodes.push(clickedNode);
             }
             this.displayNode(clickedNode);
             this.checkSelectAll();
@@ -1021,42 +568,42 @@ export default {
       this.displayedElementType = "edge";
     },
     isNodeInNetworkSelected(node) {
-      return this.selectedNetworkNodes.some(existingNode => existingNode.id === node.id);
+      return this.store.selectedNetworkNodes.some(existingNode => existingNode.id === node.id);
 
     },
     toggleNetworkNodeSelection() {
-      const index = this.selectedNetworkNodes.findIndex(n => n.id === this.displayedElement.id); // Check for the node by unique identifier (id)
+      const index = this.store.selectedNetworkNodes.findIndex(n => n.id === this.displayedElement.id); // Check for the node by unique identifier (id)
 
       if (this.isDetailsNodeSelected && index === -1) {
-        this.selectedNetworkNodes.push(this.displayedElement);
+        this.store.selectedNetworkNodes.push(this.displayedElement);
         this.updateDesign();
       } else if (!this.isDetailsNodeSelected && index !== -1) {
-        this.selectedNetworkNodes.splice(index, 1);
+        this.store.selectedNetworkNodes.splice(index, 1);
       }
       this.checkSelectAll();
     },
     toggleALLNetworkNodeSelection(){
       if(this.selectAll) {
         for (const node of this.networkNodes) {
-          if (!this.selectedNetworkNodes.includes(node)) {
-            this.selectedNetworkNodes.push(node);  // Add the node if it's not already selected
+          if (!this.store.selectedNetworkNodes.includes(node)) {
+            this.store.selectedNetworkNodes.push(node);  // Add the node if it's not already selected
           }
         }
       }
       else{
-        this.selectedNetworkNodes = [];
+        this.store.selectedNetworkNodes = [];
       }
       this.updateDesign();
     },
     removeSelectedNetworkNode(index){
-      this.selectedNetworkNodes.splice(index, 1);
+      this.store.selectedNetworkNodes.splice(index, 1);
       this.updateDesign();
       this.checkSelectAll();
     },
     checkSelectAll(){
-      if (this.selectedNetworkNodes.length === 0){
+      if (this.store.selectedNetworkNodes.length === 0){
         this.selectAll = false;
-      } else if (this.selectedNetworkNodes.length === this.networkNodes.length) {
+      } else if (this.store.selectedNetworkNodes.length === this.networkNodes.length) {
         this.selectAll = true;
       }
     },
@@ -1075,7 +622,7 @@ export default {
     // },
     async connectIndividualNode(count=false) {
       // Use the first element of selectedNetworkNodes
-      const firstNode = this.selectedNetworkNodes?.[0];
+      const firstNode = this.store.selectedNetworkNodes?.[0];
 
       if (firstNode) {
 
@@ -1091,8 +638,8 @@ export default {
     },
     async connectGroupNodes(minSpanTree) {
       // Check if selectedNetworkNodes is not null/undefined and has at least two elements
-      if (this.selectedNetworkNodes && this.selectedNetworkNodes.length > 1) {
-        const filteredNodeIds = this.selectedNetworkNodes
+      if (this.store.selectedNetworkNodes && this.store.selectedNetworkNodes.length > 1) {
+        const filteredNodeIds = this.store.selectedNetworkNodes
             .filter(node => node.set === "CHRIS")  // Filter nodes with .set == "CHRIS"
             .map(node => node.id);  // Extract the node IDs
         if (filteredNodeIds.length === 0) {
@@ -1129,7 +676,7 @@ export default {
           this.signThresh +
             (this.contextValue != null ? "&c=" + encodeURIComponent(this.contextValue) : "") +
           "&o=" +
-          JSON.stringify(this.selectedTests);
+          JSON.stringify(this.store.selectedTests);
 
         const response = await fetch(api_string, {
           method: 'GET',
@@ -1145,9 +692,9 @@ export default {
         }
         const data = await response.json();
         if (data.message != ""){
-          this.infoText = data.message;
-          this.infoType = "info";
-          this.showInfo = true;
+          this.popUpStore.infoText = data.message;
+          this.popUpStore.infoType = "info";
+          this.popUpStore.showInfo = true;
         }
 
         this.setNetworkNodes(data);
@@ -1172,7 +719,7 @@ export default {
           this.signThresh +
             (this.contextValue != null ? "&c=" + encodeURIComponent(this.contextValue) : "") +
           "&o=" +
-          JSON.stringify(this.selectedTests) +
+          JSON.stringify(this.store.selectedTests) +
           "&m=" +
           encodeURIComponent(minSpanTree);
 
@@ -1205,9 +752,9 @@ export default {
           this.allInternalEdges = this.networkEdges;
         }
         if (data.message != ""){
-          this.infoText = data.message;
-          this.infoType = "error";
-          this.showInfo = true;
+          this.popUpStore.infoText = data.message;
+          this.popUpStore.infoType = "error";
+          this.popUpStore.showInfo = true;
         }
         this.setNetworkNodes(data);
 
@@ -1316,7 +863,7 @@ export default {
       // Update nodes with conditional styling
       const updatedNodes = this.vis_network_nodes.get().map(node => {
         const isDisplayed = this.displayedElementType === 'node' && this.displayedElement.id === node.id;
-        const isSelected = this.selectedNetworkNodes.some(n => n.id === node.id);
+        const isSelected = this.store.selectedNetworkNodes.some(n => n.id === node.id);
 
         let updatedNode = {
           ...node,
@@ -1377,6 +924,15 @@ export default {
       }
       return { borderRadius: "50%", backgroundColor: color, width: "20px", height: "20px" };
     },
+    labelColor(colorName) {
+      // chartjs does not support theme colors so we just directly call the theme color
+      if (this.$vuetify.theme.global.name === 'dyHealthNetTheme') {
+        return this.$vuetify.theme.themes.dyHealthNetTheme.colors[colorName];
+      } else {
+        return this.$vuetify.theme.themes.dyHealthNetThemeDark.colors[colorName];
+      }
+
+    },
     updatePhysics() {
       // Update the physics option dynamically
       const newPhysicsOption = {
@@ -1401,7 +957,7 @@ export default {
       this.displayedElement = null;
       this.displayedElementType = null;
       this.isDetailsNodeSelected = false;
-      this.selectedNetworkNodes = [];
+      this.store.selectedNetworkNodes = [];
       if(full){
         this.initializeNetwork();
         this.updateDesign(saveState);
@@ -1413,7 +969,7 @@ export default {
       //console.log("clearUnselectedNodes", this.vis_network_nodes);
       this.clearNetworkWarn = false;
       // Set to only selected Nodes
-      this.networkNodes =  [...this.selectedNetworkNodes];
+      this.networkNodes =  [...this.store.selectedNetworkNodes];
       // filter edges now
       this.filterForNetworkEdges();
       // override internal edges with filtered edges
@@ -1428,7 +984,7 @@ export default {
     //     const nodes = this.vis_network_nodes.get();
     //     const edges = this.vis_network_edges.get();
     //
-    //     const exportData = { options: this.selectedTests, nodes: nodes, edges: edges };
+    //     const exportData = { options: this.store.selectedTests, nodes: nodes, edges: edges };
     //     const dataStr = JSON.stringify(exportData, null, 2);
     //     const blob = new Blob([dataStr], { type: "application/json" });
     //
@@ -1517,44 +1073,28 @@ export default {
       }
     },
 
-    // Advanced Settings methods
-    addSettings(data) {
-      //console.log("data: ", data)
-      Object.entries(data).forEach(([key, value]) => {
-        if (key in this) {
-          this[key] = value; // Update the corresponding variable in the parent
-        } else {
-          console.warn(`Unhandled key: ${key}`);
-        }
-      });
-      const selectedNodesSave = this.selectedNetworkNodes;
-      this.clearNetwork(false);
-      this.selectedNetworkNodes = selectedNodesSave;
-      this.sendToNetwork();
-    },
-
     // Context methods
     async updateData(val) {
       //console.log("updateData val ", val)
       this.contextValue = val ? val.value : null;
       const context = await this.getContexts(this.contextValue);
-      this.searchText = "";
-      this.selectedNodes = [];
+      this.store.searchText = "";
+      this.store.selectedNodes = [];
       this.isReadOnly = false;
-      this.dropdownNodes= [];
+      this.store.dropdownNodes= [];
       if (context) {
         console.log("context.content.contextName",context.content.contextName)
         console.log("context.content.tests",context.content.tests)
-        this.selectedTests['catCat'] = context.content.tests['catCat'];
-        this.selectedTests['catContM'] = context.content.tests['catContM'];
-        this.selectedTests['catContB'] = context.content.tests['catContB'];
-        this.selectedTests['contCont'] = context.content.tests['contCont'];
-        //this.selectedTests = context.content.tests
+        this.store.selectedTests['catCat'] = context.content.tests['catCat'];
+        this.store.selectedTests['catContM'] = context.content.tests['catContM'];
+        this.store.selectedTests['catContB'] = context.content.tests['catContB'];
+        this.store.selectedTests['contCont'] = context.content.tests['contCont'];
+        //this.store.selectedTests = context.content.tests
         this.disableSelections = true;
         this.clearNetwork(true,false);
       }
       else{
-        this.selectedTests =  {
+        this.store.selectedTests =  {
           catCat: {label: 'Chi-squared test', value: 'chi2'}, catContM: {label: 'ANOVA', value: 'anova'},
           multTest: {label: 'Benjamini Hochberg (FDR)', value: 'benjamini_hb'},
           catContB: {label: 'T-test', value: 'ttest'}, contCont: {label: 'Pearson correlation', value: 'pearson'}};
@@ -1597,9 +1137,9 @@ export default {
       const nodes = this.vis_network_nodes.get();
       const edges = this.vis_network_edges.get();
       const user_settings = {
-        selectedNodes: this.selectedNodes,
-        selectedNetworkNodes: this.selectedNetworkNodes,
-        selectedTests: this.selectedTests,
+        selectedNodes: this.store.selectedNodes,
+        selectedNetworkNodes: this.store.selectedNetworkNodes,
+        selectedTests: this.store.selectedTests,
         signThresh: this.signThresh,
         fixThreshold: this.fixThreshold,
         topNodesNumber: this.topNodesNumber,
@@ -1621,12 +1161,13 @@ export default {
         this.networkEdges = edges;
         this.physics_on = vis_options.physics.enabled;
 
-        this.selectedNodes = user_settings.selectedNodes;
+        this.store.selectedNodes = user_settings.selectedNodes;
         this.selectAll = user_settings.selectAll;
-        this.updateSearchText();
+        this.$refs.nodeInputComponent.updateSearchText();
+        //this.updateSearchText();
 
-        this.selectedNetworkNodes = user_settings.selectedNetworkNodes;
-        this.selectedTests = user_settings.selectedTests;
+        this.store.selectedNetworkNodes = user_settings.selectedNetworkNodes;
+        this.store.selectedTests = user_settings.selectedTests;
         this.signThresh = parseFloat(user_settings.signThresh);
         this.fixThreshold = user_settings.fixThreshold;
         this.topNodesNumber = parseInt(user_settings.topNodesNumber);
@@ -1641,7 +1182,7 @@ export default {
       // Add or remove the global click listener when dropdown visibility changes
       if (newVal) {
         document.addEventListener('click', this.handleClickOutside);
-        this.activeIndex = -1;
+        this.store.activeIndex = -1;
       } else {
         document.removeEventListener('click', this.handleClickOutside);
       }
