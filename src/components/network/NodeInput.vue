@@ -25,13 +25,13 @@
                 :clearable="!store.isReadOnly && (store.searchText && store.searchText.length > 0)"
                 label="Select one or a list of nodes"
                 @input="fetchNodeRecommendations($event)"
-                @keydown.arrow-down.prevent="moveFocus('down')"
-                @keydown.arrow-up.prevent="moveFocus('up')"
-                @keydown.enter.prevent="selectFocusedItem"
+                @keydown.down.prevent="$refs.DropdownHoverComponent.moveFocus('down')"
+                @keydown.up.prevent="$refs.DropdownHoverComponent.moveFocus('up')"
+                @keydown.enter.prevent="$refs.DropdownHoverComponent.selectFocusedItem()"
                 @keydown.esc.prevent="closeDropdown"
                 hide-details
                 class="mb-0"
-                @focus="store.showDropdown = true"
+                @focus="showDropdown = true"
                 ref="textField"
                 :readonly="store.isReadOnly"
                 @click:clear="handleClearNodeInput"
@@ -61,58 +61,10 @@
           </v-btn>
         </v-col>
         </v-row>
-
-        <!-- Dropdown List -->
-        <v-row v-if="limitedDropdownNodes.length && !store.isReadOnly">
-          <v-col cols="12">
-            <v-card class="dropdown"
-                    v-if="store.showDropdown && limitedDropdownNodes.length"
-                    ref="dropdownMenu"
-                    tabindex="0">
-              <v-list>
-                <v-list-item
-                    v-for="(item, index) in limitedDropdownNodes"
-                    :key="index"
-                    @click="addPerDropDown(item)"
-                    @mouseover="hoverNode(item)"
-                    @mouseleave="hoverNodeLeave"
-                    :class="{ 'text-primary': index === store.activeIndex }"
-                    :color="index === store.activeIndex ? 'primary' : ''"
-                    class="d-flex align-center text-truncate"
-                >
-                  <!-- Icon Section -->
-                  <v-icon
-                      class="me-3"
-                      size="32"
-                      color="transparent"
-                  >
-                    <v-img
-                        :src="getIcon(getPrettyType(item.source_table))"
-                        alt="icon"
-                        max-width="32"
-                        max-height="32"
-                        class="me-0 rounded-circle"
-                    ></v-img>
-                  </v-icon>
-                  <!-- Text Section -->
-                  <span class="text-subtitle-1">
-                    {{ `${item.display_name} (${item.id})` }}
-                    </span>
-                </v-list-item>
-              </v-list>
-            </v-card>
-          </v-col>
-        </v-row>
-
-        <!-- Tooltip for Hovered Item (outside dropdown) -->
-        <teleport to="body">
-          <div v-if="store.hoveredItem" class="tooltip" :style="store.tooltipStyle">
-            <strong>ID:</strong> {{ store.hoveredItem.id }}<br/>
-            <strong>Display Name:</strong> {{ store.hoveredItem.display_name }}<br/>
-            <strong>Node Type:</strong> {{ store.hoveredItem.source_table }}<br/>
-            <strong>Description:</strong> {{ store.hoveredItem.description }}
-          </div>
-        </teleport>
+        <DropdownHover :showDropdown="showDropdown" :dropdown-nodes="dropdownNodes"
+                       :is-read-only="store.isReadOnly" :text-field-ref="textFieldRef"
+                       @update:showDropdown="showDropdown = $event"
+                       @add-per-drop-down="addPerDropDown"  ref="DropdownHoverComponent"/>
         <v-row>
           <v-col>
             <AdvancedSettings :selected-tests="store.selectedTests"
@@ -136,22 +88,27 @@
 
 <script>
 import AdvancedSettings from "@/components/AdvancedSettings.vue";
+import DropdownHover from "@/components/DropdownHover.vue";
+
 //import NetworkEdgeLine from "@/components/network/NetworkEdgeLine.vue";
 import {BASE_URL} from "@/components/constants.js";
 import {getCookie} from "@/components/authentication/auth.js";
-import {getIcon, getPrettyType} from "@/components/generalFunctions.js";
 
 import {nodeInputStore} from "@/stores/nodeInputStore";
 import {popUpStore} from "@/stores/popUpStore.js";
 
 export default {
   name: "NodeInput",
-  components: {AdvancedSettings},
+  components: {DropdownHover, AdvancedSettings},
+  emits: ['save-state', 'clear-network', 'send-to-network'],
 
   data() {
     return {
       typeaheadresult: [],
       debounceTimeout: null,
+      textFieldRef: null,
+      showDropdown: false,  // Control dropdown visibility
+      dropdownNodes: [], // List of dropdown items
     };
   },
   computed: {
@@ -161,14 +118,8 @@ export default {
     popUpStore() {
       return popUpStore(); // this makes this.store available
     },
-    limitedDropdownNodes() {
-      return this.store.dropdownNodes.slice(0, 5);
-    },
   },
   methods: {
-    getIcon,
-    getPrettyType,
-    
     // Network Input methods
     // This should return the last typed string that is following the display names of the selected nodes seperated by commas
     getLastTypedString() {
@@ -187,18 +138,18 @@ export default {
       );
     },
     async fetchNodeRecommendations(event) {
+      console.log("this.showDropdown", this.showDropdown);
+      this.showDropdown = true;
       if (event && event.inputType) {
         if (event.inputType === "deleteContentBackward" || event.inputType === "deleteContentForward") {
-          console.log("Somethings getting deleted");
           this.deleteNodesNotInSearchText();
-          console.log("this.store.selectedNodes", this.store.selectedNodes);
         } else if (event.inputType === "insertText" || event.inputType === "insertFromPaste") {
           const lastChar = this.store.searchText[this.store.searchText.length - 1];
           if (lastChar === ",") {
             console.log("Comma was typed.");
             await this.findNodeMatch();
             this.typeaheadresult = [];
-            this.store.hoveredItem = null;
+            this.closeDropdown();
             return;
           }
         }
@@ -212,7 +163,7 @@ export default {
       this.debounceTimeout = setTimeout(async () => {
         if (!search) {
           this.typeaheadresult = [];
-          this.store.hoveredItem = null;
+          this.closeDropdown();
           return;
         }
 
@@ -248,13 +199,13 @@ export default {
             x_refs: details.x_refs,
           }));
 
-          this.store.dropdownNodes = this.typeaheadresult.filter(node =>
+          this.dropdownNodes = this.typeaheadresult.filter(node =>
               !this.store.selectedNodes.some(selected => selected.id === node.id)
           );
         } catch (error) {
           console.error("Error fetching data:", error);
           this.typeaheadresult = [];
-          this.store.dropdownNodes = [];
+          this.dropdownNodes = [];
         }
       }, 300); // Debounce delay in milliseconds
     },
@@ -272,13 +223,14 @@ export default {
       console.log("searchText", this.store.searchText);
     },
     addPerDropDown(item) {
+      console.log("addPerDropDown is called")
       // Re-join the array into comma-separated searchText
       //this.store.searchText = searchTextParts.join(', ') + ', ';
       this.deleteNodesNotInSearchText();
       this.store.selectedNodes.push(item);
       this.updateSearchText();
       this.fetchNodeRecommendations();
-      // this.store.dropdownNodes = [];
+      // this.dropdownNodes = [];
       // this.hoverNodeLeave();
       console.log("this.store.searchText: ", this.store.searchText)
       console.log("this.store.selectedNodes: ", this.store.selectedNodes)
@@ -370,54 +322,6 @@ export default {
       }
       this.updateSearchText();
     },
-    hoverNode(item) {
-      if (!this.store.hoveredItem || this.store.hoveredItem !== item) {
-        this.store.hoveredItem = item;
-
-        if (item) {
-          console.log("I am here")
-          const dropdown = this.$refs.dropdownMenu?.$el; // Accessing the actual DOM element
-          const dropdownRect = dropdown.getBoundingClientRect();
-          const centerX = (window.innerWidth) / 2; // Center of the page
-
-          // Calculate fixed position: right-center of the dropdown
-          this.store.tooltipStyle = {
-            backgroundColor: `rgb(var(--v-theme-primary-darken-1))`,
-            color: `rgb(var(--v-theme-surface))`,
-            borderRadius: '5px',
-            padding: '10px',
-            position: 'absolute',
-            top: `${dropdownRect.top + dropdownRect.height / 2 + window.scrollY - 80}px`, // Vertically centered
-            left: `${centerX}px`,  // Right of the dropdown
-            zIndex: 1000,
-          };
-        }
-        console.log("tooltip style", this.store.tooltipStyle)
-        console.log("tooltip style", this.store.tooltipStyle)
-      }
-    },
-    hoverNodeLeave() {
-      // Hide the tooltip when the item is no longer hovered
-      this.store.hoveredItem = null;
-      this.store.activeIndex = -1;
-    },
-    handleClickOutside(event) {
-      if (this.store.isReadOnly) {
-        this.closeDropdown()
-        return;
-      }
-      const dropdown = this.$refs.dropdownMenu?.$el; // Accessing the actual DOM element
-      const textField = this.$refs.textField?.$el; // Accessing the actual DOM element
-
-      // Check if dropdown and textField are not undefined and if the clicked element is NOT inside either
-      if (
-          dropdown && !dropdown.contains(event.target) &&
-          textField && !textField.contains(event.target)
-      ) {
-        this.closeDropdown()
-        return;
-      }
-    },
     editText() {
       this.store.isReadOnly = false;
       //this.store.searchText = '';  // Optionally clear the input
@@ -429,45 +333,23 @@ export default {
       this.$emit('save-state');
       //this.saveState();
     },
-    moveFocus(direction) {
-      if (this.store.isReadOnly) return;
-      const length = this.limitedDropdownNodes.length;
-      if (direction === "down") {
-        this.store.activeIndex = (this.store.activeIndex + 1) % length;
-      } else if (direction === "up") {
-        if (this.store.activeIndex === -1) {
-          this.store.activeIndex = length - 1;  // Start from the last item if moving up from -1
-        } else {
-          this.store.activeIndex = (this.store.activeIndex - 1 + length) % length;
-        }
-      }
-      if (this.store.activeIndex === -1) {
-        return;
-      }
-      this.hoverNode(this.limitedDropdownNodes[this.store.activeIndex]);
-    },
-    selectFocusedItem() {
-      if (this.store.activeIndex === -1) {
-        return;
-      }
-      const selectedItem = this.limitedDropdownNodes[this.store.activeIndex];
-      if (selectedItem) {
-        this.addPerDropDown(selectedItem);
-      }
-    },
     closeDropdown() {
-      this.store.showDropdown = false;
-      this.store.hoveredItem = null;
-      this.store.activeIndex = -1;
+      console.log("closeDropdown")
+      // forward to Grandchild
+      this.$refs.DropdownHoverComponent.closeDropdown();
     },
     // Advanced Settings methods
     addSettings(data) {
-      //console.log("data: ", data)
+      console.log("data: ", data)
+      console.log("this.store ",this.store)
       Object.entries(data).forEach(([key, value]) => {
         if (key in this.store) {
+          console.log("key: ", key)
+          console.log("this.store[key] before",this.store[key])
           this.store[key] = value; // Update the corresponding variable in the parent
+          console.log("this.store[key] after", this.store[key])
         } else {
-          console.warn(`Unhandled key: ${key}`);
+          console.warn(`Unhandled akey: ${key}`);
         }
       });
       const selectedNodesSave = this.store.selectedNetworkNodes;
@@ -476,27 +358,13 @@ export default {
       this.$emit('send-to-network');
     },
   },
-    watch: {
-    // Watch the store property explicitly
-    'store.showDropdown'(newVal) {
-      if (newVal) {
-        document.addEventListener('click', this.handleClickOutside)
-        this.store.activeIndex = -1
-      } else {
-        document.removeEventListener('click', this.handleClickOutside)
-      }
-    },
-  },
-  beforeUnmount() {
-    document.removeEventListener('click', this.handleClickOutside)
+  mounted() {
+    // Ensure the reference is assigned
+    this.textFieldRef = this.$refs.textField;
   },
 };
 </script>
 
 <style scoped>
 
-.advanced-title {
-  font-size: 2rem !important; /* Add !important to force the style */
-  font-weight: 800;
-}
 </style>

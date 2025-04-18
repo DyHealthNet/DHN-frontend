@@ -361,20 +361,6 @@ export default {
     return {
       // context filter
       contextValue: null,
-      //disableSelections: false,
-
-      // Network Input values
-      //searchText: "",
-      //selectedNodes: [],
-      //typeaheadresult: [],
-      //dropdownNodes: [],
-      //debounceTimeout: null,
-      //showDropdown: false,
-      //isReadOnly: false,  // Boolean flag to track read-only state
-
-      //hoveredItem: null,
-      //tooltipStyle: {},
-      //activeIndex: -1, // Tracks which item is focused
 
       imageUrl: null, // Holds the image URL to be downloaded
       imageText: "static-network",
@@ -399,25 +385,11 @@ export default {
       isDetailsNodeSelected: false,
       includedNodeTypes: new Set(), // stores type currently present in network for Legend
 
-      //selectedNetworkNodes: [],
       selectAll: false,
       clearNetworkWarn: false,
 
       // Advanced Settings (default) values
-      // selectedTests: {
-      //   catCat: {label: 'Chi-squared test', value: 'chi2'}, catContM: {label: 'ANOVA', value: 'anova'},
-      //   multTest: {label: 'Benjamini Hochberg (FDR)', value: 'benjamini_hb'},
-      //   catContB: {label: 'T-test', value: 'ttest'}, contCont: {label: 'Pearson correlation', value: 'pearson'}
-      // },
-      // signThresh: 0.999,
       fixThreshold: true,
-      //topNodesNumber: 5,
-      //topPerNodeCount: true,
-
-      // Popup
-      //showInfo: false,
-      //infoType: "info", // "error" "success"
-      //infoText: "",
 
     };
   },
@@ -445,7 +417,7 @@ export default {
     getPrettyType,
     capitalizeFirstLetter,
 
-        sendToNetwork() {
+    sendToNetwork() {
       console.log("this.store.selectedNetworkNodes", this.store.selectedNetworkNodes)
       // Send selectedNodes to networkNodes and reset selectedNodes
       this.networkNodes = [];
@@ -607,19 +579,6 @@ export default {
         this.selectAll = true;
       }
     },
-    // editThreshold(){
-    //   if (this.fixThreshold){
-    //     // do a popup here asking the user if he/she really wants to change the significance threshold as this
-    //     // would result in inconcistencies or would delete the current network
-    //     this.fixThreshold = false;
-    //   } else {
-    //     // do a popup here asking the user if he/she really wants to change the significance threshold as this
-    //     // would result in inconcistencies or would delete the current network
-    //     this.fixThreshold = true;
-    //     this.signThresh = this.signThreshTemp
-    //     this.clearNetwork();
-    //   }
-    // },
     async connectIndividualNode(count=false) {
       // Use the first element of selectedNetworkNodes
       const firstNode = this.store.selectedNetworkNodes?.[0];
@@ -657,7 +616,7 @@ export default {
         const csrfToken = getCookie('csrftoken');
         const nodeID = node.id;
         const type = node.source_table.split("_")[1];
-        const limit = count ? this.topNodesNumber : "";
+        const limit = count ? this.store.topNodesNumber : "";
         let funct = "getNetwork"
         if (this.contextValue != null){
           funct = "getNetworkContext"
@@ -671,9 +630,9 @@ export default {
           "&l=" +
           encodeURIComponent(limit) +
           "&p=" +
-          encodeURIComponent(this.topPerNodeCount) +
+          encodeURIComponent(this.store.topPerNodeCount) +
           "&s=" +
-          this.signThresh +
+          this.store.signThresh +
             (this.contextValue != null ? "&c=" + encodeURIComponent(this.contextValue) : "") +
           "&o=" +
           JSON.stringify(this.store.selectedTests);
@@ -716,7 +675,7 @@ export default {
           "/network/api/" + funct + "/?q=" +
           JSON.stringify(nodes) +
           "&s=" +
-          this.signThresh +
+          this.store.signThresh +
             (this.contextValue != null ? "&c=" + encodeURIComponent(this.contextValue) : "") +
           "&o=" +
           JSON.stringify(this.store.selectedTests) +
@@ -1140,10 +1099,10 @@ export default {
         selectedNodes: this.store.selectedNodes,
         selectedNetworkNodes: this.store.selectedNetworkNodes,
         selectedTests: this.store.selectedTests,
-        signThresh: this.signThresh,
+        signThresh: this.store.signThresh,
         fixThreshold: this.fixThreshold,
-        topNodesNumber: this.topNodesNumber,
-        topPerNodeCount: this.topPerNodeCount,
+        topNodesNumber: this.store.topNodesNumber,
+        topPerNodeCount: this.store.topPerNodeCount,
         selectAll: this.selectAll,
       }
 
@@ -1164,37 +1123,23 @@ export default {
         this.store.selectedNodes = user_settings.selectedNodes;
         this.selectAll = user_settings.selectAll;
         this.$refs.nodeInputComponent.updateSearchText();
-        //this.updateSearchText();
 
         this.store.selectedNetworkNodes = user_settings.selectedNetworkNodes;
         this.store.selectedTests = user_settings.selectedTests;
-        this.signThresh = parseFloat(user_settings.signThresh);
+        this.store.signThresh = parseFloat(user_settings.signThresh);
         this.fixThreshold = user_settings.fixThreshold;
-        this.topNodesNumber = parseInt(user_settings.topNodesNumber);
-        this.topPerNodeCount = user_settings.topPerNodeCount;
+        this.store.topNodesNumber = parseInt(user_settings.topNodesNumber);
+        this.store.topPerNodeCount = user_settings.topPerNodeCount;
         this.initializeNetwork(); // Example: Reapply the state to your network
         this.updateDesign(false);
       }
     },
   },
   watch: {
-    showDropdown(newVal) {
-      // Add or remove the global click listener when dropdown visibility changes
-      if (newVal) {
-        document.addEventListener('click', this.handleClickOutside);
-        this.store.activeIndex = -1;
-      } else {
-        document.removeEventListener('click', this.handleClickOutside);
-      }
-    },
     '$vuetify.theme.global.name'(newTheme, oldTheme) {
       console.log(`Theme changed from ${oldTheme} to ${newTheme}`);
       this.updateDesign(false); // Trigger the network update
     },
-    },
-    beforeUnmount() {
-      // Clean up event listener when component is destroyed
-      document.removeEventListener('click', this.handleClickOutside);
     },
 
   mounted() {
