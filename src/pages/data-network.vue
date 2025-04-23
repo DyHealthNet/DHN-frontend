@@ -49,179 +49,21 @@
             <v-col cols="4">
               <v-expansion-panels multiple class="scrollable-panels">
                 <!-- Network Overview -->
-                <v-expansion-panel>
-                  <v-expansion-panel-title>
-                    <v-icon color="primary-darken-1" size="25" class="ml-0 mr-3 my-0">mdi-information-outline</v-icon>
-                    Network Overview</v-expansion-panel-title>
-                    <v-expansion-panel-text>
-                      <v-card outlined class="network-overview">
-                        <v-card-text>
-                          <v-row justify="center" align="center" class="mt-2 mb-2">
-                            <!-- Nodes -->
-                            <v-col cols="6" class="text-center">
-                              <v-label class="text-caption">NODES</v-label>
-                              <v-sheet color="transparent" class="text-h4 font-weight-bold">
-                                {{ networkNodes.length }}
-                              </v-sheet>
-                            </v-col>
-                            <!-- Edges -->
-                            <v-col cols="6" class="text-center">
-                              <v-label class="text-caption">EDGES</v-label>
-                              <v-sheet color="transparent" class="text-h4 font-weight-bold">
-                                {{ networkEdges.length }}
-                              </v-sheet>
-                            </v-col>
-                          </v-row>
-                        </v-card-text>
-                      </v-card>
-                    </v-expansion-panel-text>
-                </v-expansion-panel>
+                <NetworkOverviewPanel :nodes="networkNodes.length" :edges="networkEdges.length"/>
 
                 <!-- Node Details -->
-                <v-expansion-panel>
-                  <v-expansion-panel-title>
-                    <v-icon color="primary-darken-1" size="25" class="ml-0 mr-3 my-0">mdi-magnify</v-icon>
-                    Details</v-expansion-panel-title>
-                  <v-expansion-panel-text>
-                    <v-divider class="my-4"></v-divider>
-                  <template v-if="displayedElementType === 'node'">
-                    <NodeDetails :getIcon="getIcon" :node="displayedElement" />
-                    <v-switch
-                      v-model="isDetailsNodeSelected"
-                      :label="isDetailsNodeSelected ? 'Selected' : 'Not Selected'"
-                      @change="toggleNetworkNodeSelection"
-                      color="primary"
-                      class="ml-2"
-                    />
-                  </template>
-                  <template v-else-if="displayedElementType === 'edge'">
-                    <EdgeDetails :getIcon="getIcon" :edge="displayedElement" :selectedTests="store.selectedTests"/>
-                  </template>
-                  <p v-else>No element selected. You can inspect a node or an edge by clicking on it.</p>
-                </v-expansion-panel-text>
-                </v-expansion-panel>
+                <DetailsPanel @update-design="updateDesign" @check-select-all="checkSelectAll"
+                              ref="detailsPanelComponent"/>
 
                 <!-- Selection -->
-                <v-expansion-panel>
-                  <v-expansion-panel-title>
-                    <v-icon color="primary-darken-1" size="25" class="ml-0 mr-3 my-0">mdi-filter</v-icon>
-                    Selection</v-expansion-panel-title>
-                  <v-expansion-panel-text>
-                    <v-row justify="center" align="center">
-                      <v-col cols="auto">
-                        <v-switch
-                          v-model="selectAll"
-                          :label="selectAll ? 'Unselect all' : 'Select All'"
-                          @change="toggleALLNetworkNodeSelection"
-                          color="primary-darken-1"
-                          class="ml-2"
-                        />
-                      </v-col>
-                    </v-row>
-                    <v-divider class="my-4"></v-divider>
-                    <span v-if="store.selectedNetworkNodes.length === 0">
-                          No node selected. Double click on a node to add it to this panel or select it via the Details panel.
-                    </span>
-                    <v-table dense v-else="store.selectedNetworkNodes.length === 0">
-                      <thead>
-                        <tr>
-                          <th>Name</th>
-                          <th>Type</th>
-                          <th></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr v-for="(node, index) in store.selectedNetworkNodes" :key="node.id">
-                          <td>{{ node.display_name }}</td>
-                          <td>{{ getPrettyType(node.source_table) }}</td>
-                          <td>
-                            <v-btn
-                              size="small"
-                              icon
-                              color="error"
-                              @click="removeSelectedNetworkNode(index)">
-                              <v-icon size="20" color="background">mdi-trash-can-outline</v-icon>
-                            </v-btn>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </v-table>
-                  </v-expansion-panel-text>
-                </v-expansion-panel>
+                <SelectionPanel :network-nodes="networkNodes" v-model:selectAll="selectAll"
+                                @update-design="updateDesign" @check-select-all="checkSelectAll"/>
 
                 <!-- Connect Nodes -->
-                <v-expansion-panel>
-                  <v-expansion-panel-title>
-                    <v-icon color="primary-darken-1" size="25" class="ml-0 mr-3 my-0">mdi-transit-connection-variant</v-icon>
-                    Connect Nodes
-                  </v-expansion-panel-title>
-                    <v-expansion-panel-text>
-                  <!-- Individual Node Section -->
-                  <v-responsive class="pa-0">
-                    <v-row>
-                    </v-row>
-                    <v-divider class="my-4"></v-divider>
-                    <v-row>
-                      <v-col cols="12">
-                        <p>
-                          Individual Node
-                        </p>
-                      </v-col>
-                      <v-col cols="12">
-                        <!-- TODO Add a settings toggle to set the significance threshold and possibly the multiple testing
-                        correction if changeable and if we don't want the user to only be able to set it
-                        in Advanced Settings -->
-                        <v-btn
-                          :disabled="store.selectedNetworkNodes.length !== 1"
-                          color="primary-darken-1"
-                          block
-                          :class="{'grey lighten-2': store.selectedNetworkNodes.length !== 1}"
-                          @click="connectIndividualNode()"
-                        >Significance Filtering</v-btn>
-                      </v-col>
-                      <!-- TODO Add a settings toggle to set the amount of Nodes to be retrieved per type like Manuel did-->
-                      <v-col cols="12">
-                        <v-btn
-                          :disabled="store.selectedNetworkNodes.length !== 1"
-                          color="primary-darken-1"
-                          block
-                          :class="{'grey lighten-2': store.selectedNetworkNodes.length !== 1}"
-                          @click="connectIndividualNode(true)"
-                        >Node Count</v-btn>
-                      </v-col>
-                    </v-row>
-                    <v-divider class="my-4"></v-divider>
-                    <!-- Set of Nodes Section -->
-                    <v-row>
-                      <v-col cols="12">
-                        <p>
-                          Set of Nodes
-                        </p>
-                      </v-col>
-                      <v-col cols="12">
-                        <v-btn
-                          class="mt-2"
-                          :disabled="store.selectedNetworkNodes.length <= 1"
-                          color="primary-darken-1"
-                          block
-                          :class="{'grey lighten-2': store.selectedNetworkNodes.length <= 1}"
-                          @click="connectGroupNodes(false)"
-                        >Significance Filtering</v-btn>
-                        </v-col>
-                      <v-col cols="12">
-                        <v-btn
-                          class="mt-2"
-                          :disabled="store.selectedNetworkNodes.length <= 1"
-                          color="primary-darken-1"
-                          block
-                          :class="{'grey lighten-2': store.selectedNetworkNodes.length <= 1}"
-                          @click="connectGroupNodes(true)"
-                        >Minimum Spanning Tree</v-btn>
-                        </v-col>
-                        </v-row>
-                      </v-responsive>
-                      </v-expansion-panel-text>
-                </v-expansion-panel>
+                <ConnectNodesPanel :selected-network-nodes-length="nodeStore.selectedNetworkNodes.length"
+                    @connect-individual-node="connectIndividualNode"
+                    @connect-group-nodes="connectGroupNodes"
+                  />
 
                 <!-- Analysis -->
                 <v-expansion-panel>
@@ -235,73 +77,54 @@
                 </v-expansion-panel>
               </v-expansion-panels>
             </v-col>
-
-            <!-- Put this in its own file -->
-            <v-col cols="8" >
+            <!-- Network Visualization -->
+            <v-col cols="8">
               <v-card outlined class="network-container">
-
-              <!-- Card Content -->
-              <v-card-text ref="wholeNetwork">
-                <!-- Network Visualization -->
-                <v-row>
+                <v-card-text ref="wholeNetwork">
+                  <v-row>
                     <v-col>
                       <div ref="network" id="network" style="height: 550px;"></div>
-                      <!-- Legend -->
                       <div class="legend">
                         <v-row v-for="(group, groupKey) in groups" :key="groupKey" align="center" class="mb-2" no-gutters>
-                          <v-col v-if="this.includedNodeTypes.has(groupKey)" cols="auto" class="legend-dot">
+                          <v-col v-if="includedNodeTypes.has(groupKey)" cols="auto" class="legend-dot">
                             <div class="legend-color" :style="getShapeStyle(group.color, groupKey)"></div>
                           </v-col>
-                          <v-col v-if="this.includedNodeTypes.has(groupKey)" cols="auto" class="legend-text">
+                          <v-col v-if="includedNodeTypes.has(groupKey)" cols="auto" class="legend-text">
                             <span>{{ capitalizeFirstLetter(groupKey) }}</span>
                           </v-col>
                         </v-row>
                       </div>
-                  </v-col>
-                </v-row>
-              </v-card-text>
-
-              <!-- Card Header -->
-              <v-toolbar color="primary-darken-1" density="compact">
-                <v-toolbar-title>
-                    <v-tooltip bottom>
-
-                    </v-tooltip>
+                    </v-col>
+                  </v-row>
+                </v-card-text>
+                <v-toolbar color="primary-darken-1" density="compact">
+                  <v-toolbar-title>
+                    <v-tooltip bottom />
                   </v-toolbar-title>
-                    <v-switch
-                      v-model="physics_on"
-                      @change="updatePhysics"
-                      :label="physics_on ? 'Disable Physics' : 'Enable Physics'"
-                      color="surface"
-                      class="mt-5 mr-3"
-                    />
-                <v-btn
-                  icon
-                  @click="saveNetworkImage"
-                >
-                  <v-icon class="m-3">mdi-camera</v-icon> <!-- mdi-abacus-->
-                </v-btn>
-                <a ref="downloadLink" style="display: none" :href="imageUrl" :download="downloadFileName"></a>
-                <!--<v-btn
-                  icon
-                  @click="saveNetworkFile"
-                >
-                  <v-icon class="m-3">mdi-download</v-icon>  mdi-abacus
-                </v-btn>-->
-                <v-btn
-                  icon
-                  @click="clearNetworkWarn=true;"
-                >
-                  <v-icon class="m-3">mdi-trash-can-outline</v-icon> <!-- mdi-abacus-->
-                </v-btn>
+
+                  <v-switch
+                    v-model="physics_on"
+                    @change="updatePhysics"
+                    :label="physics_on ? 'Disable Physics' : 'Enable Physics'"
+                    color="surface"
+                    class="mt-5 mr-3"
+                  />
+                  <v-btn icon @click="saveNetworkImage">
+                    <v-icon class="m-3">mdi-camera</v-icon>
+                  </v-btn>
+                  <a ref="downloadLink" style="display: none" :href="imageUrl" :download="downloadFileName"></a>
+                  <v-btn icon @click="clearNetworkWarn = true">
+                    <v-icon class="m-3">mdi-trash-can-outline</v-icon>
+                  </v-btn>
+
                   <v-dialog width="auto" v-model="clearNetworkWarn">
                     <v-card color="primary" rounded="lg">
-                      <v-card-title class="headline text-white" >
+                      <v-card-title class="headline text-white">
                         <v-icon class="my-0 mr-2">mdi-information-outline</v-icon>
                         <b>You are about to clear the displayed Network.</b>
                       </v-card-title>
                       <v-card-text class="text-white">
-                        Would you like to clear the entire network or keep the selected subnetwork and remove <br>
+                        Would you like to clear the entire network or keep the selected subnetwork and remove<br />
                         the unselected nodes? You can also cancel this action if you change your mind.
                       </v-card-text>
                       <v-card-actions>
@@ -311,14 +134,7 @@
                       </v-card-actions>
                     </v-card>
                   </v-dialog>
-              </v-toolbar>
-
-              <!-- Card Actions
-              <v-card-actions>
-                <v-btn color="primary" @click="console.log('saveNetwork')" title="Save network to .json and download it">
-                  Save Network
-                </v-btn>
-              </v-card-actions>-->
+                </v-toolbar>
               </v-card>
             </v-col>
           </v-row>
@@ -338,14 +154,20 @@ import PopUp from "@/components/PopUp.vue";
 //import AdvancedSettings from "@/components/AdvancedSettings.vue";
 //import StatisticalTestLine from "@/components/StatisticalTestLine.vue";
 //import NetworkEdgeLine from "@/components/network/NetworkEdgeLine.vue";
+//import NodeDetails from '@/components/network/NodeDetails.vue';
+//import EdgeDetails from '@/components/network/EdgeDetails.vue';
 
 import NodeInput from "@/components/network/NodeInput.vue";
+//import NetworkVisualization from "@/components/network/NetworkVisualization.vue";
+import NetworkOverviewPanel from "@/components/network/NetworkOverviewPanel.vue";
+import DetailsPanel from "@/components/network/DetailsPanel.vue";
+import SelectionPanel from "@/components/network/SelectionPanel.vue";
+import ConnectNodesPanel from "@/components/network/ConnectNodesPanel.vue";
+
 
 import {BASE_URL, isLoading, setIsLoading} from "@/components/constants.js";
 import {getIcon, getPrettyType, capitalizeFirstLetter} from "@/components/generalFunctions.js";
 import {groups, loadNetworkState, saveNetworkState} from "../components/network/networkData.js";
-import NodeDetails from '@/components/network/NodeDetails.vue';
-import EdgeDetails from '@/components/network/EdgeDetails.vue';
 import {DataSet, Network} from "vis-network/standalone/esm/vis-network.js";
 import {getCookie} from "@/components/authentication/auth.js";
 import {useTheme} from 'vuetify';
@@ -356,7 +178,11 @@ import { popUpStore } from '@/stores/popUpStore.js'
 
 export default {
   components: {
-    PopUp, FilterToolbar, NodeInput, NodeDetails, EdgeDetails},
+    ConnectNodesPanel,
+    SelectionPanel,
+    DetailsPanel,
+    NetworkOverviewPanel,
+    PopUp, FilterToolbar, NodeInput},
   data() {
     return {
       // context filter
@@ -380,12 +206,9 @@ export default {
       physics_on: true,
       selectedBorderColor: '', //TODO don't set this in mounted, maybe make it reactive
 
-      displayedElement: null,
-      displayedElementType: null,   // 'node' or 'edge'
-      isDetailsNodeSelected: false,
       includedNodeTypes: new Set(), // stores type currently present in network for Legend
 
-      selectAll: false,
+      selectAll: false, // keep track of selected Nodes status over components
       clearNetworkWarn: false,
 
       // Advanced Settings (default) values
@@ -394,18 +217,14 @@ export default {
     };
   },
   computed: {
-    store() {
-      return nodeInputStore(); // this makes this.store available
+    nodeStore() {
+      return nodeInputStore(); // this makes the store available
     },
     popUpStore() {
-      return popUpStore(); // this makes this.store available
+      return popUpStore(); // this makes the store available
     },
     groups() {
       return groups
-    },
-    // Limit the number of displayed nodes to 5
-    limitedDropdownNodes() {
-      return store.dropdownNodes.slice(0, 5);
     },
     downloadFileName() {
       const currentDate = new Date().toLocaleDateString().replace(/\//g, '-'); // Formatting the date as 'MM-DD-YYYY'
@@ -413,25 +232,23 @@ export default {
     },
   },
   methods: {
-    getIcon,
-    getPrettyType,
     capitalizeFirstLetter,
 
     sendToNetwork() {
-      console.log("this.store.selectedNetworkNodes", this.store.selectedNetworkNodes)
+      console.log("this.nodeStore.selectedNetworkNodes", this.nodeStore.selectedNetworkNodes)
       // Send selectedNodes to networkNodes and reset selectedNodes
       this.networkNodes = [];
       // filter selected Nodes for presence in searchText (if user deletes them)
-      this.store.selectedNodes = this.store.selectedNodes.filter(node =>
-          this.store.searchText.includes(node.display_name) || this.store.searchText.includes(node.id)
+      this.nodeStore.selectedNodes = this.nodeStore.selectedNodes.filter(node =>
+          this.nodeStore.searchText.includes(node.display_name) || this.nodeStore.searchText.includes(node.id)
       );
-      this.networkNodes = this.store.selectedNodes.map((node) => ({
+      this.networkNodes = this.nodeStore.selectedNodes.map((node) => ({
         ...node,
         set: "CHRIS", //TODO change to internal/cohort or smth when backend became more modular
       }));
       console.log("this.networkNodes", this.networkNodes)
       // check that all selected nodes are unique and still present in the network
-      this.store.selectedNetworkNodes = this.store.selectedNetworkNodes
+      this.nodeStore.selectedNetworkNodes = this.nodeStore.selectedNetworkNodes
           .filter(node => this.networkNodes.some(networkNode => networkNode.id === node.id))
           .reduce((unique, node) => {
             if (!unique.some(n => n.id === node.id)) {
@@ -439,15 +256,15 @@ export default {
             }
             return unique;
           }, []);
-      console.log("this.store.selectedNetworkNodes", this.store.selectedNetworkNodes)
+      console.log("this.nodeStore.selectedNetworkNodes", this.nodeStore.selectedNetworkNodes)
       // make searchText pretty
-      const nodeNames = this.store.selectedNodes
+      const nodeNames = this.nodeStore.selectedNodes
           .filter(node => node && node.display_name)
           .map(node => node.display_name);
-      this.store.searchText = nodeNames.length > 0 ? nodeNames.join(", ") : "";
-      this.store.isReadOnly = true;
+      this.nodeStore.searchText = nodeNames.length > 0 ? nodeNames.join(", ") : "";
+      this.nodeStore.isReadOnly = true;
       this.$refs.nodeInputComponent.closeDropdown();
-      //this.store.selectedNodes = []; // Clear the selection
+      //this.nodeStore.selectedNodes = []; // Clear the selection
       this.filterForNetworkEdges();
 
       this.initializeNetwork();
@@ -467,6 +284,11 @@ export default {
 
       const data = { nodes: this.vis_network_nodes, edges: this.vis_network_edges};
 
+      if (this.network) {
+        this.network.destroy();
+        this.network = null;
+      }
+
       this.network = new Network(container, data, options);
 
       this.includedNodeTypes = new Set(this.networkNodes.map((node) => node.source_table.split("_")[1]));
@@ -479,12 +301,12 @@ export default {
             const clickedNode = this.networkNodes.find(
               (currentNode) => currentNode.id === params.nodes[0]
             );
-            this.displayNode(clickedNode);
+            this.$refs.detailsPanelComponent.displayNode(clickedNode);
           } else if (params.edges.length === 1) {
             const clickedEdge = this.networkEdges.find(
               (currentEdge) => currentEdge.id === params.edges[0]
             );
-            this.displayEdge(clickedEdge);
+            this.$refs.detailsPanelComponent.displayEdge(clickedEdge);
           } else {
             this.displayedElement = null;
             this.displayedElementType = null;
@@ -500,18 +322,18 @@ export default {
             const clickedNode = this.networkNodes.find(
               (currentNode) => currentNode.id === params.nodes[0]
             );
-            const existingNodeIndex = this.store.selectedNetworkNodes.findIndex(
+            const existingNodeIndex = this.nodeStore.selectedNetworkNodes.findIndex(
               (node) => node.id === clickedNode.id
             );
 
             if (existingNodeIndex !== -1) {
               // If the node exists, remove it from the array
-              this.store.selectedNetworkNodes.splice(existingNodeIndex, 1);
+              this.nodeStore.selectedNetworkNodes.splice(existingNodeIndex, 1);
             } else {
               // If the node doesn't exist, add it to the array
-              this.store.selectedNetworkNodes.push(clickedNode);
+              this.nodeStore.selectedNetworkNodes.push(clickedNode);
             }
-            this.displayNode(clickedNode);
+            this.$refs.detailsPanelComponent.displayNode(clickedNode);
             this.checkSelectAll();
           }
           this.updateDesign();
@@ -519,69 +341,52 @@ export default {
       );
       this.network.on("afterDrawing", this.captureImage);
     },
-    displayNode(node) {
-      node.type = this.getPrettyType(node.source_table);
-      this.displayedElement = node;
-      this.displayedElementType = "node";
-      this.isDetailsNodeSelected = this.isNodeInNetworkSelected(node);
-    },
-    displayEdge(edge) {
-      const nodeID0 = edge.to;
-      const nodeID1 = edge.from;
-      const node0 = this.networkNodes.find((node) => node.id === nodeID0);
-      const node1 = this.networkNodes.find((node) => node.id === nodeID1);
-      edge.node0_descr = node0.description;
-      edge.node1_descr = node1.description;
-      edge.node0_label = node0.display_name;
-      edge.node1_label = node1.display_name;
-      edge.node0_type = this.getPrettyType(node0.source_table);
-      edge.node1_type = this.getPrettyType(node1.source_table);
-      this.displayedElement = edge;
-      this.displayedElementType = "edge";
-    },
-    isNodeInNetworkSelected(node) {
-      return this.store.selectedNetworkNodes.some(existingNode => existingNode.id === node.id);
-
-    },
-    toggleNetworkNodeSelection() {
-      const index = this.store.selectedNetworkNodes.findIndex(n => n.id === this.displayedElement.id); // Check for the node by unique identifier (id)
-
-      if (this.isDetailsNodeSelected && index === -1) {
-        this.store.selectedNetworkNodes.push(this.displayedElement);
-        this.updateDesign();
-      } else if (!this.isDetailsNodeSelected && index !== -1) {
-        this.store.selectedNetworkNodes.splice(index, 1);
-      }
-      this.checkSelectAll();
-    },
-    toggleALLNetworkNodeSelection(){
-      if(this.selectAll) {
-        for (const node of this.networkNodes) {
-          if (!this.store.selectedNetworkNodes.includes(node)) {
-            this.store.selectedNetworkNodes.push(node);  // Add the node if it's not already selected
-          }
-        }
-      }
-      else{
-        this.store.selectedNetworkNodes = [];
-      }
-      this.updateDesign();
-    },
-    removeSelectedNetworkNode(index){
-      this.store.selectedNetworkNodes.splice(index, 1);
-      this.updateDesign();
-      this.checkSelectAll();
-    },
     checkSelectAll(){
-      if (this.store.selectedNetworkNodes.length === 0){
+      if (this.nodeStore.selectedNetworkNodes.length === 0){
         this.selectAll = false;
-      } else if (this.store.selectedNetworkNodes.length === this.networkNodes.length) {
+      } else if (this.nodeStore.selectedNetworkNodes.length === this.networkNodes.length) {
         this.selectAll = true;
       }
     },
+    clearNetwork(full = true, saveState=true){
+      this.clearNetworkWarn = false;
+      this.networkNodes = [];
+      this.networkEdges = []; // do i also need allInternalEdges??
+      this.vis_network_nodes = [];
+      this.vis_network_edges = [];
+      this.displayedNodes = null;
+      this.displayedEdges = null;
+      this.allInternalEdges = [];
+      this.allExternalEdges = [];
+      this.displayedElement = null;
+      this.displayedElementType = null;
+      this.isDetailsNodeSelected = false;
+      this.nodeStore.selectedNetworkNodes = [];
+      if(full){
+        this.initializeNetwork();
+        this.updateDesign(saveState);
+      } else{
+        this.sendToNetwork()
+      }
+    },
+    clearUnselectedNodes(){
+      //console.log("clearUnselectedNodes", this.vis_network_nodes);
+      this.clearNetworkWarn = false;
+      // Set to only selected Nodes
+      this.networkNodes =  [...this.nodeStore.selectedNetworkNodes];
+      // filter edges now
+      this.filterForNetworkEdges();
+      // override internal edges with filtered edges
+      this.allInternalEdges = this.networkEdges;
+      this.initializeNetwork();
+      //console.log("clearUnselectedNodes", this.vis_network_nodes);
+      this.checkSelectAll();
+      this.updateDesign(true);
+    },
     async connectIndividualNode(count=false) {
+      console.log("connectIndividualNode called")
       // Use the first element of selectedNetworkNodes
-      const firstNode = this.store.selectedNetworkNodes?.[0];
+      const firstNode = this.nodeStore.selectedNetworkNodes?.[0];
 
       if (firstNode) {
 
@@ -597,8 +402,8 @@ export default {
     },
     async connectGroupNodes(minSpanTree) {
       // Check if selectedNetworkNodes is not null/undefined and has at least two elements
-      if (this.store.selectedNetworkNodes && this.store.selectedNetworkNodes.length > 1) {
-        const filteredNodeIds = this.store.selectedNetworkNodes
+      if (this.nodeStore.selectedNetworkNodes && this.nodeStore.selectedNetworkNodes.length > 1) {
+        const filteredNodeIds = this.nodeStore.selectedNetworkNodes
             .filter(node => node.set === "CHRIS")  // Filter nodes with .set == "CHRIS"
             .map(node => node.id);  // Extract the node IDs
         if (filteredNodeIds.length === 0) {
@@ -616,7 +421,7 @@ export default {
         const csrfToken = getCookie('csrftoken');
         const nodeID = node.id;
         const type = node.source_table.split("_")[1];
-        const limit = count ? this.store.topNodesNumber : "";
+        const limit = count ? this.nodeStore.topNodesNumber : "";
         let funct = "getNetwork"
         if (this.contextValue != null){
           funct = "getNetworkContext"
@@ -630,12 +435,12 @@ export default {
           "&l=" +
           encodeURIComponent(limit) +
           "&p=" +
-          encodeURIComponent(this.store.topPerNodeCount) +
+          encodeURIComponent(this.nodeStore.topPerNodeCount) +
           "&s=" +
-          this.store.signThresh +
+          this.nodeStore.signThresh +
             (this.contextValue != null ? "&c=" + encodeURIComponent(this.contextValue) : "") +
           "&o=" +
-          JSON.stringify(this.store.selectedTests);
+          JSON.stringify(this.nodeStore.selectedTests);
 
         const response = await fetch(api_string, {
           method: 'GET',
@@ -675,10 +480,10 @@ export default {
           "/network/api/" + funct + "/?q=" +
           JSON.stringify(nodes) +
           "&s=" +
-          this.store.signThresh +
+          this.nodeStore.signThresh +
             (this.contextValue != null ? "&c=" + encodeURIComponent(this.contextValue) : "") +
           "&o=" +
-          JSON.stringify(this.store.selectedTests) +
+          JSON.stringify(this.nodeStore.selectedTests) +
           "&m=" +
           encodeURIComponent(minSpanTree);
 
@@ -822,7 +627,7 @@ export default {
       // Update nodes with conditional styling
       const updatedNodes = this.vis_network_nodes.get().map(node => {
         const isDisplayed = this.displayedElementType === 'node' && this.displayedElement.id === node.id;
-        const isSelected = this.store.selectedNetworkNodes.some(n => n.id === node.id);
+        const isSelected = this.nodeStore.selectedNetworkNodes.some(n => n.id === node.id);
 
         let updatedNode = {
           ...node,
@@ -890,8 +695,8 @@ export default {
       } else {
         return this.$vuetify.theme.themes.dyHealthNetThemeDark.colors[colorName];
       }
-
     },
+
     updatePhysics() {
       // Update the physics option dynamically
       const newPhysicsOption = {
@@ -903,47 +708,12 @@ export default {
       // Update the options of the existing network
       this.network.setOptions(newPhysicsOption);
     },
-    clearNetwork(full = true, saveState=true){
-      this.clearNetworkWarn = false;
-      this.networkNodes = [];
-      this.networkEdges = []; // do i also need allInternalEdges??
-      this.vis_network_nodes = [];
-      this.vis_network_edges = [];
-      this.displayedNodes = null;
-      this.displayedEdges = null;
-      this.allInternalEdges = [];
-      this.allExternalEdges = [];
-      this.displayedElement = null;
-      this.displayedElementType = null;
-      this.isDetailsNodeSelected = false;
-      this.store.selectedNetworkNodes = [];
-      if(full){
-        this.initializeNetwork();
-        this.updateDesign(saveState);
-      } else{
-        this.sendToNetwork()
-      }
-    },
-    clearUnselectedNodes(){
-      //console.log("clearUnselectedNodes", this.vis_network_nodes);
-      this.clearNetworkWarn = false;
-      // Set to only selected Nodes
-      this.networkNodes =  [...this.store.selectedNetworkNodes];
-      // filter edges now
-      this.filterForNetworkEdges();
-      // override internal edges with filtered edges
-      this.allInternalEdges = this.networkEdges;
-      this.initializeNetwork();
-      //console.log("clearUnselectedNodes", this.vis_network_nodes);
-      this.checkSelectAll();
-      this.updateDesign(true);
-    },
     // saveNetworkFile() {
     //   if (this.vis_network_nodes.length > 0) {
     //     const nodes = this.vis_network_nodes.get();
     //     const edges = this.vis_network_edges.get();
     //
-    //     const exportData = { options: this.store.selectedTests, nodes: nodes, edges: edges };
+    //     const exportData = { options: this.nodeStore.selectedTests, nodes: nodes, edges: edges };
     //     const dataStr = JSON.stringify(exportData, null, 2);
     //     const blob = new Blob([dataStr], { type: "application/json" });
     //
@@ -1037,23 +807,23 @@ export default {
       //console.log("updateData val ", val)
       this.contextValue = val ? val.value : null;
       const context = await this.getContexts(this.contextValue);
-      this.store.searchText = "";
-      this.store.selectedNodes = [];
+      this.nodeStore.searchText = "";
+      this.nodeStore.selectedNodes = [];
       this.isReadOnly = false;
-      this.store.dropdownNodes= [];
+      this.nodeStore.dropdownNodes= [];
       if (context) {
         console.log("context.content.contextName",context.content.contextName)
         console.log("context.content.tests",context.content.tests)
-        this.store.selectedTests['catCat'] = context.content.tests['catCat'];
-        this.store.selectedTests['catContM'] = context.content.tests['catContM'];
-        this.store.selectedTests['catContB'] = context.content.tests['catContB'];
-        this.store.selectedTests['contCont'] = context.content.tests['contCont'];
-        //this.store.selectedTests = context.content.tests
+        this.nodeStore.selectedTests['catCat'] = context.content.tests['catCat'];
+        this.nodeStore.selectedTests['catContM'] = context.content.tests['catContM'];
+        this.nodeStore.selectedTests['catContB'] = context.content.tests['catContB'];
+        this.nodeStore.selectedTests['contCont'] = context.content.tests['contCont'];
+        //this.nodeStore.selectedTests = context.content.tests
         this.disableSelections = true;
         this.clearNetwork(true,false);
       }
       else{
-        this.store.selectedTests =  {
+        this.nodeStore.selectedTests =  {
           catCat: {label: 'Chi-squared test', value: 'chi2'}, catContM: {label: 'ANOVA', value: 'anova'},
           multTest: {label: 'Benjamini Hochberg (FDR)', value: 'benjamini_hb'},
           catContB: {label: 'T-test', value: 'ttest'}, contCont: {label: 'Pearson correlation', value: 'pearson'}};
@@ -1096,13 +866,13 @@ export default {
       const nodes = this.vis_network_nodes.get();
       const edges = this.vis_network_edges.get();
       const user_settings = {
-        selectedNodes: this.store.selectedNodes,
-        selectedNetworkNodes: this.store.selectedNetworkNodes,
-        selectedTests: this.store.selectedTests,
-        signThresh: this.store.signThresh,
+        selectedNodes: this.nodeStore.selectedNodes,
+        selectedNetworkNodes: this.nodeStore.selectedNetworkNodes,
+        selectedTests: this.nodeStore.selectedTests,
+        signThresh: this.nodeStore.signThresh,
         fixThreshold: this.fixThreshold,
-        topNodesNumber: this.store.topNodesNumber,
-        topPerNodeCount: this.store.topPerNodeCount,
+        topNodesNumber: this.nodeStore.topNodesNumber,
+        topPerNodeCount: this.nodeStore.topPerNodeCount,
         selectAll: this.selectAll,
       }
 
@@ -1120,16 +890,16 @@ export default {
         this.networkEdges = edges;
         this.physics_on = vis_options.physics.enabled;
 
-        this.store.selectedNodes = user_settings.selectedNodes;
+        this.nodeStore.selectedNodes = user_settings.selectedNodes;
         this.selectAll = user_settings.selectAll;
         this.$refs.nodeInputComponent.updateSearchText();
 
-        this.store.selectedNetworkNodes = user_settings.selectedNetworkNodes;
-        this.store.selectedTests = user_settings.selectedTests;
-        this.store.signThresh = parseFloat(user_settings.signThresh);
+        this.nodeStore.selectedNetworkNodes = user_settings.selectedNetworkNodes;
+        this.nodeStore.selectedTests = user_settings.selectedTests;
+        this.nodeStore.signThresh = parseFloat(user_settings.signThresh);
         this.fixThreshold = user_settings.fixThreshold;
-        this.store.topNodesNumber = parseInt(user_settings.topNodesNumber);
-        this.store.topPerNodeCount = user_settings.topPerNodeCount;
+        this.nodeStore.topNodesNumber = parseInt(user_settings.topNodesNumber);
+        this.nodeStore.topPerNodeCount = user_settings.topPerNodeCount;
         this.initializeNetwork(); // Example: Reapply the state to your network
         this.updateDesign(false);
       }

@@ -4,12 +4,7 @@ export const nodeInputStore = defineStore('nodeInput', {
   state: () => ({
     searchText: '',
     isReadOnly: false,
-    //activeIndex: -1,
-    //showDropdown: false,
-    //dropdownNodes: [] ,
     selectedNodes: [],
-    //hoveredItem: null,
-    //tooltipStyle: {},
 
     selectedNetworkNodes : [],
 
@@ -30,12 +25,7 @@ export const nodeInputStore = defineStore('nodeInput', {
     clearState() {
       this.searchText = ''
       this.isReadOnly = false
-      //this.activeIndex = -1
-      //this.showDropdown = false
-      //this.dropdownNodes = []
       this.selectedNodes = []
-      //this.hoveredItem =  null
-      //this.tooltipStyle = {}
 
       this.selectedNetworkNodes = []
 

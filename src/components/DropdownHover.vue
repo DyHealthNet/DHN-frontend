@@ -4,14 +4,14 @@
     <v-row v-if="limitedDropdownNodes.length && !isReadOnly">
       <v-col cols="12">
         <v-card class="dropdown"
-                v-if="showDropdown && limitedDropdownNodes.length"
+                v-if="showDropdown"
                 ref="dropdownMenu"
                 tabindex="0">
           <v-list>
             <v-list-item
                 v-for="(item, index) in limitedDropdownNodes"
                 :key="item.id"
-                @click="this.$emit('add-per-drop-down', item)"
+                @click="$emit('add-per-drop-down', item)"
                 @mouseover="hoverNode(item)"
                 @mouseleave="hoverNodeLeave"
                 :class="{ 'text-primary': index === activeIndex }"
