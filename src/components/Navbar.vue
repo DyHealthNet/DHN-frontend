@@ -1,6 +1,11 @@
 <template>
   <v-app-bar class="page-borders-nav" height="110" scroll-behavior="elevate" app>
-      <img src="../assets/figures/DyHealthNet_Logo.png" width="270" height="140"/>
+    <router-link to="/">
+        <img class="forkmeFigure" src="@/assets/figures/DyHealthNet_Logo.png"
+        width="270"
+        height="140" alt="DyHealthNet Logo">
+      </router-link>
+
     <v-app-bar-title class="text-indigo"></v-app-bar-title>
 
     <v-spacer></v-spacer>
