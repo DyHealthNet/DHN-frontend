@@ -1206,7 +1206,7 @@ export default {
         }
         if (data.message != ""){
           this.infoText = data.message;
-          this.infoType = "error";
+          this.infoType = "info";
           this.showInfo = true;
         }
         this.setNetworkNodes(data);
