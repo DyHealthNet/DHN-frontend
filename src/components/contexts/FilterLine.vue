@@ -47,7 +47,7 @@
     <v-btn icon="mdi-close"
            density="comfortable"
             color="error"
-            @click="handleClick({action: 'delete', first: this.first, id: this.ruleId, group: this.ruleGroup})">
+            @click="handleClick({action: 'delete', onlyRule: this.onlyRule, id: this.ruleId, group: this.ruleGroup})">
            </v-btn>
 
   </v-col>
@@ -73,7 +73,7 @@ export default  {
       type: String,
       default: 'AND'
     },
-    first: {
+    onlyRule: {
       type: Boolean,
       default: false
     },
@@ -121,7 +121,7 @@ export default  {
   },
   methods: {
     handleClick(action) {
-      if (action.action === 'delete' && this.first) {
+      if (action.action === 'delete' && this.onlyRule) {
         this.columnName = "";
         this.selectedOperator = "";
         this.selectedValue = "";
