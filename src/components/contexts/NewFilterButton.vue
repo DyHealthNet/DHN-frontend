@@ -4,6 +4,7 @@
       v-if = "!last"
       class="center-button"
       :color="connectCol"
+      :readonly="disableSelections"
       @click="$emit('addFilter')"
       >
         <v-icon
@@ -33,7 +34,11 @@ export default {
     last: {
       type: Boolean,
       default: false,
-    }
+    },
+    disableSelections: {
+      type: Boolean,
+      default: false,
+    },
   },
   data() {
     return {

@@ -13,6 +13,7 @@
       <v-col cols="3" class="filter-padding">
         <v-text-field
             :rules="contextNameMaxLength"
+            :readonly="disableSelections"
             counter="40"
             density="compact"
             variant="outlined"
@@ -25,6 +26,7 @@
       <v-col cols="3" class="filter-padding">
         <v-select
             v-model="selectedLayers"
+            :readonly="disableSelections"
             :items="layers"
             variant="outlined"
             chips
@@ -65,13 +67,15 @@
         <p>Inner Operator / Connector</p>
       </v-col>
       <v-col cols="1" class="filter-padding">
-        <ConnectorButton :connection="innerConnection" @click="changeButtonDirection"></ConnectorButton>
+        <ConnectorButton :connection="innerConnection" :disable-selections="disableSelections"
+                         @click="changeButtonDirection"></ConnectorButton>
       </v-col>
       <v-col cols="2" class="filter-padding">
         <p>Outer Operator / Connector</p>
       </v-col>
       <v-col cols="1" class="filter-padding">
-        <ConnectorButton :connection="outerConnection" @click="changeButtonDirection"></ConnectorButton>
+        <ConnectorButton :connection="outerConnection" :disable-selections="disableSelections"
+                         @click="changeButtonDirection"></ConnectorButton>
       </v-col>
     </v-row>
 
@@ -105,6 +109,7 @@
                   :all-variables="allVariablesFiltered"
                   :connection="innerConnection"
                   :only-rule="(outerRows.length + innerRows.length) === 2"
+                  :disable-selections="disableSelections"
                   :rule="innerRow.rule"
                   :rule-group="innerRow.group"
                   :rule-id="innerRow.id"
@@ -123,7 +128,7 @@
         </v-row>
       </template>
       <v-row class="mt-0 mb-5">
-        <NewFilterButton :connection="outerConnection" @addFilter="newOuterGroupRule"/>
+        <NewFilterButton :connection="outerConnection" :disable-selections="disableSelections" @addFilter="newOuterGroupRule"/>
       </v-row>
 
     </div>
@@ -653,7 +658,6 @@ export default {
             this.taskType = data.status;
             this.sendDisabled = true;
             this.disableSelections = true;
-            console.log("this.disableSelections", this.disableSelections);
             //contextState.indicatorSeen = true;
             this.getProgressStatus();
           })
@@ -689,6 +693,7 @@ export default {
       this.taskMessage = null;
       this.taskStarted = false;
       this.taskInfo = "";
+      this.disableSelections = false;
 
       this.sendContextName();
 

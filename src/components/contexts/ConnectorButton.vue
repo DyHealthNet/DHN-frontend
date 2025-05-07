@@ -2,6 +2,7 @@
 <v-btn
 class="conn-button"
 :color="buttonColor"
+:readonly="disableSelections"
 > {{ connection }}</v-btn>
 </template>
 
@@ -12,7 +13,11 @@ export default {
     connection: {
       type: String,
       required: true
-    }
+    },
+    disableSelections: {
+      type: Boolean,
+      default: false,
+    },
   },
   computed: {
     buttonColor() {

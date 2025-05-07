@@ -3,6 +3,7 @@
   <v-autocomplete
     v-model="columnName"
     :items="filteredColumnItems"
+    :readonly="disableSelections"
     density="compact"
     variant="outlined"
     @update:model-value="updateData"
@@ -13,6 +14,7 @@
   <v-select
     v-model="selectedOperator"
     :items="availableOperators"
+    :readonly="disableSelections"
     density="compact"
     variant="outlined"
     @update:model-value="updateData"
@@ -21,6 +23,7 @@
   <v-col cols="4" class="filter-padding d-flex">
     <FilterRuleValue :value-component="valueComponent"
                      :possible-values="possibleValues"
+                     :disable-selections="disableSelections"
                      v-model:selectedValue="selectedValue"
                       @update:selectedValue="newData"
                      />
@@ -28,6 +31,7 @@
   <v-col cols="1" class="center-button">
     <v-btn
         v-if="enableConnector"
+        :readonly="disableSelections"
         class="center-button"
     :color="connectCol"
     @click="handleClick({action: 'new', id: this.ruleId, group: this.ruleGroup})"
@@ -46,6 +50,7 @@
   <v-col cols="1" class="center-icon">
     <v-btn icon="mdi-close"
            density="comfortable"
+           :disabled="disableSelections"
             color="error"
             @click="handleClick({action: 'delete', onlyRule: this.onlyRule, id: this.ruleId, group: this.ruleGroup})">
            </v-btn>
@@ -76,6 +81,10 @@ export default  {
     onlyRule: {
       type: Boolean,
       default: false
+    },
+    disableSelections: {
+      type: Boolean,
+      default: false,
     },
     ruleGroup: {
       type: String,

@@ -3,6 +3,7 @@
     v-if="valueComponent === 'combobox'"
     v-model="localSelectedValue"
     :items="possibleValues"
+    :readonly="disableSelections"
     density="compact"
     variant="outlined"
     item-title="label"
@@ -12,6 +13,7 @@
     v-if="valueComponent === 'select'"
     v-model="localSelectedValue"
     :items="possibleValues"
+    :readonly="disableSelections"
     variant="outlined"
     chips
     multiple
@@ -76,9 +78,13 @@ export default {
       default: () => []
     },
     selectedValue: {
-      type: [String, Array, Number],
+      type: [String, Array, Number, Object],
       required: true
-    }
+    },
+    disableSelections: {
+      type: Boolean,
+      default: false,
+    },
   },
 
   data() {
@@ -89,7 +95,7 @@ export default {
       upper = this.selectedValue[1];
     }
     return {
-      localSelectedValue: this.selectedValue || this.getInitialValue(this.valueComponent),
+      //localSelectedValue: this.selectedValue || this.getInitialValue(this.valueComponent),
       lowerBound: lower,
       upperBound: upper
     }
