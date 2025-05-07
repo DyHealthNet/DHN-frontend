@@ -84,16 +84,7 @@
                   <v-row>
                     <v-col>
                       <div ref="network" id="network" style="height: 550px;"></div>
-                      <div class="legend">
-                        <v-row v-for="(group, groupKey) in groups" :key="groupKey" align="center" class="mb-2" no-gutters>
-                          <v-col v-if="includedNodeTypes.has(groupKey)" cols="auto" class="legend-dot">
-                            <div class="legend-color" :style="getShapeStyle(group.color, groupKey)"></div>
-                          </v-col>
-                          <v-col v-if="includedNodeTypes.has(groupKey)" cols="auto" class="legend-text">
-                            <span>{{ capitalizeFirstLetter(groupKey) }}</span>
-                          </v-col>
-                        </v-row>
-                      </div>
+                      <NetworkLegend :includedNodeTypes="includedNodeTypes" />
                     </v-col>
                   </v-row>
                 </v-card-text>
@@ -163,6 +154,7 @@ import NetworkOverviewPanel from "@/components/network/NetworkOverviewPanel.vue"
 import DetailsPanel from "@/components/network/DetailsPanel.vue";
 import SelectionPanel from "@/components/network/SelectionPanel.vue";
 import ConnectNodesPanel from "@/components/network/ConnectNodesPanel.vue";
+import NetworkLegend from "@/components/network/NetworkLegend.vue";
 
 
 import {BASE_URL, isLoading, setIsLoading} from "@/components/constants.js";
@@ -182,6 +174,7 @@ export default {
     SelectionPanel,
     DetailsPanel,
     NetworkOverviewPanel,
+    NetworkLegend,
     PopUp, FilterToolbar, NodeInput},
   data() {
     return {
@@ -675,19 +668,6 @@ export default {
         this.saveState();
       }
     },
-    getShapeStyle(color, key) {
-      // not applicable right now or only for externals
-      if (key === "gene" || key === "disorder") {
-        return {
-          borderRadius: "50%",
-          backgroundColor: color,
-          width: "20px",
-          height: "20px",
-          border: "3px solid black",
-        };
-      }
-      return { borderRadius: "50%", backgroundColor: color, width: "20px", height: "20px" };
-    },
     labelColor(colorName) {
       // chartjs does not support theme colors so we just directly call the theme color
       if (this.$vuetify.theme.global.name === 'dyHealthNetTheme') {
@@ -921,40 +901,23 @@ export default {
 </script>
 
 <style scoped>
-
 .title {
   font-size: 2rem;
 }
-
 .v-container {
   max-width: min(95%, 1800px);
 }
-
 @media (max-width: 1919px) {
   .responsive-card {
     width: 95%;
   }
 }
-
-.legend-color {
-  margin-right: 10px; /* Space between the color and the text */
-}
-/* Style for the legend container */
-.legend {
-  position: absolute;  /* Position relative to the nearest positioned ancestor (network container) */
-  bottom: 25px;  /* Adjust the bottom margin */
-  left: 10px;    /* Adjust the left margin */
-  background: transparent;  /* Transparent background */
-  z-index: 10;  /* Ensure it appears above other elements */
-}
 .scrollable-panels {
   max-height: 625px;  /* You can adjust the height as needed */
   overflow-y: auto;   /* This will make the content scrollable */
 }
-
 /* Style for the network container */
 #network {
   position: relative;  /* Make this container the reference for absolute positioning */
 }
-
 </style>
