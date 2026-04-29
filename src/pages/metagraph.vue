@@ -23,6 +23,20 @@
               <v-toolbar color="primary-darken-1" density="comfortable">
                 <v-toolbar-title>Cosmograph canvas</v-toolbar-title>
                 <v-spacer />
+                <v-btn-toggle
+                  v-model="selectionMode"
+                  class="mr-3"
+                  color="white"
+                  density="compact"
+                  variant="outlined"
+                  divided
+                  mandatory
+                  @update:modelValue="applySelectionMode"
+                >
+                  <v-btn value="zoom" size="small">Zoom</v-btn>
+                  <v-btn value="rect" size="small">Rectangular</v-btn>
+                  <v-btn value="polygon" size="small">Polygonal</v-btn>
+                </v-btn-toggle>
                 <v-btn
                   class="mr-2"
                   color="white"
@@ -137,6 +151,7 @@ export default {
       pointsLoaded: 0,
       errorMessage: '',
       cosmographInstance: null,
+      selectionMode: 'zoom',
       useLimit: true,
       useThreshold: true,
       usePerNodeLimit: true,
@@ -215,6 +230,25 @@ export default {
       })
 
       this.hasGraph = true
+      this.applySelectionMode()
+    },
+
+    applySelectionMode() {
+      if (!this.cosmographInstance) return
+
+      try {
+        this.cosmographInstance.deactivateRectSelection?.()
+        this.cosmographInstance.deactivatePolygonalSelection?.()
+      } catch (error) {
+        console.warn('Failed to deactivate selection modules:', error)
+        // ignore teardown errors from selection modules
+      }
+
+      if (this.selectionMode === 'rect') {
+        this.cosmographInstance.activateRectSelection?.()
+      } else if (this.selectionMode === 'polygon') {
+        this.cosmographInstance.activatePolygonalSelection?.()
+      }
     },
 
     async loadMetagraph() {
