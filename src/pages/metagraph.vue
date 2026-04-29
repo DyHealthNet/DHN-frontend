@@ -117,13 +117,17 @@
                 <div v-if="isLoading" class="progress-wrap mb-4">
                   <v-progress-linear indeterminate color="primary" rounded />
                   <p class="progress-text mt-2 mb-1">Loading metagraph...</p>
-                  <p class="progress-meta mb-0">
-                    Links: {{ linksLoaded.toLocaleString() }} | Points: {{ pointsLoaded.toLocaleString() }}
-                  </p>
                 </div>
 
                 <div v-if="errorMessage" class="error-note mb-3">
                   {{ errorMessage }}
+                </div>
+
+                <div v-if="cacheStatus">
+                  <p class="cache-note mb-3">{{ cacheStatus }}</p>
+                  <p class="progress-meta mb-0" color="primary"y>
+                    Links: {{ linksLoaded.toLocaleString() }} | Points: {{ pointsLoaded.toLocaleString() }}
+                  </p>
                 </div>
 
                 <div class="graph-stage">
@@ -150,6 +154,7 @@ export default {
       linksLoaded: 0,
       pointsLoaded: 0,
       errorMessage: '',
+      cacheStatus: '',
       cosmographInstance: null,
       selectionMode: 'zoom',
       useLimit: true,
@@ -158,6 +163,7 @@ export default {
       limit: 2000,
       threshold: 0.999,
       perNodeLimit: 2,
+      cacheVersion: 'v1',
       dataConfig: {
         points: {
           pointIdBy: 'id',
@@ -191,6 +197,28 @@ export default {
         params.set('per_node_limit', String(this.perNodeLimit))
       }
       return `${BASE_URL}/network/api/getCosmographNetwork/?${params.toString()}`
+    },
+    getGraphCacheKey() {
+      return `metagraph-cache:${this.cacheVersion}:${this.buildRequestUrl()}`
+    },
+    readGraphCache() {
+      try {
+        const cached = window.localStorage.getItem(this.getGraphCacheKey())
+        if (!cached) return null
+        const parsed = JSON.parse(cached)
+        if (!parsed || !Array.isArray(parsed.points) || !Array.isArray(parsed.links)) return null
+        return parsed
+      } catch (error) {
+        console.warn('Failed to read graph cache:', error)
+        return null
+      }
+    },
+    writeGraphCache(graph) {
+      try {
+        window.localStorage.setItem(this.getGraphCacheKey(), JSON.stringify(graph))
+      } catch (error) {
+        console.warn('Failed to write graph cache:', error)
+      }
     },
     async fetchGraph() {
       const res = await fetch(this.buildRequestUrl())
@@ -256,11 +284,19 @@ export default {
 
       this.isLoading = true
       this.errorMessage = ''
+      this.cacheStatus = ''
 
       try {
-        const graph = await this.fetchGraph()
+        const cachedGraph = this.readGraphCache()
+        const graph = cachedGraph || (await this.fetchGraph())
         this.pointsLoaded = graph.points?.length || 0
         this.linksLoaded = graph.links?.length || 0
+        if (cachedGraph) {
+          this.cacheStatus = 'Loaded graph from browser cache.'
+        } else {
+          this.writeGraphCache(graph)
+          this.cacheStatus = 'Saved graph to browser cache.'
+        }
         await this.renderGraph(graph.points || [], graph.links || [])
       } catch (error) {
         console.error('Failed to load Cosmograph network data:', error)
