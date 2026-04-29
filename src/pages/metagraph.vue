@@ -37,6 +37,69 @@
               </v-toolbar>
 
               <v-card-text>
+                <v-row class="controls-row" dense>
+                  <v-col cols="12" md="4">
+                    <v-switch v-model="useLimit" color="primary" hide-details inset label="Limit total links" />
+                    <v-text-field
+                      v-if="useLimit"
+                      v-model.number="limit"
+                      class="mt-2"
+                      type="number"
+                      min="1"
+                      max="20000"
+                      density="compact"
+                      variant="outlined"
+                      label="Total link limit"
+                      hide-details
+                    />
+                  </v-col>
+
+                  <v-col cols="12" md="4">
+                    <v-switch
+                      v-model="useThreshold"
+                      color="primary"
+                      hide-details
+                      inset
+                      label="Apply significance threshold"
+                    />
+                    <v-text-field
+                      v-if="useThreshold"
+                      v-model.number="threshold"
+                      class="mt-2"
+                      type="number"
+                      step="0.001"
+                      min="0"
+                      max="1"
+                      density="compact"
+                      variant="outlined"
+                      label="Threshold"
+                      hide-details
+                    />
+                  </v-col>
+
+                  <v-col cols="12" md="4">
+                    <v-switch
+                      v-model="usePerNodeLimit"
+                      color="primary"
+                      hide-details
+                      inset
+                      label="Cap links per node"
+                    />
+                    <v-text-field
+                      v-if="usePerNodeLimit"
+                      v-model.number="perNodeLimit"
+                      class="mt-2"
+                      type="number"
+                      min="1"
+                      max="20"
+                      density="compact"
+                      variant="outlined"
+                      label="Links per node"
+                      hide-details
+                    />
+                  </v-col>
+                </v-row>
+
                 <div v-if="isLoading" class="progress-wrap mb-4">
                   <v-progress-linear indeterminate color="primary" rounded />
                   <p class="progress-text mt-2 mb-1">Loading metagraph...</p>
@@ -74,6 +137,12 @@ export default {
       pointsLoaded: 0,
       errorMessage: '',
       cosmographInstance: null,
+      useLimit: true,
+      useThreshold: true,
+      usePerNodeLimit: true,
+      limit: 2000,
+      threshold: 0.999,
+      perNodeLimit: 2,
       dataConfig: {
         points: {
           pointIdBy: 'id',
@@ -97,7 +166,15 @@ export default {
   methods: {
     buildRequestUrl() {
       const params = new URLSearchParams()
-      params.set('per_node_limit', '2')
+      if (this.useLimit && this.limit !== '' && this.limit != null) {
+        params.set('limit', String(this.limit))
+      }
+      if (this.useThreshold && this.threshold !== '' && this.threshold != null) {
+        params.set('threshold', String(this.threshold))
+      }
+      if (this.usePerNodeLimit && this.perNodeLimit !== '' && this.perNodeLimit != null) {
+        params.set('per_node_limit', String(this.perNodeLimit))
+      }
       return `${BASE_URL}/network/api/getCosmographNetwork/?${params.toString()}`
     },
     async fetchGraph() {
