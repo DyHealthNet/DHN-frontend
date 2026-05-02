@@ -125,7 +125,7 @@
 
                 <div v-if="cacheStatus">
                   <p class="cache-note mb-3">{{ cacheStatus }}</p>
-                  <p class="progress-meta mb-0" color="primary"y>
+                  <p class="progress-meta mb-0">
                     Links: {{ linksLoaded.toLocaleString() }} | Points: {{ pointsLoaded.toLocaleString() }}
                   </p>
                 </div>
@@ -133,6 +133,51 @@
                 <div class="graph-stage">
                   <div ref="containerRef" class="graph-container"></div>
                 </div>
+
+                <v-card class="mt-6" variant="outlined">
+                  <v-card-title class="d-flex align-center justify-space-between">
+                    <span>Selected nodes</span>
+                    <div class="d-flex align-center ga-2">
+                      <v-chip size="small" color="primary" variant="tonal">
+                        {{ selectedNodes.length }} nodes
+                      </v-chip>
+                      <v-chip size="small" color="secondary" variant="tonal">
+                        {{ selectedSubgraphLinks.length }} links
+                      </v-chip>
+                      <v-btn
+                        size="small"
+                        variant="outlined"
+                        :disabled="!selectedNodes.length"
+                        @click="downloadSelectedSubgraph"
+                      >
+                        Download subgraph JSON
+                      </v-btn>
+                    </div>
+                  </v-card-title>
+                  <v-card-text>
+                    <v-table density="compact" class="selected-nodes-table">
+                      <thead>
+                        <tr>
+                          <th class="text-left">Index</th>
+                          <th class="text-left">ID</th>
+                          <th class="text-left">Type</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="node in selectedNodes" :key="node.index">
+                          <td>{{ node.index }}</td>
+                          <td>{{ node.id }}</td>
+                          <td>{{ node.type ?? '-' }}</td>
+                        </tr>
+                        <tr v-if="!selectedNodes.length">
+                          <td colspan="3" class="py-4 text-medium-emphasis">
+                            Select one or more nodes to see them here.
+                          </td>
+                        </tr>
+                      </tbody>
+                    </v-table>
+                  </v-card-text>
+                </v-card>
               </v-card-text>
             </v-card>
           </v-col>
@@ -156,6 +201,11 @@ export default {
       errorMessage: '',
       cacheStatus: '',
       cosmographInstance: null,
+      graphPoints: [],
+      graphLinks: [],
+      selectedPointIndices: [],
+      selectedNodes: [],
+      selectedSubgraphLinks: [],
       selectionMode: 'zoom',
       useLimit: true,
       useThreshold: true,
@@ -239,6 +289,9 @@ export default {
         return
       }
 
+      this.graphPoints = Array.isArray(rawPoints) ? rawPoints : []
+      this.graphLinks = Array.isArray(rawLinks) ? rawLinks : []
+
       const prepared = await prepareCosmographData(this.dataConfig, rawPoints || [], rawLinks || [])
       if (!prepared) {
         this.errorMessage = 'Failed to prepare graph data for Cosmograph.'
@@ -254,11 +307,49 @@ export default {
       this.cosmographInstance = new Cosmograph(this.$refs.containerRef, {
         points,
         links,
+        onPointsFiltered: (filteredPoints, selectedPointIndices, selectedLinkIndices) =>
+          this.handlePointsFiltered(filteredPoints, selectedPointIndices, selectedLinkIndices),
         ...cosmographConfig,
       })
 
       this.hasGraph = true
       this.applySelectionMode()
+      this.syncSelectionFromGraph([])
+    },
+
+    handlePointsFiltered(filteredPoints, selectedPointIndices) {
+      this.syncSelectionFromGraph(selectedPointIndices || [])
+    },
+
+    syncSelectionFromGraph(selectedPointIndices) {
+      this.selectedPointIndices = Array.isArray(selectedPointIndices) ? selectedPointIndices : []
+      this.selectedNodes = this.selectedPointIndices
+        .map((index) => {
+          const point = this.graphPoints[index]
+          if (!point) return null
+          return { ...point, index }
+        })
+        .filter(Boolean)
+
+      const selectedIds = new Set(this.selectedNodes.map((node) => node.id))
+      this.selectedSubgraphLinks = this.graphLinks.filter((link) => selectedIds.has(link.source) && selectedIds.has(link.target))
+    },
+
+    downloadSelectedSubgraph() {
+      if (!this.selectedNodes.length) return
+
+      const payload = {
+        points: this.selectedNodes.map(({ index, ...point }) => point),
+        links: this.selectedSubgraphLinks,
+      }
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'selected-subgraph.json'
+      link.click()
+      URL.revokeObjectURL(url)
     },
 
     applySelectionMode() {
