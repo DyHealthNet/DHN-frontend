@@ -272,7 +272,7 @@ export default {
       if (this.usePerNodeLimit && this.perNodeLimit !== '' && this.perNodeLimit != null) {
         params.set('per_node_limit', String(this.perNodeLimit))
       }
-      if (leiden && this.resolution !== '' && this.resolution != null {
+      if (leiden && this.resolution !== '' && this.resolution != null) {
         params.set('resolution', String(this.resolution))
       }
       return `${BASE_URL}/metagraph/api/getCosmograph/?${params.toString()}`
@@ -462,7 +462,7 @@ export default {
       this.cacheStatus = ''
 
       try {
-        const graph = await this.fetchGraph(this.buildLeidenRequestUrl(leiden=true))
+        const graph = await this.fetchGraph(this.buildRequestUrl(true))
         this.pointsLoaded = graph.points?.length || 0
         this.linksLoaded = graph.links?.length || 0
 
