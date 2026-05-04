@@ -43,10 +43,20 @@
                   variant="outlined"
                   size="small"
                   :loading="isLoading"
-                  :disabled="isLoading"
+                  :disabled="isLoading || isLeidenLoading"
                   @click="loadMetagraph"
                 >
                   Load Metagraph
+                </v-btn>
+                <v-btn
+                  color="white"
+                  variant="tonal"
+                  size="small"
+                  :loading="isLeidenLoading"
+                  :disabled="isLoading || isLeidenLoading"
+                  @click="runLeidenClustering"
+                >
+                  Run Leiden Clustering
                 </v-btn>
               </v-toolbar>
 
@@ -110,6 +120,20 @@
                       variant="outlined"
                       label="Links per node"
                       hide-details
+                    />
+                  </v-col>
+
+                  <v-col cols="12" md="4">
+                    <v-text-field
+                      v-model.number="resolution"
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      density="compact"
+                      variant="outlined"
+                      label="Leiden resolution"
+                      hint="Higher values produce more communities"
+                      persistent-hint
                     />
                   </v-col>
                 </v-row>
@@ -195,6 +219,7 @@ export default {
   data() {
     return {
       isLoading: false,
+      isLeidenLoading: false,
       hasGraph: false,
       linksLoaded: 0,
       pointsLoaded: 0,
@@ -213,6 +238,7 @@ export default {
       limit: 2000,
       threshold: 0.999,
       perNodeLimit: 2,
+      resolution: 1.0,
       cacheVersion: 'v1',
       dataConfig: {
         points: {
@@ -235,7 +261,7 @@ export default {
     }
   },
   methods: {
-    buildRequestUrl() {
+    buildRequestUrl(leiden=false) {
       const params = new URLSearchParams()
       if (this.useLimit && this.limit !== '' && this.limit != null) {
         params.set('limit', String(this.limit))
@@ -246,13 +272,17 @@ export default {
       if (this.usePerNodeLimit && this.perNodeLimit !== '' && this.perNodeLimit != null) {
         params.set('per_node_limit', String(this.perNodeLimit))
       }
-      return `${BASE_URL}/network/api/getCosmographNetwork/?${params.toString()}`
+      if (leiden && this.resolution !== '' && this.resolution != null {
+        params.set('resolution', String(this.resolution))
+      }
+      return `${BASE_URL}/metagraph/api/getCosmograph/?${params.toString()}`
     },
     getGraphCacheKey() {
       return `metagraph-cache:${this.cacheVersion}:${this.buildRequestUrl()}`
     },
     readGraphCache() {
       try {
+        console.log('Attempting to read graph cache with key:', this.getGraphCacheKey())  
         const cached = window.localStorage.getItem(this.getGraphCacheKey())
         if (!cached) return null
         const parsed = JSON.parse(cached)
@@ -266,12 +296,13 @@ export default {
     writeGraphCache(graph) {
       try {
         window.localStorage.setItem(this.getGraphCacheKey(), JSON.stringify(graph))
+        console.log('Attempting to write graph cache with key:', this.getGraphCacheKey())  
       } catch (error) {
         console.warn('Failed to write graph cache:', error)
       }
     },
-    async fetchGraph() {
-      const res = await fetch(this.buildRequestUrl())
+    async fetchGraph(requestUrl) {
+      const res = await fetch(requestUrl)
       if (!res.ok) {
         throw new Error(`Request failed with status ${res.status}`)
       }
@@ -285,6 +316,7 @@ export default {
       return res.json()
     },
     async renderGraph(rawPoints, rawLinks) {
+
       if (!this.$refs.containerRef) {
         return
       }
@@ -300,21 +332,42 @@ export default {
 
       const { points, links, cosmographConfig } = prepared
 
-      if (this.cosmographInstance && typeof this.cosmographInstance.destroy === 'function') {
-        this.cosmographInstance.destroy()
+      // Safely destroy previous instance (await if promise) and clear container
+      try {
+        await this.safeDestroy(this.cosmographInstance)
+        this.cosmographInstance = null
+        this.$refs.containerRef && (this.$refs.containerRef.innerHTML = '')
+      } catch (err) {
+        console.warn('Failed to cleanup container or containerRef:', err)
       }
 
-      this.cosmographInstance = new Cosmograph(this.$refs.containerRef, {
-        points,
-        links,
-        onPointsFiltered: (filteredPoints, selectedPointIndices, selectedLinkIndices) =>
-          this.handlePointsFiltered(filteredPoints, selectedPointIndices, selectedLinkIndices),
-        ...cosmographConfig,
-      })
+      try {
+        this.cosmographInstance = new Cosmograph(this.$refs.containerRef, {
+          points,
+          links,
+          onPointsFiltered: (filteredPoints, selectedPointIndices, selectedLinkIndices) =>
+            this.handlePointsFiltered(filteredPoints, selectedPointIndices, selectedLinkIndices),
+          ...cosmographConfig,
+        })
+      } catch (err) {
+        console.error('Failed to initialize Cosmograph instance:', err)
+        throw err
+      }
 
       this.hasGraph = true
       this.applySelectionMode()
       this.syncSelectionFromGraph([])
+    },
+
+    async safeDestroy(inst) {
+      if (!inst || typeof inst.destroy !== 'function') return
+      try {
+        const res = inst.destroy()
+        if (res && typeof res.then === 'function') await res
+        else await Promise.resolve()
+      } catch (e) {
+        console.warn('Error destroying Cosmograph instance:', e)
+      }
     },
 
     handlePointsFiltered(filteredPoints, selectedPointIndices) {
@@ -372,6 +425,7 @@ export default {
 
     async loadMetagraph() {
       if (!this.$refs.containerRef || this.isLoading) return
+      console.log('Loading metagraph');
 
       this.isLoading = true
       this.errorMessage = ''
@@ -379,7 +433,9 @@ export default {
 
       try {
         const cachedGraph = this.readGraphCache()
-        const graph = cachedGraph || (await this.fetchGraph())
+        console.log('cachedGraph:', cachedGraph);
+        const graph = cachedGraph || (await this.fetchGraph(this.buildRequestUrl()))
+        console.log('graph:', graph);
         this.pointsLoaded = graph.points?.length || 0
         this.linksLoaded = graph.links?.length || 0
         if (cachedGraph) {
@@ -388,12 +444,39 @@ export default {
           this.writeGraphCache(graph)
           this.cacheStatus = 'Saved graph to browser cache.'
         }
+        this.dataConfig['points']['pointClusterBy'] = 'type'
         await this.renderGraph(graph.points || [], graph.links || [])
+        console.log('Graph rendered successfully');
       } catch (error) {
         console.error('Failed to load Cosmograph network data:', error)
         this.errorMessage = `Failed to load Cosmograph network data: ${error.message || error}`
       } finally {
         this.isLoading = false
+      }
+    },
+    async runLeidenClustering() {
+      if (!this.$refs.containerRef || this.isLoading || this.isLeidenLoading) return
+
+      this.isLeidenLoading = true
+      this.errorMessage = ''
+      this.cacheStatus = ''
+
+      try {
+        const graph = await this.fetchGraph(this.buildLeidenRequestUrl(leiden=true))
+        this.pointsLoaded = graph.points?.length || 0
+        this.linksLoaded = graph.links?.length || 0
+
+        const algo = graph.meta?.algorithm || 'unknown'
+        const communities = graph.meta?.community_count ?? 0
+        this.cacheStatus = `Leiden clustering complete (${algo}, ${communities} communities).`
+
+        this.dataConfig['points']['pointClusterBy'] = 'community'
+        await this.renderGraph(graph.points || [], graph.links || [])
+      } catch (error) {
+        console.error('Failed to run Leiden clustering:', error)
+        this.errorMessage = `Failed to run Leiden clustering: ${error.message || error}`
+      } finally {
+        this.isLeidenLoading = false
       }
     },
   },
