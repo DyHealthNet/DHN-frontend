@@ -124,17 +124,22 @@
                   </v-col>
 
                   <v-col cols="12" md="4">
-                    <v-text-field
-                      v-model.number="resolution"
-                      type="number"
-                      step="0.1"
-                      min="0.1"
-                      density="compact"
-                      variant="outlined"
-                      label="Leiden resolution"
-                      hint="Higher values produce more communities"
-                      persistent-hint
-                    />
+                    <div class="resolution-control">
+                      <label class="label-text">Leiden resolution: {{ getSelectedResolution() }}</label>
+                      <v-slider
+                        v-model="resolutionIndex"
+                        :min="0"
+                        :max="resolutionOptions.length - 1"
+                        :step="1"
+                        show-ticks="always"
+                        thumb-label="always"
+                        density="compact"
+                        color="primary"
+                      >
+                        <template #thumb-label>{{ getSelectedResolution() }}</template>
+                      </v-slider>
+                      <p class="hint-text">Higher values produce more communities</p>
+                    </div>
                   </v-col>
                 </v-row>
 
@@ -168,6 +173,14 @@
                       <v-chip size="small" color="secondary" variant="tonal">
                         {{ selectedSubgraphLinks.length }} links
                       </v-chip>
+                      <v-btn
+                        size="small"
+                        variant="outlined"
+                        :disabled="!selectedNodes.length"
+                        @click="clearAllSelections"
+                      >
+                        Deselect All
+                      </v-btn>
                       <v-btn
                         size="small"
                         variant="outlined"
@@ -234,11 +247,12 @@ export default {
       selectionMode: 'zoom',
       useLimit: true,
       useThreshold: true,
-      usePerNodeLimit: true,
+      usePerNodeLimit: false,
       limit: 2000,
       threshold: 0.999,
       perNodeLimit: 2,
-      resolution: 1.0,
+      resolutionOptions: [0.2, 0.5, 1.0, 1.5, 2.0, 3.0],
+      resolutionIndex: 2,
       cacheVersion: 'v1',
       dataConfig: {
         points: {
@@ -261,6 +275,9 @@ export default {
     }
   },
   methods: {
+    getSelectedResolution() {
+      return this.resolutionOptions[this.resolutionIndex] ?? 1.0
+    },
     buildRequestUrl(leiden=false) {
       const params = new URLSearchParams()
       if (this.useLimit && this.limit !== '' && this.limit != null) {
@@ -272,8 +289,10 @@ export default {
       if (this.usePerNodeLimit && this.perNodeLimit !== '' && this.perNodeLimit != null) {
         params.set('per_node_limit', String(this.perNodeLimit))
       }
-      if (leiden && this.resolution !== '' && this.resolution != null) {
-        params.set('resolution', String(this.resolution))
+      if (leiden) {
+        const selectedResolution = this.getSelectedResolution()
+        params.set('resolution', String(selectedResolution))
+        return `${BASE_URL}/metagraph/api/getLeidenMetagraph/?${params.toString()}`
       }
       return `${BASE_URL}/metagraph/api/getCosmograph/?${params.toString()}`
     },
@@ -460,6 +479,11 @@ export default {
       }
     },
 
+    clearAllSelections() {
+      this.cosmographInstance?.unselectAllPoints?.()
+      this.syncSelectionFromGraph([])
+    },
+
     async loadMetagraph() {
       if (!this.$refs.containerRef || this.isLoading) return
       console.log('Loading metagraph');
@@ -515,6 +539,26 @@ export default {
       } finally {
         this.isLeidenLoading = false
       }
+    },
+  },
+  watch: {
+    resolutionIndex(newIndex, oldIndex) {
+      if (newIndex !== oldIndex && this.hasGraph) {
+        this.runLeidenClustering()
+      }
+    },
+    useLimit(newVal) {
+      if (newVal) {
+        this.usePerNodeLimit = false
+      }
+    },
+    usePerNodeLimit(newVal) {
+      if (newVal) {
+        this.useLimit = false
+      }
+    },
+    selectionMode() {
+      this.clearAllSelections()
     },
   },
   beforeUnmount() {
@@ -629,5 +673,24 @@ export default {
 
 .checklist li {
   margin-bottom: 0.8rem;
+}
+
+.resolution-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.label-text {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.hint-text {
+  font-size: 0.75rem;
+  opacity: 0.6;
+  margin: 0;
+  margin-top: 0.25rem;
 }
 </style>
