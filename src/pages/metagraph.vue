@@ -345,6 +345,9 @@ export default {
         this.cosmographInstance = new Cosmograph(this.$refs.containerRef, {
           points,
           links,
+          selectPointOnClick: false,
+          resetSelectionOnEmptyCanvasClick: false,
+          onPointClick: (pointLike) => this.togglePointSelection(pointLike),
           onPointsFiltered: (filteredPoints, selectedPointIndices, selectedLinkIndices) =>
             this.handlePointsFiltered(filteredPoints, selectedPointIndices, selectedLinkIndices),
           ...cosmographConfig,
@@ -386,6 +389,40 @@ export default {
 
       const selectedIds = new Set(this.selectedNodes.map((node) => node.id))
       this.selectedSubgraphLinks = this.graphLinks.filter((link) => selectedIds.has(link.source) && selectedIds.has(link.target))
+    },
+
+    resolvePointIndex(pointLike) {
+      if (typeof pointLike === 'number') return pointLike
+      if (!pointLike) return null
+      if (typeof pointLike.index === 'number') return pointLike.index
+      if (typeof pointLike.pointIndex === 'number') return pointLike.pointIndex
+      if (pointLike.id == null) return null
+      const idx = this.graphPoints.findIndex((p) => p && p.id === pointLike.id)
+      return idx >= 0 ? idx : null
+    },
+
+    togglePointSelection(pointLike) {
+      const index = this.resolvePointIndex(pointLike)
+      if (index == null || !this.cosmographInstance) return
+
+      const selected = this.cosmographInstance.getSelectedPointIndices?.() || this.selectedPointIndices
+      const isSelected = Array.isArray(selected) && selected.includes(index)
+
+      if (isSelected) {
+        this.cosmographInstance.unselectPoint?.(index, false)
+      } else {
+        this.cosmographInstance.selectPoint?.(index, true, false)
+      }
+
+      const updated = this.cosmographInstance.getSelectedPointIndices?.()
+      if (Array.isArray(updated)) {
+        this.syncSelectionFromGraph(updated)
+      }
+    },
+
+    selectPoint(index) {
+      this.syncSelectionFromGraph([index])
+      this.cosmographInstance?.selectPoint?.(index, false, false)
     },
 
     downloadSelectedSubgraph() {
