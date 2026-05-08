@@ -123,7 +123,7 @@
                     />
                   </v-col>
 
-                  <v-col cols="12" md="4">
+                  <v-col v-if="leidenGraphPayload" cols="12" md="4">
                     <div class="resolution-control">
                       <label class="label-text">Leiden resolution: {{ getSelectedResolution() }}</label>
                       <v-slider
@@ -249,10 +249,11 @@ export default {
       useThreshold: true,
       usePerNodeLimit: false,
       limit: 2000,
-      threshold: 0.999,
+      threshold: 0.005,
       perNodeLimit: 2,
       resolutionOptions: [0.2, 0.5, 1.0, 1.5, 2.0, 3.0],
       resolutionIndex: 2,
+      leidenGraphPayload: null,
       cacheVersion: 'v1',
       dataConfig: {
         points: {
@@ -278,6 +279,11 @@ export default {
     getSelectedResolution() {
       return this.resolutionOptions[this.resolutionIndex] ?? 1.0
     },
+    getResolutionFieldName() {
+      const resolution = this.getSelectedResolution()
+      const key = String(resolution).replace(/\./, '_')
+      return `community_r${key}`
+    },
     buildRequestUrl(leiden=false) {
       const params = new URLSearchParams()
       if (this.useLimit && this.limit !== '' && this.limit != null) {
@@ -290,8 +296,8 @@ export default {
         params.set('per_node_limit', String(this.perNodeLimit))
       }
       if (leiden) {
-        const selectedResolution = this.getSelectedResolution()
-        params.set('resolution', String(selectedResolution))
+        const resolutionsStr = this.resolutionOptions.join(',')
+        params.set('resolutions', resolutionsStr)
         return `${BASE_URL}/metagraph/api/getLeidenMetagraph/?${params.toString()}`
       }
       return `${BASE_URL}/metagraph/api/getCosmograph/?${params.toString()}`
@@ -491,6 +497,8 @@ export default {
       this.isLoading = true
       this.errorMessage = ''
       this.cacheStatus = ''
+      this.leidenGraphPayload = null
+      this.resolutionIndex = 2
 
       try {
         const cachedGraph = this.readGraphCache()
@@ -521,17 +529,23 @@ export default {
       this.isLeidenLoading = true
       this.errorMessage = ''
       this.cacheStatus = ''
+      this.resolutionIndex = 2
 
       try {
         const graph = await this.fetchGraph(this.buildRequestUrl(true))
         this.pointsLoaded = graph.points?.length || 0
         this.linksLoaded = graph.links?.length || 0
 
-        const algo = graph.meta?.algorithm || 'unknown'
-        const communities = graph.meta?.community_count ?? 0
-        this.cacheStatus = `Leiden clustering complete (${algo}, ${communities} communities).`
+        // Store the full multi-resolution response
+        this.leidenGraphPayload = graph
 
-        this.dataConfig['points']['pointClusterBy'] = 'community'
+        const algo = graph.meta?.algorithm || 'unknown'
+        const resolutionCount = graph.meta?.resolutions?.length ?? 0
+        this.cacheStatus = `Leiden clustering complete (${algo}, ${resolutionCount} resolutions).`
+
+        // Apply clustering for the current resolution
+        const fieldName = this.getResolutionFieldName()
+        this.dataConfig['points']['pointClusterBy'] = fieldName
         await this.renderGraph(graph.points || [], graph.links || [])
       } catch (error) {
         console.error('Failed to run Leiden clustering:', error)
@@ -540,11 +554,21 @@ export default {
         this.isLeidenLoading = false
       }
     },
+    applyLeidenResolutionChange() {
+      if (!this.leidenGraphPayload || !this.cosmographInstance) return
+
+      // Update the field name to the new resolution
+      const fieldName = this.getResolutionFieldName()
+      this.dataConfig['points']['pointClusterBy'] = fieldName
+
+      // Re-render with the new clustering field
+      this.cosmographInstance.setConfig?.(this.dataConfig['points'])
+    },
   },
   watch: {
     resolutionIndex(newIndex, oldIndex) {
-      if (newIndex !== oldIndex && this.hasGraph) {
-        this.runLeidenClustering()
+      if (newIndex !== oldIndex && this.leidenGraphPayload) {
+        this.applyLeidenResolutionChange()
       }
     },
     useLimit(newVal) {
