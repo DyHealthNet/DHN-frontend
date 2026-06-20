@@ -46,7 +46,7 @@
                   :disabled="isLoading || isLeidenLoading"
                   @click="loadMetagraph"
                 >
-                  Load Metagraph
+                  Load Network
                 </v-btn>
                 <v-btn
                   color="white"
@@ -280,9 +280,15 @@ export default {
       return this.resolutionOptions[this.resolutionIndex] ?? 1.0
     },
     getResolutionFieldName() {
+      // Match backend's resolution_to_key logic:
+      // Normalize to 6 decimals, strip trailing zeros, strip trailing dot.
+      // If no decimal remains, add ".0"
       const resolution = this.getSelectedResolution()
-      const key = String(resolution).replace(/\./, '_')
-      return `community_r${key}`
+      let text = parseFloat(resolution).toFixed(6).replace(/0+$/, '').replace(/\.$/, '')
+      if (!text.includes('.')) {
+        text = text + '.0'
+      }
+      return `community_r${text}`
     },
     buildRequestUrl(leiden=false) {
       const params = new URLSearchParams()
@@ -357,11 +363,11 @@ export default {
 
       const { points, links, cosmographConfig } = prepared
 
-      // Safely destroy previous instance (await if promise) and clear container
+      // Safely destroy previous instance (await if promise)
       try {
         await this.safeDestroy(this.cosmographInstance)
         this.cosmographInstance = null
-        this.$refs.containerRef && (this.$refs.containerRef.innerHTML = '')
+        // Skip DOM clear — instance destruction handles cleanup; avoids reflow penalty
       } catch (err) {
         console.warn('Failed to cleanup container or containerRef:', err)
       }
@@ -541,7 +547,9 @@ export default {
 
         const algo = graph.meta?.algorithm || 'unknown'
         const resolutionCount = graph.meta?.resolutions?.length ?? 0
-        this.cacheStatus = `Leiden clustering complete (${algo}, ${resolutionCount} resolutions).`
+        const resolutionKey = this.getSelectedResolution().toFixed(1)
+        const communityCount = graph.meta?.community_counts_by_resolution?.[resolutionKey] ?? 0
+        this.cacheStatus = `Leiden clustering complete (${communityCount} communities).`
 
         // Apply clustering for the current resolution
         const fieldName = this.getResolutionFieldName()
@@ -554,15 +562,21 @@ export default {
         this.isLeidenLoading = false
       }
     },
-    applyLeidenResolutionChange() {
-      if (!this.leidenGraphPayload || !this.cosmographInstance) return
+    async applyLeidenResolutionChange() {
+      if (!this.leidenGraphPayload || !this.graphPoints.length) return
 
       // Update the field name to the new resolution
       const fieldName = this.getResolutionFieldName()
+      console.debug(`Applying Leiden resolution change: fieldName="${fieldName}", resolution=${this.getSelectedResolution()}`)
       this.dataConfig['points']['pointClusterBy'] = fieldName
 
-      // Re-render with the new clustering field
-      this.cosmographInstance.setConfig?.(this.dataConfig['points'])
+      // Re-render with the new clustering field applied
+      try {
+        await this.renderGraph(this.graphPoints, this.graphLinks)
+      } catch (err) {
+        console.error('Failed to re-render graph with new resolution:', err)
+        this.errorMessage = `Failed to apply resolution change: ${err?.message ?? err}`
+      }
     },
   },
   watch: {
