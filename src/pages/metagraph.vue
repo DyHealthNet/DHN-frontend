@@ -62,8 +62,38 @@
 
               <v-card-text>
                 <v-row class="controls-row" dense>
-                  <v-col cols="12" md="4">
-                    <v-switch v-model="useLimit" color="primary" hide-details inset label="Limit total links" />
+                  <v-col cols="12" md="3">
+                    <v-switch
+                      v-model="useDensity"
+                      color="primary"
+                      hide-details
+                      inset
+                      label="Use density target"
+                    />
+                    <v-text-field
+                      v-if="useDensity"
+                      v-model.number="density"
+                      class="mt-2"
+                      type="number"
+                      step="0.001"
+                      min="0"
+                      max="1"
+                      density="compact"
+                      variant="outlined"
+                      label="Density"
+                      hide-details
+                    />
+                  </v-col>
+
+                  <v-col cols="12" md="3">
+                    <v-switch
+                      v-model="useLimit"
+                      color="primary"
+                      hide-details
+                      inset
+                      label="Limit total links"
+                      :disabled="useDensity"
+                    />
                     <v-text-field
                       v-if="useLimit"
                       v-model.number="limit"
@@ -78,13 +108,14 @@
                     />
                   </v-col>
 
-                  <v-col cols="12" md="4">
+                  <v-col cols="12" md="3">
                     <v-switch
                       v-model="useThreshold"
                       color="primary"
                       hide-details
                       inset
                       label="Apply significance threshold"
+                      :disabled="useDensity"
                     />
                     <v-text-field
                       v-if="useThreshold"
@@ -101,13 +132,14 @@
                     />
                   </v-col>
 
-                  <v-col cols="12" md="4">
+                  <v-col cols="12" md="3">
                     <v-switch
                       v-model="usePerNodeLimit"
                       color="primary"
                       hide-details
                       inset
                       label="Cap links per node"
+                      :disabled="useDensity"
                     />
                     <v-text-field
                       v-if="usePerNodeLimit"
@@ -195,16 +227,17 @@
                     <v-table density="compact" class="selected-nodes-table">
                       <thead>
                         <tr>
-                          <th class="text-left">Index</th>
                           <th class="text-left">ID</th>
                           <th class="text-left">Type</th>
+                          <th class="text-left">Community</th>
+
                         </tr>
                       </thead>
                       <tbody>
                         <tr v-for="node in selectedNodes" :key="node.index">
-                          <td>{{ node.index }}</td>
                           <td>{{ node.id }}</td>
                           <td>{{ node.type ?? '-' }}</td>
+                          <td>{{ node[getResolutionFieldName()] ?? '-' }}</td>
                         </tr>
                         <tr v-if="!selectedNodes.length">
                           <td colspan="3" class="py-4 text-medium-emphasis">
@@ -245,6 +278,8 @@ export default {
       selectedNodes: [],
       selectedSubgraphLinks: [],
       selectionMode: 'zoom',
+      useDensity: false,
+      density: null,
       useLimit: true,
       useThreshold: true,
       usePerNodeLimit: false,
@@ -292,13 +327,17 @@ export default {
     },
     buildRequestUrl(leiden=false) {
       const params = new URLSearchParams()
-      if (this.useLimit && this.limit !== '' && this.limit != null) {
+      const densityIsSet = this.useDensity && this.density !== '' && this.density != null
+      if (densityIsSet) {
+        params.set('density', String(this.density))
+      }
+      if (!densityIsSet && this.useLimit && this.limit !== '' && this.limit != null) {
         params.set('limit', String(this.limit))
       }
-      if (this.useThreshold && this.threshold !== '' && this.threshold != null) {
+      if (!densityIsSet && this.useThreshold && this.threshold !== '' && this.threshold != null) {
         params.set('threshold', String(this.threshold))
       }
-      if (this.usePerNodeLimit && this.perNodeLimit !== '' && this.perNodeLimit != null) {
+      if (!densityIsSet && this.usePerNodeLimit && this.perNodeLimit !== '' && this.perNodeLimit != null) {
         params.set('per_node_limit', String(this.perNodeLimit))
       }
       if (leiden) {
@@ -580,6 +619,21 @@ export default {
     },
   },
   watch: {
+    useDensity(newVal) {
+      if (newVal) {
+        this.useLimit = false
+        this.useThreshold = false
+        this.usePerNodeLimit = false
+      }
+    },
+    density(newVal) {
+      if (newVal !== '' && newVal != null) {
+        this.useDensity = true
+        this.useLimit = false
+        this.useThreshold = false
+        this.usePerNodeLimit = false
+      }
+    },
     resolutionIndex(newIndex, oldIndex) {
       if (newIndex !== oldIndex && this.leidenGraphPayload) {
         this.applyLeidenResolutionChange()
@@ -587,11 +641,18 @@ export default {
     },
     useLimit(newVal) {
       if (newVal) {
+        this.useDensity = false
         this.usePerNodeLimit = false
+      }
+    },
+    useThreshold(newVal) {
+      if (newVal) {
+        this.useDensity = false
       }
     },
     usePerNodeLimit(newVal) {
       if (newVal) {
+        this.useDensity = false
         this.useLimit = false
       }
     },
