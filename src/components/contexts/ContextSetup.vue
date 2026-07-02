@@ -260,7 +260,7 @@ export default {
     }
   },
   data() {
-    const layers = ["Phenomics", "Metabolomics", "Proteomics"];
+    const layers = ["Phenotype", "Metabolite", "Protein"];
     const groups = [];
     const rules = [];
     if (this.content) {
@@ -304,11 +304,10 @@ export default {
       initialParticipants: null,
       removedPatients: "",
 
-      defaultSelectedTests: {
-        catCat: {label: 'Chi-squared test', value: 'chi2'}, catContM: {label: 'ANOVA', value: 'anova'},
-        catContB: {label: 'T-test', value: 'ttest'}, contCont: {label: 'Pearson correlation', value: 'pearson'}
-      },
-      selectedTests: this.content?.tests ?? this.defaultSelectedTests,
+      defaultSelectedTests: { testType: 'parametric', correction: 'bh' },
+      selectedTests: this.content?.testType
+        ? { testType: this.content.testType, correction: this.content.correction ?? 'bh' }
+        : { testType: 'parametric', correction: 'bh' },
       disableSelections: false,
 
       taskMessage: null,
@@ -550,16 +549,16 @@ export default {
       // this is a band-aid solution and ideally we get info on what layers the variables belong to
       this.allVariablesFiltered = this.allVariables;
 
-      if (!this.selectedLayers.includes("Phenomics")) {
+      if (!this.selectedLayers.includes("Phenotype")) {
         this.allVariablesFiltered = Object.fromEntries(
           Object.entries(this.allVariablesFiltered).map(([key, value]) => [
             key,
-            value.filter(item => item.includes(" / Metabolite" || item.includes(" / Protein"))),
+            value.filter(item => item.includes(" / Metabolite") || item.includes(" / Protein")),
           ])
         );
       }
 
-      if (!this.selectedLayers.includes("Metabolomics")) {
+      if (!this.selectedLayers.includes("Metabolite")) {
         this.allVariablesFiltered = Object.fromEntries(
           Object.entries(this.allVariablesFiltered).map(([key, value]) => [
             key,
@@ -568,7 +567,7 @@ export default {
         );
       }
 
-      if (!this.selectedLayers.includes("Proteomics")) {
+      if (!this.selectedLayers.includes("Protein")) {
         this.allVariablesFiltered = Object.fromEntries(
           Object.entries(this.allVariablesFiltered).map(([key, value]) => [
             key,
@@ -593,16 +592,13 @@ export default {
         conditions[rule.group].push(rule.rule);
       }
 
-      if (!this.selectedTests) {
-        this.selectedTests = this.defaultSelectedTests;
-      }
-
       return {
         connect: {inside: this.innerConnection, outside: this.outerConnection},
         conditions: conditions,
         contextName: this.contextName,
         layers: this.selectedLayers.map(layer => layer.toLowerCase()),
-        tests: this.selectedTests,
+        testType: this.selectedTests?.testType ?? 'parametric',
+        correction: this.selectedTests?.correction ?? 'bh',
         contextValue: this.value
       };
     },
@@ -682,14 +678,14 @@ export default {
     async clearContext(deleteTables=true) {
       this.deleteWarn = false;
       this.contextName = `Context ${this.value}`;
-      this.selectedLayers = ["Phenomics", "Metabolomics", "Proteomics"];
+      this.selectedLayers = ["Phenotype", "Metabolite", "Protein"];
       this.outerRows = ['group-0'];
       this.innerRows = [{group: 'group-0', id: uuidv4(), rule: {}}];
       this.progressIcon = "mdi-clock-outline";
       this.progressStatus = "Waiting";
       this.participantNumber = this.spacedNumber(this.initialParticipants);
       this.removedPatients = "";
-      this.selectedTests = this.defaultSelectedTests;
+      this.selectedTests = { testType: 'parametric', correction: 'bh' };
       this.taskMessage = null;
       this.taskStarted = false;
       this.taskInfo = "";

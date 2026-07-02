@@ -538,11 +538,7 @@ export default {
       clearNetworkWarn: false,
 
       // Advanced Settings (default) values
-      selectedTests: {
-        catCat: {label: 'Chi-squared test', value: 'chi2'}, catContM: {label: 'ANOVA', value: 'anova'},
-        multTest: {label: 'Benjamini Hochberg (FDR)', value: 'benjamini_hb'},
-        catContB: {label: 'T-test', value: 'ttest'}, contCont: {label: 'Pearson correlation', value: 'pearson'}
-      },
+      selectedTests: { testType: 'parametric', correction: 'bh' },
       signThresh: 0.999,
       fixThreshold: true,
       topNodesNumber: 5,
@@ -814,14 +810,19 @@ export default {
     getPrettyType(sourceTable) {
       switch (sourceTable) {
         case 'cohort_protein':
+        case 'protein':
           return 'Protein';
         case 'cohort_metabolite':
+        case 'metabolite':
           return 'Metabolite';
         case 'cohort_variants':
+        case 'variant':
           return 'Variant';
         case 'cohort_disorder':
+        case 'disorder':
           return 'Disorder';
         case 'cohort_phenotype':
+        case 'phenotype':
           return 'Phenotype';
         default:
           return 'None';
@@ -950,7 +951,7 @@ export default {
 
       this.network = new Network(container, data, options);
 
-      this.includedNodeTypes = new Set(this.networkNodes.map((node) => node.source_table.split("_")[1]));
+      this.includedNodeTypes = new Set(this.networkNodes.map((node) => node.source_table.split("_").pop()));
 
       // Click Event -> display node in Details Field
       this.network.on(
@@ -1109,7 +1110,7 @@ export default {
       try {
         const csrfToken = getCookie('csrftoken');
         const nodeID = node.id;
-        const type = node.source_table.split("_")[1];
+        const type = node.source_table.split("_").pop();
         const limit = count ? this.topNodesNumber : "";
         let funct = "getNetwork"
         if (this.contextValue != null){
@@ -1247,18 +1248,11 @@ export default {
       for (const key in internalEdges) {
         if (Array.isArray(internalEdges[key])) {
           internalEdges[key].forEach((edge) => {
-            const renamedEdge = Object.entries(edge).reduce((acc, [k, v]) => {
-              if (k.includes("_id")) {
-                if (!acc.from) {
-                  acc.from = v;
-                } else {
-                  acc.to = v;
-                }
-              } else {
-                acc[k] = v;
-              }
-              return acc;
-            }, {});
+            const renamedEdge = {
+              ...edge,
+              from: edge.source ?? edge.node_id_1,
+              to: edge.target ?? edge.node_id_2,
+            };
             if (!existingInternalEdgeIds.has(edge.id)) {
               this.allInternalEdges.push({
                 ...renamedEdge,
@@ -1320,7 +1314,7 @@ export default {
 
         let updatedNode = {
           ...node,
-          color: groups[node.source_table.split('_')[1]].color,
+          color: groups[node.source_table.split('_').pop()].color,
           shape: 'dot', // 'dot' text below, 'circle' text inside
           size: 15,
           borderWidth: 0,
@@ -1545,19 +1539,15 @@ export default {
       if (context) {
         console.log("context.content.contextName",context.content.contextName)
         console.log("context.content.tests",context.content.tests)
-        this.selectedTests['catCat'] = context.content.tests['catCat'];
-        this.selectedTests['catContM'] = context.content.tests['catContM'];
-        this.selectedTests['catContB'] = context.content.tests['catContB'];
-        this.selectedTests['contCont'] = context.content.tests['contCont'];
-        //this.selectedTests = context.content.tests
+        this.selectedTests = {
+          testType: context.content.testType ?? 'parametric',
+          correction: context.content.correction ?? 'bh',
+        };
         this.disableSelections = true;
         this.clearNetwork(true,false);
       }
       else{
-        this.selectedTests =  {
-          catCat: {label: 'Chi-squared test', value: 'chi2'}, catContM: {label: 'ANOVA', value: 'anova'},
-          multTest: {label: 'Benjamini Hochberg (FDR)', value: 'benjamini_hb'},
-          catContB: {label: 'T-test', value: 'ttest'}, contCont: {label: 'Pearson correlation', value: 'pearson'}};
+        this.selectedTests = { testType: 'parametric', correction: 'bh' };
         this.disableSelections = false;
         this.clearNetwork(true, false);
       }
@@ -1626,7 +1616,10 @@ export default {
         this.updateSearchText();
 
         this.selectedNetworkNodes = user_settings.selectedNetworkNodes;
-        this.selectedTests = user_settings.selectedTests;
+        const loaded = user_settings.selectedTests;
+        this.selectedTests = (loaded?.testType !== undefined)
+          ? loaded
+          : { testType: 'parametric', correction: loaded?.correction ?? 'bh' };
         this.signThresh = parseFloat(user_settings.signThresh);
         this.fixThreshold = user_settings.fixThreshold;
         this.topNodesNumber = parseInt(user_settings.topNodesNumber);

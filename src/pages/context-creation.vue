@@ -62,7 +62,7 @@ export default {
                                      {column: 'def', operator: 'in range', value: [0, 5]}],
                          'group-1': [{column: 'Ghi', operator: 'in', value: ['male', 'female']}]},
             tests: {contCont: 'Spearman', catCat: 'Chi-square', catContM: 'ANOVA', catContB: 'ANOVA'},
-            layers: ['Metabolomics', 'Phenomics'],
+            layers: ['Metabolite', 'Phenotype'],
             contextName: "Test" },
             status:"Finished",
         },
