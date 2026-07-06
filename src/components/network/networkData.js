@@ -7,24 +7,17 @@ export const groups = {
   disorder: {color: '#d37538'},
 };
 
-export const options = {
-  interaction: {
-    multiselect: false,
-    selectable: true,
-    selectConnectedEdges: false,
-    dragView: true,
-    dragNodes: true
-  },
-  nodes: {
-    font: { size: 20, color: '#000000' },
-    borderWidth: 0,
-    widthConstraint: 40,
-    heightConstraint: 40,
-  },
-  edges: { width: 5,
-    color: "black"
-   }
-};
+// Darkens a '#rrggbb' color by `amount` (0-1); used to visually distinguish
+// "external" nodes from internal nodes of the same type without a per-point border.
+export function darkenHexColor(hex, amount) {
+  const clean = hex.replace('#', '');
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  const factor = 1 - amount;
+  const toHex = (channel) => Math.round(channel * factor).toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
 
 //import crypto from "crypto";
 //import {authState, checkLogin, getCookie} from '@/components/authentication/auth.js';

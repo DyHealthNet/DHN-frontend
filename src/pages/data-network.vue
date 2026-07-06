@@ -476,10 +476,10 @@
 import AdvancedSettings from "@/components/AdvancedSettings.vue";
 import FilterToolbar from "@/components/FilterToolbar.vue";
 import {BASE_URL, isLoading, setIsLoading} from "@/components/constants.js";
-import {groups, loadNetworkState, saveNetworkState} from "../components/network/networkData.js";
+import {groups, darkenHexColor, loadNetworkState, saveNetworkState} from "../components/network/networkData.js";
 import NodeDetails from '@/components/network/NodeDetails.vue';
 import EdgeDetails from '@/components/network/EdgeDetails.vue';
-import {DataSet, Network} from "vis-network/standalone/esm/vis-network.js";
+import {Cosmograph} from "@cosmograph/cosmograph";
 import {getCookie} from "@/components/authentication/auth.js";
 import StatisticalTestLine from "@/components/StatisticalTestLine.vue";
 import NetworkEdgeLine from "@/components/network/NetworkEdgeLine.vue";
@@ -517,8 +517,12 @@ export default {
       showLoading: isLoading,
       networkNodes: [],//test_data["nodes"],
       networkEdges: [],//test_data["edges"],
-      vis_network_nodes: [],
-      vis_network_edges: [],
+      cosmographInstance: null,
+      indexToNodeId: [],
+      indexToEdgeId: [],
+      _clickTimer: null,
+      _lastClickIndex: null,
+      _lastClickTime: 0,
       displayedNodes:  null,
       displayedEdges:  null,
       allInternalEdges: [],
@@ -899,7 +903,7 @@ export default {
       this.hoveredItem = null;
       this.activeIndex = -1;
     },
-    sendToNetwork() {
+    async sendToNetwork() {
       console.log("this.selectedNetworkNodes", this.selectedNetworkNodes)
       // Send selectedNodes to networkNodes and reset selectedNodes
       this.networkNodes= [];
@@ -932,74 +936,118 @@ export default {
       //this.selectedNodes = []; // Clear the selection
       this.filterForNetworkEdges();
 
-      this.initializeNetwork();
-      this.updateDesign();
+      await this.initializeCosmograph();
+      this.applyDesign();
     },
 
     //Network Visualization
-    initializeNetwork() {
-      //console.log("initializeNetwork")
-      const options = {physics: {enabled: this.physics_on}};
+    async initializeCosmograph() {
       const container = this.$refs.network;
       if (!container) return;
 
-      //TODO possibly discard displayedNodes and set to networkNodes and the same for the Edges?
-      this.vis_network_nodes = new DataSet(this.networkNodes);
-      this.vis_network_edges = new DataSet(this.networkEdges);
-
-      const data = { nodes: this.vis_network_nodes, edges: this.vis_network_edges};
-
-      this.network = new Network(container, data, options);
+      await this.destroyCosmograph();
 
       this.includedNodeTypes = new Set(this.networkNodes.map((node) => node.source_table.split("_").pop()));
 
-      // Click Event -> display node in Details Field
-      this.network.on(
-        "click",
-        function (params) {
-          if (params.nodes.length === 1) {
-            const clickedNode = this.networkNodes.find(
-              (currentNode) => currentNode.id === params.nodes[0]
-            );
-            this.displayNode(clickedNode);
-          } else if (params.edges.length === 1) {
-            const clickedEdge = this.networkEdges.find(
-              (currentEdge) => currentEdge.id === params.edges[0]
-            );
-            this.displayEdge(clickedEdge);
-          } else {
-            this.displayedElement = null;
-            this.displayedElementType = null;
-          }
-          this.updateDesign(false);
-        }.bind(this)
-      );
-      // Double Click Event -> select Node, consequently shown in Selection field
-      this.network.on(
-        "doubleClick",
-        function (params) {
-          if (params.nodes.length === 1) {
-            const clickedNode = this.networkNodes.find(
-              (currentNode) => currentNode.id === params.nodes[0]
-            );
-            const existingNodeIndex = this.selectedNetworkNodes.findIndex(
-              (node) => node.id === clickedNode.id
-            );
+      // Explicit sequential index lets us reliably map Cosmograph's click/color
+      // callback indices back to our own node/edge objects (pointIndexBy pins it).
+      const pointsForCosmo = this.networkNodes.map((node, i) => ({ ...node, idx: i }));
+      const linksForCosmo = this.networkEdges.map((edge) => ({ ...edge, source: edge.from, target: edge.to }));
+      this.indexToNodeId = pointsForCosmo.map((p) => p.id);
+      this.indexToEdgeId = linksForCosmo.map((l) => l.id);
 
-            if (existingNodeIndex !== -1) {
-              // If the node exists, remove it from the array
-              this.selectedNetworkNodes.splice(existingNodeIndex, 1);
-            } else {
-              // If the node doesn't exist, add it to the array
-              this.selectedNetworkNodes.push(clickedNode);
-            }
-            this.displayNode(clickedNode);
-            this.checkSelectAll();
-          }
-          this.updateDesign();
-        }.bind(this)
-      );
-      this.network.on("afterDrawing", this.captureImage);
+      const ringColor = this.labelColor("node-border");
+
+      this.cosmographInstance = new Cosmograph(container, {
+        points: pointsForCosmo,
+        links: linksForCosmo,
+        pointIdBy: 'id',
+        pointIndexBy: 'idx',
+        pointColorBy: 'id',
+        linkSourceBy: 'source',
+        linkTargetBy: 'target',
+        linkColorBy: 'set',
+        linkWidthBy: 'width',
+        pointLabelBy: 'display_name',
+        showLabels: true,
+        showDynamicLabels: true,
+        enableSimulation: this.physics_on,
+        selectPointOnClick: 'single',
+        focusPointOnClick: false,
+        renderHoveredPointRing: true,
+        resetSelectionOnEmptyCanvasClick: false,
+        hoveredPointRingColor: ringColor,
+        focusedPointRingColor: ringColor,
+        pointColorByFn: (value, index) => this.computePointColor(index),
+        linkColorByFn: (value, index) => this.computeLinkColor(index),
+        linkWidthByFn: (value, index) => this.computeLinkWidth(index),
+        onPointClick: (index) => this.handlePointClick(index),
+        onLinkClick: (linkIndex) => this.handleLinkClick(linkIndex),
+        onBackgroundClick: () => this.handleBackgroundClick(),
+      });
+
+      this.applyDesign(false);
+    },
+    async destroyCosmograph() {
+      if (this._clickTimer) {
+        clearTimeout(this._clickTimer);
+        this._clickTimer = null;
+      }
+      const inst = this.cosmographInstance;
+      this.cosmographInstance = null;
+      if (inst && typeof inst.destroy === 'function') {
+        try {
+          await inst.destroy();
+        } catch (e) {
+          console.warn('Cosmograph destroy failed', e);
+        }
+      }
+    },
+    // Cosmograph has no native double-click callback: a second click on the
+    // same point within 280ms cancels the pending single-click and is treated
+    // as a double-click instead.
+    handlePointClick(index) {
+      const now = Date.now();
+      if (this._clickTimer && index === this._lastClickIndex && (now - this._lastClickTime) < 280) {
+        clearTimeout(this._clickTimer);
+        this._clickTimer = null;
+        this.handlePointDoubleClick(index);
+        return;
+      }
+      this._lastClickIndex = index;
+      this._lastClickTime = now;
+      this._clickTimer = setTimeout(() => {
+        this._clickTimer = null;
+        this.handlePointSingleClick(index);
+      }, 280);
+    },
+    handlePointSingleClick(index) {
+      const node = this.networkNodes.find((n) => n.id === this.indexToNodeId[index]);
+      if (node) this.displayNode(node);
+      this.applyDesign(false);
+    },
+    handlePointDoubleClick(index) {
+      const node = this.networkNodes.find((n) => n.id === this.indexToNodeId[index]);
+      if (!node) return;
+      const existingIndex = this.selectedNetworkNodes.findIndex((n) => n.id === node.id);
+      if (existingIndex !== -1) {
+        this.selectedNetworkNodes.splice(existingIndex, 1);
+      } else {
+        this.selectedNetworkNodes.push(node);
+      }
+      this.displayNode(node);
+      this.checkSelectAll();
+      this.applyDesign();
+    },
+    handleLinkClick(linkIndex) {
+      const edge = this.networkEdges.find((e) => e.id === this.indexToEdgeId[linkIndex]);
+      if (edge) this.displayEdge(edge);
+      this.applyDesign(false);
+    },
+    handleBackgroundClick() {
+      this.displayedElement = null;
+      this.displayedElementType = null;
+      this.applyDesign(false);
     },
     displayNode(node) {
       node.type = this.getPrettyType(node.source_table);
@@ -1030,7 +1078,7 @@ export default {
 
       if (this.isDetailsNodeSelected && index === -1) {
         this.selectedNetworkNodes.push(this.displayedElement);
-        this.updateDesign();
+        this.applyDesign();
       } else if (!this.isDetailsNodeSelected && index !== -1) {
         this.selectedNetworkNodes.splice(index, 1);
       }
@@ -1047,11 +1095,11 @@ export default {
       else{
         this.selectedNetworkNodes = [];
       }
-      this.updateDesign();
+      this.applyDesign();
     },
     removeSelectedNetworkNode(index){
       this.selectedNetworkNodes.splice(index, 1);
-      this.updateDesign();
+      this.applyDesign();
       this.checkSelectAll();
     },
     checkSelectAll(){
@@ -1083,8 +1131,8 @@ export default {
         if (firstNode.set === "CHRIS") { //TODO change to internal/cohort or smth when backend became more modular
           await this.fetchNodesAndEdges(firstNode, count); // Pass the first node to fetchNodesAndEdges
           this.filterForNetworkEdges();
-          this.initializeNetwork();
-          this.updateDesign();
+          await this.initializeCosmograph();
+          this.applyDesign();
         }
       } else {
         console.warn("No nodes in selectedNetworkNodes to process.");
@@ -1101,8 +1149,8 @@ export default {
         }
         await this.fetchNodeGroupEdges(filteredNodeIds, minSpanTree);
         this.filterForNetworkEdges();
-        this.initializeNetwork();
-        this.updateDesign();
+        await this.initializeCosmograph();
+        this.applyDesign();
       }
     },
     async fetchNodesAndEdges(node, count=false) {
@@ -1193,16 +1241,12 @@ export default {
         const data = await response.json();
         const nodeSet = new Set(nodes);
         if (minSpanTree){
-          const edgesToRemove = [];
-          this.vis_network_edges.forEach(edge => {
-            if (nodeSet.has(edge.from) && nodeSet.has(edge.to)) {
-              edgesToRemove.push({ id: edge.id }); // Collect the IDs of the edges to remove
-            }
-          });
-          this.vis_network_edges.remove(edgesToRemove);
-          this.networkEdges = this.networkEdges.filter(edge =>
-            !edgesToRemove.some(edgeToRemove => edgeToRemove.id === edge.id)
+          const edgeIdsToRemove = new Set(
+            this.networkEdges
+              .filter(edge => nodeSet.has(edge.from) && nodeSet.has(edge.to))
+              .map(edge => edge.id)
           );
+          this.networkEdges = this.networkEdges.filter(edge => !edgeIdsToRemove.has(edge.id));
           this.allInternalEdges = this.networkEdges;
         }
         if (data.message != ""){
@@ -1286,14 +1330,11 @@ export default {
         networkNodeIds.has(edge.from) && networkNodeIds.has(edge.to);
 
       // Filter and process all edges in one step
+      // (rendering style for 'external' edges is applied in computeLinkColor/computeLinkWidth,
+      // not baked into the data model here)
       this.networkEdges = [
         ...this.allInternalEdges.filter(isValidEdge),
-        ...this.allExternalEdges.filter(isValidEdge).map((edge) => ({
-          ...edge,
-          color: "black",
-          dashes: [10, 10],
-          width: 6,
-        })),
+        ...this.allExternalEdges.filter(isValidEdge),
       ].filter((edge) => {
         // Use a consistent key format for undirected edges
         const key = edge.from < edge.to ? `${edge.from}-${edge.to}` : `${edge.to}-${edge.from}`;
@@ -1304,59 +1345,44 @@ export default {
         return false;
       });
     },
-    //TODO split this into smaller functions that update only the needed Design changes?
-    // Function to bulk update the highlighting
-    updateDesign(saveState=true) {
-      // Update nodes with conditional styling
-      const updatedNodes = this.vis_network_nodes.get().map(node => {
-        const isDisplayed = this.displayedElementType === 'node' && this.displayedElement.id === node.id;
-        const isSelected = this.selectedNetworkNodes.some(n => n.id === node.id);
+    // Recolors/reweights nodes+edges based on current selection/external/theme
+    // state without rebuilding the whole graph (kept lightweight so pan/zoom/
+    // camera state isn't reset on every click or theme toggle).
+    async applyDesign(saveState = true) {
+      if (!this.cosmographInstance) return;
+      const ringColor = this.labelColor("node-border");
 
-        let updatedNode = {
-          ...node,
-          color: groups[node.source_table.split('_').pop()].color,
-          shape: 'dot', // 'dot' text below, 'circle' text inside
-          size: 15,
-          borderWidth: 0,
-          borderWidthSelected: node.borderWidth,
-          font: { size: 10, color: this.labelColor("text") },
-          label: node.display_name,
-          is_highlighted: isSelected,
-        };
+      const selectedIndices = this.selectedNetworkNodes
+        .map((n) => this.indexToNodeId.indexOf(n.id))
+        .filter((i) => i !== -1);
+      this.cosmographInstance.unselectAllPoints();
+      if (selectedIndices.length) this.cosmographInstance.selectPoints(selectedIndices);
 
-        if (isSelected) {
-          updatedNode.borderWidth = 4;
-          updatedNode.borderWidthSelected =  updatedNode.borderWidth,
-          updatedNode.color = {
-            border: this.labelColor("node-border"),
-            background: updatedNode.color,
-            highlight: {  border:this.labelColor("node-border"), background: updatedNode.color },
-          };
-        }
-
-        if (node.set === 'external') {
-          updatedNode.color = {
-            border: 'black',
-            background: updatedNode.color,
-            highlight: {  border: 'black', background: updatedNode.color },
-          };
-        }
-
-        return updatedNode;
+      await this.cosmographInstance.setConfig({
+        focusedPointRingColor: ringColor,
+        hoveredPointRingColor: ringColor,
+        pointColorByFn: (value, index) => this.computePointColor(index),
+        linkColorByFn: (value, index) => this.computeLinkColor(index),
+        linkWidthByFn: (value, index) => this.computeLinkWidth(index),
       });
-      this.vis_network_nodes.update(updatedNodes);
-      const updatedEdges = this.vis_network_edges.get().map(edge => {
-      return {
-        ...edge,
-        color: {
-          color: this.labelColor("text"), // Normal color
-        },
-      };
-    });
-    this.vis_network_edges.update(updatedEdges);
-      if(saveState){
+
+      if (saveState) {
         this.saveState();
       }
+    },
+    computePointColor(index) {
+      const node = this.networkNodes.find((n) => n.id === this.indexToNodeId[index]);
+      if (!node) return this.labelColor("text");
+      const baseColor = groups[node.source_table.split('_').pop()].color;
+      return node.set === 'external' ? darkenHexColor(baseColor, 0.35) : baseColor;
+    },
+    computeLinkColor(index) {
+      const edge = this.networkEdges.find((e) => e.id === this.indexToEdgeId[index]);
+      return edge?.set === 'external' ? 'black' : this.labelColor("text");
+    },
+    computeLinkWidth(index) {
+      const edge = this.networkEdges.find((e) => e.id === this.indexToEdgeId[index]);
+      return edge?.set === 'external' ? 6 : (edge?.width ?? 2);
     },
     getShapeStyle(color, key) {
       // not applicable right now or only for externals
@@ -1372,22 +1398,17 @@ export default {
       return { borderRadius: "50%", backgroundColor: color, width: "20px", height: "20px" };
     },
     updatePhysics() {
-      // Update the physics option dynamically
-      const newPhysicsOption = {
-        physics: {
-          enabled: this.physics_on  // Set to true or false based on v-switch
-        }
-      };
-
-      // Update the options of the existing network
-      this.network.setOptions(newPhysicsOption);
+      if (!this.cosmographInstance) return;
+      if (this.physics_on) {
+        this.cosmographInstance.unpause();
+      } else {
+        this.cosmographInstance.pause();
+      }
     },
-    clearNetwork(full = true, saveState=true){
+    async clearNetwork(full = true, saveState=true){
       this.clearNetworkWarn = false;
       this.networkNodes = [];
       this.networkEdges = []; // do i also need allInternalEdges??
-      this.vis_network_nodes = [];
-      this.vis_network_edges = [];
       this.displayedNodes = null;
       this.displayedEdges = null;
       this.allInternalEdges = [];
@@ -1397,14 +1418,13 @@ export default {
       this.isDetailsNodeSelected = false;
       this.selectedNetworkNodes = [];
       if(full){
-        this.initializeNetwork();
-        this.updateDesign(saveState);
+        await this.initializeCosmograph();
+        this.applyDesign(saveState);
       } else{
         this.sendToNetwork()
       }
     },
-    clearUnselectedNodes(){
-      //console.log("clearUnselectedNodes", this.vis_network_nodes);
+    async clearUnselectedNodes(){
       this.clearNetworkWarn = false;
       // Set to only selected Nodes
       this.networkNodes =  [...this.selectedNetworkNodes];
@@ -1412,10 +1432,9 @@ export default {
       this.filterForNetworkEdges();
       // override internal edges with filtered edges
       this.allInternalEdges = this.networkEdges;
-      this.initializeNetwork();
-      //console.log("clearUnselectedNodes", this.vis_network_nodes);
+      await this.initializeCosmograph();
       this.checkSelectAll();
-      this.updateDesign(true);
+      this.applyDesign(true);
     },
     // saveNetworkFile() {
     //   if (this.vis_network_nodes.length > 0) {
@@ -1458,10 +1477,10 @@ export default {
       }
     },
     captureImage() {
-      const canvas = this.network.canvas.frame.canvas;
-      const ctx = canvas.getContext('2d'); // Get the context of the canvas
+      const container = this.$refs.network;
+      const canvas = container?.querySelector('canvas');
 
-      if (canvas && ctx) {
+      if (canvas) {
 
         // Create a temporary offscreen canvas to avoid triggering redraw
         const offscreenCanvas = document.createElement('canvas');
@@ -1584,8 +1603,8 @@ export default {
     // Page/ State Reload
     saveState() {
       //console.log("saveState")
-      const nodes = this.vis_network_nodes.get();
-      const edges = this.vis_network_edges.get();
+      const nodes = this.networkNodes;
+      const edges = this.networkEdges;
       const user_settings = {
         selectedNodes: this.selectedNodes,
         selectedNetworkNodes: this.selectedNetworkNodes,
@@ -1598,18 +1617,20 @@ export default {
       }
 
       const exportData = { nodes: nodes, edges: edges ,
-        vis_options: {physics: {enabled: this.physics_on}}, user_settings: { ...user_settings }};
+        vis_options: {simulation: {enabled: this.physics_on}}, user_settings: { ...user_settings }};
       console.log("Save State exportData", exportData)
       saveNetworkState(this.contextValue, exportData);
     },
-    loadState() {
+    async loadState() {
       const savedState = loadNetworkState(this.contextValue);
       if (savedState) {
         console.log("Load State savedState", savedState)
         const { nodes, edges, vis_options, user_settings } = savedState;
         this.networkNodes = nodes;
         this.networkEdges = edges;
-        this.physics_on = vis_options.physics.enabled;
+        // vis_options.physics is the pre-Cosmograph-migration shape; fall back to it
+        // so localStorage state saved before this change still loads correctly.
+        this.physics_on = vis_options?.simulation?.enabled ?? vis_options?.physics?.enabled ?? true;
 
         this.selectedNodes = user_settings.selectedNodes;
         this.selectAll = user_settings.selectAll;
@@ -1624,8 +1645,8 @@ export default {
         this.fixThreshold = user_settings.fixThreshold;
         this.topNodesNumber = parseInt(user_settings.topNodesNumber);
         this.topPerNodeCount = user_settings.topPerNodeCount;
-        this.initializeNetwork(); // Example: Reapply the state to your network
-        this.updateDesign(false);
+        await this.initializeCosmograph(); // Reapply the state to the new network
+        this.applyDesign(false);
       }
     },
   },

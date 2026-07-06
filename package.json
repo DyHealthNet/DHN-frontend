@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@cosmograph/cosmograph": "^2.3.2",
     "@jamescoyle/vue-icon": "^0.1.2",
     "@mdi/js": "^7.4.47",
     "@mdi/svg": "^7.4.47",
@@ -24,7 +25,6 @@
     "router": "^2.2.0",
     "sweetalert2": "^11.12.4",
     "uuid": "^9.0.1",
-    "vis-network": "^9.1.13",
     "vue": "^3.4.21",
     "vue-chartjs": "^5.3.1",
     "vue-echarts": "^6.7.3",
