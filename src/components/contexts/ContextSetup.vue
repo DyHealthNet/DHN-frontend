@@ -260,7 +260,7 @@ export default {
     }
   },
   data() {
-    const layers = ["Phenotype", "Metabolite", "Protein"];
+    const layers = [];
     const groups = [];
     const rules = [];
     if (this.content) {
@@ -285,6 +285,7 @@ export default {
 
       layers: layers,
       selectedLayers: this.content?.layers ?? layers,
+      variableLayers: {},
 
       allVariables: {},
       allVariablesFiltered: {},
@@ -414,8 +415,18 @@ export default {
       })
           .then(response => response.json())
           .then(data => {
-            this.allVariables = data;
-            this.allVariablesFiltered = data;
+            const { variableLayers, availableLayers, ...statTypeGroups } = data;
+            this.allVariables = statTypeGroups;
+            this.allVariablesFiltered = statTypeGroups;
+            this.variableLayers = variableLayers ?? {};
+            this.layers = (availableLayers ?? []).map(
+              layer => layer.charAt(0).toUpperCase() + layer.slice(1)
+            );
+            // only default to "all layers selected" for a brand new context;
+            // an existing context's saved layers (this.content?.layers) take priority.
+            if (!this.content?.layers) {
+              this.selectedLayers = this.layers;
+            }
           })
           .catch((error) => {
             console.error('Error:', error);
@@ -545,38 +556,15 @@ export default {
     },
 
     filterVariables() {
-      // check what selected layers we have and then filter allVariables down.
-      // this is a band-aid solution and ideally we get info on what layers the variables belong to
-      this.allVariablesFiltered = this.allVariables;
-
-      if (!this.selectedLayers.includes("Phenotype")) {
-        this.allVariablesFiltered = Object.fromEntries(
-          Object.entries(this.allVariablesFiltered).map(([key, value]) => [
-            key,
-            value.filter(item => item.includes(" / Metabolite") || item.includes(" / Protein")),
-          ])
-        );
-      }
-
-      if (!this.selectedLayers.includes("Metabolite")) {
-        this.allVariablesFiltered = Object.fromEntries(
-          Object.entries(this.allVariablesFiltered).map(([key, value]) => [
-            key,
-            value.filter(item => !item.includes(" / Metabolite")),
-          ])
-        );
-      }
-
-      if (!this.selectedLayers.includes("Protein")) {
-        this.allVariablesFiltered = Object.fromEntries(
-          Object.entries(this.allVariablesFiltered).map(([key, value]) => [
-            key,
-            value.filter(item => !item.includes(" / Protein")),
-          ])
-        );
-      }
-
-      console.log(this.allVariablesFiltered);
+      // filter allVariables down to whatever layers are currently selected, using the
+      // explicit per-variable layer info returned alongside allVariables.
+      const selectedLayersLower = this.selectedLayers.map(layer => layer.toLowerCase());
+      this.allVariablesFiltered = Object.fromEntries(
+        Object.entries(this.allVariables).map(([key, value]) => [
+          key,
+          value.filter(item => selectedLayersLower.includes(this.variableLayers[item])),
+        ])
+      );
     },
 
     createParams() {
@@ -678,7 +666,7 @@ export default {
     async clearContext(deleteTables=true) {
       this.deleteWarn = false;
       this.contextName = `Context ${this.value}`;
-      this.selectedLayers = ["Phenotype", "Metabolite", "Protein"];
+      this.selectedLayers = this.layers;
       this.outerRows = ['group-0'];
       this.innerRows = [{group: 'group-0', id: uuidv4(), rule: {}}];
       this.progressIcon = "mdi-clock-outline";
