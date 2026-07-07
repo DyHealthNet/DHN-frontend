@@ -518,6 +518,7 @@ export default {
       networkNodes: [],//test_data["nodes"],
       networkEdges: [],//test_data["edges"],
       cosmographInstance: null,
+      _cosmoConfig: null,
       indexToNodeId: [],
       indexToEdgeId: [],
       _clickTimer: null,
@@ -958,7 +959,12 @@ export default {
 
       const ringColor = this.labelColor("node-border");
 
-      this.cosmographInstance = new Cosmograph(container, {
+      // Cosmograph's setConfig() merges the object it's given onto its DEFAULT
+      // config, not onto the currently-active config -- so every setConfig call
+      // (including the ones applyDesign() makes later) must carry the full
+      // config, or fields like points/links/pointIdBy get silently reset.
+      // Keep the authoritative copy on the instance and always pass all of it.
+      this._cosmoConfig = {
         points: pointsForCosmo,
         links: linksForCosmo,
         pointIdBy: 'id',
@@ -976,6 +982,7 @@ export default {
         focusPointOnClick: false,
         renderHoveredPointRing: true,
         resetSelectionOnEmptyCanvasClick: false,
+        backgroundColor: this.labelColor("background"),
         hoveredPointRingColor: ringColor,
         focusedPointRingColor: ringColor,
         pointColorByFn: (value, index) => this.computePointColor(index),
@@ -984,7 +991,16 @@ export default {
         onPointClick: (index) => this.handlePointClick(index),
         onLinkClick: (linkIndex) => this.handleLinkClick(linkIndex),
         onBackgroundClick: () => this.handleBackgroundClick(),
-      });
+        // Physics keeps spreading points across the simulation space; re-center
+        // the camera on the graph whenever the layout settles so nodes don't
+        // drift out of view with no way to find them again.
+        onSimulationEnd: () => this.cosmographInstance?.fitView(),
+      };
+      this.cosmographInstance = new Cosmograph(container, this._cosmoConfig);
+      // Also fit immediately once data is actually uploaded (covers the
+      // physics-off case, where onSimulationEnd never fires because no
+      // simulation runs).
+      this.cosmographInstance.dataUploaded().then(() => this.cosmographInstance?.fitView(0));
 
       this.applyDesign(false);
     },
@@ -1358,13 +1374,18 @@ export default {
       this.cosmographInstance.unselectAllPoints();
       if (selectedIndices.length) this.cosmographInstance.selectPoints(selectedIndices);
 
-      await this.cosmographInstance.setConfig({
+      // Merge onto the full stored config (not a bare partial) -- see the note
+      // in initializeCosmograph() about setConfig() resetting anything omitted.
+      this._cosmoConfig = {
+        ...this._cosmoConfig,
+        backgroundColor: this.labelColor("background"),
         focusedPointRingColor: ringColor,
         hoveredPointRingColor: ringColor,
         pointColorByFn: (value, index) => this.computePointColor(index),
         linkColorByFn: (value, index) => this.computeLinkColor(index),
         linkWidthByFn: (value, index) => this.computeLinkWidth(index),
-      });
+      };
+      await this.cosmographInstance.setConfig(this._cosmoConfig);
 
       if (saveState) {
         this.saveState();
@@ -1662,12 +1683,13 @@ export default {
     },
     '$vuetify.theme.global.name'(newTheme, oldTheme) {
       console.log(`Theme changed from ${oldTheme} to ${newTheme}`);
-      this.updateDesign(false); // Trigger the network update
+      this.applyDesign(false); // Trigger the network update
     },
     },
     beforeUnmount() {
       // Clean up event listener when component is destroyed
       document.removeEventListener('click', this.handleClickOutside);
+      this.destroyCosmograph();
     },
 
   mounted() {
