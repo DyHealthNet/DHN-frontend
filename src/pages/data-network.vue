@@ -959,7 +959,17 @@ export default {
       // Explicit sequential index lets us reliably map Cosmograph's click/color
       // callback indices back to our own node/edge objects (pointIndexBy pins it).
       const pointsForCosmo = this.networkNodes.map((node, i) => ({ ...node, idx: i }));
-      const linksForCosmo = this.networkEdges.map((edge) => ({ ...edge, source: edge.from, target: edge.to }));
+      const nodeIdToIdx = new Map(pointsForCosmo.map((p) => [p.id, p.idx]));
+      // linkSourceIndexBy/linkTargetIndexBy are validated as required alongside
+      // linkSourceBy/linkTargetBy in this Cosmograph version, so every link
+      // needs its endpoints' numeric point indices, not just their ids.
+      const linksForCosmo = this.networkEdges.map((edge) => ({
+        ...edge,
+        source: edge.from,
+        target: edge.to,
+        sourceIndex: nodeIdToIdx.get(edge.from),
+        targetIndex: nodeIdToIdx.get(edge.to),
+      }));
       this.indexToNodeId = pointsForCosmo.map((p) => p.id);
       this.indexToEdgeId = linksForCosmo.map((l) => l.id);
 
@@ -978,6 +988,8 @@ export default {
         pointColorBy: 'id',
         linkSourceBy: 'source',
         linkTargetBy: 'target',
+        linkSourceIndexBy: 'sourceIndex',
+        linkTargetIndexBy: 'targetIndex',
         linkColorBy: 'set',
         linkWidthBy: 'width',
         pointLabelBy: 'display_name',
