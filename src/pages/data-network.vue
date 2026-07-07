@@ -646,12 +646,15 @@ export default {
           }));
 
           this.dropdownNodes = this.typeaheadresult.filter(node =>
-            !this.selectedNodes.some(selected => selected.id === node.id)
+            !this.selectedNodes.some(selected => selected && selected.id === node.id)
           );
         } catch (error) {
           console.error("Error fetching data:", error);
           this.typeaheadresult = [];
           this.dropdownNodes = [];
+          this.infoText = "Could not load node suggestions. Please try again.";
+          this.infoType = "error";
+          this.showInfo = true;
         }
       }, 300); // Debounce delay in milliseconds
     },
@@ -720,9 +723,12 @@ export default {
             source_table: details.source_table,
             x_refs: details.x_refs,
           }))
-          .filter(node => !this.selectedNodes.some(selected => selected.id === node.id));
+          .filter(node => !this.selectedNodes.some(selected => selected && selected.id === node.id));
       } catch (error) {
         console.error("Error fetching data:", error);
+        this.infoText = "Could not look up that node. Please try again.";
+        this.infoType = "error";
+        this.showInfo = true;
         return [];
       }
     },
@@ -1130,7 +1136,7 @@ export default {
           this.signThresh +
             (this.contextValue != null ? "&c=" + encodeURIComponent(this.contextValue) : "") +
           "&o=" +
-          JSON.stringify(this.selectedTests);
+          encodeURIComponent(JSON.stringify(this.selectedTests));
 
         const response = await fetch(api_string, {
           method: 'GET',
@@ -1154,6 +1160,9 @@ export default {
         this.setNetworkNodes(data);
       } catch (error) {
         console.error("Error fetching edges:", error);
+        this.infoText = "Could not build the network for this node. Please try again.";
+        this.infoType = "error";
+        this.showInfo = true;
       }
       setIsLoading(false);
     },
@@ -1168,12 +1177,12 @@ export default {
         const api_string =
           BASE_URL +
           "/network/api/" + funct + "/?q=" +
-          JSON.stringify(nodes) +
+          encodeURIComponent(JSON.stringify(nodes)) +
           "&s=" +
           this.signThresh +
             (this.contextValue != null ? "&c=" + encodeURIComponent(this.contextValue) : "") +
           "&o=" +
-          JSON.stringify(this.selectedTests) +
+          encodeURIComponent(JSON.stringify(this.selectedTests)) +
           "&m=" +
           encodeURIComponent(minSpanTree);
 
@@ -1215,6 +1224,9 @@ export default {
 
       } catch (error) {
         console.error("Error fetching edges:", error);
+        this.infoText = "Could not build the network for this selection. Please try again.";
+        this.infoType = "error";
+        this.showInfo = true;
       }
       setIsLoading(false);
     },
@@ -1575,6 +1587,9 @@ export default {
           return context;  // Return the first matched item directly
         } catch (error) {
           console.error('Error:', error);
+          this.infoText = "Could not load the selected study's details.";
+          this.infoType = "error";
+          this.showInfo = true;
           return null;  // Return null in case of error
         }
       }
@@ -1609,7 +1624,7 @@ export default {
         const { nodes, edges, vis_options, user_settings } = savedState;
         this.networkNodes = nodes;
         this.networkEdges = edges;
-        this.physics_on = vis_options.physics.enabled;
+        this.physics_on = vis_options?.physics?.enabled ?? true;
 
         this.selectedNodes = user_settings.selectedNodes;
         this.selectAll = user_settings.selectAll;

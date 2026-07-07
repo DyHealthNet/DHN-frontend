@@ -6,63 +6,23 @@
     <p><span class="label">Origin:</span><br>
       <span class="value">{{ edge.set }}</span>
     </p>
-    <!-- Dropdowns for P-Value and Effect-Size Attributes -->
-    <v-expansion-panels class="mt-8 mb-8" variant="accordion">
-      <!-- P-Value Related Attributes -->
-      <v-expansion-panel >
-        <v-expansion-panel-title>
-          <span class="label-subtitle" >Statistical Significance</span>
-        </v-expansion-panel-title>
-        <v-expansion-panel-text>
-          <!-- Table for P-Value Related Attributes -->
-          <v-table dense>
-            <thead>
-              <tr>
-                <th>Test</th>
-                <th>Correction</th>
-                <th>P-Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              <EdgeAttribute
-              v-for="(pValue, pKey) in filteredAttributes.pAttributes"
-              sep="_p_"
-              :key="pKey"
-              :keyName="pKey"
-              :value="pValue"
-            />
-            </tbody>
-          </v-table>
-        </v-expansion-panel-text>
-      </v-expansion-panel>
-
-      <!-- Effect-Size Related Attributes -->
-      <v-expansion-panel>
-        <v-expansion-panel-title>
-          <span class="label-subtitle" >Effect-Size</span>
-        </v-expansion-panel-title>
-        <v-expansion-panel-text>
-          <v-table dense>
-            <thead>
-            <tr>
-              <th>Test</th>
-              <th>Effect Size Type</th>
-              <th>Effect Size</th>
-            </tr>
-          </thead>
-            <tbody>
-            <EdgeAttribute
-              v-for="(eValue, eKey) in filteredAttributes.eAttributes"
-              sep="_e_"
-              :key="eKey"
-              :keyName="eKey"
-              :value="eValue"
-            />
-            </tbody>
-            </v-table>
-        </v-expansion-panel-text>
-      </v-expansion-panel>
-    </v-expansion-panels>
+    <!-- Statistical Test Details -->
+    <v-table dense class="mt-8 mb-8">
+      <thead>
+        <tr>
+          <th>Test</th>
+          <th>P-Value</th>
+          <th>Effect Size</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{{ edge.test_type }}</td>
+          <td>{{ formatValue(edge.final_p_value) }}</td>
+          <td>{{ formatValue(edge.final_e_value) }}</td>
+        </tr>
+      </tbody>
+    </v-table>
   <p><span class="label-subtitle" >Connected Nodes:</span></p>
     <v-table dense v-if="edge">
       <thead>
@@ -111,36 +71,11 @@
 </template>
 
 <script>
-// Import EdgeAttribute component
-import EdgeAttribute from '@/components/network/EdgeStatisticalAttributes.vue';
-
 export default {
-  components: {
-    EdgeAttribute,
-  },
   props: {
     edge: Object,
     getIcon: Function,
     selectedTests: Object,
-  },
-  computed: {
-    /**
-     * Filter and group '_p_' and '_e_' attributes into separate objects
-     */
-    filteredAttributes() {
-      const pAttributes = {};
-      const eAttributes = {};
-
-      for (const [key, value] of Object.entries(this.edge)) {
-        if (key.includes('_p_') && value !== null && !key.includes('final')) {
-          pAttributes[key] = value;
-        } else if (key.includes('_e_') && value !== null) {
-          eAttributes[key] = value;
-        }
-      }
-
-      return { pAttributes, eAttributes };
-    },
   },
   methods: {
     /**
