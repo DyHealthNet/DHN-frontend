@@ -10,6 +10,7 @@ import DataOverview from './pages/data-overview.vue'
 import NetworkPage from './pages/data-network.vue'
 import ContextCreation from './pages/context-creation.vue'
 import Metagraph from './pages/metagraph.vue'
+import DifferentialNetwork from './pages/differential-network.vue'
 import Login from './pages/user-login.vue'
 import Logout from './pages/user-logout.vue'
 import {checkLogin} from "@/components/authentication/auth.js";
@@ -57,6 +58,12 @@ const routes = [
       name: 'Metagraph',
       component: () => Metagraph,
       meta: { requiresAuth: false }
+    },
+    {
+      path: '/modina',
+      name: 'DifferentialNetwork',
+      component: DifferentialNetwork,
+      meta: { requiresAuth: true }
     },
     {
         path: '/login',

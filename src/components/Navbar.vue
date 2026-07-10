@@ -60,6 +60,15 @@
     </v-menu>
     <v-menu transition="slide-x-transition">
       <template v-slot:activator="{ props }">
+          <v-btn to="/modina" color="primary-darken-1" class="mx-1" v-bind="props">
+            <template v-slot:prepend>
+              <v-icon>mdi-vector-difference</v-icon>
+            </template>
+            moDiNA</v-btn>
+      </template>
+    </v-menu>
+    <v-menu transition="slide-x-transition">
+      <template v-slot:activator="{ props }">
           <v-btn to="/about-us" color="primary-darken-1" class="mx-1" v-bind="props">
             <template v-slot:prepend>
               <v-icon>mdi-book-outline</v-icon>
