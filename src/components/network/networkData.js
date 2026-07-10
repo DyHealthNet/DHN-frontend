@@ -19,6 +19,29 @@ export function darkenHexColor(hex, amount) {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
+function hslToHex(h, s, l) {
+  s /= 100;
+  l /= 100;
+  const k = (n) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  const toHex = (n) => Math.round(f(n) * 255).toString(16).padStart(2, '0');
+  return `#${toHex(0)}${toHex(8)}${toHex(4)}`;
+}
+
+// `node_group`/`source_table` values are fully user-defined on the backend
+// (DATA_GROUP_COLUMNS) and not limited to the keys in `groups` above, so any group
+// name actually seen in the data needs a color even if it isn't one of those keys.
+// Hashing the name into a hue keeps the generated color stable for that name across
+// renders/reloads without having to remember previously-assigned colors anywhere.
+export function generateGroupColor(key) {
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  }
+  return hslToHex(hash % 360, 65, 50);
+}
+
 //import crypto from "crypto";
 //import {authState, checkLogin, getCookie} from '@/components/authentication/auth.js';
 

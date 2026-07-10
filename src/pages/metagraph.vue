@@ -63,6 +63,22 @@
               <v-card-text>
                 <v-row class="controls-row" dense>
                   <v-col cols="12" md="3">
+                    <label class="label-text">Test type</label>
+                    <v-btn-toggle
+                      v-model="testType"
+                      class="mt-2 d-flex"
+                      color="primary"
+                      density="compact"
+                      variant="outlined"
+                      divided
+                      mandatory
+                    >
+                      <v-btn value="parametric" size="small">Parametric</v-btn>
+                      <v-btn value="nonparametric" size="small">Nonparametric</v-btn>
+                    </v-btn-toggle>
+                  </v-col>
+
+                  <v-col cols="12" md="3">
                     <v-switch
                       v-model="useDensity"
                       color="primary"
@@ -278,6 +294,7 @@ export default {
       selectedNodes: [],
       selectedSubgraphLinks: [],
       selectionMode: 'zoom',
+      testType: 'parametric',
       useDensity: false,
       density: null,
       useLimit: true,
@@ -327,6 +344,7 @@ export default {
     },
     buildRequestUrl(leiden=false) {
       const params = new URLSearchParams()
+      params.set('testType', this.testType)
       const densityIsSet = this.useDensity && this.density !== '' && this.density != null
       if (densityIsSet) {
         params.set('density', String(this.density))

@@ -370,13 +370,26 @@
                       <div ref="network" id="network" style="height: 550px;"></div>
                       <!-- Legend -->
                       <div class="legend">
-                        <v-row v-for="(group, groupKey) in groups" :key="groupKey" align="center" class="mb-2" no-gutters>
-                          <v-col v-if="this.includedNodeTypes.has(groupKey)" cols="auto" class="legend-dot">
-                            <div class="legend-color" :style="getShapeStyle(group.color, groupKey)"></div>
-                          </v-col>
-                          <v-col v-if="this.includedNodeTypes.has(groupKey)" cols="auto" class="legend-text">
-                            <span>{{ capitalizeFirstLetter(groupKey) }}</span>
-                          </v-col>
+                        <v-row
+                          v-for="groupKey in legendGroups"
+                          :key="groupKey"
+                          align="center"
+                          class="mb-2 legend-item"
+                          :class="{ 'legend-item-active': isGroupFullySelected(groupKey) }"
+                          no-gutters
+                          @click="selectNodesByGroup(groupKey)"
+                        >
+                          <v-tooltip bottom>
+                            <template v-slot:activator="{ props }">
+                              <v-col cols="auto" class="legend-dot" v-bind="props">
+                                <div class="legend-color" :style="getShapeStyle(colorForGroup(groupKey), groupKey)"></div>
+                              </v-col>
+                              <v-col cols="auto" class="legend-text" v-bind="props">
+                                <span>{{ capitalizeFirstLetter(groupKey) }}</span>
+                              </v-col>
+                            </template>
+                            <span>Click to select/deselect all {{ capitalizeFirstLetter(groupKey) }} nodes</span>
+                          </v-tooltip>
                         </v-row>
                       </div>
                   </v-col>
@@ -476,7 +489,7 @@
 import AdvancedSettings from "@/components/AdvancedSettings.vue";
 import FilterToolbar from "@/components/FilterToolbar.vue";
 import {BASE_URL, isLoading, setIsLoading} from "@/components/constants.js";
-import {groups, darkenHexColor, loadNetworkState, saveNetworkState} from "../components/network/networkData.js";
+import {groups, darkenHexColor, generateGroupColor, loadNetworkState, saveNetworkState} from "../components/network/networkData.js";
 import NodeDetails from '@/components/network/NodeDetails.vue';
 import EdgeDetails from '@/components/network/EdgeDetails.vue';
 import {Cosmograph} from "@cosmograph/cosmograph";
@@ -530,6 +543,9 @@ export default {
       allExternalEdges: [],
 
       nodeStyle: groups,
+      // Colors generated on the fly for groups not in the hardcoded `groups` map,
+      // cached per group name so they stay stable for the rest of the session.
+      dynamicGroupColors: {},
       physics_on: true,
       selectedBorderColor: '', //TODO don't set this in mounted, maybe make it reactive
 
@@ -557,8 +573,11 @@ export default {
     };
   },
   computed: {
-    groups() {
-      return groups
+    // Legend entries: whatever groups are actually present in the current network,
+    // not a fixed list -- node_group/source_table isn't limited to the hardcoded
+    // `groups` keys (see colorForGroup()). Sorted for a stable, predictable order.
+    legendGroups() {
+      return Array.from(this.includedNodeTypes).sort();
     },
     // Limit the number of displayed nodes to 5
     limitedDropdownNodes() {
@@ -673,7 +692,7 @@ export default {
         .map(node => node.display_name);
       console.log("searchText", this.searchText);
       console.log("nodeNames", nodeNames);
-      this.searchText = nodeNames.length > 0 ? nodeNames.join(", ") + (search ? ", " + search : ",") : search;
+      this.searchText = nodeNames.length > 0 ? nodeNames.join(", ") + ", " : search;
       console.log("searchText", this.searchText);
     },
     addPerDropDown(item) {
@@ -954,21 +973,36 @@ export default {
 
       await this.destroyCosmograph();
 
-      this.includedNodeTypes = new Set(this.networkNodes.map((node) => node.source_table.split("_").pop()));
+      this.includedNodeTypes = new Set(
+        this.networkNodes.filter((node) => node.source_table).map((node) => node.source_table.split("_").pop())
+      );
 
       // Explicit sequential index lets us reliably map Cosmograph's click/color
       // callback indices back to our own node/edge objects (pointIndexBy pins it).
-      const pointsForCosmo = this.networkNodes.map((node, i) => ({ ...node, idx: i }));
+      // colorKey drives Cosmograph's own 'map' point-color strategy (see
+      // buildPointColorMap) -- undefined for an unrecognized group falls back to
+      // `unknownColor` natively instead of us having to guard against it.
+      const pointsForCosmo = this.networkNodes.map((node, i) => {
+        const group = node.source_table ? node.source_table.split("_").pop() : undefined;
+        return {
+          ...node,
+          idx: i,
+          colorKey: group ? (node.set === "external" ? `${group}_external` : group) : undefined,
+        };
+      });
       const nodeIdToIdx = new Map(pointsForCosmo.map((p) => [p.id, p.idx]));
       // linkSourceIndexBy/linkTargetIndexBy are validated as required alongside
       // linkSourceBy/linkTargetBy in this Cosmograph version, so every link
       // needs its endpoints' numeric point indices, not just their ids.
+      // renderWidth bakes in the external-vs-internal width so linkWidthByFn can
+      // be a trivial identity passthrough instead of a per-edge lookup.
       const linksForCosmo = this.networkEdges.map((edge) => ({
         ...edge,
         source: edge.from,
         target: edge.to,
         sourceIndex: nodeIdToIdx.get(edge.from),
         targetIndex: nodeIdToIdx.get(edge.to),
+        renderWidth: edge.set === "external" ? 6 : (edge.width ?? 2),
       }));
       this.indexToNodeId = pointsForCosmo.map((p) => p.id);
       this.indexToEdgeId = linksForCosmo.map((l) => l.id);
@@ -985,13 +1019,23 @@ export default {
         links: linksForCosmo,
         pointIdBy: 'id',
         pointIndexBy: 'idx',
-        pointColorBy: 'id',
+        // Cosmograph's own 'map' color strategy: a static colorKey -> hex lookup it
+        // evaluates natively (falls back to unknownColor for unmapped colorKeys),
+        // instead of a per-point JS callback that has to guard against bad data itself.
+        pointColorBy: 'colorKey',
+        pointColorStrategy: 'map',
+        pointColorByMap: this.buildPointColorMap(),
+        unknownColor: this.labelColor("text"),
+        // Without an explicit pointDefaultSize, Cosmograph falls back to
+        // sizing points by degree whenever links are present -- pin a fixed
+        // size so all nodes render uniformly, matching the old vis-network look.
+        pointDefaultSize: 8,
         linkSourceBy: 'source',
         linkTargetBy: 'target',
         linkSourceIndexBy: 'sourceIndex',
         linkTargetIndexBy: 'targetIndex',
         linkColorBy: 'set',
-        linkWidthBy: 'width',
+        linkWidthBy: 'renderWidth',
         pointLabelBy: 'display_name',
         showLabels: true,
         showDynamicLabels: true,
@@ -1003,9 +1047,11 @@ export default {
         backgroundColor: this.labelColor("background"),
         hoveredPointRingColor: ringColor,
         focusedPointRingColor: ringColor,
-        pointColorByFn: (value, index) => this.computePointColor(index),
-        linkColorByFn: (value, index) => this.computeLinkColor(index),
-        linkWidthByFn: (value, index) => this.computeLinkWidth(index),
+        // linkColorBy/linkWidthBy have no built-in 'map' strategy, but `value` here
+        // is already the row's raw column value (edge.set / edge.renderWidth) --
+        // no per-edge lookup needed, these are O(1) and can't throw.
+        linkColorByFn: (value) => (value === "external" ? "black" : this.labelColor("text")),
+        linkWidthByFn: (value) => value,
         onPointClick: (index) => this.handlePointClick(index),
         onLinkClick: (linkIndex) => this.handleLinkClick(linkIndex),
         onBackgroundClick: () => this.handleBackgroundClick(),
@@ -1015,12 +1061,19 @@ export default {
         onSimulationEnd: () => this.cosmographInstance?.fitView(),
       };
       this.cosmographInstance = new Cosmograph(container, this._cosmoConfig);
-      // Also fit immediately once data is actually uploaded (covers the
-      // physics-off case, where onSimulationEnd never fires because no
-      // simulation runs).
-      this.cosmographInstance.dataUploaded().then(() => this.cosmographInstance?.fitView(0));
-
-      this.applyDesign(false);
+      // The constructor already fired its own setConfig()/data-upload cycle (every
+      // design/theme option above is already part of the config it was constructed
+      // with) -- wait for that to land before touching the instance again.
+      // Cosmograph's setConfig() never waits for a prior in-flight config update
+      // before starting a new one, so calling it again here (applyDesign() used to)
+      // before the first upload finished raced two concurrent uploads of the same
+      // points/links data into the shared, page-wide DuckDB-WASM worker (whose WASM
+      // heap only ever grows, never shrinks) -- that's what was driving
+      // "InternalError: out of memory" after just a couple of graph rebuilds.
+      await this.cosmographInstance.dataUploaded();
+      // Physics-off case: onSimulationEnd never fires (no simulation runs), so fit here too.
+      this.cosmographInstance?.fitView(0);
+      this.reapplySelection();
     },
     async destroyCosmograph() {
       if (this._clickTimer) {
@@ -1129,6 +1182,35 @@ export default {
       else{
         this.selectedNetworkNodes = [];
       }
+      this.applyDesign();
+    },
+    groupNodesFor(groupKey) {
+      return this.networkNodes.filter(
+        (node) => node.source_table && node.source_table.split("_").pop() === groupKey
+      );
+    },
+    isGroupFullySelected(groupKey) {
+      const groupNodes = this.groupNodesFor(groupKey);
+      if (!groupNodes.length) return false;
+      return groupNodes.every((node) => this.isNodeInNetworkSelected(node));
+    },
+    // Legend click: toggle-selects every node of that group, reusing the same
+    // selectedNetworkNodes -> applyDesign() pipeline as double-click/Select All,
+    // so it feeds the Selection and Connect Nodes panels for free.
+    selectNodesByGroup(groupKey) {
+      const groupNodes = this.groupNodesFor(groupKey);
+      if (!groupNodes.length) return;
+      if (this.isGroupFullySelected(groupKey)) {
+        const groupIds = new Set(groupNodes.map((node) => node.id));
+        this.selectedNetworkNodes = this.selectedNetworkNodes.filter((node) => !groupIds.has(node.id));
+      } else {
+        for (const node of groupNodes) {
+          if (!this.isNodeInNetworkSelected(node)) {
+            this.selectedNetworkNodes.push(node);
+          }
+        }
+      }
+      this.checkSelectAll();
       this.applyDesign();
     },
     removeSelectedNetworkNode(index){
@@ -1370,8 +1452,8 @@ export default {
         networkNodeIds.has(edge.from) && networkNodeIds.has(edge.to);
 
       // Filter and process all edges in one step
-      // (rendering style for 'external' edges is applied in computeLinkColor/computeLinkWidth,
-      // not baked into the data model here)
+      // (rendering style for 'external' edges is applied via linkColorByFn/renderWidth
+      // in initializeCosmograph(), not baked into the data model here)
       this.networkEdges = [
         ...this.allInternalEdges.filter(isValidEdge),
         ...this.allExternalEdges.filter(isValidEdge),
@@ -1385,6 +1467,18 @@ export default {
         return false;
       });
     },
+    // Reflects selectedNetworkNodes onto the live Cosmograph selection. Doesn't
+    // touch setConfig()/data at all, so it's safe to call right after construction
+    // (before the instance's own initial data upload has settled) as well as after
+    // every selection change.
+    reapplySelection() {
+      if (!this.cosmographInstance) return;
+      const selectedIndices = this.selectedNetworkNodes
+        .map((n) => this.indexToNodeId.indexOf(n.id))
+        .filter((i) => i !== -1);
+      this.cosmographInstance.unselectAllPoints();
+      if (selectedIndices.length) this.cosmographInstance.selectPoints(selectedIndices);
+    },
     // Recolors/reweights nodes+edges based on current selection/external/theme
     // state without rebuilding the whole graph (kept lightweight so pan/zoom/
     // camera state isn't reset on every click or theme toggle).
@@ -1392,11 +1486,7 @@ export default {
       if (!this.cosmographInstance) return;
       const ringColor = this.labelColor("node-border");
 
-      const selectedIndices = this.selectedNetworkNodes
-        .map((n) => this.indexToNodeId.indexOf(n.id))
-        .filter((i) => i !== -1);
-      this.cosmographInstance.unselectAllPoints();
-      if (selectedIndices.length) this.cosmographInstance.selectPoints(selectedIndices);
+      this.reapplySelection();
 
       // Merge onto the full stored config (not a bare partial) -- see the note
       // in initializeCosmograph() about setConfig() resetting anything omitted.
@@ -1405,9 +1495,10 @@ export default {
         backgroundColor: this.labelColor("background"),
         focusedPointRingColor: ringColor,
         hoveredPointRingColor: ringColor,
-        pointColorByFn: (value, index) => this.computePointColor(index),
-        linkColorByFn: (value, index) => this.computeLinkColor(index),
-        linkWidthByFn: (value, index) => this.computeLinkWidth(index),
+        // The map's colors are static hex, so only the fallback needs refreshing on theme change.
+        unknownColor: this.labelColor("text"),
+        linkColorByFn: (value) => (value === "external" ? "black" : this.labelColor("text")),
+        linkWidthByFn: (value) => value,
       };
       await this.cosmographInstance.setConfig(this._cosmoConfig);
 
@@ -1415,19 +1506,28 @@ export default {
         this.saveState();
       }
     },
-    computePointColor(index) {
-      const node = this.networkNodes.find((n) => n.id === this.indexToNodeId[index]);
-      if (!node) return this.labelColor("text");
-      const baseColor = groups[node.source_table.split('_').pop()].color;
-      return node.set === 'external' ? darkenHexColor(baseColor, 0.35) : baseColor;
+    // Builds the colorKey -> hex lookup consumed by Cosmograph's 'map' point-color
+    // strategy: one entry per known group plus a darkened '<group>_external' variant,
+    // so a single static object handles both dimensions instead of a per-point function.
+    buildPointColorMap() {
+      const colorMap = {};
+      for (const key of this.includedNodeTypes) {
+        const color = this.colorForGroup(key);
+        colorMap[key] = color;
+        colorMap[`${key}_external`] = darkenHexColor(color, 0.35);
+      }
+      return colorMap;
     },
-    computeLinkColor(index) {
-      const edge = this.networkEdges.find((e) => e.id === this.indexToEdgeId[index]);
-      return edge?.set === 'external' ? 'black' : this.labelColor("text");
-    },
-    computeLinkWidth(index) {
-      const edge = this.networkEdges.find((e) => e.id === this.indexToEdgeId[index]);
-      return edge?.set === 'external' ? 6 : (edge?.width ?? 2);
+    // Groups aren't limited to the hardcoded `groups` map (node_group/source_table is
+    // fully user-defined on the backend) -- use the hardcoded color when a group
+    // happens to match one of those keys (keeps the familiar branding), otherwise
+    // generate and cache a stable color for it so it still shows up correctly.
+    colorForGroup(key) {
+      if (groups[key]) return groups[key].color;
+      if (!this.dynamicGroupColors[key]) {
+        this.dynamicGroupColors[key] = generateGroupColor(key);
+      }
+      return this.dynamicGroupColors[key];
     },
     getShapeStyle(color, key) {
       // not applicable right now or only for externals
@@ -1435,12 +1535,12 @@ export default {
         return {
           borderRadius: "50%",
           backgroundColor: color,
-          width: "20px",
-          height: "20px",
-          border: "3px solid black",
+          width: "13px",
+          height: "13px",
+          border: "2px solid black",
         };
       }
-      return { borderRadius: "50%", backgroundColor: color, width: "20px", height: "20px" };
+      return { borderRadius: "50%", backgroundColor: color, width: "13px", height: "13px" };
     },
     updatePhysics() {
       if (!this.cosmographInstance) return;
@@ -1536,10 +1636,8 @@ export default {
         // Draw the current content of the network on the offscreen canvas
         offscreenCtx.drawImage(canvas, 0, 0);
 
-        // Filter groups based on includedNodeTypes
-        const includedGroups = Object.keys(groups).filter(groupKey =>
-          this.includedNodeTypes.has(groupKey)
-        );
+        // Legend entries: whatever groups are actually present, same as the on-screen legend
+        const includedGroups = this.legendGroups;
 
         // Adjust legend height dynamically based on included groups
         const legendHeight = 40 + includedGroups.length * 35; // Title + 35px per group
@@ -1551,12 +1649,10 @@ export default {
         // Loop over the groups to draw the legend dynamically
         let yOffset = 50; // Starting Y position for the first item
         includedGroups.forEach((groupKey) => {
-          const group = groups[groupKey]; // Get the group object (color)
-
           // Draw larger color circles
           offscreenCtx.beginPath();
           offscreenCtx.arc(legendX + 25, legendY + yOffset + 15, 15, 0, 2 * Math.PI, false); // Radius increased to 15
-          offscreenCtx.fillStyle = group.color; // Set the color
+          offscreenCtx.fillStyle = this.colorForGroup(groupKey); // Set the color
           offscreenCtx.fill();
 
           // Draw larger label text
@@ -1675,7 +1771,14 @@ export default {
         console.log("Load State savedState", savedState)
         const { nodes, edges, vis_options, user_settings } = savedState;
         this.networkNodes = nodes;
-        this.networkEdges = edges;
+        // Guard against a stale/edited saved state where an edge references a node id
+        // no longer present: initializeCosmograph() looks up each edge endpoint's point
+        // index by id, and an edge with no matching node produces an undefined
+        // sourceIndex/targetIndex that crashes the Cosmograph rebuild entirely.
+        // filterForNetworkEdges() isn't usable here since it rebuilds from
+        // allInternalEdges/allExternalEdges, which aren't part of the persisted state.
+        const nodeIds = new Set(nodes.map((node) => node.id));
+        this.networkEdges = edges.filter((edge) => nodeIds.has(edge.from) && nodeIds.has(edge.to));
         // vis_options.physics is the pre-Cosmograph-migration shape; fall back to it
         // so localStorage state saved before this change still loads correctly.
         this.physics_on = vis_options?.simulation?.enabled ?? vis_options?.physics?.enabled ?? true;
@@ -1745,13 +1848,20 @@ export default {
 }
 
 .legend-color {
-  margin-right: 10px; /* Space between the color and the text */
+  margin-right: 8px; /* Space between the color and the text */
+}
+.legend-item {
+  cursor: pointer;
+}
+.legend-item-active .legend-text span {
+  font-weight: 700;
+  text-decoration: underline;
 }
 /* Style for the legend container */
 .legend {
   position: absolute;  /* Position relative to the nearest positioned ancestor (network container) */
-  bottom: 25px;  /* Adjust the bottom margin */
-  left: 10px;    /* Adjust the left margin */
+  bottom: 60px;  /* Shifted further into the graph so it doesn't hug the corner */
+  left: 40px;    /* Shifted further into the graph so it doesn't hug the corner */
   background: transparent;  /* Transparent background */
   z-index: 10;  /* Ensure it appears above other elements */
 }
