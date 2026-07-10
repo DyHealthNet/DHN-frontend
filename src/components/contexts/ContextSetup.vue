@@ -375,6 +375,11 @@ export default {
       try {
         const csrfToken = getCookie('csrftoken');
         let url = `${BASE_URL}/plotting/api/table/`;
+        // only scope to a context once it actually exists server-side (this.content is
+        // null for a brand-new tab that has no saved conditions yet)
+        if (this.content) {
+          url += `?contextValue=${encodeURIComponent(this.value)}`;
+        }
 
         const response = await fetch(url, {
           method: 'GET',
