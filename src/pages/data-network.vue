@@ -205,6 +205,16 @@
                     <v-icon color="primary-darken-1" size="25" class="ml-0 mr-3 my-0">mdi-magnify</v-icon>
                     Details</v-expansion-panel-title>
                   <v-expansion-panel-text>
+                    <v-autocomplete
+                      v-model="searchedNodeId"
+                      :items="networkNodeSearchItems"
+                      label="Search node in network"
+                      density="compact"
+                      variant="outlined"
+                      clearable
+                      hide-details
+                      @update:model-value="jumpToSearchedNode"
+                    ></v-autocomplete>
                     <v-divider class="my-4"></v-divider>
                   <template v-if="displayedElementType === 'node'">
                     <NodeDetails :getIcon="getIcon" :node="displayedElement" />
@@ -550,6 +560,7 @@ export default {
       displayedElementType: null,   // 'node' or 'edge'
       isDetailsNodeSelected: false,
       includedNodeTypes: new Set(), // stores type currently present in network for Legend
+      searchedNodeId: null, // Details-panel "search node in network" field
 
       selectedNetworkNodes: [],
       selectAll: false,
@@ -579,6 +590,15 @@ export default {
     // Limit the number of displayed nodes to 5
     limitedDropdownNodes() {
       return this.dropdownNodes.slice(0, 5);
+    },
+    // Items for the Details panel's "search node in network" field -- searches
+    // only the nodes already loaded into the current network (client-side),
+    // unlike the Network Input field above which queries the backend.
+    networkNodeSearchItems() {
+      return this.networkNodes.map((node) => ({
+        title: `${node.display_name} (${this.getPrettyType(node.source_table)})`,
+        value: node.id,
+      }));
     },
     downloadFileName() {
       const currentDate = new Date().toLocaleDateString().replace(/\//g, '-'); // Formatting the date as 'MM-DD-YYYY'
@@ -834,26 +854,14 @@ export default {
           return new URL('../assets/figures/phenotypes.png', import.meta.url).href;
       }
     },
+    // node_group/source_table has no fixed set of values (see colorForGroup()) --
+    // derive the label the same way the color system derives its group key
+    // (strip any "cohort_"-style prefix, take the trailing segment) instead of a
+    // hardcoded lookup that only recognized the original 6 categories and fell
+    // back to a literal "None" for everything else.
     getPrettyType(sourceTable) {
-      switch (sourceTable) {
-        case 'cohort_protein':
-        case 'protein':
-          return 'Protein';
-        case 'cohort_metabolite':
-        case 'metabolite':
-          return 'Metabolite';
-        case 'cohort_variants':
-        case 'variant':
-          return 'Variant';
-        case 'cohort_disorder':
-        case 'disorder':
-          return 'Disorder';
-        case 'cohort_phenotype':
-        case 'phenotype':
-          return 'Phenotype';
-        default:
-          return 'None';
-      }
+      if (!sourceTable) return 'Unknown';
+      return this.capitalizeFirstLetter(sourceTable.split('_').pop());
     },
     labelColor(colorName) {
       // chartjs does not support theme colors so we just directly call the theme color
@@ -1049,6 +1057,11 @@ export default {
         pointLabelBy: 'display_name',
         showLabels: true,
         showDynamicLabels: true,
+        // Labels are colored like their point by default (no pointLabelColor set);
+        // the hovered label gets its own CSS class instead so it can be forced to
+        // plain white regardless of the node's group color -- see :deep() rule below.
+        showHoveredPointLabel: true,
+        hoveredPointLabelClassName: 'cosmo-hovered-label',
         enableSimulation: this.physics_on,
         // Cosmograph's own native click-to-select ('single') fires independently of
         // our onPointClick callback and drives its own selection dimming + label
@@ -1069,8 +1082,16 @@ export default {
         onBackgroundClick: () => this.handleBackgroundClick(),
         // Physics keeps spreading points across the simulation space; re-center
         // the camera on the graph whenever the layout settles so nodes don't
-        // drift out of view with no way to find them again.
-        onSimulationEnd: () => this.cosmographInstance?.fitView(),
+        // drift out of view with no way to find them again. But skip it while a
+        // node is focused (single/double-clicked) -- otherwise this can fire
+        // shortly after handlePointSingleClick's zoomToPoint() and immediately
+        // zoom back out to the full graph, undoing the "center on this node" the
+        // click just asked for.
+        onSimulationEnd: () => {
+          if (this.displayedElementType !== 'node') {
+            this.cosmographInstance?.fitView();
+          }
+        },
       };
       this.cosmographInstance = new Cosmograph(container, this._cosmoConfig);
       // The constructor already fired its own setConfig()/data-upload cycle (every
@@ -1086,6 +1107,9 @@ export default {
       // Physics-off case: onSimulationEnd never fires (no simulation runs), so fit here too.
       this.cosmographInstance?.fitView(0);
       this.reapplySelection();
+      // The native dblclick.zoom interceptor is attached once, on the persistent
+      // container (see mounted()) -- not here on the canvas, which gets destroyed
+      // and recreated on every rebuild.
     },
     async destroyCosmograph() {
       if (this._clickTimer) {
@@ -1127,6 +1151,24 @@ export default {
       // which point gets the big "currently clicked" treatment (see computePointSize
       // / reapplySelection) and to recompute pointSizeByFn, so it must run after.
       this.applyDesign(false);
+      // Center/zoom the camera on whatever's now shown in the Details panel.
+      this.centerOnPoint(index);
+    },
+    // Details panel "search node in network" field: jumping to a result should
+    // behave exactly like clicking that node on the canvas -- reuse
+    // handlePointSingleClick() rather than duplicating its display/center logic.
+    jumpToSearchedNode(nodeId) {
+      if (!nodeId) return;
+      const index = this.indexToNodeId.indexOf(nodeId);
+      if (index === -1) return;
+      this.handlePointSingleClick(index);
+      // Reset for the next search rather than leaving the picked name sitting in
+      // the field -- the Details panel below is the source of truth for what's
+      // currently displayed, so a stale search value here would just be confusing
+      // once the user selects a different node another way (e.g. clicking it).
+      this.$nextTick(() => {
+        this.searchedNodeId = null;
+      });
     },
     handlePointDoubleClick(index) {
       const node = this.networkNodes.find((n) => n.id === this.indexToNodeId[index]);
@@ -1137,9 +1179,37 @@ export default {
       } else {
         this.selectedNetworkNodes.push(node);
       }
-      this.displayNode(node);
+      // Double-click is purely a selection toggle -- it doesn't show the node in
+      // the Details panel or give it the exclusive "as if selected" highlight/size
+      // (that's single-click's job, see handlePointSingleClick/reapplySelection).
+      // If this node happens to already be the displayed one (from an earlier
+      // single click), clear that so the real selectedNetworkNodes highlight shows
+      // through immediately instead of the stale single-node exclusive one.
+      if (this.displayedElementType === 'node' && this.displayedElement?.id === node.id) {
+        this.displayedElement = null;
+        this.displayedElementType = null;
+      }
       this.checkSelectAll();
       this.applyDesign();
+      this.centerOnPoint(index);
+    },
+    // zoomToPoint() picks between two different transition strategies depending
+    // on how far the camera currently is from the target point, which made single-
+    // vs double-click centering behave inconsistently (whichever branch a given
+    // click happened to hit). Going straight to the position-based transform
+    // instead is a single deterministic code path, so it centers the same way
+    // regardless of where the camera already was.
+    centerOnPoint(index) {
+      const position = this.cosmographInstance?.getPointPositionByIndex(index);
+      if (position) {
+        // Pass the CURRENT zoom level, not a fixed one -- otherwise this forces
+        // the view to whatever scale we hardcode here on every click (zooming out
+        // if you'd zoomed in further than that, or in if you'd zoomed out past
+        // it). Reusing the live zoom level makes this a pure pan/center, no
+        // zoom change at all.
+        const currentZoom = this.cosmographInstance.getZoomLevel();
+        this.cosmographInstance.setZoomTransformByPointPositions(new Float32Array(position), 700, currentZoom);
+      }
     },
     handleLinkClick(linkIndex) {
       const edge = this.networkEdges.find((e) => e.id === this.indexToEdgeId[linkIndex]);
@@ -1494,13 +1564,25 @@ export default {
     // selectedNetworkNodes / the Selection panel.
     reapplySelection() {
       if (!this.cosmographInstance) return;
-      const ids = new Set(this.selectedNetworkNodes.map((n) => n.id));
+      // A displayed node (single- or double-clicked, shown in the Details panel)
+      // is an *exclusive* highlight -- just that node plus its direct neighbors
+      // (and, since selectPoints() also un-dims links between two selected
+      // points, the edges connecting them), standing in for whatever the real
+      // selectedNetworkNodes highlight would otherwise be. Clicking away from any
+      // node (background or an edge) clears displayedElement, which falls through
+      // to the real multi-select highlight again.
+      let selectedIndices;
       if (this.displayedElementType === 'node' && this.displayedElement) {
-        ids.add(this.displayedElement.id);
+        const clickedIndex = this.indexToNodeId.indexOf(this.displayedElement.id);
+        selectedIndices = clickedIndex === -1
+          ? []
+          : [clickedIndex, ...(this.cosmographInstance.getConnectedPointIndices(clickedIndex) || [])];
+      } else {
+        const ids = new Set(this.selectedNetworkNodes.map((n) => n.id));
+        selectedIndices = Array.from(ids)
+          .map((id) => this.indexToNodeId.indexOf(id))
+          .filter((i) => i !== -1);
       }
-      const selectedIndices = Array.from(ids)
-        .map((id) => this.indexToNodeId.indexOf(id))
-        .filter((i) => i !== -1);
       // selectPoints() replaces the current selection outright -- calling
       // unselectAllPoints() first (unconditionally, on every click) inserted a
       // visible intermediate "nothing selected" frame (no dimming = everything
@@ -1872,11 +1954,35 @@ export default {
     const theme = useTheme();
     this.loadState(); // Load state when the component is mounted
     this.selectedBorderColor = theme.current.value.colors['primary']; // Correct way to access the primary color
+    // @cosmos.gl/graph wires up d3-zoom internally, which attaches its own native
+    // dblclick.zoom handler (zoom in centered on the cursor) directly to the canvas
+    // by default -- there's no public config to turn it off, and it fires on every
+    // double-click (node or background), overriding centerOnPoint()'s result right
+    // after it runs. A capture-phase listener added directly on the canvas doesn't
+    // help here: for listeners on the *same* element, the capture flag doesn't
+    // determine order, registration order does -- and d3-zoom's listener is already
+    // attached by the time ours would be, so it always runs first regardless. Doing
+    // this on `network` instead (an ancestor of the canvas, and stable across
+    // Cosmograph instance rebuilds, unlike the canvas itself) means the capture
+    // phase genuinely reaches this listener before the event ever reaches the
+    // canvas, so stopPropagation() here keeps it from reaching d3-zoom at all. Our
+    // own double-click detection is built from two onPointClick calls within
+    // 280ms, not the native dblclick DOM event, so it's unaffected.
+    this.$refs.network?.addEventListener('dblclick', (e) => e.stopPropagation(), true);
   },
 };
 </script>
 
 <style scoped>
+
+/* Cosmograph mounts label elements into #network itself, outside Vue's own
+   render tree -- :deep() reaches them anyway since they're still inside this
+   component's DOM subtree. Overrides the label's own point-color inheritance
+   (no pointLabelColor is set, so labels default to their point's color) with
+   plain white specifically for whichever label is currently hovered. */
+:deep(.cosmo-hovered-label) {
+  color: #fff !important;
+}
 
 .title {
   font-size: 2rem;
