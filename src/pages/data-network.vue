@@ -382,7 +382,7 @@
                           <v-tooltip bottom>
                             <template v-slot:activator="{ props }">
                               <v-col cols="auto" class="legend-dot" v-bind="props">
-                                <div class="legend-color" :style="getShapeStyle(colorForGroup(groupKey), groupKey)"></div>
+                                <div class="legend-color" :style="getShapeStyle(colorForGroup(groupKey))"></div>
                               </v-col>
                               <v-col cols="auto" class="legend-text" v-bind="props">
                                 <span>{{ capitalizeFirstLetter(groupKey) }}</span>
@@ -489,7 +489,7 @@
 import AdvancedSettings from "@/components/AdvancedSettings.vue";
 import FilterToolbar from "@/components/FilterToolbar.vue";
 import {BASE_URL, isLoading, setIsLoading} from "@/components/constants.js";
-import {groups, darkenHexColor, generateGroupColor, loadNetworkState, saveNetworkState} from "../components/network/networkData.js";
+import {darkenHexColor, generateGroupColor, loadNetworkState, saveNetworkState} from "../components/network/networkData.js";
 import NodeDetails from '@/components/network/NodeDetails.vue';
 import EdgeDetails from '@/components/network/EdgeDetails.vue';
 import {Cosmograph} from "@cosmograph/cosmograph";
@@ -532,6 +532,7 @@ export default {
       networkEdges: [],//test_data["edges"],
       cosmographInstance: null,
       _cosmoConfig: null,
+      _configUpdateChain: null,
       indexToNodeId: [],
       indexToEdgeId: [],
       _clickTimer: null,
@@ -542,10 +543,6 @@ export default {
       allInternalEdges: [],
       allExternalEdges: [],
 
-      nodeStyle: groups,
-      // Colors generated on the fly for groups not in the hardcoded `groups` map,
-      // cached per group name so they stay stable for the rest of the session.
-      dynamicGroupColors: {},
       physics_on: true,
       selectedBorderColor: '', //TODO don't set this in mounted, maybe make it reactive
 
@@ -573,9 +570,9 @@ export default {
     };
   },
   computed: {
-    // Legend entries: whatever groups are actually present in the current network,
-    // not a fixed list -- node_group/source_table isn't limited to the hardcoded
-    // `groups` keys (see colorForGroup()). Sorted for a stable, predictable order.
+    // Legend entries: whatever groups are actually present in the current network --
+    // node_group/source_table has no fixed set of values (see colorForGroup()).
+    // Sorted for a stable, predictable order.
     legendGroups() {
       return Array.from(this.includedNodeTypes).sort();
     },
@@ -1007,8 +1004,6 @@ export default {
       this.indexToNodeId = pointsForCosmo.map((p) => p.id);
       this.indexToEdgeId = linksForCosmo.map((l) => l.id);
 
-      const ringColor = this.labelColor("node-border");
-
       // Cosmograph's setConfig() merges the object it's given onto its DEFAULT
       // config, not onto the currently-active config -- so every setConfig call
       // (including the ones applyDesign() makes later) must carry the full
@@ -1029,7 +1024,22 @@ export default {
         // Without an explicit pointDefaultSize, Cosmograph falls back to
         // sizing points by degree whenever links are present -- pin a fixed
         // size so all nodes render uniformly, matching the old vis-network look.
-        pointDefaultSize: 8,
+        pointDefaultSize: 11,
+        // A single click now always puts the graph into "some selection active"
+        // mode (see reapplySelection/computePointSize), so this greyout kicks in
+        // on basically every click -- Cosmograph's own default for links (0.1) is
+        // near-invisible, and leaving points on their implicit default made them
+        // fade out hard too. Keep non-selected elements clearly present, just
+        // visually deprioritized, instead of the graph seeming to lose most of
+        // its nodes/edges every time something's clicked.
+        pointGreyoutOpacity: 0.55,
+        linkGreyoutOpacity: 0.35,
+        // pointSizeBy just needs to name an existing column so Cosmograph actually
+        // invokes pointSizeByFn per point -- the column's own value is unused,
+        // computePointSize looks the point up by index instead (see there for why:
+        // the currently-clicked node needs to render much bigger than the rest).
+        pointSizeBy: 'id',
+        pointSizeByFn: (value, index) => this.computePointSize(index),
         linkSourceBy: 'source',
         linkTargetBy: 'target',
         linkSourceIndexBy: 'sourceIndex',
@@ -1040,13 +1050,15 @@ export default {
         showLabels: true,
         showDynamicLabels: true,
         enableSimulation: this.physics_on,
-        selectPointOnClick: 'single',
-        focusPointOnClick: false,
+        // Cosmograph's own native click-to-select ('single') fires independently of
+        // our onPointClick callback and drives its own selection dimming + label
+        // highlight, competing with our own selectedNetworkNodes-driven selection
+        // below. We handle all click/selection semantics ourselves, so this stays off.
+        selectPointOnClick: false,
         renderHoveredPointRing: true,
         resetSelectionOnEmptyCanvasClick: false,
         backgroundColor: this.labelColor("background"),
-        hoveredPointRingColor: ringColor,
-        focusedPointRingColor: ringColor,
+        hoveredPointRingColor: this.labelColor("primary-darken-1"),
         // linkColorBy/linkWidthBy have no built-in 'map' strategy, but `value` here
         // is already the row's raw column value (edge.set / edge.renderWidth) --
         // no per-edge lookup needed, these are O(1) and can't throw.
@@ -1111,6 +1123,9 @@ export default {
     handlePointSingleClick(index) {
       const node = this.networkNodes.find((n) => n.id === this.indexToNodeId[index]);
       if (node) this.displayNode(node);
+      // displayNode() changed displayedElement -- applyDesign() reads it to decide
+      // which point gets the big "currently clicked" treatment (see computePointSize
+      // / reapplySelection) and to recompute pointSizeByFn, so it must run after.
       this.applyDesign(false);
     },
     handlePointDoubleClick(index) {
@@ -1129,6 +1144,8 @@ export default {
     handleLinkClick(linkIndex) {
       const edge = this.networkEdges.find((e) => e.id === this.indexToEdgeId[linkIndex]);
       if (edge) this.displayEdge(edge);
+      // Clears the "currently clicked node" big/highlighted treatment, since the
+      // details panel is now showing an edge instead of a node.
       this.applyDesign(false);
     },
     handleBackgroundClick() {
@@ -1471,21 +1488,48 @@ export default {
     // touch setConfig()/data at all, so it's safe to call right after construction
     // (before the instance's own initial data upload has settled) as well as after
     // every selection change.
+    // The currently-displayed node (single click, not necessarily in
+    // selectedNetworkNodes) gets the same crossfilter "selected" dimming
+    // treatment as a real multi-select, without actually joining
+    // selectedNetworkNodes / the Selection panel.
     reapplySelection() {
       if (!this.cosmographInstance) return;
-      const selectedIndices = this.selectedNetworkNodes
-        .map((n) => this.indexToNodeId.indexOf(n.id))
+      const ids = new Set(this.selectedNetworkNodes.map((n) => n.id));
+      if (this.displayedElementType === 'node' && this.displayedElement) {
+        ids.add(this.displayedElement.id);
+      }
+      const selectedIndices = Array.from(ids)
+        .map((id) => this.indexToNodeId.indexOf(id))
         .filter((i) => i !== -1);
-      this.cosmographInstance.unselectAllPoints();
-      if (selectedIndices.length) this.cosmographInstance.selectPoints(selectedIndices);
+      // selectPoints() replaces the current selection outright -- calling
+      // unselectAllPoints() first (unconditionally, on every click) inserted a
+      // visible intermediate "nothing selected" frame (no dimming = everything
+      // reads as highlighted) before the real selection landed a moment later.
+      // Only actually clearing when there's nothing to select avoids that flash.
+      if (selectedIndices.length) {
+        this.cosmographInstance.selectPoints(selectedIndices);
+      } else {
+        this.cosmographInstance.unselectAllPoints();
+      }
+    },
+    // The currently-displayed node (see reapplySelection) also renders much larger
+    // than the rest -- the previous ring-based "what's clicked" indicator was too
+    // subtle to notice, size is not.
+    computePointSize(index) {
+      const isDisplayed =
+        this.displayedElementType === 'node' &&
+        this.displayedElement &&
+        this.indexToNodeId[index] === this.displayedElement.id;
+      return isDisplayed ? 26 : 11;
     },
     // Recolors/reweights nodes+edges based on current selection/external/theme
     // state without rebuilding the whole graph (kept lightweight so pan/zoom/
     // camera state isn't reset on every click or theme toggle).
     async applyDesign(saveState = true) {
       if (!this.cosmographInstance) return;
-      const ringColor = this.labelColor("node-border");
 
+      // Instant, synchronous -- safe to run every time regardless of any
+      // in-flight setConfig() below.
       this.reapplySelection();
 
       // Merge onto the full stored config (not a bare partial) -- see the note
@@ -1493,14 +1537,29 @@ export default {
       this._cosmoConfig = {
         ...this._cosmoConfig,
         backgroundColor: this.labelColor("background"),
-        focusedPointRingColor: ringColor,
-        hoveredPointRingColor: ringColor,
+        hoveredPointRingColor: this.labelColor("primary-darken-1"),
         // The map's colors are static hex, so only the fallback needs refreshing on theme change.
         unknownColor: this.labelColor("text"),
+        // New function reference each call so Cosmograph's config-change detection
+        // (reference equality) actually re-invokes it -- displayedElement (which it
+        // reads via computePointSize) can change without pointsForCosmo changing.
+        pointSizeByFn: (value, index) => this.computePointSize(index),
         linkColorByFn: (value) => (value === "external" ? "black" : this.labelColor("text")),
         linkWidthByFn: (value) => value,
       };
-      await this.cosmographInstance.setConfig(this._cosmoConfig);
+      // applyDesign() runs unawaited from every click handler, so rapid clicks
+      // (e.g. a node then immediately the background) can have two setConfig()
+      // calls in flight together. Cosmograph's setConfig() doesn't serialize
+      // against a prior in-flight call (the same race that caused the "out of
+      // memory" bug in initializeCosmograph() before it was serialized there) --
+      // here it instead let a slower, now-stale update finish *after* a faster,
+      // fresher one and briefly repaint the old sizes/selection, i.e. exactly the
+      // "everything flashes highlighted for a moment" symptom. Chain onto any
+      // in-flight call so they always apply in order, never overlapping.
+      this._configUpdateChain = (this._configUpdateChain || Promise.resolve())
+        .then(() => this.cosmographInstance?.setConfig(this._cosmoConfig))
+        .catch((e) => console.warn('Cosmograph setConfig failed', e));
+      await this._configUpdateChain;
 
       if (saveState) {
         this.saveState();
@@ -1518,28 +1577,14 @@ export default {
       }
       return colorMap;
     },
-    // Groups aren't limited to the hardcoded `groups` map (node_group/source_table is
-    // fully user-defined on the backend) -- use the hardcoded color when a group
-    // happens to match one of those keys (keeps the familiar branding), otherwise
-    // generate and cache a stable color for it so it still shows up correctly.
+    // node_group/source_table is fully user-defined on the backend, not a fixed
+    // set of categories -- every group's color is generated from its name (a pure
+    // hash -> hue function, see generateGroupColor), so any group value just works
+    // without a hardcoded lookup table to keep in sync with the database.
     colorForGroup(key) {
-      if (groups[key]) return groups[key].color;
-      if (!this.dynamicGroupColors[key]) {
-        this.dynamicGroupColors[key] = generateGroupColor(key);
-      }
-      return this.dynamicGroupColors[key];
+      return generateGroupColor(key);
     },
-    getShapeStyle(color, key) {
-      // not applicable right now or only for externals
-      if (key === "gene" || key === "disorder") {
-        return {
-          borderRadius: "50%",
-          backgroundColor: color,
-          width: "13px",
-          height: "13px",
-          border: "2px solid black",
-        };
-      }
+    getShapeStyle(color) {
       return { borderRadius: "50%", backgroundColor: color, width: "13px", height: "13px" };
     },
     updatePhysics() {

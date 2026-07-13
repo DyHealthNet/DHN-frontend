@@ -1,12 +1,3 @@
-export const groups = {
-  protein: {color: '#6b6acf'},
-  metabolite: {color: '#c84d4c'},
-  phenotype: {color: '#ce9a28'},
-  variant: {color: '#44a043'},
-  gene: {color: '#28827a'},
-  disorder: {color: '#d37538'},
-};
-
 // Darkens a '#rrggbb' color by `amount` (0-1); used to visually distinguish
 // "external" nodes from internal nodes of the same type without a per-point border.
 export function darkenHexColor(hex, amount) {
@@ -29,17 +20,42 @@ function hslToHex(h, s, l) {
   return `#${toHex(0)}${toHex(8)}${toHex(4)}`;
 }
 
+// Standard sRGB relative luminance (WCAG formula) -- used to judge how *dark* a
+// color actually reads to the eye, since HSL's "lightness" isn't perceptually
+// uniform: blue/purple/magenta hues look noticeably darker and more intense than
+// green/yellow hues at the exact same L/S values.
+function relativeLuminance(hex) {
+  const clean = hex.replace('#', '');
+  const channel = (start) => parseInt(clean.substring(start, start + 2), 16) / 255;
+  const linearize = (c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  const [r, g, b] = [channel(0), channel(2), channel(4)].map(linearize);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
 // `node_group`/`source_table` values are fully user-defined on the backend
-// (DATA_GROUP_COLUMNS) and not limited to the keys in `groups` above, so any group
-// name actually seen in the data needs a color even if it isn't one of those keys.
-// Hashing the name into a hue keeps the generated color stable for that name across
-// renders/reloads without having to remember previously-assigned colors anywhere.
+// (DATA_GROUP_COLUMNS) -- there's no fixed set of node types, so colors can't be a
+// hardcoded lookup table. Hashing the name into a hue keeps the generated color
+// stable for that name across renders/reloads without remembering assignments
+// anywhere, and every group (known or not) goes through this same path.
+const MIN_RELATIVE_LUMINANCE = 0.4;
+
 export function generateGroupColor(key) {
   let hash = 0;
   for (let i = 0; i < key.length; i++) {
     hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
   }
-  return hslToHex(hash % 360, 65, 50);
+  const hue = hash % 360;
+  const saturation = 65;
+  let lightness = 50;
+  let hex = hslToHex(hue, saturation, lightness);
+  // Whatever hue the hash lands on, push lightness up until it actually reads as
+  // bright enough -- rather than a fixed L=50 for every hue, which leaves
+  // blue/purple/magenta results looking dark while yellow/green ones look fine.
+  while (relativeLuminance(hex) < MIN_RELATIVE_LUMINANCE && lightness < 85) {
+    lightness += 5;
+    hex = hslToHex(hue, saturation, lightness);
+  }
+  return hex;
 }
 
 //import crypto from "crypto";
