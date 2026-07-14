@@ -136,6 +136,7 @@
                                         @data-changed="addSettings"
                                         :topNodesNumber="topNodesNumber"
                                         :topPerNodeCount="topPerNodeCount"
+                                        :read-only-correction="true"
                                         />
                 </v-col>
               </v-row>
@@ -413,6 +414,56 @@
 
                     </v-tooltip>
                   </v-toolbar-title>
+                    <v-btn-toggle
+                      v-model="selectionMode"
+                      class="mr-3"
+                      density="compact"
+                      variant="outlined"
+                      divided
+                      mandatory
+                      @update:model-value="applySelectionMode"
+                    >
+                      <v-tooltip text="Zoom / pan" location="bottom">
+                        <template v-slot:activator="{ props }">
+                          <v-btn value="zoom" size="small" v-bind="props">
+                            <v-icon :color="toolbarIconColor">mdi-cursor-default</v-icon>
+                          </v-btn>
+                        </template>
+                      </v-tooltip>
+                      <v-tooltip text="Rectangular selection" location="bottom">
+                        <template v-slot:activator="{ props }">
+                          <!-- Cosmograph's own rect-selection control icon (from
+                               @cosmograph/cosmograph's select-rect button config),
+                               reused directly for a consistent look. -->
+                          <v-btn value="rect" size="small" v-bind="props">
+                            <svg width="20" height="20" viewBox="0 0 96 96" version="1.1" xmlns="http://www.w3.org/2000/svg" :style="{ color: toolbarIconColor, fillRule: 'evenodd', clipRule: 'evenodd', strokeMiterlimit: 2 }">
+                              <g fill="none" fill-rule="nonzero" stroke="currentColor" stroke-width="8px">
+                                <path d="M92.8,71.003L92.8,83.2L75.058,83.2"/>
+                                <path d="M65.014,83.2L34.968,83.2"/>
+                                <path d="M24.994,83.2L4,83.2L4,71.003"/>
+                                <path d="M4,60.954L4,35.036"/>
+                                <path d="M4,25.06L4,11.8L24.994,11.8"/>
+                                <path d="M34.968,11.8L65.014,11.8"/>
+                                <path d="M75.058,11.8L92.8,11.8L92.8,25.06"/>
+                                <path d="M92.8,35.036L92.8,60.954"/>
+                              </g>
+                            </svg>
+                          </v-btn>
+                        </template>
+                      </v-tooltip>
+                      <v-tooltip text="Polygonal selection" location="bottom">
+                        <template v-slot:activator="{ props }">
+                          <!-- Cosmograph's own polygon-selection control icon (from
+                               @cosmograph/cosmograph's select-polygon button config),
+                               reused directly for a consistent look. -->
+                          <v-btn value="polygon" size="small" v-bind="props">
+                            <svg width="20" height="20" viewBox="0 0 24 24" transform="scale(1.15)" xmlns="http://www.w3.org/2000/svg" :style="{ color: toolbarIconColor }">
+                              <path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M21.72.226a1 1 0 0 1 .587.936l-.336 13.583a1 1 0 0 1-.685.924l-8.893 2.948a2.6 2.6 0 0 1-.028.692a2.93 2.93 0 0 1 1.429 1.495c.342.792.33 1.645.198 2.267a1 1 0 0 1-1.956-.417c.07-.328.06-.739-.078-1.056c-.098-.226-.27-.444-.655-.565l-.064.05c-.667.512-1.545.8-2.475.8s-1.808-.288-2.476-.8c-.668-.511-1.165-1.289-1.165-2.224s.497-1.712 1.165-2.224q.232-.178.495-.318L1.782 5.237a1 1 0 0 1 1.092-1.394l11.694 2.146L20.63.402a1 1 0 0 1 1.09-.176m-1.73 13.766l-8.53 2.828a3 3 0 0 0-.22-.185c-.668-.511-1.546-.799-2.476-.799H8.76L4.39 6.154l10.308 1.892a1 1 0 0 0 .859-.248l4.692-4.326zm-12.485 4.23c-.288.22-.382.455-.382.637s.094.416.382.637c.288.22.73.386 1.259.386s.97-.165 1.259-.386c.288-.22.382-.455.382-.637s-.094-.416-.382-.637c-.289-.22-.73-.386-1.26-.386s-.97.165-1.258.386"/>
+                            </svg>
+                          </v-btn>
+                        </template>
+                      </v-tooltip>
+                    </v-btn-toggle>
                     <v-switch
                       v-model="physics_on"
                       @change="updatePhysics"
@@ -554,6 +605,7 @@ export default {
       allExternalEdges: [],
 
       physics_on: true,
+      selectionMode: 'zoom', // 'zoom' | 'rect' | 'polygon' -- see applySelectionMode()
       selectedBorderColor: '', //TODO don't set this in mounted, maybe make it reactive
 
       displayedElement: null,
@@ -568,6 +620,10 @@ export default {
 
       // Advanced Settings (default) values
       selectedTests: { testType: 'parametric', correction: 'bh' },
+      // Real correction used to precompute the static (no-context) network's
+      // edges -- fetched in mounted() via fetchNetworkConfig(). 'bh' fallback
+      // matches today's default in case the fetch fails.
+      staticCorrection: 'bh',
       signThresh: 0.999,
       fixThreshold: true,
       topNodesNumber: 5,
@@ -599,6 +655,17 @@ export default {
         title: `${node.display_name} (${this.getPrettyType(node.source_table)})`,
         value: node.id,
       }));
+    },
+    // v-btn-toggle's `color` prop only ever styles the currently-active button
+    // (that's how Vuetify indicates the selection), so it can't give every
+    // button in the selection-mode toggle a consistent color regardless of which
+    // one is active -- bind this directly on each icon instead, bypassing that
+    // entirely. Same white/dark inversion as the toolbar itself: primary-darken-1
+    // (the toolbar's background) is dark in the light theme and light in the dark
+    // theme, so icons need the opposite of the theme's own "text" color to read
+    // clearly against it either way.
+    toolbarIconColor() {
+      return this.$vuetify.theme.global.name === 'dyHealthNetTheme' ? '#FFFFFF' : '#1E1E1E';
     },
     downloadFileName() {
       const currentDate = new Date().toLocaleDateString().replace(/\//g, '-'); // Formatting the date as 'MM-DD-YYYY'
@@ -1080,6 +1147,12 @@ export default {
         onPointClick: (index) => this.handlePointClick(index),
         onLinkClick: (linkIndex) => this.handleLinkClick(linkIndex),
         onBackgroundClick: () => this.handleBackgroundClick(),
+        // Rectangular/polygonal selection (see the toolbar's mode toggle and
+        // applySelectionMode()) picks points natively; fold the result into
+        // selectedNetworkNodes so it's not just a visual flash that the next
+        // reapplySelection() call (from any subsequent click) would overwrite.
+        onRectSelected: (selection, pointIndices) => this.handleAreaSelected(pointIndices),
+        onPolygonSelected: () => this.handleAreaSelected(this.cosmographInstance?.getSelectedPointIndices()),
         // Physics keeps spreading points across the simulation space; re-center
         // the camera on the graph whenever the layout settles so nodes don't
         // drift out of view with no way to find them again. But skip it while a
@@ -1564,6 +1637,15 @@ export default {
     // selectedNetworkNodes / the Selection panel.
     reapplySelection() {
       if (!this.cosmographInstance) return;
+      // While a rect/polygon selection tool is active, don't reassert our own
+      // point-selection constraint here. Cosmograph's crossfilter intersects a
+      // new drag with whatever's already selected, so re-imposing selectedNetworkNodes
+      // after every drag (handleAreaSelected -> applyDesign -> here) meant each
+      // subsequent selection could only narrow further within the last one, never
+      // reach the full graph again -- "selection of selection". applySelectionMode()
+      // clears the constraint when entering rect/polygon mode and calls this again
+      // to reassert it once back in zoom mode.
+      if (this.selectionMode !== 'zoom') return;
       // A displayed node (single- or double-clicked, shown in the Details panel)
       // is an *exclusive* highlight -- just that node plus its direct neighbors
       // (and, since selectPoints() also un-dims links between two selected
@@ -1676,6 +1758,44 @@ export default {
       } else {
         this.cosmographInstance.pause();
       }
+    },
+    // Toolbar mode toggle: only one of rect/polygon selection can be active at a
+    // time (or neither, for plain zoom/pan) -- always deactivate both first so
+    // switching modes (or back to "zoom") doesn't leave a stale one still armed.
+    applySelectionMode() {
+      if (!this.cosmographInstance) return;
+      this.cosmographInstance.deactivateRectSelection?.();
+      this.cosmographInstance.deactivatePolygonalSelection?.();
+      if (this.selectionMode === 'rect' || this.selectionMode === 'polygon') {
+        // Clear any leftover point-selection constraint (from a prior click or
+        // drag) before handing off to the tool -- see reapplySelection() for why
+        // leaving one active would scope every subsequent drag down to it.
+        this.cosmographInstance.unselectAllPoints();
+        if (this.selectionMode === 'rect') {
+          this.cosmographInstance.activateRectSelection?.();
+        } else {
+          this.cosmographInstance.activatePolygonalSelection?.();
+        }
+      } else {
+        // Back to zoom/pan: reassert the real selectedNetworkNodes/displayed-node
+        // highlight, which reapplySelection() skipped touching while a selection
+        // tool was active.
+        this.reapplySelection();
+      }
+    },
+    // Adds whatever a rect/polygon drag just picked out to selectedNetworkNodes
+    // (additive, like double-click -- doesn't clear any prior selection), then
+    // runs it through the normal pipeline so it's reflected in the Selection
+    // panel and persists past the next click instead of just flashing briefly.
+    handleAreaSelected(pointIndices) {
+      if (!pointIndices || !pointIndices.length) return;
+      const newNodes = pointIndices
+        .map((index) => this.networkNodes.find((n) => n.id === this.indexToNodeId[index]))
+        .filter((node) => node && !this.isNodeInNetworkSelected(node));
+      if (!newNodes.length) return;
+      this.selectedNetworkNodes.push(...newNodes);
+      this.checkSelectAll();
+      this.applyDesign();
     },
     async clearNetwork(full = true, saveState=true){
       this.clearNetworkWarn = false;
@@ -1834,11 +1954,30 @@ export default {
         this.clearNetwork(true,false);
       }
       else{
-        this.selectedTests = { testType: 'parametric', correction: 'bh' };
+        this.selectedTests = { testType: 'parametric', correction: this.staticCorrection };
         this.disableSelections = false;
         this.clearNetwork(true, false);
       }
       this.loadState();
+    },
+    // Real multiple-testing correction used to precompute the static network's
+    // edges (the UI can't meaningfully offer a different one -- see
+    // readOnlyCorrection on AdvancedSettings/StatisticalTestLine).
+    async fetchNetworkConfig() {
+      try {
+        const response = await fetch(`${BASE_URL}/general/api/networkConfig/`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken'),
+          },
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (data?.correction) this.staticCorrection = data.correction;
+      } catch (error) {
+        console.warn('Could not fetch network config, defaulting correction to bh:', error);
+      }
     },
     async getContexts(val) {
       if(val){
@@ -1943,6 +2082,14 @@ export default {
       console.log(`Theme changed from ${oldTheme} to ${newTheme}`);
       this.applyDesign(false); // Trigger the network update
     },
+    // fetchNetworkConfig() is async and may resolve after updateData() already ran
+    // with the 'bh' fallback -- re-sync selectedTests.correction once the real
+    // value arrives, but only if still in static (no-context) mode.
+    staticCorrection(newVal) {
+      if (this.contextValue == null) {
+        this.selectedTests = { ...this.selectedTests, correction: newVal };
+      }
+    },
     },
     beforeUnmount() {
       // Clean up event listener when component is destroyed
@@ -1953,6 +2100,7 @@ export default {
   mounted() {
     const theme = useTheme();
     this.loadState(); // Load state when the component is mounted
+    this.fetchNetworkConfig(); // Real correction used for the static network (see watch)
     this.selectedBorderColor = theme.current.value.colors['primary']; // Correct way to access the primary color
     // @cosmos.gl/graph wires up d3-zoom internally, which attaches its own native
     // dblclick.zoom handler (zoom in centered on the cursor) directly to the canvas

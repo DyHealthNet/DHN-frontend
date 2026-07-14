@@ -12,6 +12,7 @@
                                :show-mult-test="showMultTest"
                                :showHeader="showHeader"
                                :headerText="headerText"
+                               :read-only-correction="readOnlyCorrection"
                                @data-changed="updateData" />
           <template v-if="topNodesNumber != null && topPerNodeCount != null">
             <v-divider class="my-4"></v-divider>
@@ -71,6 +72,10 @@ export default {
     topPerNodeCount: {
       type: Boolean,
       required: false,
+    },
+    readOnlyCorrection: {
+      type: Boolean,
+      default: false,
     },
   },
   data() {

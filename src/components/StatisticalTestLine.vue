@@ -29,7 +29,7 @@
       ></v-select>
     </v-col>
     <v-col cols="4" class="my-0">
-      <v-select
+      <v-select v-if="!readOnlyCorrection"
           v-model="correction"
           :items="correctionItems"
           :readonly="disableSelections"
@@ -39,6 +39,18 @@
           item-value="value"
           @update:model-value="changeTest"
       ></v-select>
+      <!-- Correction never actually changes what's shown here (the backend either
+           ignores it or it's fixed at context-creation time) -- a plain readonly
+           field (no dropdown arrow, not clickable) instead of a v-select that looks
+           editable but isn't. See StatisticalTestLine usage in ContextSetup.vue,
+           where correction genuinely is a live choice and readOnlyCorrection is
+           left at its default (false) so it stays a real dropdown there. -->
+      <v-text-field v-else
+          :model-value="correctionLabel"
+          readonly
+          variant="outlined"
+          density="compact"
+      ></v-text-field>
     </v-col>
     <v-col cols="3" class="my-0" v-if="showMultTest">
       <v-text-field
@@ -85,6 +97,13 @@ export default {
       type: Boolean,
       default: false,
     },
+    // Default false preserves ContextSetup.vue's usage (context creation, where
+    // correction is a real, consequential choice) unchanged -- only pages that
+    // just *view* an already-computed network (data-network.vue) opt into this.
+    readOnlyCorrection: {
+      type: Boolean,
+      default: false,
+    },
   },
   data() {
     return {
@@ -100,6 +119,11 @@ export default {
       correction: this.selectedTests?.correction ?? 'bh',
       internalSignThresh: this.signThresh,
     };
+  },
+  computed: {
+    correctionLabel() {
+      return this.correctionItems.find((item) => item.value === this.correction)?.label ?? this.correction;
+    },
   },
   methods: {
     validateThresholdInput() {
