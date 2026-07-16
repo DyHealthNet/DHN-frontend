@@ -1,22 +1,22 @@
 <template>
   <v-app>
     <v-main>
-      <v-container class="text-center">
+      <v-container class="network-page py-10">
         <v-row>
           <v-col cols="12">
-            <h1 class="title mt-4">Network Exploration</h1>
+            <div class="hero">
+              <div>
+                <p class="eyebrow">Network</p>
+                <h1 class="title">Network Exploration</h1>
+                <p class="subtitle">
+                  Dynamically build and investigate the network of associations to confirm existing hypotheses or uncover novel relations.
+                </p>
+              </div>
+            </div>
           </v-col>
         </v-row>
 
-        <v-row>
-          <v-col class="d-flex justify-center">
-            <v-divider class="my-2" thickness="2"></v-divider>
-          </v-col>
-        </v-row>
-      </v-container>
-
-      <v-container class="mt-4">
-        <FilterToolbar :disable-move="true" @change-context="updateData"></FilterToolbar>
+        <FilterToolbar class="mt-4" :disable-move="true" @change-context="updateData"></FilterToolbar>
         <!-- Network Input -->
         <v-card outlined>
            <v-toolbar color="primary-darken-1" density="compact">
@@ -550,7 +550,7 @@
 import AdvancedSettings from "@/components/AdvancedSettings.vue";
 import FilterToolbar from "@/components/FilterToolbar.vue";
 import {BASE_URL, isLoading, setIsLoading} from "@/components/constants.js";
-import {darkenHexColor, generateGroupColor, loadNetworkState, saveNetworkState} from "../components/network/networkData.js";
+import {darkenHexColor, generateGroupColor, getNodeIcon, loadNetworkState, saveNetworkState} from "../components/network/networkData.js";
 import NodeDetails from '@/components/network/NodeDetails.vue';
 import EdgeDetails from '@/components/network/EdgeDetails.vue';
 import {Cosmograph} from "@cosmograph/cosmograph";
@@ -910,16 +910,7 @@ export default {
       this.activeIndex = -1;
     },
     getIcon(sourceTable) {
-      switch (sourceTable) {
-        case 'Protein':
-          return new URL('../assets/figures/proteins.png', import.meta.url).href;
-        case 'Metabolite':
-          return new URL('../assets/figures/metabolites.png', import.meta.url).href;
-        case 'Variants':
-          return new URL('../assets/figures/genetic_variants.png', import.meta.url).href;
-        default:
-          return new URL('../assets/figures/phenotypes.png', import.meta.url).href;
-      }
+      return getNodeIcon(sourceTable);
     },
     // node_group/source_table has no fixed set of values (see colorForGroup()) --
     // derive the label the same way the color system derives its group key
@@ -2132,8 +2123,37 @@ export default {
   color: #fff !important;
 }
 
+.network-page {
+  min-height: calc(100vh - 220px);
+}
+
+.hero {
+  padding: 2rem;
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(25, 118, 210, 0.12), rgba(17, 24, 39, 0.04));
+  border: 1px solid rgba(25, 118, 210, 0.16);
+}
+
+.eyebrow {
+  margin: 0 0 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgb(var(--v-theme-primary-darken-1));
+}
+
 .title {
-  font-size: 2rem;
+  margin: 0;
+  font-size: 2.5rem;
+  line-height: 1.05;
+}
+
+.subtitle {
+  margin-top: 0.9rem;
+  max-width: 720px;
+  font-size: 1.02rem;
+  opacity: 0.82;
 }
 
 .v-container {

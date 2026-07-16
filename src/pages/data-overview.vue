@@ -1,22 +1,22 @@
 <template>
   <v-app>
     <v-main>
-      <v-container class="text-center">
+      <v-container class="overview-page py-10">
         <v-row>
           <v-col cols="12">
-            <h1 class="title mt-4">Data Overview</h1>
+            <div class="hero">
+              <div>
+                <p class="eyebrow">Overview</p>
+                <h1 class="title">Data Overview</h1>
+                <p class="subtitle">
+                  Get a comprehensive understanding of the data variables through diverse visualizations.
+                </p>
+              </div>
+            </div>
           </v-col>
         </v-row>
 
-        <v-row>
-          <v-col class="d-flex justify-center">
-            <v-divider class="my-2" thickness="2"></v-divider>
-          </v-col>
-        </v-row>
-      </v-container>
-
-      <v-container class="justify-center mt-4">
-        <FilterToolbar @change-context="updateData"></FilterToolbar>
+        <FilterToolbar class="mt-4" @change-context="updateData"></FilterToolbar>
 
         <!--Variable Counts-->
         <v-card outlined>
@@ -601,8 +601,37 @@ export default {
 
 <style scoped>
 
+.overview-page {
+  min-height: calc(100vh - 220px);
+}
+
+.hero {
+  padding: 2rem;
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(25, 118, 210, 0.12), rgba(17, 24, 39, 0.04));
+  border: 1px solid rgba(25, 118, 210, 0.16);
+}
+
+.eyebrow {
+  margin: 0 0 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgb(var(--v-theme-primary-darken-1));
+}
+
 .title {
-  font-size: 2rem;
+  margin: 0;
+  font-size: 2.5rem;
+  line-height: 1.05;
+}
+
+.subtitle {
+  margin-top: 0.9rem;
+  max-width: 720px;
+  font-size: 1.02rem;
+  opacity: 0.82;
 }
 
 .v-container {

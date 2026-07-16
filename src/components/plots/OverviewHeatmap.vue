@@ -34,6 +34,18 @@ import {getCookie} from "@/components/authentication/auth.js";
 import Plotly from "plotly.js-dist";
 import {BASE_URL, setLoadingState, loadingStates} from "@/components/constants.js";
 
+// Plotly's built-in named colorscales don't include matplotlib's "coolwarm" (a softer,
+// less saturated diverging map than the harsher built-in 'RdBu'), so it's supplied as an
+// explicit set of stops -- matplotlib's own well-known coolwarm control points.
+const COOLWARM_COLORSCALE = [
+  [0, '#3B4CC0'],
+  [0.167, '#6F92F3'],
+  [0.333, '#A8C6FC'],
+  [0.5, '#F2EBE9'],
+  [0.667, '#F5A889'],
+  [0.833, '#DB6151'],
+  [1, '#B40426'],
+];
 
 export default {
   name: "OverviewHeatmap",
@@ -48,9 +60,32 @@ export default {
       type: String,
       required: false,
     },
+    // Optional display labels for the axis titles (xVar/yVar are raw variable ids, used for
+    // the actual data query) -- defaults to xVar/yVar when not given, so existing callers
+    // that don't pass these keep seeing exactly what they do today.
+    xLabel: {
+      type: String,
+      default: null,
+    },
+    yLabel: {
+      type: String,
+      default: null,
+    },
+    // Required unless context1+context2 (below) are both given instead.
     contextValue: {
       type: [Number, null],
-      required: true,
+      default: null,
+    },
+    // Optional two-context comparison mode: when both are set, contextValue is ignored and
+    // the backend instead returns a proportion-difference grid between the two contexts
+    // (see GetDataHeatmapView) -- rendered here with a diverging, zero-centered colorscale.
+    context1: {
+      type: Object,
+      default: null,
+    },
+    context2: {
+      type: Object,
+      default: null,
     },
     palette: {
       type: String,
@@ -91,6 +126,8 @@ export default {
     xVar: "fetchAndUpdateChart",
     yVar: "fetchAndUpdateChart",
     contextValue: "fetchAndUpdateChart",
+    "context1.contextValue": "fetchAndUpdateChart",
+    "context2.contextValue": "fetchAndUpdateChart",
     palette: "fetchAndUpdateChart",
     textSize: "fetchAndUpdateChart",
     width: "renderPlot",
@@ -113,18 +150,32 @@ export default {
   computed: {
     showLoadingHeatmap() {
       return loadingStates.value.isLoadingHeatmap; // Directly reactive to `loadingStates`
-    }
+    },
+    diverging() {
+      return !!(this.context1 && this.context2);
+    },
+    differenceTitle() {
+      if (!this.diverging) return "";
+      const name1 = this.context1?.contextName || "Context 1";
+      const name2 = this.context2?.contextName || "Context 2";
+      return `Difference of values, calculated as ${name1} − ${name2}`;
+    },
   },
 
   methods: {
 
-    create2Darray(values, x, y) {
-      let z = [];
-
-      for (let i = 0; i < y; i++) {
-        z.push(values.slice(i * x, (i + 1) * x)); // Extract `x` elements per row
+    // `values` is flat with x as the slow/outer axis and y as the fast/inner axis (each run
+    // of `yLen` values shares one x -- matches pd.crosstab's row-major serialization order
+    // in GetDataHeatmapView). Plotly wants z[row][col] with row=y-index, col=x-index, so
+    // this un-flattens by (x, y) position rather than slicing fixed-width chunks -- a plain
+    // slice(i*xLen, (i+1)*xLen) only happens to work when xLen === yLen.
+    create2Darray(values, xLen, yLen) {
+      const z = Array.from({ length: yLen }, () => new Array(xLen));
+      for (let xi = 0; xi < xLen; xi++) {
+        for (let yi = 0; yi < yLen; yi++) {
+          z[yi][xi] = values[xi * yLen + yi];
+        }
       }
-
       return z;
     },
 
@@ -174,7 +225,10 @@ export default {
         const url = new URL("/plotting/api/plotDataHeatmap/", BASE_URL);
         url.searchParams.append("x", this.xVar);
         url.searchParams.append("y", this.yVar);
-        if (this.contextValue) {
+        if (this.diverging) {
+          url.searchParams.append("contextValue1", String(this.context1.contextValue));
+          url.searchParams.append("contextValue2", String(this.context2.contextValue));
+        } else if (this.contextValue) {
           url.searchParams.append("contextValue", String(this.contextValue));
         }
         // TODO: remove palette function in backend
@@ -229,15 +283,14 @@ export default {
       }
 
       // Transform datasets into Plotly-compatible format
-      this.plotData = [{
+      const trace = {
         x: xCategories,
         y: yCategories,
-        z: this.create2Darray(values, xCategories.length, yCategories.length),
+        z: z,
         type: "heatmap",
-        colorscale: this.palette,
         colorbar: {
           title: {
-            text: "Count",
+            text: this.diverging ? "Difference" : "Count",
             font: {
               size: this.textSize,
               color: this.labelColor(),
@@ -249,7 +302,24 @@ export default {
           }
         },
         hoverongaps: false
-      }];
+      };
+      if (this.diverging) {
+        // Zero-centered diverging scale so "no difference" reads as the neutral midpoint
+        // color rather than whatever a sequential palette's low end happens to be. Still
+        // goes through the same palette prop as every other plot (coolwarm here is just the
+        // fallback if the caller doesn't pass one), not a hardcoded choice -- 'coolwarm'
+        // resolves to the custom stops above since Plotly has no built-in by that name;
+        // any actual Plotly built-in name (e.g. 'RdBu') still passes through untouched.
+        const maxAbs = Math.max(0.01, ...z.flat().map((v) => Math.abs(v)));
+        const palette = this.palette || "coolwarm";
+        trace.colorscale = palette === "coolwarm" ? COOLWARM_COLORSCALE : palette;
+        trace.zmid = 0;
+        trace.zmin = -maxAbs;
+        trace.zmax = maxAbs;
+      } else {
+        trace.colorscale = this.palette;
+      }
+      this.plotData = [trace];
 
       console.log("plotData: ", this.plotData);
 
@@ -265,7 +335,13 @@ export default {
         this.plotLayout = {
           annotations: this.showValues === "Yes" ? this.annotations : [],
           title: {
-            text: "",
+            text: this.differenceTitle,
+            // Plotly centers titles by default (x: 0.5), which clips the start of a title
+            // wider than the plot area since it then overflows equally on both sides --
+            // left-anchoring it at the plot's left edge keeps the full text visible instead.
+            x: 0,
+            xanchor: 'left',
+            automargin: true,
             font: {
               size: this.textSize,
               color: this.labelColor(),
@@ -279,8 +355,13 @@ export default {
             }
           },
           xaxis: {
+            // Without an explicit type, Plotly auto-detects the axis type from the tick
+            // labels -- categories that happen to look numeric (e.g. binary/ordinal codes
+            // like "0"/"1") get inferred as a continuous linear axis instead of discrete
+            // categories, spacing/ordering them by numeric value rather than as a plain list.
+            type: 'category',
             title: {
-              text: this.xVar,
+              text: this.xLabel || this.xVar,
               font: {
                 size: this.textSize,
                 color: this.labelColor(),
@@ -293,8 +374,9 @@ export default {
             automargin: true,
           },
           yaxis: {
+            type: 'category',
             title: {
-              text: this.yVar,
+              text: this.yLabel || this.yVar,
               font: {
                 size: this.textSize,
                 color: this.labelColor(),

@@ -58,6 +58,29 @@ export function generateGroupColor(key) {
   return hex;
 }
 
+// Shared by data-network.vue and differential-network.vue's detail panels so a node's
+// group icon looks the same everywhere. Same caveat as generateGroupColor: node_group is
+// user-defined (DATA_GROUP_COLUMNS), so anything outside this fixed set falls back to the
+// phenotype icon rather than being left unrecognized.
+export function getNodeIcon(sourceTable) {
+  // import.meta.url resolves relative to *this* file (src/components/network/), not the
+  // caller -- one directory deeper than data-network.vue (src/pages/), where this switch
+  // originally lived, hence '../../' here vs '../' there.
+  // Case-insensitive so callers don't need to pre-capitalize the raw node_group value
+  // (data-network.vue does so anyway for display purposes, but differential-network.vue's
+  // detail panels pass the raw lowercase group straight through).
+  switch (sourceTable?.toLowerCase()) {
+    case 'protein':
+      return new URL('../../assets/figures/proteins.png', import.meta.url).href;
+    case 'metabolite':
+      return new URL('../../assets/figures/metabolites.png', import.meta.url).href;
+    case 'variants':
+      return new URL('../../assets/figures/genetic_variants.png', import.meta.url).href;
+    default:
+      return new URL('../../assets/figures/phenotypes.png', import.meta.url).href;
+  }
+}
+
 //import crypto from "crypto";
 //import {authState, checkLogin, getCookie} from '@/components/authentication/auth.js';
 

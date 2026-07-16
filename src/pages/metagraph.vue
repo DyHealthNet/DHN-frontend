@@ -709,7 +709,7 @@ export default {
 
 .title {
   margin: 0;
-  font-size: clamp(2rem, 4vw, 3.2rem);
+  font-size: 2.5rem;
   line-height: 1.05;
 }
 

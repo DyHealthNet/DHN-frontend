@@ -23,20 +23,31 @@
       :headers="headers"
       :items="items"
       :search="search"
+      :custom-key-filter="{ id: nodeSearchFilter }"
+      filter-mode="union"
       :loading="loading"
       density="compact"
       items-per-page="10"
       class="node-rank-table"
       @click:row="onRowClick"
     >
-      <template v-slot:item.node="{ item }">
-        <span :class="{ 'font-weight-bold': isSelected(item) }">{{ item.node }}</span>
+      <template v-slot:item.id="{ item }">
+        <span :class="{ 'font-weight-bold': isSelected(item) }">{{ item.display_name || item.id }}</span>
+      </template>
+      <template v-slot:item.group="{ item }">
+        {{ item.group || '-' }}
+      </template>
+      <template v-slot:header.score="{ column }">
+        {{ column.title }}
+        <v-tooltip location="top" max-width="280">
+          <template v-slot:activator="{ props }">
+            <v-icon v-bind="props" size="14" class="ml-1">mdi-information-outline</v-icon>
+          </template>
+          <span>Node metric: STC (statistical test centrality) — 1 minus the p-value of a direct two-context test on this node's raw values. Higher means a bigger shift between contexts.</span>
+        </v-tooltip>
       </template>
       <template v-slot:item.score="{ item }">
         {{ formatNumber(item.score) }}
-      </template>
-      <template v-slot:item.nodeMetricValue="{ item }">
-        {{ formatNumber(item.nodeMetricValue) }}
       </template>
       <template v-slot:no-data>
         <span class="text-medium-emphasis">No node ranking available. Select a node metric to enable node ranking.</span>
@@ -68,16 +79,16 @@ export default {
       search: '',
       headers: [
         { title: 'Rank', key: 'rank', width: 90 },
-        { title: 'Node', key: 'node' },
+        { title: 'Node', key: 'id' },
+        { title: 'Group', key: 'group', width: 130 },
         { title: 'Type', key: 'type', width: 130 },
         { title: 'Score', key: 'score' },
-        { title: 'Node metric', key: 'nodeMetricValue' },
       ],
     };
   },
   methods: {
     isSelected(item) {
-      return item.node === this.selectedNode;
+      return item.id === this.selectedNode;
     },
     formatNumber(value) {
       if (typeof value !== 'number') return value ?? '-';
@@ -85,6 +96,17 @@ export default {
     },
     onRowClick(_, { item }) {
       this.$emit('select-node', item);
+    },
+    // v-data-table's built-in filter-keys only reaches values that are declared as header
+    // columns (see items.js's transformItem), so 'display_name' -- not a header -- is
+    // invisible to it. custom-key-filter instead gets the raw row (item.raw) directly, so it
+    // can match the id (already the 'id' column's value) or the display name.
+    nodeSearchFilter(_value, query, item) {
+      const q = String(query ?? '').toLowerCase();
+      if (!q) return true;
+      const raw = item?.raw || {};
+      const haystack = `${raw.id ?? ''} ${raw.display_name ?? ''}`.toLowerCase();
+      return haystack.includes(q);
     },
   },
 };

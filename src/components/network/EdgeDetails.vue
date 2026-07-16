@@ -40,6 +40,12 @@
           <td>{{ edge.to }}</td>
           <td>{{ edge.from }}</td>
         </tr>
+        <!-- Row for Description -->
+        <tr>
+          <td><span class="label">Description</span></td>
+          <td>{{ edge.node0_descr }}</td>
+          <td>{{ edge.node1_descr }}</td>
+        </tr>
         <!-- Row for Icons -->
         <tr>
           <td><span class="label">Type</span></td>

@@ -205,7 +205,7 @@ export default {
       console.log("API Labels:", labels);
 
       // Transform datasets into Plotly-compatible format
-      this.plotData = datasets.map((dataset) => {ç
+      this.plotData = datasets.map((dataset) => {
         return {
           x: labels,
           y: dataset.data,

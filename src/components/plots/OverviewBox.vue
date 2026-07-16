@@ -52,9 +52,32 @@ export default {
       type: String,
       required: false,
     },
+    // Optional display labels for the axis titles (xVar/yVar are raw variable ids, used for
+    // the actual data query) -- defaults to xVar/yVar when not given, so existing callers
+    // that don't pass these keep seeing exactly what they do today.
+    xLabel: {
+      type: String,
+      default: null,
+    },
+    yLabel: {
+      type: String,
+      default: null,
+    },
+    // Required unless context1+context2 (below) are both given instead.
     contextValue: {
       type: [Number, null],
-      required: true,
+      default: null,
+    },
+    // Optional two-context comparison mode: when both are set, contextValue/cVar are
+    // ignored and the backend instead groups by a synthetic 'context' column (see
+    // GetDataBoxPlotView) -- rendered as a normal cVar-grouped boxplot, context as the group.
+    context1: {
+      type: Object,
+      default: null,
+    },
+    context2: {
+      type: Object,
+      default: null,
     },
     palette: {
       type: String,
@@ -92,6 +115,8 @@ export default {
     yVar: "fetchAndUpdateChart",
     cVar: "fetchAndUpdateChart",
     contextValue: "fetchAndUpdateChart",
+    "context1.contextValue": "fetchAndUpdateChart",
+    "context2.contextValue": "fetchAndUpdateChart",
     palette: "fetchAndUpdateChart",
     textSize: "renderPlot",
     width: "renderPlot",
@@ -106,7 +131,15 @@ export default {
   computed: {
     showLoadingBox() {
       return loadingStates.value.isLoadingBox; // Directly reactive to `loadingStates`
-    }
+    },
+    compareMode() {
+      return !!(this.context1 && this.context2);
+    },
+    // Whether the response has multiple (grouped) datasets to render as one trace each,
+    // vs. a single "Whole Cohort" dataset -- true for a real cVar or context comparison.
+    grouped() {
+      return this.compareMode || (this.cVar && this.cVar !== "None");
+    },
   },
 
   methods: {
@@ -170,11 +203,16 @@ export default {
         const url = new URL("/plotting/api/plotDataBoxPlot/", BASE_URL);
         url.searchParams.append("x", this.xVar);
         url.searchParams.append("y", this.yVar);
-        if (this.cVar) {
-          url.searchParams.append("c", this.cVar);
-        }
-        if (this.contextValue) {
-          url.searchParams.append("contextValue", String(this.contextValue));
+        if (this.compareMode) {
+          url.searchParams.append("contextValue1", String(this.context1.contextValue));
+          url.searchParams.append("contextValue2", String(this.context2.contextValue));
+        } else {
+          if (this.cVar) {
+            url.searchParams.append("c", this.cVar);
+          }
+          if (this.contextValue) {
+            url.searchParams.append("contextValue", String(this.contextValue));
+          }
         }
         if (this.palette) {
           url.searchParams.append("colors", String(this.palette))
@@ -269,7 +307,7 @@ export default {
       console.log("API labels: ", labels);
 
       // Transform datasets into Plotly-compatible format
-      if (!this.cVar || this.cVar === "None") {
+      if (!this.grouped) {
         let entry;
         entry = datasets[0]
         // Iterate over data with integer value
@@ -318,7 +356,7 @@ export default {
 
         // Configure layout
         this.plotLayout = {
-          boxmode: this.cVar ? "group" : "overlay",
+          boxmode: this.grouped ? "group" : "overlay",
           boxmean: true,
           title: {
             text: "",
@@ -336,7 +374,7 @@ export default {
           },
           xaxis: {
             title: {
-              text: this.xVar,
+              text: this.xLabel || this.xVar,
               font: {
                 size: this.textSize,
                 color: this.labelColor(),
@@ -350,7 +388,7 @@ export default {
           },
           yaxis: {
             title: {
-              text: this.yVar,
+              text: this.yLabel || this.yVar,
               font: {
                 size: this.textSize,
                 color: this.labelColor(),

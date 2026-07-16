@@ -173,9 +173,9 @@ export default {
   data() {
     return {
       tum_logo: new URL("../assets/figures/TUM.png", import.meta.url).href,
-      eurac_logo: new URL("../assets/figures/Eurac.png", import.meta.url).href,
+      eurac_logo: new URL("../assets/figures/eurac.png", import.meta.url).href,
       fau_logo: new URL("../assets/figures/FAU.png", import.meta.url).href,
-      unibz_logo: new URL("../assets/figures/Unibz.png", import.meta.url).href,
+      unibz_logo: new URL("../assets/figures/unibz.png", import.meta.url).href,
 
       documentation: new URL("../assets/figures/Home_Page_Icons-05.png", import.meta.url).href,
       overview: new URL("../assets/figures/Home_Page_Icons-01.png", import.meta.url).href,

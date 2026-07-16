@@ -52,9 +52,33 @@ export default {
       type: String,
       required: false,
     },
+    // Optional display labels for the axis titles (xVar/yVar are raw variable ids, used for
+    // the actual data query) -- defaults to xVar/yVar when not given, so existing callers
+    // that don't pass these keep seeing exactly what they do today.
+    xLabel: {
+      type: String,
+      default: null,
+    },
+    yLabel: {
+      type: String,
+      default: null,
+    },
+    // Required unless context1+context2 (below) are both given instead.
     contextValue: {
       type: [Number, null],
-      required: true,
+      default: null,
+    },
+    // Optional two-context comparison mode: when both are set, contextValue/cVar are
+    // ignored and the backend instead groups by a synthetic 'context' column (see
+    // GetDataLinePlotView) -- rendered as a normal cVar-grouped line plot, context as the
+    // group, each context's own privacy-filtered aggregated trend as one colored line.
+    context1: {
+      type: Object,
+      default: null,
+    },
+    context2: {
+      type: Object,
+      default: null,
     },
     palette: {
       type: String,
@@ -94,6 +118,8 @@ export default {
     yVar: "fetchAndUpdateChart",
     cVar: "fetchAndUpdateChart",
     contextValue: "fetchAndUpdateChart",
+    "context1.contextValue": "fetchAndUpdateChart",
+    "context2.contextValue": "fetchAndUpdateChart",
     palette: "fetchAndUpdateChart",
     textSize: "renderPlot",
     width: "renderPlot",
@@ -108,7 +134,16 @@ export default {
   computed: {
     showLoadingLine() {
       return loadingStates.value.isLoadingLine; // Directly reactive to `loadingStates`
-    }
+    },
+    compareMode() {
+      return !!(this.context1 && this.context2);
+    },
+    // Whether the response has multiple (grouped) datasets, each as {x,y} points -- vs. a
+    // single "Whole Cohort" dataset as a plain y array -- true for a real cVar or context
+    // comparison.
+    grouped() {
+      return this.compareMode || !!this.cVar;
+    },
   },
 
   methods: {
@@ -170,11 +205,16 @@ export default {
         const url = new URL("/plotting/api/plotDataLine/", BASE_URL);
         url.searchParams.append("x", this.xVar);
         url.searchParams.append("y", this.yVar);
-        if (this.cVar) {
-          url.searchParams.append("c", this.cVar);
-        }
-        if (this.contextValue) {
-          url.searchParams.append("contextValue", String(this.contextValue));
+        if (this.compareMode) {
+          url.searchParams.append("contextValue1", String(this.context1.contextValue));
+          url.searchParams.append("contextValue2", String(this.context2.contextValue));
+        } else {
+          if (this.cVar) {
+            url.searchParams.append("c", this.cVar);
+          }
+          if (this.contextValue) {
+            url.searchParams.append("contextValue", String(this.contextValue));
+          }
         }
         if (this.palette) {
           url.searchParams.append("colors", String(this.palette))
@@ -213,14 +253,16 @@ export default {
 
       // Transform datasets into Plotly-compatible format
       this.plotData = datasets.map((dataset) => {
-        let y;
-        if (this.cVar) {
+        let x, y;
+        if (this.grouped) {
+          x = dataset.data.map(point => point.x)
           y = dataset.data.map(point => point.y)
         } else {
+          x = labels
           y = dataset.data
         }
         return {
-          x: labels,
+          x: x,
           y: y,
           name: dataset.label,
           type: "scatter",
@@ -255,7 +297,7 @@ export default {
           barmode: this.barType === "Stacked" ? "stack" : "group",
           xaxis: {
             title: {
-              text: this.xVar,
+              text: this.xLabel || this.xVar,
               font: {
                 size: this.textSize,
                 color: this.labelColor(),
@@ -269,7 +311,7 @@ export default {
           },
           yaxis: {
             title: {
-              text: this.yVar,
+              text: this.yLabel || this.yVar,
               font: {
                 size: this.textSize,
                 color: this.labelColor(),

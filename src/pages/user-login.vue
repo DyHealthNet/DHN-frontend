@@ -262,8 +262,13 @@ export default {
               // (actually not even necessary as redirection to login restricted page should ensure another checkLogin call)
               //authState.isLoggedIn = true;
               await checkLogin();
-              // Redirect to the desired route if login is successful
-              await router.push({name: 'Context creation'});
+              // Redirect to the page the user was sent from, or home if they navigated here directly
+              const redirect = this.$route.query.redirect;
+              if (redirect) {
+                await router.push(redirect);
+              } else {
+                await router.push({ name: 'Home' });
+              }
             } else {
                 this.taskStarted = true;
                 this.taskInfo = "Username or password incorrect.";

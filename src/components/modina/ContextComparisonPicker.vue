@@ -7,7 +7,9 @@
           <template v-slot:activator="{ props }">
             <v-icon v-bind="props">mdi-information</v-icon>
           </template>
-          <span>Pick two finished contexts that were created with the same variable subset (layers). Only compatible contexts are selectable as the second context.</span>
+          <span>Pick two finished contexts that share the same variable subset (layers) and were scored with the
+            same test type and correction method. Only compatible contexts
+            are selectable as the second context.</span>
         </v-tooltip>
       </v-toolbar-title>
       <v-spacer></v-spacer>
@@ -32,14 +34,28 @@
           >
             <template v-slot:item="{ item, props }">
               <v-list-item v-bind="props">
+                <template v-slot:subtitle>
+                  <v-chip v-if="item.raw.content?.testType" size="x-small" color="primary-darken-1" label class="mr-1">
+                    {{ item.raw.content.testType }}
+                  </v-chip>
+                  <v-chip v-if="item.raw.content?.correction" size="x-small" color="primary-darken-1" label>
+                    {{ item.raw.content.correction }}
+                  </v-chip>
+                </template>
                 <template v-slot:append>
-                  <v-icon :color="item.raw.colors.color">mdi-circle</v-icon>
+                  <v-icon :color="item.raw.colors?.color">mdi-circle</v-icon>
                 </template>
               </v-list-item>
             </template>
             <template v-slot:selection="{ item }">
-              <v-icon :color="item.raw.colors.color" size="12" class="mr-2">mdi-circle</v-icon>
+              <v-icon :color="item.raw.colors?.color" size="12" class="mr-2">mdi-circle</v-icon>
               {{ item.raw.contextName }}
+              <v-chip v-if="item.raw.content?.testType" size="x-small" color="primary-darken-1" label class="ml-2 mr-1">
+                {{ item.raw.content.testType }}
+              </v-chip>
+              <v-chip v-if="item.raw.content?.correction" size="x-small" color="primary-darken-1" label>
+                {{ item.raw.content.correction }}
+              </v-chip>
             </template>
           </v-select>
         </v-col>
@@ -63,21 +79,36 @@
           >
             <template v-slot:item="{ item, props }">
               <v-list-item v-bind="props">
+                <template v-slot:subtitle>
+                  <v-chip v-if="item.raw.content?.testType" size="x-small" color="primary-darken-1" label class="mr-1">
+                    {{ item.raw.content.testType }}
+                  </v-chip>
+                  <v-chip v-if="item.raw.content?.correction" size="x-small" color="primary-darken-1" label>
+                    {{ item.raw.content.correction }}
+                  </v-chip>
+                </template>
                 <template v-slot:append>
-                  <v-icon :color="item.raw.colors.color">mdi-circle</v-icon>
+                  <v-icon :color="item.raw.colors?.color">mdi-circle</v-icon>
                 </template>
               </v-list-item>
             </template>
             <template v-slot:selection="{ item }">
-              <v-icon :color="item.raw.colors.color" size="12" class="mr-2">mdi-circle</v-icon>
+              <v-icon :color="item.raw.colors?.color" size="12" class="mr-2">mdi-circle</v-icon>
               {{ item.raw.contextName }}
+              <v-chip v-if="item.raw.content?.testType" size="x-small" color="primary-darken-1" label class="ml-2 mr-1">
+                {{ item.raw.content.testType }}
+              </v-chip>
+              <v-chip v-if="item.raw.content?.correction" size="x-small" color="primary-darken-1" label>
+                {{ item.raw.content.correction }}
+              </v-chip>
             </template>
           </v-select>
         </v-col>
       </v-row>
 
       <p v-if="firstValue && compatibleContexts.length === 0" class="text-error mt-3 mb-0 text-body-2">
-        No other finished context shares the same variable subset as "{{ firstContext.contextName }}". Create one via the Contexts page first.
+        No other finished context shares the same variable subset, test type and correction method as
+        "{{ firstContext.contextName }}" ({{ settingsLabel(firstContext) }}). Create one via the Contexts page first.
       </p>
       <p v-else-if="!isLoading && finishedContexts.length === 0" class="text-medium-emphasis mt-3 mb-0 text-body-2">
         No finished contexts yet. Create at least two contexts with the same variables via the Contexts page.
@@ -137,7 +168,10 @@ export default {
     compatibleContexts() {
       if (!this.firstContext) return [];
       return this.finishedContexts.filter(
-        (c) => c.contextValue !== this.firstContext.contextValue && this.sameLayers(c, this.firstContext)
+        (c) =>
+          c.contextValue !== this.firstContext.contextValue &&
+          this.sameLayers(c, this.firstContext) &&
+          this.sameSettings(c, this.firstContext)
       );
     },
   },
@@ -146,6 +180,20 @@ export default {
       const layersA = [...(a.content?.layers || [])].sort();
       const layersB = [...(b.content?.layers || [])].sort();
       return JSON.stringify(layersA) === JSON.stringify(layersB);
+    },
+    // testType/correction are fixed per-context (chosen when its association scores were
+    // computed) -- the comparison reuses those stored scores rather than recomputing them, so
+    // both contexts must already agree on both, same as sameLayers() above.
+    sameSettings(a, b) {
+      return a.content?.testType === b.content?.testType && a.content?.correction === b.content?.correction;
+    },
+    // Small "nonparametric · bh" label shown next to each context so it's visible while picking
+    // which ones are actually comparable, instead of only finding out after a failed request.
+    settingsLabel(context) {
+      const testType = context?.content?.testType;
+      const correction = context?.content?.correction;
+      if (!testType || !correction) return '';
+      return `${testType} · ${correction}`;
     },
     async fetchContexts() {
       this.isLoading = true;
