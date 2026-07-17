@@ -224,28 +224,14 @@
                     </div>
                   </v-card-title>
                   <v-card-text>
-                    <v-table density="compact" class="selected-nodes-table">
-                      <thead>
-                        <tr>
-                          <th class="text-left">ID</th>
-                          <th class="text-left">Type</th>
-                          <th class="text-left">Community</th>
-
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr v-for="node in selectedNodes" :key="node.index">
-                          <td>{{ node.id }}</td>
-                          <td>{{ node.type ?? '-' }}</td>
-                          <td>{{ node[getResolutionFieldName()] ?? '-' }}</td>
-                        </tr>
-                        <tr v-if="!selectedNodes.length">
-                          <td colspan="3" class="py-4 text-medium-emphasis">
-                            Select one or more nodes to see them here.
-                          </td>
-                        </tr>
-                      </tbody>
-                    </v-table>
+                    <v-data-table
+                      :headers="selectedNodesHeaders"
+                      :items="selectedNodesTableItems"
+                      density="compact"
+                      class="selected-nodes-table"
+                      no-data-text="Select one or more nodes to see them here."
+                      items-per-page="10"
+                    />
                   </v-card-text>
                 </v-card>
               </v-card-text>
@@ -259,6 +245,7 @@
 
 <script>
 import { Cosmograph, prepareCosmographData } from '@cosmograph/cosmograph'
+import { interpolateRainbow } from 'd3-scale-chromatic'
 import { BASE_URL } from '@/components/constants.js'
 
 export default {
@@ -290,6 +277,11 @@ export default {
       resolutionIndex: 2,
       leidenGraphPayload: null,
       cacheVersion: 'v1',
+      selectedNodesHeaders: [
+        { title: 'ID', key: 'id', sortable: true },
+        { title: 'Type', key: 'type', sortable: true },
+        { title: 'Community', key: 'community', sortable: true },
+      ],
       dataConfig: {
         points: {
           pointIdBy: 'id',
@@ -299,8 +291,9 @@ export default {
           pointLabelBy: 'id',
           showLabels: true,
           showHoveredPointLabel: true,
+          showLabelsFor: [],
           pointClusterBy: 'type',
-          showClusterLabels: true,
+          showClusterLabels: false,
         },
         links: {
           linkSourceBy: 'source',
@@ -310,11 +303,20 @@ export default {
       },
     }
   },
+  computed: {
+    selectedNodesTableItems() {
+      const fieldName = this.getResolutionFieldName()
+      return this.selectedNodes.map((node) => ({
+        ...node,
+        community: node[fieldName] ?? '-',
+      }))
+    },
+  },
   methods: {
     getSelectedResolution() {
       return this.resolutionOptions[this.resolutionIndex] ?? 1.0
     },
-    getResolutionFieldName() {
+    getResolutionKey() {
       // Match backend's resolution_to_key logic:
       // Normalize to 6 decimals, strip trailing zeros, strip trailing dot.
       // If no decimal remains, add ".0"
@@ -323,7 +325,39 @@ export default {
       if (!text.includes('.')) {
         text = text + '.0'
       }
-      return `community_r${text}`
+      return text
+    },
+    getResolutionFieldName() {
+      return `community_r${this.getResolutionKey()}`
+    },
+    getCommunityCount() {
+      return this.leidenGraphPayload?.meta?.community_counts_by_resolution?.[this.getResolutionKey()] ?? 0
+    },
+    buildCommunityColorMap(points, fieldName) {
+      // Cosmograph's 'categorical' strategy treats numeric columns as a continuous range
+      // and bins them into equal-width breakpoints, not one color per distinct value -
+      // community ids are numeric but sparse (e.g. 13, 24, 67, 76), so most of them collapse
+      // into the same bin. Internally Cosmograph also re-infers column types via DuckDB
+      // during data prep, so coercing the values to JS strings doesn't survive either.
+      // The 'map' strategy sidesteps both: it looks up colors via pointColorByMap[value],
+      // and plain JS objects auto-coerce numeric keys to strings on lookup, so a string-keyed
+      // map matches regardless of what type the value ends up being.
+      const uniqueValues = [...new Set(
+        points.map((point) => point[fieldName]).filter((value) => value !== null && value !== undefined)
+      )]
+      uniqueValues.sort((a, b) => {
+        const numA = Number(a)
+        const numB = Number(b)
+        if (!Number.isNaN(numA) && !Number.isNaN(numB)) return numA - numB
+        return String(a).localeCompare(String(b))
+      })
+
+      const count = uniqueValues.length
+      const colorMap = {}
+      uniqueValues.forEach((value, index) => {
+        colorMap[String(value)] = interpolateRainbow(count > 1 ? index / count : 0)
+      })
+      return colorMap
     },
     buildRequestUrl(leiden=false) {
       const params = new URLSearchParams()
@@ -341,8 +375,9 @@ export default {
         params.set('per_node_limit', String(this.perNodeLimit))
       }
       if (leiden) {
-        const resolutionsStr = this.resolutionOptions.join(',')
-        params.set('resolutions', resolutionsStr)
+        // No `resolutions` param: let the backend decide which resolutions to compute
+        // (DEFAULT_LEIDEN_RESOLUTIONS). The slider is synced from the response afterwards
+        // (see runLeidenClustering), so the backend is the single source of truth.
         return `${BASE_URL}/metagraph/api/getLeidenMetagraph/?${params.toString()}`
       }
       return `${BASE_URL}/metagraph/api/getCosmograph/?${params.toString()}`
@@ -393,6 +428,9 @@ export default {
 
       this.graphPoints = Array.isArray(rawPoints) ? rawPoints : []
       this.graphLinks = Array.isArray(rawLinks) ? rawLinks : []
+
+      // Force every point's label to render, not just the top/dynamic subset Cosmograph picks by default.
+      this.dataConfig['points']['showLabelsFor'] = this.graphPoints.map((point) => point.id)
 
       const prepared = await prepareCosmographData(this.dataConfig, rawPoints || [], rawLinks || [])
       if (!prepared) {
@@ -559,6 +597,9 @@ export default {
           this.cacheStatus = 'Saved graph to browser cache.'
         }
         this.dataConfig['points']['pointClusterBy'] = 'type'
+        this.dataConfig['points']['pointColorBy'] = 'type'
+        this.dataConfig['points']['pointColorStrategy'] = 'categorical'
+        this.dataConfig['points']['pointColorByMap'] = undefined
         await this.renderGraph(graph.points || [], graph.links || [])
         console.log('Graph rendered successfully');
       } catch (error) {
@@ -574,7 +615,6 @@ export default {
       this.isLeidenLoading = true
       this.errorMessage = ''
       this.cacheStatus = ''
-      this.resolutionIndex = 2
 
       try {
         const graph = await this.fetchGraph(this.buildRequestUrl(true))
@@ -584,15 +624,24 @@ export default {
         // Store the full multi-resolution response
         this.leidenGraphPayload = graph
 
-        const algo = graph.meta?.algorithm || 'unknown'
-        const resolutionCount = graph.meta?.resolutions?.length ?? 0
-        const resolutionKey = this.getSelectedResolution().toFixed(1)
-        const communityCount = graph.meta?.community_counts_by_resolution?.[resolutionKey] ?? 0
-        this.cacheStatus = `Leiden clustering complete (${communityCount} communities).`
+        // Sync the slider to whatever resolutions the backend actually computed,
+        // rather than relying on a hardcoded frontend list.
+        const backendResolutions = (graph.meta?.resolutions || []).map(Number).filter((value) => !Number.isNaN(value))
+        if (backendResolutions.length) {
+          this.resolutionOptions = backendResolutions
+        }
+        this.resolutionIndex = Math.floor((this.resolutionOptions.length - 1) / 2)
 
-        // Apply clustering for the current resolution
+        const algo = graph.meta?.algorithm || 'unknown'
+        const communityCount = this.getCommunityCount()
+        this.cacheStatus = `Leiden clustering complete (${communityCount} communities, ${algo}).`
+
+        // Apply clustering and coloring for the current resolution
         const fieldName = this.getResolutionFieldName()
         this.dataConfig['points']['pointClusterBy'] = fieldName
+        this.dataConfig['points']['pointColorBy'] = fieldName
+        this.dataConfig['points']['pointColorStrategy'] = 'map'
+        this.dataConfig['points']['pointColorByMap'] = this.buildCommunityColorMap(graph.points || [], fieldName)
         await this.renderGraph(graph.points || [], graph.links || [])
       } catch (error) {
         console.error('Failed to run Leiden clustering:', error)
@@ -606,8 +655,16 @@ export default {
 
       // Update the field name to the new resolution
       const fieldName = this.getResolutionFieldName()
-      console.debug(`Applying Leiden resolution change: fieldName="${fieldName}", resolution=${this.getSelectedResolution()}`)
+      const communityCount = this.getCommunityCount()
+      const algo = this.leidenGraphPayload.meta?.algorithm || 'unknown'
+      console.debug(`Applying Leiden resolution change: fieldName="${fieldName}", resolution=${this.getSelectedResolution()}, communities=${communityCount}`)
       this.dataConfig['points']['pointClusterBy'] = fieldName
+      this.dataConfig['points']['pointColorBy'] = fieldName
+      this.dataConfig['points']['pointColorStrategy'] = 'map'
+      this.dataConfig['points']['pointColorByMap'] = this.buildCommunityColorMap(this.graphPoints, fieldName)
+      // Keep the status text in sync — community count is resolution-specific and was
+      // going stale (frozen at whatever the initial Leiden run reported).
+      this.cacheStatus = `Leiden clustering complete (${communityCount} communities, ${algo}).`
 
       // Re-render with the new clustering field applied
       try {
@@ -635,7 +692,11 @@ export default {
       }
     },
     resolutionIndex(newIndex, oldIndex) {
-      if (newIndex !== oldIndex && this.leidenGraphPayload) {
+      // Guard against runLeidenClustering()'s own programmatic resolutionIndex reset:
+      // while a fetch is in flight it already renders the fresh data itself at the end,
+      // so reacting here too raced it with a second, stale render (using points/links
+      // from before the fetch) — this was the "graph renders twice" bug.
+      if (newIndex !== oldIndex && this.leidenGraphPayload && !this.isLeidenLoading) {
         this.applyLeidenResolutionChange()
       }
     },
