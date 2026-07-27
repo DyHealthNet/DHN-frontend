@@ -38,11 +38,11 @@
         <div class="v-data-table-header__content">
           <span>{{ column.title }}</span>
           <v-icon v-if="column.sortable" class="v-data-table-header__sort-icon" :icon="getSortIcon(column)"></v-icon>
-          <v-tooltip location="top" max-width="280">
+          <v-tooltip location="top" max-width="320">
             <template v-slot:activator="{ props }">
               <v-icon v-bind="props" size="14" class="ml-1">mdi-information-outline</v-icon>
             </template>
-            <span>Edge metric: diff-L-P — absolute difference in -log10(p) between the two contexts. Higher means a bigger shift in this edge's significance.</span>
+            <span>Edge metric: {{ edgeMetricLabel }} — {{ edgeMetricDescription }}</span>
           </v-tooltip>
         </div>
       </template>
@@ -68,6 +68,26 @@
 </template>
 
 <script>
+import { EDGE_METRIC_INFO, metricLabel, metricDescription } from './metricInfo.js';
+
+// v-data-table's default sort coerces values to strings before comparing, which sorts negative
+// numbers (e.g. 'signed') lexicographically instead of by magnitude -- force pure numeric compare.
+// Same rank-vs-score null convention as NodeRankPanel (a missing rank sorts as worst/largest, a
+// missing score sorts as worst/smallest), even though edge rank/score aren't currently ever null.
+function rankSort(a, b) {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return a - b;
+}
+
+function scoreSort(a, b) {
+  if (a == null && b == null) return 0;
+  if (a == null) return -1;
+  if (b == null) return 1;
+  return a - b;
+}
+
 export default {
   name: 'EdgeRankPanel',
   props: {
@@ -93,20 +113,34 @@ export default {
       type: Object,
       default: () => ({ name1: 'Context 1', name2: 'Context 2' }),
     },
+    // Reported by the backend on the actual result (network/tasks.py's MODINA_EDGE_METRIC) --
+    // null until a comparison has completed.
+    edgeMetric: {
+      type: String,
+      default: null,
+    },
   },
   emits: ['select-edge'],
   data() {
     return {
       search: '',
       headers: [
-        { title: 'Rank', key: 'rank', width: 90 },
+        { title: 'Rank', key: 'rank', width: 90, sort: rankSort },
         { title: 'Edge', key: 'edge' },
-        { title: 'Score', key: 'score' },
-        { title: 'Signed', key: 'signed' },
+        { title: 'Score', key: 'score', sort: scoreSort },
+        { title: 'Signed', key: 'signed', sort: scoreSort },
       ],
     };
   },
   computed: {
+    edgeMetricLabel() {
+      return metricLabel(EDGE_METRIC_INFO, this.edgeMetric) || 'Edge metric';
+    },
+    edgeMetricDescription() {
+      return this.edgeMetric
+        ? metricDescription(EDGE_METRIC_INFO, this.edgeMetric)
+        : 'Run a comparison to see which metric produced this score.';
+    },
     // Adds resolved display names onto each row for rendering (formatEdge) and searching
     // (edgeSearchFilter) -- edgeRanking rows only carry raw label1/label2 node ids.
     tableItems() {

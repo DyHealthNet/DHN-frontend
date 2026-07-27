@@ -31,16 +31,20 @@
     <p class="label-subtitle mt-4">Ranking</p>
     <v-table density="compact">
       <tbody>
-        <tr v-if="node.rank != null">
-          <td class="label">Rank</td>
-          <td class="value">{{ node.rank }}</td>
+        <tr v-if="node.rank != null" class="font-weight-bold">
+          <td class="label font-weight-bold">Rank{{ rankingAlgorithmLabel ? ` (${rankingAlgorithmLabel})` : '' }}</td>
+          <td class="value font-weight-bold">{{ node.rank }}</td>
         </tr>
-        <tr v-if="node.score != null">
-          <td class="label">Ranking score</td>
-          <td class="value">{{ formatNumber(node.score) }}</td>
+        <tr v-if="node.score != null" class="font-weight-bold">
+          <td class="label font-weight-bold">Ranking score</td>
+          <td class="value font-weight-bold">{{ formatNumber(node.score) }}</td>
+        </tr>
+        <tr v-if="node.nodeMetricRank != null">
+          <td class="label">{{ nodeMetricLabel }} Rank</td>
+          <td class="value">{{ node.nodeMetricRank }}</td>
         </tr>
         <tr v-if="node.nodeMetricValue != null">
-          <td class="label">Node metric value</td>
+          <td class="label">{{ nodeMetricLabel }} value</td>
           <td class="value">{{ formatNumber(node.nodeMetricValue) }}</td>
         </tr>
       </tbody>
@@ -96,6 +100,7 @@
 <script>
 import OverviewBar from '@/components/plots/OverviewBar.vue';
 import OverviewDensity from '@/components/plots/OverviewDensity.vue';
+import { NODE_METRIC_INFO, RANKING_ALGORITHM_INFO, metricLabel } from './metricInfo.js';
 
 export default {
   name: 'DiffNodeDetails',
@@ -103,6 +108,15 @@ export default {
   props: {
     node: {
       type: Object,
+      default: null,
+    },
+    // Reported by the backend on the actual result -- null until a comparison has completed.
+    nodeMetric: {
+      type: String,
+      default: null,
+    },
+    rankingAlgorithm: {
+      type: String,
       default: null,
     },
     // The two compared contexts ({ contextValue, contextName }), so the distribution plots can
@@ -147,11 +161,23 @@ export default {
         (key) => this.node[key] != null
       );
     },
+    nodeMetricLabel() {
+      return metricLabel(NODE_METRIC_INFO, this.nodeMetric) || 'Node metric';
+    },
+    rankingAlgorithmLabel() {
+      return metricLabel(RANKING_ALGORITHM_INFO, this.rankingAlgorithm);
+    },
   },
   methods: {
+    // toPrecision(6) alone would round a value like 0.9999997 to a flat "1.00000", hiding just
+    // how extreme it is -- pad significant digits instead once the value is close to 0 or 1.
     formatNumber(value) {
       if (typeof value !== 'number') return value ?? '-';
-      return value.toPrecision(6);
+      const distanceFromBound = Math.min(Math.abs(value), Math.abs(1 - value));
+      const precision = distanceFromBound > 0 && distanceFromBound < 1e-4
+        ? Math.min(20, 6 - Math.floor(Math.log10(distanceFromBound)))
+        : 6;
+      return value.toPrecision(precision);
     },
   },
 };

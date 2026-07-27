@@ -3,14 +3,11 @@
     <v-toolbar color="primary-darken-1" density="compact">
       <v-toolbar-title>
         Differential Network Settings
-        <v-tooltip bottom>
+        <v-tooltip bottom max-width="360">
           <template v-slot:activator="{ props }">
             <v-icon v-bind="props">mdi-information</v-icon>
           </template>
-          <span>moDiNA builds the differential network using statistical test centrality (STC) for
-            nodes and |&Delta; -log10(p)| (diff-L-P) for edges, reusing each context's already-computed
-            association scores (test type and correction method are fixed by the contexts themselves --
-            see the context picker above).</span>
+          <span>{{ infoTooltip }}</span>
         </v-tooltip>
       </v-toolbar-title>
     </v-toolbar>
@@ -75,12 +72,28 @@
 </template>
 
 <script>
+import { NODE_METRIC_INFO, EDGE_METRIC_INFO, RANKING_ALGORITHM_INFO, metricLabel, metricDescription } from './metricInfo.js';
+
 export default {
   name: 'DiffNetworkSettings',
   props: {
     modelValue: {
       type: Object,
       required: true,
+    },
+    // Reported by the backend on the actual result -- null until a comparison has completed, in
+    // which case the tooltip stays generic rather than naming a specific metric/algorithm.
+    nodeMetric: {
+      type: String,
+      default: null,
+    },
+    edgeMetric: {
+      type: String,
+      default: null,
+    },
+    rankingAlgorithm: {
+      type: String,
+      default: null,
     },
   },
   emits: ['update:modelValue'],
@@ -92,6 +105,23 @@ export default {
       set(value) {
         this.$emit('update:modelValue', value);
       },
+    },
+    infoTooltip() {
+      if (!this.nodeMetric || !this.edgeMetric) {
+        return "moDiNA builds the differential network from each context's already-computed "
+          + 'association scores (test type and correction method are fixed by the contexts '
+          + 'themselves -- see the context picker above). The specific node metric, edge metric '
+          + 'and ranking algorithm used will be shown here once a comparison has been run.';
+      }
+      const nodeLabel = metricLabel(NODE_METRIC_INFO, this.nodeMetric);
+      const edgeLabel = metricLabel(EDGE_METRIC_INFO, this.edgeMetric);
+      const algoLabel = this.rankingAlgorithm ? metricLabel(RANKING_ALGORITHM_INFO, this.rankingAlgorithm) : null;
+      const algoDescription = this.rankingAlgorithm ? metricDescription(RANKING_ALGORITHM_INFO, this.rankingAlgorithm) : '';
+      return `moDiNA built this differential network using ${nodeLabel} (${metricDescription(NODE_METRIC_INFO, this.nodeMetric)}) `
+        + `for nodes and ${edgeLabel} (${metricDescription(EDGE_METRIC_INFO, this.edgeMetric)}) for edges`
+        + (algoLabel ? `, ranked via ${algoLabel} -- ${algoDescription}` : '')
+        + `, reusing each context's already-computed association scores (test type and correction `
+        + 'method are fixed by the contexts themselves -- see the context picker above).';
     },
   },
   watch: {

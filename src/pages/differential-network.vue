@@ -24,7 +24,12 @@
 
         <v-row class="mt-4">
           <v-col cols="12">
-            <DiffNetworkSettings v-model="settings" />
+            <DiffNetworkSettings
+              v-model="settings"
+              :node-metric="result?.nodeMetric"
+              :edge-metric="result?.edgeMetric"
+              :ranking-algorithm="result?.rankingAlgorithm"
+            />
           </v-col>
         </v-row>
 
@@ -128,6 +133,8 @@
                   :context1="selectedContexts.context1"
                   :context2="selectedContexts.context2"
                   :get-icon="getNodeIcon"
+                  :node-metric="result?.nodeMetric"
+                  :ranking-algorithm="result?.rankingAlgorithm"
                 />
                 <DiffEdgeDetails
                   v-else-if="selectedLink"
@@ -137,6 +144,7 @@
                   :get-icon="getNodeIcon"
                   :context1="selectedContexts.context1"
                   :context2="selectedContexts.context2"
+                  :edge-metric="result?.edgeMetric"
                 />
                 <p v-else class="text-medium-emphasis text-body-2">
                   Click a node or edge in the graph (or a row in the tables below) to see its details here.
@@ -151,6 +159,8 @@
             <NodeRankPanel
               :items="result.points || []"
               :selected-node="selectedPoint?.id"
+              :node-metric="result?.nodeMetric"
+              :ranking-algorithm="result?.rankingAlgorithm"
               @select-node="selectNodeById"
             />
           </v-col>
@@ -160,6 +170,7 @@
               :selected-edge="selectedLink ? `${selectedLink.source}_${selectedLink.target}` : null"
               :points-by-id="pointsById"
               :context-names="contextNames"
+              :edge-metric="result?.edgeMetric"
               @select-edge="selectEdgeByLabels"
             />
           </v-col>

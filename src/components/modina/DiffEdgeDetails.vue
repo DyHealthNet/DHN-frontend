@@ -41,11 +41,11 @@
           <td class="value">{{ edge.rank }}</td>
         </tr>
         <tr v-if="edge.weight != null">
-          <td class="label">Edge metric (absolute)</td>
+          <td class="label">{{ edgeMetricLabel }} (absolute)</td>
           <td class="value">{{ formatNumber(edge.weight) }}</td>
         </tr>
         <tr v-if="edge.signed != null">
-          <td class="label">Edge metric (signed)</td>
+          <td class="label">{{ edgeMetricLabel }} (signed)</td>
           <td class="value">{{ formatNumber(edge.signed) }}</td>
         </tr>
       </tbody>
@@ -104,6 +104,7 @@
 import OverviewBox from '@/components/plots/OverviewBox.vue';
 import OverviewHeatmap from '@/components/plots/OverviewHeatmap.vue';
 import OverviewLine from '@/components/plots/OverviewLine.vue';
+import { EDGE_METRIC_INFO, metricLabel } from './metricInfo.js';
 
 export default {
   name: 'DiffEdgeDetails',
@@ -111,6 +112,11 @@ export default {
   props: {
     edge: {
       type: Object,
+      default: null,
+    },
+    // Reported by the backend on the actual result -- null until a comparison has completed.
+    edgeMetric: {
+      type: String,
       default: null,
     },
     contextNames: {
@@ -158,6 +164,9 @@ export default {
     this.resizeObserver?.disconnect();
   },
   computed: {
+    edgeMetricLabel() {
+      return metricLabel(EDGE_METRIC_INFO, this.edgeMetric) || 'Edge metric';
+    },
     sourceDescription() {
       return this.pointsById[this.edge?.source]?.description;
     },
