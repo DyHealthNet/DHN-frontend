@@ -61,36 +61,32 @@
 
     <template v-if="context1 && context2">
       <p class="label-subtitle mt-4">Distribution per context</p>
-      <div class="distribution-row">
-        <div class="distribution-col">
-          <p class="context-label">{{ context1.contextName || 'Context 1' }}</p>
-          <component
-            :is="plotComponent"
-            :xVar="node.id"
-            :contextValue="context1.contextValue"
-            barType="Grouped"
-            barOrientation="Vertical"
-            palette="muted"
-            :textSize="13"
-            :width="plotWidth"
-            :height="260"
-          />
-        </div>
-        <div class="distribution-col">
-          <p class="context-label">{{ context2.contextName || 'Context 2' }}</p>
-          <component
-            :is="plotComponent"
-            :xVar="node.id"
-            :contextValue="context2.contextValue"
-            barType="Grouped"
-            barOrientation="Vertical"
-            palette="muted"
-            :textSize="13"
-            :width="plotWidth"
-            :height="260"
-          />
-        </div>
-      </div>
+      <!-- Both variable types render the two contexts as one grouped plot: continuous
+           variables as a density plot (see GetDataDensityPlotView's contextValue1/contextValue2
+           mode), categorical variables as a bar chart grouped by context (GetDataBarCountView's
+           contextValue1/contextValue2 mode). -->
+      <OverviewDensity
+        v-if="node.type === 'continuous'"
+        :xVar="node.id"
+        :context1="context1"
+        :context2="context2"
+        palette="muted"
+        :textSize="13"
+        :width="plotWidth"
+        :height="260"
+      />
+      <OverviewBar
+        v-else
+        :xVar="node.id"
+        :context1="context1"
+        :context2="context2"
+        barType="Grouped"
+        barOrientation="Vertical"
+        palette="muted"
+        :textSize="13"
+        :width="plotWidth"
+        :height="260"
+      />
     </template>
   </div>
   <p v-else class="text-medium-emphasis text-body-2">Select a node in the graph or the node rank table to see its details.</p>
@@ -151,11 +147,6 @@ export default {
         (key) => this.node[key] != null
       );
     },
-    // Continuous variables get a density curve; the categorical types (binary/ordinal/nominal)
-    // get a value-count bar chart -- same split data-overview.vue's plot components are built for.
-    plotComponent() {
-      return this.node?.type === 'continuous' ? 'OverviewDensity' : 'OverviewBar';
-    },
   },
   methods: {
     formatNumber(value) {
@@ -188,20 +179,5 @@ export default {
 }
 .value {
   padding-left: 0px;
-}
-.distribution-row {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.distribution-col {
-  min-width: 0;
-  overflow-x: auto;
-}
-.context-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: rgb(var(--v-theme-primary-darken-1));
-  margin-bottom: 2px;
 }
 </style>

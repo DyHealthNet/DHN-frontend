@@ -51,7 +51,7 @@
             Network</v-btn>
       </template>
     </v-menu>
-    <v-menu transition="slide-x-transition">
+    <!-- <v-menu transition="slide-x-transition">
       <template v-slot:activator="{ props }">
           <v-btn to="/metagraph" :size="btnSize" color="primary-darken-1" class="mx-1" v-bind="props">
             <template v-slot:prepend>
@@ -59,7 +59,7 @@
             </template>
             Metagraph</v-btn>
       </template>
-    </v-menu>
+    </v-menu> -->
     <v-menu transition="slide-x-transition">
       <template v-slot:activator="{ props }">
           <v-btn to="/modina" :size="btnSize" color="primary-darken-1" class="mx-1" v-bind="props">

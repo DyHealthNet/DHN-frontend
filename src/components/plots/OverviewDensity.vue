@@ -3,6 +3,18 @@
     <v-progress-circular indeterminate color="primary" size="60"></v-progress-circular>
   </v-overlay>
 
+  <v-alert
+      v-if="privacyWarning"
+      type="warning"
+      density="compact"
+      variant="tonal"
+      closable
+      class="mb-2"
+      @click:close="privacyWarning = null"
+  >
+    {{ privacyWarning }}
+  </v-alert>
+
   <div ref="PlotlyDensityChart"></div>
 
 
@@ -48,9 +60,21 @@ export default {
       type: String,
       required: false,
     },
+    // Required unless context1+context2 (below) are both given instead.
     contextValue: {
       type: [Number, null],
-      required: true,
+      default: null,
+    },
+    // Optional two-context comparison mode: when both are set, contextValue/cVar are
+    // ignored and the backend instead groups by a synthetic 'context' column (see
+    // GetDataDensityPlotView) -- rendered as a normal grouped density plot, context as the group.
+    context1: {
+      type: Object,
+      default: null,
+    },
+    context2: {
+      type: Object,
+      default: null,
     },
     palette: {
       type: String,
@@ -79,6 +103,7 @@ export default {
       showMessage: false,
       messageInfo: null,
       messageType: "",
+      privacyWarning: null,
 
     };
   },
@@ -87,6 +112,8 @@ export default {
     xVar: "fetchAndUpdateChart",
     cVar: "fetchAndUpdateChart",
     contextValue: "fetchAndUpdateChart",
+    "context1.contextValue": "fetchAndUpdateChart",
+    "context2.contextValue": "fetchAndUpdateChart",
     palette: "fetchAndUpdateChart",
     textSize: "renderPlot",
     width: "renderPlot",
@@ -101,7 +128,10 @@ export default {
   computed: {
     showLoadingDensity() {
       return loadingStates.value.isLoadingDensity; // Directly reactive to `loadingStates`
-    }
+    },
+    compareMode() {
+      return !!(this.context1 && this.context2);
+    },
   },
 
   methods: {
@@ -162,11 +192,16 @@ export default {
       try {
         const url = new URL("/plotting/api/plotDataDensity/", BASE_URL);
         url.searchParams.append("x", this.xVar);
-        if (this.cVar) {
-          url.searchParams.append("c", this.cVar);
-        }
-        if (this.contextValue) {
-          url.searchParams.append("contextValue", String(this.contextValue));
+        if (this.compareMode) {
+          url.searchParams.append("contextValue1", String(this.context1.contextValue));
+          url.searchParams.append("contextValue2", String(this.context2.contextValue));
+        } else {
+          if (this.cVar) {
+            url.searchParams.append("c", this.cVar);
+          }
+          if (this.contextValue) {
+            url.searchParams.append("contextValue", String(this.contextValue));
+          }
         }
         if (this.palette) {
           url.searchParams.append("colors", String(this.palette))
@@ -187,6 +222,8 @@ export default {
             }
         );
         const data = await response.json();
+
+        this.privacyWarning = data.warning || null;
 
         // Transform data for Plotly
         this.transformDataForPlotly(data);

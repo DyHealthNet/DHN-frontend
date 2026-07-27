@@ -1,9 +1,7 @@
 <template>
-  <v-app>
-    <v-main>
-      <v-container class="about-page py-10">
-        <v-row>
-          <v-col cols="12">
+  <v-container class="about-page page-container py-10">
+    <v-row>
+      <v-col cols="12">
             <div class="hero">
               <div>
                 <p class="eyebrow">About</p>
@@ -135,9 +133,6 @@
       <v-container class="d-flex justify-center align-center">
         <img src="../assets/figures/DyHealthNet_Logo.png" width="500" height="auto"/>
       </v-container>
-      
-    </v-main>
-  </v-app>
 </template>
 
 <script>
@@ -191,10 +186,6 @@ export default {
   max-width: 720px;
   font-size: 1.02rem;
   opacity: 0.82;
-}
-
-.v-container {
-  max-width: min(95%, 1800px);
 }
 
 @media (max-width: 1919px) {

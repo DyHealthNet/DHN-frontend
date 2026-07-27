@@ -1,9 +1,7 @@
 <template>
-  <v-app>
-    <v-main>
-      <v-container class="overview-page py-10">
-        <v-row>
-          <v-col cols="12">
+  <v-container class="overview-page page-container py-10">
+    <v-row>
+      <v-col cols="12">
             <div class="hero">
               <div>
                 <p class="eyebrow">Overview</p>
@@ -16,7 +14,9 @@
           </v-col>
         </v-row>
 
-        <FilterToolbar class="mt-4" @change-context="updateData"></FilterToolbar>
+        <div class="filter-toolbar-slot">
+          <FilterToolbar @change-context="updateData"></FilterToolbar>
+        </div>
 
         <!--Variable Counts-->
         <v-card outlined>
@@ -253,9 +253,7 @@
           </div>
 
         </v-card>
-      </v-container>
-    </v-main>
-  </v-app>
+  </v-container>
 </template>
 
 <script>
@@ -360,9 +358,11 @@ export default {
         }
         const data = await response.json();
 
-        const rows = Object.entries(data).map(([key, value]) => {
-          return {name: key, column1: value};
-        });
+        const rows = Object.entries(data)
+            .filter(([key]) => key !== 'preservePrivacy')
+            .map(([key, value]) => {
+              return {name: key, column1: value};
+            });
 
         if (rows.length === 0) {
           console.error("No data found in the response");
@@ -632,10 +632,6 @@ export default {
   max-width: 720px;
   font-size: 1.02rem;
   opacity: 0.82;
-}
-
-.v-container {
-  max-width: min(95%, 2500px);
 }
 
 @media (max-width: 2500px) {

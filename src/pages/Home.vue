@@ -1,7 +1,6 @@
 <template>
-  <v-app>
-    <v-main class="home-background">
-      <v-container width="80%">
+  <div class="home-background">
+    <v-container class="page-container">
         <!-- Part 1: Welcome -->
         <v-row class="my-12">
           <v-col cols="12" class="text-center">
@@ -95,6 +94,30 @@
             </v-sheet>
           </v-col>
 
+          <!-- MoDiNA page -->
+          <v-col cols="12" md="6">
+            <v-sheet rounded="lg" elevation="1" class="d-flex align-center sheet fill-height">
+              <v-row no-gutters>
+                <v-col cols="4" class="d-flex justify-center align-center">
+                  <div
+                    class="modina-logo"
+                    role="img"
+                    aria-label="moDiNA"
+                    :style="{ maskImage: `url(${modina})`, WebkitMaskImage: `url(${modina})` }"
+                  ></div>
+                </v-col>
+                <v-col cols="8" class="d-flex flex-column text-left">
+                  <h3 class="secondary-header mt-1 mr-3">Compare Contexts</h3>
+                  <p class="description-text mr-3">{{ modinaDescription }}</p>
+                  <div class="right-align">
+                    <v-btn size="x-large" to="/modina" color="primary" class="mt-5 mb-5 mx-5"
+                           prepend-icon="mdi-vector-difference">moDiNA</v-btn>
+                  </div>
+                </v-col>
+              </v-row>
+            </v-sheet>
+          </v-col>
+
         </v-row>
 
         <v-divider class="my-10" thickness="2"></v-divider>
@@ -162,9 +185,8 @@
           </p>
         </v-col>
       </v-row>
-      </v-container>
-    </v-main>
-  </v-app>
+    </v-container>
+  </div>
 </template>
 
 <script>
@@ -181,6 +203,7 @@ export default {
       overview: new URL("../assets/figures/Home_Page_Icons-01.png", import.meta.url).href,
       network: new URL("../assets/figures/Home_Page_Icons-03.png", import.meta.url).href,
       contexts: new URL("../assets/figures/Home_Page_Icons-04.png", import.meta.url).href,
+      modina: new URL("../assets/figures/moDiNA_Logo.png", import.meta.url).href,
 
       mainHeader: "Explore Cohorts with DyHealthNet",
       mainSubheader: "A Dynamic Approach to Network Medicine in the CHRIS Study",
@@ -201,6 +224,7 @@ export default {
       networkDescription: "Investigate the network of associations between various types of variables to confirm existing hypothesis or uncover novel associations.",
       contextDescription: "Define your own sample-based context by selecting participants of interest based on different rules for a more focused exploration.",
       applyCohortDescription: "Find additional information about the platform and use our documentation to apply the DyHealthNet platform to your own cohort.",
+      modinaDescription: "Explore differential signals among your created contexts with our multi-omics differential network analysis tool moDiNA.",
 
       collaboratorsDescription:
           "The DyHealthNet project is a collaboration between the\n" +
@@ -269,5 +293,18 @@ export default {
   justify-content: flex-end;
   align-items: flex-end;
   height: 100%;
+}
+
+.modina-logo {
+  width: 100%;
+  max-width: 200px;
+  aspect-ratio: 1789 / 626;
+  background-color: rgb(var(--v-theme-primary-darken-1));
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
 }
 </style>

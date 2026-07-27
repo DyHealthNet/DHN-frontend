@@ -1,9 +1,7 @@
 <template>
-  <v-app>
-    <v-main>
-      <v-container class="modina-page py-10">
-        <v-row>
-          <v-col cols="12">
+  <v-container class="modina-page page-container py-10">
+    <v-row>
+      <v-col cols="12">
             <div class="hero">
               <div>
                 <p class="eyebrow">moDiNA</p>
@@ -59,38 +57,36 @@
         <v-row class="mt-6" align="stretch" v-if="hasResult">
           <v-col cols="12" md="7">
             <v-card class="graph-card" outlined>
-              <v-toolbar color="primary-darken-1" density="comfortable">
-                <v-toolbar-title>Differential Network</v-toolbar-title>
-                <v-spacer />
-                <div class="topn-control mr-4" v-if="totalNodeCount > 1">
-                  <span class="topn-caption">Top-N</span>
-                  <v-slider
-                    :model-value="topN ?? totalNodeCount"
-                    :min="1"
-                    :max="totalNodeCount"
-                    :step="1"
-                    density="compact"
-                    color="white"
-                    hide-details
-                    class="topn-slider"
-                    @end="onTopNChange"
-                  ></v-slider>
-                  <span class="topn-caption">{{ topNLabel }}</span>
-                </div>
-                <v-switch
-                  v-model="physics_on"
-                  @change="updatePhysics"
-                  :label="physics_on ? 'Disable Physics' : 'Enable Physics'"
-                  color="white"
-                  hide-details
-                  density="compact"
-                  class="mr-3 physics-switch"
-                ></v-switch>
-                <v-btn icon variant="text" @click="saveNetworkImage">
-                  <v-icon>mdi-camera</v-icon>
-                </v-btn>
-                <a ref="downloadLink" style="display: none" :href="imageUrl" :download="downloadFileName"></a>
-              </v-toolbar>
+              <GraphToolbar
+                density="comfortable"
+                :physics-on="physics_on"
+                @update:physics-on="onPhysicsChange"
+                :show-hide-unconnected="true"
+                :hide-unconnected="hideUnconnected"
+                @update:hide-unconnected="onHideUnconnectedChange"
+                @save-image="saveNetworkImage"
+              >
+                <template #title>Differential Network</template>
+                <template #prepend>
+                  <v-spacer />
+                  <div class="topn-control mr-4" v-if="totalNodeCount > 1">
+                    <span class="topn-caption">Top Nodes</span>
+                    <v-slider
+                      :model-value="topN ?? totalNodeCount"
+                      :min="1"
+                      :max="totalNodeCount"
+                      :step="1"
+                      density="compact"
+                      color="white"
+                      hide-details
+                      class="topn-slider"
+                      @end="onTopNChange"
+                    ></v-slider>
+                    <span class="topn-caption">{{ topNLabel }}</span>
+                  </div>
+                </template>
+              </GraphToolbar>
+              <a ref="downloadLink" style="display: none" :href="imageUrl" :download="downloadFileName"></a>
               <v-card-text>
                 <div class="graph-stage">
                   <div ref="containerRef" class="graph-container"></div>
@@ -168,9 +164,7 @@
             />
           </v-col>
         </v-row>
-      </v-container>
-    </v-main>
-  </v-app>
+  </v-container>
 </template>
 
 <script>
@@ -183,6 +177,7 @@ import NodeRankPanel from '@/components/modina/NodeRankPanel.vue';
 import EdgeRankPanel from '@/components/modina/EdgeRankPanel.vue';
 import DiffNodeDetails from '@/components/modina/DiffNodeDetails.vue';
 import DiffEdgeDetails from '@/components/modina/DiffEdgeDetails.vue';
+import GraphToolbar from '@/components/network/GraphToolbar.vue';
 import { generateGroupColor, getNodeIcon, saveNetworkState, loadNetworkState, clearNetworkState } from '@/components/network/networkData.js';
 
 // Distinct key (not a numeric contextValue) so this doesn't collide with data-network.vue's own
@@ -198,6 +193,7 @@ export default {
     EdgeRankPanel,
     DiffNodeDetails,
     DiffEdgeDetails,
+    GraphToolbar,
   },
   data() {
     return {
@@ -228,6 +224,22 @@ export default {
       // null (or >= totalNodeCount) means "all". Set to min(100, totalNodeCount) whenever a new
       // result loads (see pollStatus/loadState), same default as moDiNA_interface.
       topN: null,
+      // Graph-only: hides points with no edges within the current Top-N cutoff. Node rank (score)
+      // is independent of edge membership, so the Top-N slider alone can't isolate "connected"
+      // nodes -- this gives a way to declutter the view without changing the rank-based ordering.
+      // Toggling it goes through renderGraph() (full rebuild), not updateGraphData()'s incremental
+      // patch -- unlike a Top-N drag, which only ever adds/removes a contiguous tail of the
+      // rank-sorted list, this can remove an arbitrary scattered subset of points, and patching
+      // that incrementally was observed to occasionally drop or fail to drop the wrong points.
+      hideUnconnected: false,
+      // Mirrors exactly what's currently fed into cosmographInstance (as of the last renderGraph()/
+      // updateGraphData() call), in Cosmograph's own row order -- NOT necessarily the same order as
+      // graphPoints/graphLinks (see updateGraphData()'s comment on why links can drift). Cosmograph's
+      // click callbacks hand back indices into this order, so this -- not graphPoints/graphLinks --
+      // is what index-based resolution (selectedPoint/selectedLink, reapplySelection, centering) must
+      // read from.
+      _renderedPoints: [],
+      _renderedLinks: [],
       physics_on: true,
       imageUrl: null,
       // Static (data-shape) half of the Cosmograph config, passed to prepareCosmographData().
@@ -249,7 +261,7 @@ export default {
           // sourced from Postgres on the backend (see network/tasks.py's
           // _shape_modina_result) -- falls back to the raw id if a point is missing one.
           pointLabelBy: 'display_name',
-          pointLabelFn: (value, index) => value ?? this.graphPoints?.[index]?.id,
+          pointLabelFn: (value, index) => value ?? this._renderedPoints?.[index]?.id,
           showLabels: true,
           showHoveredPointLabel: true,
         },
@@ -285,10 +297,26 @@ export default {
     // exactly the N best-ranked nodes, same convention as moDiNA_interface's rankedNodesForTopN.
     // Only the graph is trimmed -- NodeRankPanel/EdgeRankPanel keep showing every row via
     // result.points/result.edgeRanking directly.
+    //
+    // hideUnconnected then optionally drops points that have no surviving edge within this same
+    // cutoff. Node rank/score is computed independently of edge membership (nodeRank ranks every
+    // variable, not just ones with a differential edge -- see network/tasks.py's
+    // _shape_modina_result), so the Top-N cutoff alone routinely keeps plenty of edge-less nodes;
+    // this is a separate, cheap way to declutter without changing what "Top N" means.
     graphPoints() {
       const points = this.result?.points || [];
-      if (this.topN == null || this.topN >= points.length) return points;
-      return points.slice(0, this.topN);
+      const sliced = this.topN == null || this.topN >= points.length ? points : points.slice(0, this.topN);
+      if (!this.hideUnconnected) return sliced;
+      const links = this.result?.links || [];
+      const idsInCutoff = new Set(sliced.map((p) => p.id));
+      const connectedIds = new Set();
+      for (const l of links) {
+        if (idsInCutoff.has(l.source) && idsInCutoff.has(l.target)) {
+          connectedIds.add(l.source);
+          connectedIds.add(l.target);
+        }
+      }
+      return sliced.filter((p) => connectedIds.has(p.id));
     },
     graphLinks() {
       const links = this.result?.links || [];
@@ -330,15 +358,15 @@ export default {
       return `differential-network-${name1}-vs-${name2}-${currentDate}.png`;
     },
     // Indices here (selectedPointIndex/selectedLinkIndex) come from Cosmograph click callbacks,
-    // which index into whatever was actually rendered -- graphPoints/graphLinks, not the full
-    // result.points/result.links.
+    // which index into whatever was actually rendered -- _renderedPoints/_renderedLinks (see
+    // their declaration for why that's not always the same order as graphPoints/graphLinks).
     selectedPoint() {
       if (this.selectedPointIndex == null) return null;
-      return this.graphPoints[this.selectedPointIndex] || null;
+      return this._renderedPoints[this.selectedPointIndex] || null;
     },
     selectedLink() {
       if (this.selectedLinkIndex == null) return null;
-      return this.graphLinks[this.selectedLinkIndex] || null;
+      return this._renderedLinks[this.selectedLinkIndex] || null;
     },
   },
   methods: {
@@ -363,6 +391,8 @@ export default {
       this.errorMessage = '';
       this.result = null;
       this.topN = null;
+      this._renderedPoints = [];
+      this._renderedLinks = [];
       this.clearSelection();
       this.statusText = 'Starting differential network computation...';
 
@@ -508,6 +538,10 @@ export default {
 
       this.cosmographInstance = new Cosmograph(this.$refs.containerRef, this._cosmoConfig);
       await this.cosmographInstance.dataUploaded?.();
+      // Built directly from graphPoints/graphLinks, in that exact order -- the mirror starts out
+      // exactly in sync with what Cosmograph now holds.
+      this._renderedPoints = this.graphPoints;
+      this._renderedLinks = this.graphLinks;
       this.cosmographInstance?.fitView(0);
       this.reapplySelection();
     },
@@ -568,8 +602,8 @@ export default {
           ...(this.cosmographInstance.getConnectedPointIndices(this.selectedPointIndex) || []),
         ];
       } else if (this.selectedLinkIndex != null && this.selectedLink) {
-        const sourceIdx = this.graphPoints.findIndex((p) => p.id === this.selectedLink.source);
-        const targetIdx = this.graphPoints.findIndex((p) => p.id === this.selectedLink.target);
+        const sourceIdx = this._renderedPoints.findIndex((p) => p.id === this.selectedLink.source);
+        const targetIdx = this._renderedPoints.findIndex((p) => p.id === this.selectedLink.target);
         selectedIndices = [sourceIdx, targetIdx].filter((i) => i >= 0);
       }
       if (selectedIndices.length) {
@@ -586,6 +620,18 @@ export default {
       } else {
         this.cosmographInstance.pause();
       }
+    },
+
+    // GraphToolbar's switches are v-model'd through props/events rather than a
+    // direct v-model on physics_on/hideUnconnected (the toolbar no longer owns
+    // that state) -- these mirror what the old inline @change handlers did.
+    onPhysicsChange(value) {
+      this.physics_on = value;
+      this.updatePhysics();
+    },
+    onHideUnconnectedChange(value) {
+      this.hideUnconnected = value;
+      this.renderGraph();
     },
 
     saveNetworkImage() {
@@ -665,14 +711,14 @@ export default {
     },
 
     selectLinkFromGraph(linkIndex) {
-      if (linkIndex == null || !this.graphLinks.length) return;
+      if (linkIndex == null || !this._renderedLinks.length) return;
       this.selectedLinkIndex = linkIndex;
       this.selectedPointIndex = null;
       this.applyDesign();
-      const link = this.graphLinks[linkIndex];
+      const link = this._renderedLinks[linkIndex];
       if (link) {
-        const sourceIdx = this.graphPoints.findIndex((p) => p.id === link.source);
-        const targetIdx = this.graphPoints.findIndex((p) => p.id === link.target);
+        const sourceIdx = this._renderedPoints.findIndex((p) => p.id === link.source);
+        const targetIdx = this._renderedPoints.findIndex((p) => p.id === link.target);
         if (sourceIdx >= 0 && targetIdx >= 0) this.centerOnEdge(sourceIdx, targetIdx);
       }
     },
@@ -683,7 +729,7 @@ export default {
     async selectNodeById(item) {
       if (!this.result?.points) return;
       await this.ensureTopNIncludes(item.id);
-      const index = this.graphPoints.findIndex((p) => p.id === item.id);
+      const index = this._renderedPoints.findIndex((p) => p.id === item.id);
       if (index >= 0) this.selectPointFromGraph(index);
     },
 
@@ -691,7 +737,7 @@ export default {
       if (!this.result?.links) return;
       await this.ensureTopNIncludes(item.label1);
       await this.ensureTopNIncludes(item.label2);
-      const index = this.graphLinks.findIndex(
+      const index = this._renderedLinks.findIndex(
         (l) =>
           (l.source === item.label1 && l.target === item.label2) ||
           (l.source === item.label2 && l.target === item.label1)
@@ -700,14 +746,14 @@ export default {
     },
 
     // If the given node id is currently outside the Top-N cutoff, raises Top-N just enough to
-    // include it (and rebuilds the graph) rather than leaving selectNodeById/selectEdgeByLabels
+    // include it (and patches the graph) rather than leaving selectNodeById/selectEdgeByLabels
     // unable to find it.
     async ensureTopNIncludes(id) {
       if (this.topN == null || this.topN >= this.totalNodeCount) return;
       const idx = (this.result?.points || []).findIndex((p) => p.id === id);
       if (idx >= 0 && idx + 1 > this.topN) {
         this.topN = idx + 1;
-        await this.renderGraph();
+        await this.updateGraphData();
       }
     },
 
@@ -715,13 +761,110 @@ export default {
       const next = Number(value);
       if (!Number.isFinite(next) || next === this.topN) return;
       this.topN = next;
-      // Reset selection state directly rather than via clearSelection() -- that goes through
-      // applyDesign()'s (unawaited) setConfig() call on the current instance, which would race
-      // against renderGraph()'s destroy() of that same instance just below. renderGraph()'s own
-      // reapplySelection() (on the new instance) picks up the cleared indices afterwards.
-      this.selectedPointIndex = null;
-      this.selectedLinkIndex = null;
-      await this.renderGraph();
+      await this.updateGraphData();
+    },
+
+    // Patches the live Cosmograph instance to match the current Top-N target (graphPoints/
+    // graphLinks) instead of renderGraph()'s full destroy+recreate -- preserves camera position
+    // and the running simulation for points that stay. Falls back to renderGraph() if there's no
+    // live instance yet (first render).
+    //
+    // Diffing is done against _renderedPoints/_renderedLinks (what's actually in Cosmograph right
+    // now), not the previous graphPoints/graphLinks -- they're equivalent for points (Top-N is
+    // always a prefix of the same rank-sorted list, so growing/shrinking it only ever adds/removes
+    // a contiguous tail), but NOT for links: result.links has its own fixed, non-rank-sorted order,
+    // so a newly-qualifying link can belong anywhere in that order, not just at the end. Rather
+    // than rely on that distinction, _renderedPoints/_renderedLinks are updated afterwards with the
+    // exact same remove-then-append sequence sent to Cosmograph, so index-based resolution
+    // (onPointClick/onLinkClick, centerOnEdge, reapplySelection) always matches Cosmograph's actual
+    // row order, whatever internal reindexing it performs.
+    async updateGraphData() {
+      if (!this.cosmographInstance) {
+        await this.renderGraph();
+        return;
+      }
+
+      // Capture the current selection by identity (not index -- that shifts as points/links are
+      // removed), so it can be re-resolved against the patched order afterwards: kept if it
+      // survived the Top-N change, cleared if it didn't.
+      const selectedPointId = this.selectedPoint?.id ?? null;
+      const linkKey = (l) => `${l.source}|${l.target}`;
+      const selectedLinkKey = this.selectedLink ? linkKey(this.selectedLink) : null;
+
+      const prevPoints = this._renderedPoints;
+      const prevLinks = this._renderedLinks;
+      const nextPoints = this.graphPoints;
+      const nextLinks = this.graphLinks;
+
+      const prevPointIds = new Set(prevPoints.map((p) => p.id));
+      const nextPointIds = new Set(nextPoints.map((p) => p.id));
+      const removedPointIds = prevPoints.filter((p) => !nextPointIds.has(p.id)).map((p) => p.id);
+      const addedPoints = nextPoints.filter((p) => !prevPointIds.has(p.id));
+
+      const prevLinkKeys = new Set(prevLinks.map(linkKey));
+      const nextLinkKeys = new Set(nextLinks.map(linkKey));
+      const removedLinks = prevLinks.filter((l) => !nextLinkKeys.has(linkKey(l)));
+      const addedLinks = nextLinks.filter((l) => !prevLinkKeys.has(linkKey(l)));
+
+      if (!removedPointIds.length && !addedPoints.length && !removedLinks.length && !addedLinks.length) return;
+
+      try {
+        // Links first, so no add/remove ever leaves a link dangling on a point that's mid-removal.
+        if (removedLinks.length) {
+          await this.cosmographInstance.removeLinksByPointIdPairs(removedLinks.map((l) => [l.source, l.target]));
+        }
+        if (removedPointIds.length) {
+          await this.cosmographInstance.removePointsByIds(removedPointIds);
+        }
+        if (addedPoints.length) {
+          await this.cosmographInstance.addPoints(addedPoints);
+        }
+        if (addedLinks.length) {
+          await this.cosmographInstance.addLinks(addedLinks);
+        }
+      } catch (error) {
+        console.error('[modina] Incremental graph update failed, falling back to a full rebuild:', error);
+        await this.renderGraph();
+        return;
+      }
+
+      const removedPointIdSet = new Set(removedPointIds);
+      this._renderedPoints = [...prevPoints.filter((p) => !removedPointIdSet.has(p.id)), ...addedPoints];
+      const removedLinkKeySet = new Set(removedLinks.map(linkKey));
+      this._renderedLinks = [...prevLinks.filter((l) => !removedLinkKeySet.has(linkKey(l))), ...addedLinks];
+
+      // addPoints() can introduce a group not present in the previous pointColorByMap (e.g.
+      // raising Top-N reveals a node from a data layer that had no other nodes in view yet).
+      if (addedPoints.length) {
+        this._cosmoConfig = { ...this._cosmoConfig, pointColorByMap: this.buildPointColorMap() };
+      }
+
+      let newSelectedPointIndex = null;
+      if (selectedPointId != null) {
+        const i = this._renderedPoints.findIndex((p) => p.id === selectedPointId);
+        if (i >= 0) newSelectedPointIndex = i;
+      }
+      let newSelectedLinkIndex = null;
+      if (newSelectedPointIndex == null && selectedLinkKey != null) {
+        const i = this._renderedLinks.findIndex((l) => linkKey(l) === selectedLinkKey);
+        if (i >= 0) newSelectedLinkIndex = i;
+      }
+      this.selectedPointIndex = newSelectedPointIndex;
+      this.selectedLinkIndex = newSelectedLinkIndex;
+
+      // Gently reheat the simulation so newly added/removed points settle into the layout instead
+      // of sitting exactly where they landed, without flinging the already-settled points around
+      // the way a fresh start(1) would -- start() reuses each point's current position, it doesn't
+      // reset them. Respects the physics toggle: if the user paused it, leave the layout as-is.
+      // No explicit fitView()/recentering here -- the whole point of patching instead of rebuilding
+      // is to leave the camera where the user left it; the existing onSimulationEnd handler (see
+      // renderGraph()) will fit the view once this settles, same as it does after any other
+      // simulation run, but only while nothing is selected.
+      if (this.physics_on && (addedPoints.length || removedPointIds.length)) {
+        this.cosmographInstance.start(0.3);
+      }
+
+      await this.applyDesign();
     },
 
     clearSelection() {

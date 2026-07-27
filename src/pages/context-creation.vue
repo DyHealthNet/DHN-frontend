@@ -1,9 +1,7 @@
 <template>
-  <v-app>
-    <v-main>
-      <v-container class="context-creation-page py-10">
-        <v-row>
-          <v-col cols="12">
+  <v-container class="context-creation-page page-container py-10">
+    <v-row>
+      <v-col cols="12">
             <div class="hero">
               <div>
                 <p class="eyebrow">Context creation</p>
@@ -35,9 +33,7 @@
             </v-window-item>
           </v-window>
         </v-card>
-      </v-container>
-    </v-main>
-  </v-app>
+  </v-container>
 </template>
 
 <script>
@@ -165,10 +161,6 @@ export default {
   max-width: 720px;
   font-size: 1.02rem;
   opacity: 0.82;
-}
-
-.v-container {
-  max-width: min(95%, 1800px);
 }
 
 @media (max-width: 1919px) {

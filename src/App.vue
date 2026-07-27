@@ -5,9 +5,7 @@
     <Navbar />
     <v-main>
       <v-container fluid class="page-borders">
-        <v-row>
-          <router-view />
-        </v-row>
+        <router-view />
       </v-container>
     </v-main>
     <Footer />

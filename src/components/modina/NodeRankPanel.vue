@@ -37,14 +37,17 @@
       <template v-slot:item.group="{ item }">
         {{ item.group || '-' }}
       </template>
-      <template v-slot:header.score="{ column }">
-        {{ column.title }}
-        <v-tooltip location="top" max-width="280">
-          <template v-slot:activator="{ props }">
-            <v-icon v-bind="props" size="14" class="ml-1">mdi-information-outline</v-icon>
-          </template>
-          <span>Node metric: STC (statistical test centrality) — 1 minus the p-value of a direct two-context test on this node's raw values. Higher means a bigger shift between contexts.</span>
-        </v-tooltip>
+      <template v-slot:header.score="{ column, getSortIcon }">
+        <div class="v-data-table-header__content">
+          <span>{{ column.title }}</span>
+          <v-icon v-if="column.sortable" class="v-data-table-header__sort-icon" :icon="getSortIcon(column)"></v-icon>
+          <v-tooltip location="top" max-width="280">
+            <template v-slot:activator="{ props }">
+              <v-icon v-bind="props" size="14" class="ml-1">mdi-information-outline</v-icon>
+            </template>
+            <span>Node metric: STC (statistical test centrality) — 1 minus the p-value of a direct two-context test on this node's raw values. Higher means a bigger shift between contexts.</span>
+          </v-tooltip>
+        </div>
       </template>
       <template v-slot:item.score="{ item }">
         {{ formatNumber(item.score) }}

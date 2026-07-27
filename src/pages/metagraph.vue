@@ -1,9 +1,7 @@
 <template>
-  <v-app>
-    <v-main>
-      <v-container class="metagraph-page py-10">
-        <v-row>
-          <v-col cols="12">
+  <v-container class="metagraph-page page-container py-10">
+    <v-row>
+      <v-col cols="12">
             <div class="hero">
               <div>
                 <p class="eyebrow">Metagraph</p>
@@ -268,9 +266,7 @@
             </v-card>
           </v-col>
         </v-row>
-      </v-container>
-    </v-main>
-  </v-app>
+  </v-container>
 </template>
 
 <script>

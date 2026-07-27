@@ -1,5 +1,5 @@
 <template>
-    <v-container class="text-center">
+    <v-container class="page-container text-center">
     <v-row>
       <v-col cols="12">
         <h1 class="title mt-4">You have successfully logged out!</h1>

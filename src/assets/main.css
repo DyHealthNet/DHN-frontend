@@ -106,19 +106,19 @@ a,
   }
 }
 
-@media (min-width: 100%) {
-  body {
-    display: flex;
-    place-items: center;
-  }
-
-  #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
-  }
+/* Shared content width for all page-level containers, so every page's
+   content column lines up under the full-width header the same way. */
+.page-container {
+  max-width: min(95%, 1800px);
 }
 
+/* FilterToolbar renders nothing (v-if="authState.isLoggedIn") when the user
+   isn't logged in, e.g. when the backend is unreachable. Padding (not
+   margin) on this wrapper keeps a fixed gap between the page header and the
+   next section even when the toolbar itself doesn't render. */
+.filter-toolbar-slot {
+  padding: 8px 0 20px;
+}
 
 /* as something seems bugged with the default color of the tabs, we need to overwrite it */
 .v-tab:hover {

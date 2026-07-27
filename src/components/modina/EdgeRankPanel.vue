@@ -34,14 +34,17 @@
       <template v-slot:item.edge="{ item }">
         <span :class="{ 'font-weight-bold': isSelected(item) }">{{ formatEdge(item) }}</span>
       </template>
-      <template v-slot:header.score="{ column }">
-        {{ column.title }}
-        <v-tooltip location="top" max-width="280">
-          <template v-slot:activator="{ props }">
-            <v-icon v-bind="props" size="14" class="ml-1">mdi-information-outline</v-icon>
-          </template>
-          <span>Edge metric: diff-L-P — absolute difference in -log10(p) between the two contexts. Higher means a bigger shift in this edge's significance.</span>
-        </v-tooltip>
+      <template v-slot:header.score="{ column, getSortIcon }">
+        <div class="v-data-table-header__content">
+          <span>{{ column.title }}</span>
+          <v-icon v-if="column.sortable" class="v-data-table-header__sort-icon" :icon="getSortIcon(column)"></v-icon>
+          <v-tooltip location="top" max-width="280">
+            <template v-slot:activator="{ props }">
+              <v-icon v-bind="props" size="14" class="ml-1">mdi-information-outline</v-icon>
+            </template>
+            <span>Edge metric: diff-L-P — absolute difference in -log10(p) between the two contexts. Higher means a bigger shift in this edge's significance.</span>
+          </v-tooltip>
+        </div>
       </template>
       <template v-slot:item.score="{ item }">
         {{ formatNumber(item.score) }}

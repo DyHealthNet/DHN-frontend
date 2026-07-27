@@ -1,10 +1,8 @@
 <!-- Chris Data Page -->
 
 <template>
-  <v-app>
-    <v-main>
-      <v-container fluid>
-        <v-row>
+  <v-container class="page-container">
+    <v-row>
           <!--Title-->
           <v-col cols="12" class="text-center">
             <h1><strong>CHRIS DATA</strong></h1>
@@ -90,10 +88,8 @@
               <v-btn color="grey">CHRIS Web</v-btn>
             </a>
           </v-col>
-        </v-row>
-      </v-container>
-    </v-main>
-  </v-app>
+    </v-row>
+  </v-container>
 </template>
 
 <script>

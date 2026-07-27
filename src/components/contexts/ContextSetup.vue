@@ -47,8 +47,9 @@
 
       <v-col cols="auto" class="filter-padding">
         <StatusBox
-            :title="participantNumber.toString()"
+            :title="participantNumberDisplay"
             :remove="removedPatients"
+            :rounded="preservePrivacy"
             subtitle="Participants"
             icon="mdi-account-multiple-outline"
         />
@@ -233,7 +234,10 @@ export default {
   computed: {
     fi() {
       return fi
-    }
+    },
+    participantNumberDisplay() {
+      return (this.preservePrivacy ? '~' : '') + this.participantNumber;
+    },
   },
   components: {AdvancedSettings, NewFilterButton, ConnectorLine, FilterLine, ConnectorButton, StatusBox},
   emits: ['data-changed','calculation-start','calculation-end'],
@@ -304,6 +308,7 @@ export default {
       participantNumber: "0",
       initialParticipants: null,
       removedPatients: "",
+      preservePrivacy: false,
 
       defaultSelectedTests: { testType: 'parametric', correction: 'bh' },
       selectedTests: this.content?.testType
@@ -396,6 +401,7 @@ export default {
         const data = await response.json();
 
         this.initialParticipants = data.Participants;
+        this.preservePrivacy = data.preservePrivacy;
         console.log(this.initialParticipants);
 
         this.participantNumber = this.spacedNumber(this.initialParticipants);
@@ -462,6 +468,7 @@ export default {
           .then(response => response.json())
           .then(data => {
             newParticipants = data.result;
+            this.preservePrivacy = data.preservePrivacy;
           })
           .catch((error) => {
             console.error('Error:', error);

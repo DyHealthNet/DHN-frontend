@@ -3,6 +3,18 @@
     <v-progress-circular indeterminate color="primary" size="60"></v-progress-circular>
   </v-overlay>
 
+  <v-alert
+      v-if="privacyWarning"
+      type="warning"
+      density="compact"
+      variant="tonal"
+      closable
+      class="mb-2"
+      @click:close="privacyWarning = null"
+  >
+    {{ privacyWarning }}
+  </v-alert>
+
   <div ref="PlotlyBoxChart"></div>
 
 
@@ -106,6 +118,7 @@ export default {
       showMessage: false,
       messageInfo: null,
       messageType: "",
+      privacyWarning: null,
 
     };
   },
@@ -231,6 +244,8 @@ export default {
             }
         );
         const data = await response.json();
+
+        this.privacyWarning = data.warning || null;
 
         const filteredData = {
           labels: [],

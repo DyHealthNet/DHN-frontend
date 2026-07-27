@@ -79,7 +79,12 @@ const routes = [
 
 const router = createRouter({
   history: createWebHistory(''),
-  routes
+  routes,
+  scrollBehavior(to, from, savedPosition) {
+    // Browser back/forward should restore the scroll position the user was
+    // at; every other navigation should land at the top of the new page.
+    return savedPosition || { top: 0 }
+  }
 })
 
 export default router;

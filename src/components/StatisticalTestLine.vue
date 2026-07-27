@@ -14,6 +14,9 @@
     <v-col cols="3" v-if="showMultTest">
       <p>Significance Threshold</p>
     </v-col>
+    <v-col cols="3" v-if="showDensity">
+      <p>Density</p>
+    </v-col>
   </v-row>
   <v-row>
     <v-col cols="4" class="my-0">
@@ -64,6 +67,18 @@
         @blur="validateThresholdInput"
       />
     </v-col>
+    <v-col cols="3" class="my-0" v-if="showDensity">
+      <v-text-field
+        v-model="internalDensity"
+        type="number"
+        step="0.001"
+        :rules="[value => (value >= 0 && value <= 1) || 'Must be between 0 and 1']"
+        density="compact"
+        variant="outlined"
+        @update:model-value="updateDensity"
+        @blur="validateDensityInput"
+      />
+    </v-col>
   </v-row>
 </template>
 
@@ -97,6 +112,15 @@ export default {
       type: Boolean,
       default: false,
     },
+    showDensity: {
+      type: Boolean,
+      default: false,
+    },
+    density: {
+      type: Number,
+      required: false,
+      default: 0.01,
+    },
     // Default false preserves ContextSetup.vue's usage (context creation, where
     // correction is a real, consequential choice) unchanged -- only pages that
     // just *view* an already-computed network (data-network.vue) opt into this.
@@ -118,6 +142,7 @@ export default {
       testType: this.selectedTests?.testType ?? 'parametric',
       correction: this.selectedTests?.correction ?? 'bh',
       internalSignThresh: this.signThresh,
+      internalDensity: this.density,
     };
   },
   computed: {
@@ -148,10 +173,27 @@ export default {
       this.internalSignThresh = parseFloat(newValue);
       this.$emit("dataChanged", { signThresh: this.internalSignThresh });
     },
+    validateDensityInput() {
+      const parsedValue = parseFloat(this.internalDensity);
+      if (isNaN(parsedValue) || parsedValue < 0) {
+        this.internalDensity = 0;
+        this.$emit("dataChanged", { density: this.internalDensity });
+      } else if (parsedValue > 1) {
+        this.internalDensity = 1.0;
+        this.$emit("dataChanged", { density: this.internalDensity });
+      }
+    },
+    updateDensity(newValue) {
+      this.internalDensity = parseFloat(newValue);
+      this.$emit("dataChanged", { density: this.internalDensity });
+    },
   },
   watch: {
     signThresh(newValue) {
       this.internalSignThresh = parseFloat(newValue);
+    },
+    density(newValue) {
+      this.internalDensity = parseFloat(newValue);
     },
     selectedTests: {
       handler(newValue) {
