@@ -189,7 +189,7 @@ import EdgeRankPanel from '@/components/modina/EdgeRankPanel.vue';
 import DiffNodeDetails from '@/components/modina/DiffNodeDetails.vue';
 import DiffEdgeDetails from '@/components/modina/DiffEdgeDetails.vue';
 import GraphToolbar from '@/components/network/GraphToolbar.vue';
-import { generateGroupColor, getNodeIcon, saveNetworkState, loadNetworkState, clearNetworkState } from '@/components/network/networkData.js';
+import { assignGroupColors, getNodeIcon, saveNetworkState, loadNetworkState, clearNetworkState } from '@/components/network/networkData.js';
 
 // Distinct key (not a numeric contextValue) so this doesn't collide with data-network.vue's own
 // per-context / "staticNetwork" localStorage entries, which share the same helper functions.
@@ -345,7 +345,8 @@ export default {
     legendGroups() {
       if (!this.graphPoints.length) return [];
       const present = [...new Set(this.graphPoints.map((p) => p.group || 'unknown'))].sort();
-      return present.map((group) => ({ group, color: generateGroupColor(group) }));
+      const groupColors = assignGroupColors(present);
+      return present.map((group) => ({ group, color: groupColors[group] }));
     },
     contextNames() {
       return {

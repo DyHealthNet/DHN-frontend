@@ -234,6 +234,7 @@
                     <v-autocomplete
                       v-model="searchedNodeId"
                       :items="networkNodeSearchItems"
+                      :custom-filter="nodeSearchFilter"
                       label="Search node in network"
                       density="compact"
                       variant="outlined"
@@ -423,7 +424,7 @@
                     Analysis</v-expansion-panel-title>
                   <v-expansion-panel-text>
                     <v-divider class="my-4"></v-divider>
-                    <p><b>Community Detection</b></p>
+                    <p>Community Detection</p>
                     <template v-if="lastNetworkMode === 'whole'">
                       <v-btn
                         color="primary-darken-1"
@@ -639,7 +640,7 @@
 import AdvancedSettings from "@/components/AdvancedSettings.vue";
 import FilterToolbar from "@/components/FilterToolbar.vue";
 import {BASE_URL, isLoading, setIsLoading} from "@/components/constants.js";
-import {darkenHexColor, generateGroupColor, getNodeIcon, loadNetworkState, saveNetworkState} from "../components/network/networkData.js";
+import {darkenHexColor, assignGroupColors, getNodeIcon, loadNetworkState, saveNetworkState} from "../components/network/networkData.js";
 import {interpolateRainbow} from 'd3-scale-chromatic';
 import NodeDetails from '@/components/network/NodeDetails.vue';
 import EdgeDetails from '@/components/network/EdgeDetails.vue';
@@ -775,9 +776,10 @@ export default {
     },
     // Legend entries: whatever groups are actually present in the current network --
     // node_group/source_table has no fixed set of values (see colorForGroup()).
-    // Sorted for a stable, predictable order.
+    // Sorted numerically when clustering (so "Community 2" comes before "Community
+    // 14"), falling back to string order for plain node-type keys.
     legendGroups() {
-      return Array.from(this.includedNodeTypes).sort();
+      return this.sortLegendKeys(Array.from(this.includedNodeTypes));
     },
     hasSelectedProtein() {
       return this.selectedNetworkNodes.some((node) => node.source_table === 'proteins');
@@ -824,11 +826,15 @@ export default {
     },
     // Items for the Details panel's "search node in network" field -- searches
     // only the nodes already loaded into the current network (client-side),
-    // unlike the Network Input field above which queries the backend.
+    // unlike the Network Input field above which queries the backend. id and
+    // description ride along on the raw item (not shown in title) so
+    // nodeSearchFilter can match against them too.
     networkNodeSearchItems() {
       return this.networkNodes.map((node) => ({
         title: `${node.display_name} (${this.getPrettyType(node.source_table)})`,
         value: node.id,
+        id: node.id,
+        description: node.description,
       }));
     },
     // v-btn-toggle's `color` prop only ever styles the currently-active button
@@ -1303,6 +1309,10 @@ export default {
       const params = new URLSearchParams();
       params.set('testType', this.wholeNetworkTests.testType);
       params.set('density', String(this.density));
+      // When a context is selected, the backend reads the context's own fixed
+      // testType (from Context.params) and ignores the testType param above --
+      // it's only kept for the no-context case.
+      if (this.contextValue != null) params.set('c', this.contextValue);
       return `${BASE_URL}/metagraph/api/getCosmograph/?${params.toString()}`;
     },
 
@@ -1317,6 +1327,7 @@ export default {
       params.set('testType', this.wholeNetworkTests.testType);
       params.set('density', String(this.density));
       params.set('resolutions', this.leidenResolutions.join(','));
+      if (this.contextValue != null) params.set('c', this.contextValue);
       return `${BASE_URL}/metagraph/api/getLeidenMetagraph/?${params.toString()}`;
     },
     async runLeidenClustering() {
@@ -1591,6 +1602,17 @@ export default {
       this.$nextTick(() => {
         this.searchedNodeId = null;
       });
+    },
+    // v-autocomplete's default filter only matches the displayed `title`, which
+    // doesn't include id/description -- custom-filter gets the raw item instead
+    // (item.raw), so it can match those too. Mirrors NodeRankPanel's
+    // nodeSearchFilter and the backend typeahead's id+name+description search.
+    nodeSearchFilter(_itemTitle, query, item) {
+      const q = String(query ?? '').toLowerCase();
+      if (!q) return true;
+      const raw = item?.raw || {};
+      const haystack = `${raw.id ?? ''} ${raw.title ?? ''} ${raw.description ?? ''}`.toLowerCase();
+      return haystack.includes(q);
     },
     handlePointDoubleClick(index) {
       const node = this.networkNodes.find((n) => n.id === this.indexToNodeId[index]);
@@ -1921,6 +1943,14 @@ export default {
     setNetworkNodes(data){
       //console.log("data ", data)
 
+      // Merging a "Connect Nodes" fetch's nodes/edges into whatever's currently
+      // displayed changes the graph out from under lastNetworkMode -- e.g. a
+      // 'whole' network is no longer the untouched whole network once extra
+      // nodes are spliced in, so gates like the Analysis panel's Leiden
+      // clustering (only valid for an unmodified whole-network fetch) must stop
+      // showing it as available.
+      this.lastNetworkMode = null;
+
       const nodes = data.Nodes;
       // Get existingNodeIds beforehand as set for faster loop
       const existingNodeIds = new Set(this.networkNodes.map((locnode) => locnode.id));
@@ -2113,19 +2143,37 @@ export default {
     buildPointColorMap() {
       if (this.clusteringActive) return this.buildCommunityColorMap();
       const colorMap = {};
+      const groupColors = assignGroupColors(this.legendGroups);
       for (const key of this.includedNodeTypes) {
-        const color = this.colorForGroup(key);
+        const color = groupColors[key];
         colorMap[key] = color;
         colorMap[`${key}_external`] = darkenHexColor(color, 0.35);
       }
       return colorMap;
     },
     // node_group/source_table is fully user-defined on the backend, not a fixed
-    // set of categories -- every group's color is generated from its name (a pure
-    // hash -> hue function, see generateGroupColor), so any group value just works
-    // without a hardcoded lookup table to keep in sync with the database.
+    // set of categories -- colors are assigned by index over legendGroups (the
+    // sorted set of groups actually present), using the fixed validated palette
+    // for the first few slots so a handful of groups stay maximally distinct; see
+    // assignGroupColors.
     colorForGroup(key) {
-      return generateGroupColor(key);
+      return assignGroupColors(this.legendGroups)[key];
+    },
+    // Shared comparator for legend/community keys: numeric keys sort by value
+    // (so "2" comes before "14"), non-numeric keys (e.g. 'Unassigned') sort last
+    // alphabetically. Used both for legend display order and community color
+    // assignment, so the two stay consistent.
+    sortLegendKeys(keys) {
+      return keys.sort((a, b) => {
+        const na = Number(a);
+        const nb = Number(b);
+        const aIsNum = !Number.isNaN(na);
+        const bIsNum = !Number.isNaN(nb);
+        if (aIsNum && bIsNum) return na - nb;
+        if (aIsNum) return -1;
+        if (bIsNum) return 1;
+        return a.localeCompare(b);
+      });
     },
     // Community ids are short, similar-looking strings ("0", "1", "2", ...) that
     // generateGroupColor's per-character hash can't spread apart (their hues
@@ -2136,16 +2184,7 @@ export default {
     // so the same community gets a stable color across re-renders at the same
     // resolution.
     buildCommunityColorMap() {
-      const sortedKeys = Array.from(this.includedNodeTypes).sort((a, b) => {
-        const na = Number(a);
-        const nb = Number(b);
-        const aIsNum = !Number.isNaN(na);
-        const bIsNum = !Number.isNaN(nb);
-        if (aIsNum && bIsNum) return na - nb;
-        if (aIsNum) return -1;
-        if (bIsNum) return 1;
-        return a.localeCompare(b);
-      });
+      const sortedKeys = this.sortLegendKeys(Array.from(this.includedNodeTypes));
       const count = sortedKeys.length;
       const colorMap = {};
       sortedKeys.forEach((key, index) => {
@@ -2225,6 +2264,7 @@ export default {
     async clearNetwork(full = true, saveState=true){
       this.clearNetworkWarn = false;
       this.clusteringActive = false;
+      this.lastNetworkMode = null;
       this.networkNodes = [];
       this.networkEdges = []; // do i also need allInternalEdges??
       this.displayedNodes = null;
@@ -2244,6 +2284,9 @@ export default {
     },
     async clearUnselectedNodes(){
       this.clearNetworkWarn = false;
+      // Pruning down to the selection changes the graph out from under
+      // lastNetworkMode -- see setNetworkNodes() for why this must be reset.
+      this.lastNetworkMode = null;
       // Set to only selected Nodes
       this.networkNodes =  [...this.selectedNetworkNodes];
       // filter edges now
@@ -2470,9 +2513,11 @@ export default {
       this.selectedNodes = [];
       this.isReadOnly = false;
       this.dropdownNodes= [];
-      // getCosmograph has no context/cohort filter, so a whole-network graph
-      // from before the switch would be stale/context-less -- don't leave
-      // lastNetworkMode pointing at it.
+      // getCosmograph/getLeidenMetagraph scope the whole network to whatever
+      // context is currently selected, so a graph fetched under the old
+      // context (or no context) is stale for the new one -- don't leave
+      // lastNetworkMode pointing at it. User re-runs "Send Whole Network" /
+      // "Run Leiden Clustering" to load it for the newly selected context.
       this.lastNetworkMode = null;
       if (context) {
         console.log("context.content.contextName",context.content.contextName)
@@ -2757,6 +2802,9 @@ export default {
   left: 40px;    /* Shifted further into the graph so it doesn't hug the corner */
   background: transparent;  /* Transparent background */
   z-index: 10;  /* Ensure it appears above other elements */
+  max-height: 400px;  /* Leaves room within the 550px network div for top/bottom offsets */
+  overflow-y: auto;   /* Scroll instead of overflowing the graph when there are many communities */
+  padding-right: 8px; /* Keep the scrollbar clear of the legend text */
 }
 .scrollable-panels {
   max-height: 625px;  /* You can adjust the height as needed */
