@@ -646,8 +646,8 @@ export default {
       this.renderGraph();
     },
 
-    saveNetworkImage() {
-      this.captureImage();
+    async saveNetworkImage() {
+      await this.captureImage();
       if (this.imageUrl) {
         this.$refs.downloadLink.click();
       } else {
@@ -655,12 +655,13 @@ export default {
       }
     },
 
-    // Same approach as the network page's captureImage(): read Cosmograph's own <canvas> node
-    // directly rather than any Cosmograph-provided screenshot API, copy it onto an offscreen
-    // canvas (so re-reading it doesn't trigger a redraw), draw the legend on top, then export.
-    captureImage() {
-      const container = this.$refs.containerRef;
-      const canvas = container?.querySelector('canvas');
+    // containerRef also holds Cosmograph's polygonal/rectangular area-select overlay canvases,
+    // which sit before the real WebGL graph canvas in DOM order -- a plain querySelector('canvas')
+    // grabs one of those (empty except mid-lasso-select) instead. _cosmosElement is Cosmograph's
+    // own inner wrapper that holds only the graph canvas; it's what captureScreenshot() itself
+    // reads from internally, so this targets the same element.
+    async captureImage() {
+      const canvas = this.cosmographInstance?._cosmosElement?.querySelector('canvas');
       if (!canvas) {
         console.error('Canvas or context is undefined');
         return;
@@ -671,6 +672,8 @@ export default {
       offscreenCanvas.width = canvas.width;
       offscreenCanvas.height = canvas.height;
       offscreenCtx.drawImage(canvas, 0, 0);
+
+      this.drawNodeLabels(offscreenCtx, canvas);
 
       const legendX = 20;
       const legendHeight = 40 + this.legendGroups.length * 35;
@@ -691,6 +694,43 @@ export default {
       });
 
       this.imageUrl = offscreenCanvas.toDataURL();
+    },
+
+    // Node labels are rendered as absolutely-positioned DOM elements overlaid on the canvas (see
+    // Cosmograph's Labels module), not drawn into the WebGL buffer -- so they never show up in a
+    // canvas-only capture, even Cosmograph's own captureScreenshot(). Read each rendered label's
+    // text and screen position directly off the DOM and draw it onto the capture ourselves,
+    // instead of pulling in a whole-DOM screenshot library just for this.
+    drawNodeLabels(ctx, canvas) {
+      const labelsContainer = this.cosmographInstance?._labels?.labelsContainer;
+      if (!labelsContainer) return;
+
+      const canvasRect = canvas.getBoundingClientRect();
+      if (!canvasRect.width || !canvasRect.height) return;
+      const scaleX = canvas.width / canvasRect.width;
+      const scaleY = canvas.height / canvasRect.height;
+
+      const labelEls = Array.from(labelsContainer.querySelectorAll('*'))
+        .filter((el) => el.children.length === 0 && el.textContent?.trim());
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      labelEls.forEach((el) => {
+        const style = window.getComputedStyle(el);
+        const opacity = parseFloat(style.opacity);
+        // Cosmograph doesn't remove decluttered/off-screen labels from the DOM -- it fades them
+        // to opacity 0.1 via a "hidden" class (see cosmographLabelHidden in its CSS) while keeping
+        // shown labels at full opacity. Mirror that distinction instead of drawing every label
+        // Cosmograph has ever created, which would make the export far busier than the live view.
+        if (style.visibility === 'hidden' || style.display === 'none' || !(opacity > 0.5)) return;
+        const rect = el.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        const x = (rect.left - canvasRect.left + rect.width / 2) * scaleX;
+        const y = (rect.top - canvasRect.top + rect.height / 2) * scaleY;
+        ctx.font = `${parseFloat(style.fontSize) * scaleY}px ${style.fontFamily}`;
+        ctx.fillStyle = style.color;
+        ctx.fillText(el.textContent.trim(), x, y);
+      });
     },
 
     // Same pattern as data-network.vue's labelColor(): chartjs/Cosmograph don't understand CSS
