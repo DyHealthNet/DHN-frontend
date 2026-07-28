@@ -58,6 +58,40 @@ export function generateGroupColor(key) {
   return hex;
 }
 
+// Fixed, validated categorical palette (see the dataviz skill's color-formula.md /
+// palette.md): this ordering clears the CVD and normal-vision distinctness floors
+// for every *adjacent* pair, which is exactly the regime a small group count falls
+// into. Hash-based hues (generateGroupColor) don't guarantee any separation
+// between two arbitrary names -- two group labels can easily land within a few
+// degrees of each other, which reads as "colors too similar" when there are only
+// a handful of groups on screen.
+const CATEGORICAL_PALETTE = [
+  '#2a78d6', // blue
+  '#eb6834', // orange
+  '#1baf7a', // aqua
+  '#eda100', // yellow
+  '#e87ba4', // magenta
+  '#008300', // green
+  '#4a3aa7', // violet
+  '#e34948', // red
+];
+
+// Assigns a color to each of `keys` (pass them pre-sorted so the same group keeps
+// the same slot across re-renders/reloads). The first CATEGORICAL_PALETTE.length
+// keys get the fixed palette in order -- maximally distinct, which matters most
+// when there are only a few groups. Any keys beyond that fall back to
+// generateGroupColor's hash, since a hand-picked distinct palette doesn't extend
+// indefinitely and a large group count is much less likely to visually collide.
+export function assignGroupColors(keys) {
+  const colorMap = {};
+  keys.forEach((key, index) => {
+    colorMap[key] = index < CATEGORICAL_PALETTE.length
+      ? CATEGORICAL_PALETTE[index]
+      : generateGroupColor(key);
+  });
+  return colorMap;
+}
+
 // Shared by data-network.vue and differential-network.vue's detail panels so a node's
 // group icon looks the same everywhere. Same caveat as generateGroupColor: node_group is
 // user-defined (DATA_GROUP_COLUMNS), so anything outside this fixed set falls back to the
