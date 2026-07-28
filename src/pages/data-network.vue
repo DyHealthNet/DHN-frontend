@@ -2316,32 +2316,10 @@ export default {
         this.drawNodeLabels(offscreenCtx, canvas);
 
         // Legend entries: whatever groups are actually present, same as the on-screen legend
-        const includedGroups = this.legendGroups;
-
-        // Adjust legend height dynamically based on included groups
-        const legendHeight = 40 + includedGroups.length * 35; // Title + 35px per group
-
-        // Define the position for the legend (left bottom corner)
-        const legendX = 20;
-        const legendY = Math.max(50,offscreenCanvas.height/2 - legendHeight - 100);
-
-        // Loop over the groups to draw the legend dynamically
-        let yOffset = 50; // Starting Y position for the first item
-        includedGroups.forEach((groupKey) => {
-          // Draw larger color circles
-          offscreenCtx.beginPath();
-          offscreenCtx.arc(legendX + 25, legendY + yOffset + 15, 15, 0, 2 * Math.PI, false); // Radius increased to 15
-          offscreenCtx.fillStyle = this.colorForLegendKey(groupKey); // Set the color
-          offscreenCtx.fill();
-
-          // Draw larger label text
-          offscreenCtx.fillStyle = 'black';
-          offscreenCtx.font = '18px Arial'; // Increased font size to 18px
-          offscreenCtx.fillText(this.legendLabel(groupKey), legendX + 55, legendY + yOffset + 20);
-
-          // Increment Y offset for the next item
-          yOffset += 35; // Increased spacing for clarity
-        });
+        this.drawLegendPanel(offscreenCtx, offscreenCanvas, this.legendGroups.map((groupKey) => ({
+          color: this.colorForLegendKey(groupKey),
+          label: this.legendLabel(groupKey),
+        })));
 
         // Generate the image URL
         this.imageUrl = offscreenCanvas.toDataURL();
@@ -2367,6 +2345,9 @@ export default {
       const labelEls = Array.from(labelsContainer.querySelectorAll('*'))
         .filter((el) => el.children.length === 0 && el.textContent?.trim());
 
+      // save/restore so textAlign/textBaseline/font/fillStyle don't leak into whatever the
+      // caller draws next (the legend panel assumes its own defaults, not these).
+      ctx.save();
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       labelEls.forEach((el) => {
@@ -2385,6 +2366,64 @@ export default {
         ctx.fillStyle = style.color;
         ctx.fillText(el.textContent.trim(), x, y);
       });
+      ctx.restore();
+    },
+
+    // Bottom-left rounded panel with a color swatch + label per row, matching where the on-screen
+    // legend (position: absolute; bottom/left) sits over the live graph, rather than the previous
+    // fixed circle/text offsets that assumed default canvas text alignment (and clipped once
+    // drawNodeLabels' 'center'/'middle' alignment leaked into it -- see the ctx.save()/restore()
+    // there now). Panel width is sized to the longest label instead of a guessed fixed width.
+    drawLegendPanel(ctx, canvas, entries) {
+      if (!entries.length) return;
+      ctx.save();
+
+      const padding = 14;
+      const circleRadius = 8;
+      const gap = 10;
+      const rowHeight = 26;
+      const font = '14px system-ui, -apple-system, sans-serif';
+      const textColor = this.labelColor('text') || '#111111';
+      const panelColor = this.labelColor('surface-bright') || '#ffffff';
+      const borderColor = this.labelColor('surface-variant') || '#dddddd';
+
+      ctx.font = font;
+      const maxTextWidth = Math.max(...entries.map(({ label }) => ctx.measureText(label).width));
+      const panelWidth = padding * 2 + circleRadius * 2 + gap + maxTextWidth;
+      const panelHeight = padding * 2 + entries.length * rowHeight;
+      const panelX = 20;
+      const panelY = canvas.height - panelHeight - 20;
+      const cornerRadius = 10;
+
+      ctx.beginPath();
+      ctx.moveTo(panelX + cornerRadius, panelY);
+      ctx.arcTo(panelX + panelWidth, panelY, panelX + panelWidth, panelY + panelHeight, cornerRadius);
+      ctx.arcTo(panelX + panelWidth, panelY + panelHeight, panelX, panelY + panelHeight, cornerRadius);
+      ctx.arcTo(panelX, panelY + panelHeight, panelX, panelY, cornerRadius);
+      ctx.arcTo(panelX, panelY, panelX + panelWidth, panelY, cornerRadius);
+      ctx.closePath();
+      ctx.fillStyle = panelColor;
+      ctx.fill();
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      entries.forEach(({ color, label }, i) => {
+        const rowCenterY = panelY + padding + rowHeight * i + rowHeight / 2;
+        const circleCenterX = panelX + padding + circleRadius;
+
+        ctx.beginPath();
+        ctx.arc(circleCenterX, rowCenterY, circleRadius, 0, 2 * Math.PI);
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        ctx.fillStyle = textColor;
+        ctx.fillText(label, circleCenterX + circleRadius + gap, rowCenterY);
+      });
+
+      ctx.restore();
     },
 
     // Advanced Settings methods
