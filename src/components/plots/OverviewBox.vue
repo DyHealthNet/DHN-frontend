@@ -123,14 +123,12 @@ export default {
     };
   },
 
+  // A single watcher on the combined fetch-relevant props, rather than one watcher per prop
+  // -- when several of these change together in the same tick (e.g. selecting a new edge
+  // changes both xVar and yVar at once), Vue batches the computed's re-evaluation and this
+  // watcher into a single flush, so exactly one fetch fires instead of one per prop that moved.
   watch: {
-    xVar: "fetchAndUpdateChart",
-    yVar: "fetchAndUpdateChart",
-    cVar: "fetchAndUpdateChart",
-    contextValue: "fetchAndUpdateChart",
-    "context1.contextValue": "fetchAndUpdateChart",
-    "context2.contextValue": "fetchAndUpdateChart",
-    palette: "fetchAndUpdateChart",
+    fetchDeps: "fetchAndUpdateChart",
     textSize: "renderPlot",
     width: "renderPlot",
     height: "renderPlot",
@@ -152,6 +150,19 @@ export default {
     // vs. a single "Whole Cohort" dataset -- true for a real cVar or context comparison.
     grouped() {
       return this.compareMode || (this.cVar && this.cVar !== "None");
+    },
+    // Bundles every prop that should trigger a re-fetch into one reactive value, so the
+    // watcher below fires once per batch of prop changes instead of once per individual prop.
+    fetchDeps() {
+      return [
+        this.xVar,
+        this.yVar,
+        this.cVar,
+        this.contextValue,
+        this.context1?.contextValue,
+        this.context2?.contextValue,
+        this.palette,
+      ];
     },
   },
 
@@ -261,9 +272,10 @@ export default {
         for (let i = 0; i < data.labels.length; i++) {
           let validLabel = false;
 
-          // Check if all boxplots are invalid
+          // Check if all boxplots are invalid (min === null means privacy-suppressed/no data;
+          // min === 0 is a legitimate value and must not be treated as invalid)
           const allBoxplotsInvalid = data.datasets.every(
-              (dataset) => !dataset.data[i].min
+              (dataset) => dataset.data[i].min === null
           );
 
           // if not, retain the label
@@ -276,7 +288,7 @@ export default {
 
               filteredData.datasets[datasetIndex].data.push(boxplot);
 
-              if (!boxplot.min) {
+              if (boxplot.min === null) {
                 console.log(
                     "Data for label",
                     data.labels[i],
@@ -300,7 +312,11 @@ export default {
         );
 
         if (dataRemoved || dataNanMarker) {
-          this.showPopup = true;
+          this.showMessage = true;
+          this.messageType = "warning";
+          this.messageInfo = dataRemoved
+              ? "Some categories were hidden because there was no data to display for them."
+              : "Some data points could not be displayed due to insufficient data (privacy protection).";
         }
 
         // Transform data for Plotly

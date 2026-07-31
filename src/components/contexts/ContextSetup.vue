@@ -24,16 +24,29 @@
       </v-col>
 
       <v-col cols="3" class="filter-padding">
-        <v-select
-            v-model="selectedLayers"
-            :readonly="disableSelections"
-            :items="layers"
-            variant="outlined"
-            chips
-            multiple
-            density="compact"
-            @update:model-value="filterVariables"
-        ></v-select>
+        <v-menu :close-on-content-click="false" location="bottom">
+          <template v-slot:activator="{ props }">
+            <v-text-field
+                v-bind="props"
+                :readonly="true"
+                variant="outlined"
+                density="compact"
+                :model-value="selectedLayersSummary"
+                append-inner-icon="mdi-menu-down"
+            ></v-text-field>
+          </template>
+          <v-card class="pa-2">
+            <LayerSelector
+                :layers="layers"
+                :layer-sub-layers="layerSubLayers"
+                :selected-layers="selectedLayers"
+                :selected-sub-layers="selectedSubLayers"
+                :disable-selections="disableSelections"
+                @update:selected-layers="updateSelectedLayers"
+                @update:selected-sub-layers="updateSelectedSubLayers"
+            ></LayerSelector>
+          </v-card>
+        </v-menu>
       </v-col>
 
       <v-spacer></v-spacer>
@@ -224,6 +237,7 @@ import FilterLine from "@/components/contexts/FilterLine.vue";
 import ConnectorLine from "@/components/contexts/ConnectorLine.vue";
 import NewFilterButton from "@/components/contexts/NewFilterButton.vue";
 import AdvancedSettings from "@/components/AdvancedSettings.vue";
+import LayerSelector from "@/components/contexts/LayerSelector.vue";
 import {v4 as uuidv4} from 'uuid';
 import { getCookie } from "@/components/authentication/auth.js";
 import { contextState } from '@/components/contexts/contextStatus.js';
@@ -238,8 +252,11 @@ export default {
     participantNumberDisplay() {
       return (this.preservePrivacy ? '~' : '') + this.participantNumber;
     },
+    selectedLayersSummary() {
+      return this.selectedLayers.join(', ');
+    },
   },
-  components: {AdvancedSettings, NewFilterButton, ConnectorLine, FilterLine, ConnectorButton, StatusBox},
+  components: {AdvancedSettings, NewFilterButton, ConnectorLine, FilterLine, ConnectorButton, StatusBox, LayerSelector},
   emits: ['data-changed','calculation-start','calculation-end'],
   props: {
     title: {
@@ -290,6 +307,12 @@ export default {
       layers: layers,
       selectedLayers: this.content?.layers ?? layers,
       variableLayers: {},
+      // Raw lowercase-keyed map of layer -> selected subgroup names. A layer absent
+      // from here is unrestricted (all its subgroups selected) - this keeps a context
+      // saved before subgroups existed showing everything checked on reopen.
+      selectedSubLayers: this.content?.subLayers ?? {},
+      layerSubLayers: {},
+      variableSubLayers: {},
 
       allVariables: {},
       allVariablesFiltered: {},
@@ -426,10 +449,12 @@ export default {
       })
           .then(response => response.json())
           .then(data => {
-            const { variableLayers, availableLayers, ...statTypeGroups } = data;
+            const { variableLayers, availableLayers, variableSubLayers, layerSubLayers, ...statTypeGroups } = data;
             this.allVariables = statTypeGroups;
             this.allVariablesFiltered = statTypeGroups;
             this.variableLayers = variableLayers ?? {};
+            this.variableSubLayers = variableSubLayers ?? {};
+            this.layerSubLayers = layerSubLayers ?? {};
             this.layers = (availableLayers ?? []).map(
               layer => layer.charAt(0).toUpperCase() + layer.slice(1)
             );
@@ -438,6 +463,7 @@ export default {
             if (!this.content?.layers) {
               this.selectedLayers = this.layers;
             }
+            this.filterVariables();
           })
           .catch((error) => {
             console.error('Error:', error);
@@ -568,15 +594,37 @@ export default {
     },
 
     filterVariables() {
-      // filter allVariables down to whatever layers are currently selected, using the
-      // explicit per-variable layer info returned alongside allVariables.
+      // filter allVariables down to whatever layers/subgroups are currently selected,
+      // using the explicit per-variable layer/subgroup info returned alongside
+      // allVariables. A variable whose layer has no entry in selectedSubLayers is
+      // unrestricted (all its subgroups count as selected).
       const selectedLayersLower = this.selectedLayers.map(layer => layer.toLowerCase());
       this.allVariablesFiltered = Object.fromEntries(
         Object.entries(this.allVariables).map(([key, value]) => [
           key,
-          value.filter(item => selectedLayersLower.includes(this.variableLayers[item])),
+          value.filter(item => {
+            const layer = this.variableLayers[item];
+            if (!selectedLayersLower.includes(layer)) {
+              return false;
+            }
+            const subgroup = this.variableSubLayers[item];
+            if (subgroup && this.selectedSubLayers[layer]) {
+              return this.selectedSubLayers[layer].includes(subgroup);
+            }
+            return true;
+          }),
         ])
       );
+    },
+
+    updateSelectedLayers(newSelectedLayers) {
+      this.selectedLayers = newSelectedLayers;
+      this.filterVariables();
+    },
+
+    updateSelectedSubLayers(newSelectedSubLayers) {
+      this.selectedSubLayers = newSelectedSubLayers;
+      this.filterVariables();
     },
 
     createParams() {
@@ -597,6 +645,7 @@ export default {
         conditions: conditions,
         contextName: this.contextName,
         layers: this.selectedLayers.map(layer => layer.toLowerCase()),
+        subLayers: this.selectedSubLayers,
         testType: this.selectedTests?.testType ?? 'parametric',
         correction: this.selectedTests?.correction ?? 'bh',
         contextValue: this.value
@@ -679,6 +728,8 @@ export default {
       this.deleteWarn = false;
       this.contextName = `Context ${this.value}`;
       this.selectedLayers = this.layers;
+      this.selectedSubLayers = {};
+      this.filterVariables();
       this.outerRows = ['group-0'];
       this.innerRows = [{group: 'group-0', id: uuidv4(), rule: {}}];
       this.progressIcon = "mdi-clock-outline";

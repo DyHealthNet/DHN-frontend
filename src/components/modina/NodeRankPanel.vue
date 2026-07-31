@@ -25,6 +25,7 @@
       :search="search"
       :custom-key-filter="{ id: nodeSearchFilter }"
       filter-mode="union"
+      :sort-by="[{ key: 'rank', order: 'asc' }]"
       :loading="loading"
       density="compact"
       items-per-page="10"

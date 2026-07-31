@@ -115,6 +115,92 @@ export function getNodeIcon(sourceTable) {
   }
 }
 
+// Shared by data-network.vue and differential-network.vue's legends so group names
+// (freeform node_group/source_table values, or backend group strings) read the same
+// way in both places instead of one page showing them raw/lowercase.
+export function capitalizeFirstLetter(str) {
+  if (typeof str !== "string" || str.length === 0) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
+
+// Round color dot used next to each legend label, on both pages' on-screen legends.
+export function getShapeStyle(color) {
+  return { borderRadius: "50%", backgroundColor: color, width: "13px", height: "13px" };
+}
+
+// Bottom-left rounded panel with a color swatch + label per row, drawn onto an
+// offscreen canvas for the "save image" export -- shared so both pages' exported
+// legends look identical instead of drifting independently. `colors` is resolved by
+// the caller (via its own labelColor()/theme lookup) since this file has no access
+// to $vuetify. `title` is optional -- e.g. "Communities (Leiden)" -- and mirrors
+// the on-screen NetworkLegend's own title prop, drawn as a bold heading row above
+// the entries.
+export function drawLegendPanel(ctx, canvas, entries, colors, title = '') {
+  if (!entries.length) return;
+  ctx.save();
+
+  const padding = 14;
+  const circleRadius = 8;
+  const gap = 10;
+  const rowHeight = 26;
+  const titleRowHeight = title ? 22 : 0;
+  const font = '14px system-ui, -apple-system, sans-serif';
+  const titleFont = 'bold 14px system-ui, -apple-system, sans-serif';
+  const textColor = colors?.textColor || '#111111';
+  const panelColor = colors?.panelColor || '#ffffff';
+  const borderColor = colors?.borderColor || '#dddddd';
+
+  ctx.font = font;
+  const maxEntryTextWidth = Math.max(...entries.map(({ label }) => ctx.measureText(label).width));
+  ctx.font = titleFont;
+  const titleTextWidth = title ? ctx.measureText(title).width : 0;
+  const maxTextWidth = Math.max(maxEntryTextWidth, titleTextWidth - circleRadius * 2 - gap);
+
+  const panelWidth = padding * 2 + circleRadius * 2 + gap + maxTextWidth;
+  const panelHeight = padding * 2 + titleRowHeight + entries.length * rowHeight;
+  const panelX = 20;
+  const panelY = canvas.height - panelHeight - 20;
+  const cornerRadius = 10;
+
+  ctx.beginPath();
+  ctx.moveTo(panelX + cornerRadius, panelY);
+  ctx.arcTo(panelX + panelWidth, panelY, panelX + panelWidth, panelY + panelHeight, cornerRadius);
+  ctx.arcTo(panelX + panelWidth, panelY + panelHeight, panelX, panelY + panelHeight, cornerRadius);
+  ctx.arcTo(panelX, panelY + panelHeight, panelX, panelY, cornerRadius);
+  ctx.arcTo(panelX, panelY, panelX + panelWidth, panelY, cornerRadius);
+  ctx.closePath();
+  ctx.fillStyle = panelColor;
+  ctx.fill();
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+
+  if (title) {
+    ctx.font = titleFont;
+    ctx.fillStyle = textColor;
+    ctx.fillText(title, panelX + padding, panelY + padding + titleRowHeight / 2);
+    ctx.font = font;
+  }
+
+  entries.forEach(({ color, label }, i) => {
+    const rowCenterY = panelY + padding + titleRowHeight + rowHeight * i + rowHeight / 2;
+    const circleCenterX = panelX + padding + circleRadius;
+
+    ctx.beginPath();
+    ctx.arc(circleCenterX, rowCenterY, circleRadius, 0, 2 * Math.PI);
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    ctx.fillStyle = textColor;
+    ctx.fillText(label, circleCenterX + circleRadius + gap, rowCenterY);
+  });
+
+  ctx.restore();
+}
+
 //import crypto from "crypto";
 //import {authState, checkLogin, getCookie} from '@/components/authentication/auth.js';
 

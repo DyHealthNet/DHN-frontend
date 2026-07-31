@@ -95,27 +95,7 @@
               <v-card-text>
                 <div class="graph-stage">
                   <div ref="containerRef" class="graph-container"></div>
-                  <div class="legend">
-                    <v-row
-                      v-for="g in legendGroups"
-                      :key="g.group"
-                      align="center"
-                      class="mb-2 legend-item"
-                      no-gutters
-                    >
-                      <v-tooltip bottom>
-                        <template v-slot:activator="{ props }">
-                          <v-col cols="auto" class="legend-dot" v-bind="props">
-                            <div class="legend-color" :style="getShapeStyle(g.color)"></div>
-                          </v-col>
-                          <v-col cols="auto" class="legend-text" v-bind="props">
-                            <span>{{ g.group }}</span>
-                          </v-col>
-                        </template>
-                        <span>{{ g.group }}</span>
-                      </v-tooltip>
-                    </v-row>
-                  </div>
+                  <NetworkLegend class="legend" :items="legendItems" />
                 </div>
               </v-card-text>
             </v-card>
@@ -189,7 +169,8 @@ import EdgeRankPanel from '@/components/modina/EdgeRankPanel.vue';
 import DiffNodeDetails from '@/components/modina/DiffNodeDetails.vue';
 import DiffEdgeDetails from '@/components/modina/DiffEdgeDetails.vue';
 import GraphToolbar from '@/components/network/GraphToolbar.vue';
-import { assignGroupColors, getNodeIcon, saveNetworkState, loadNetworkState, clearNetworkState } from '@/components/network/networkData.js';
+import NetworkLegend from '@/components/network/NetworkLegend.vue';
+import { assignGroupColors, getNodeIcon, saveNetworkState, loadNetworkState, clearNetworkState, capitalizeFirstLetter, drawLegendPanel } from '@/components/network/networkData.js';
 
 // Distinct key (not a numeric contextValue) so this doesn't collide with data-network.vue's own
 // per-context / "staticNetwork" localStorage entries, which share the same helper functions.
@@ -205,6 +186,7 @@ export default {
     DiffNodeDetails,
     DiffEdgeDetails,
     GraphToolbar,
+    NetworkLegend,
   },
   data() {
     return {
@@ -238,19 +220,20 @@ export default {
       // Graph-only: hides points with no edges within the current Top-N cutoff. Node rank (score)
       // is independent of edge membership, so the Top-N slider alone can't isolate "connected"
       // nodes -- this gives a way to declutter the view without changing the rank-based ordering.
-      // Toggling it goes through renderGraph() (full rebuild), not updateGraphData()'s incremental
-      // patch -- unlike a Top-N drag, which only ever adds/removes a contiguous tail of the
-      // rank-sorted list, this can remove an arbitrary scattered subset of points, and patching
-      // that incrementally was observed to occasionally drop or fail to drop the wrong points.
       hideUnconnected: false,
-      // Mirrors exactly what's currently fed into cosmographInstance (as of the last renderGraph()/
-      // updateGraphData() call), in Cosmograph's own row order -- NOT necessarily the same order as
-      // graphPoints/graphLinks (see updateGraphData()'s comment on why links can drift). Cosmograph's
-      // click callbacks hand back indices into this order, so this -- not graphPoints/graphLinks --
-      // is what index-based resolution (selectedPoint/selectedLink, reapplySelection, centering) must
-      // read from.
+      // Mirrors exactly what's currently fed into cosmographInstance as of the last renderGraph()
+      // call, in Cosmograph's own row order -- NOT necessarily the same order as graphPoints/
+      // graphLinks. Cosmograph's click callbacks hand back indices into this order, so this -- not
+      // graphPoints/graphLinks -- is what index-based resolution (selectedPoint/selectedLink,
+      // reapplySelection, centering) must read from.
       _renderedPoints: [],
       _renderedLinks: [],
+      // Chains every setConfig() call made on a live instance (Top-N data swaps via
+      // updateGraphDataViaConfig(), theme/selection refreshes via applyDesign()) onto whatever
+      // came before it, so none ever overlap. Cosmograph's setConfig() doesn't serialize itself
+      // against a prior in-flight call outside of its own data-upload promise -- data-network.vue's
+      // own history ties exactly that race to an "InternalError: out of memory" crash.
+      _configUpdateChain: null,
       physics_on: true,
       imageUrl: null,
       // Static (data-shape) half of the Cosmograph config, passed to prepareCosmographData().
@@ -347,6 +330,16 @@ export default {
       const present = [...new Set(this.graphPoints.map((p) => p.group || 'unknown'))].sort();
       const groupColors = assignGroupColors(present);
       return present.map((group) => ({ group, color: groupColors[group] }));
+    },
+    // Render-ready form of legendGroups for NetworkLegend (shared with
+    // data-network.vue) and for the exported-PNG legend panel -- capitalized the
+    // same way the main network page's legend labels are.
+    legendItems() {
+      return this.legendGroups.map(({ group, color }) => ({
+        key: group,
+        label: capitalizeFirstLetter(group),
+        color,
+      }));
     },
     contextNames() {
       return {
@@ -512,6 +505,9 @@ export default {
 
       await this.safeDestroy(this.cosmographInstance);
       this.cosmographInstance = null;
+      // A fresh instance means any previously-chained setConfig() calls are meaningless (they'd
+      // target an instance that no longer exists) -- start the chain over.
+      this._configUpdateChain = null;
 
       // Cosmograph's setConfig() (used by applyDesign()) merges onto this object, not onto
       // whatever's currently active -- so it's kept on the instance and always passed in full,
@@ -521,6 +517,11 @@ export default {
         points,
         links,
         enableSimulation: this.physics_on,
+        // Points that survive a Top-N change keep their existing position instead of the whole
+        // layout jumping when Cosmograph rebuilds its simulation engine on a points change (see
+        // updateGraphDataViaConfig()'s comment on why that rebuild happens at all) -- doesn't make
+        // the rebuild itself any cheaper, just less jarring to watch.
+        preservePointPositionsOnDataUpdate: true,
         // Non-selected elements stay clearly present but visually deprioritized once something's
         // selected, rather than Cosmograph's own near-invisible defaults -- same values as the
         // network page.
@@ -550,12 +551,62 @@ export default {
 
       this.cosmographInstance = new Cosmograph(this.$refs.containerRef, this._cosmoConfig);
       await this.cosmographInstance.dataUploaded?.();
+      // dataUploaded() only waits for the raw upload into DuckDB, not Cosmograph's subsequent
+      // internal rebuild step (which is what actually updates stats.pointsCount/linksCount --
+      // getPointsData()/getLinksData(), used by verifyGraphIntegrity() below, are gated on those
+      // stats being non-zero). getConfig() awaits the config manager's full update chain (upload
+      // + rebuild + stats), so it's the one to wait on before trusting post-render reads.
+      await this.cosmographInstance.getConfig();
       // Built directly from graphPoints/graphLinks, in that exact order -- the mirror starts out
       // exactly in sync with what Cosmograph now holds.
       this._renderedPoints = this.graphPoints;
       this._renderedLinks = this.graphLinks;
       this.cosmographInstance?.fitView(0);
       this.reapplySelection();
+      this.verifyGraphIntegrity();
+    },
+
+    // Post-render safety net: confirms that every point/link graphPoints/graphLinks say should
+    // be showing is actually present in Cosmograph's own live data (fetched straight from its
+    // internal DuckDB tables via getPointsData()/getLinksData()), rather than trusting that a
+    // successful, non-throwing render call means the data really landed. This is what caught the
+    // incremental addPoints()/addLinks() path silently dropping specific links with no error --
+    // it doesn't prevent a silent drop, but it turns it into a loud, logged fact instead of an
+    // invisible one, and it's the tool to lean on if the render path ever changes again (e.g. a
+    // setConfig()-based swap) since it verifies every render, not just the one case caught by hand.
+    async verifyGraphIntegrity() {
+      if (!this.cosmographInstance) return;
+      try {
+        const [pointsTable, linksTable] = await Promise.all([
+          this.cosmographInstance.getPointsData(),
+          this.cosmographInstance.getLinksData(),
+        ]);
+        const actualPoints = pointsTable ? this.cosmographInstance.convertCosmographDataToObject(pointsTable) : [];
+        const actualLinks = linksTable ? this.cosmographInstance.convertCosmographDataToObject(linksTable) : [];
+
+        const actualPointIds = new Set(actualPoints.map((p) => p.id));
+        const missingPoints = this.graphPoints.filter((p) => !actualPointIds.has(p.id));
+
+        const linkKey = (l) => `${l.source}|${l.target}`;
+        const actualLinkKeys = new Set(actualLinks.map(linkKey));
+        const missingLinks = this.graphLinks.filter((l) => !actualLinkKeys.has(linkKey(l)));
+
+        if (missingPoints.length || missingLinks.length) {
+          console.error(
+            '[modina] Graph integrity check FAILED: expected', this.graphPoints.length, 'points /',
+            this.graphLinks.length, 'links, but Cosmograph is only showing', actualPoints.length, 'points /',
+            actualLinks.length, 'links.',
+            'Missing points:', missingPoints.map((p) => p.id),
+            'Missing links:', missingLinks.map((l) => `${l.source}-${l.target}`)
+          );
+        } else {
+          console.log(
+            '[modina] Graph integrity check passed:', actualPoints.length, 'points /', actualLinks.length, 'links.'
+          );
+        }
+      } catch (error) {
+        console.error('[modina] Graph integrity check itself failed to run:', error);
+      }
     },
 
     // Cheap refresh of an already-built instance via setConfig() -- theme toggles and click/
@@ -575,7 +626,77 @@ export default {
         // reference here would never actually get re-invoked.
         pointSizeByFn: (value, index) => this.computePointSize(index),
       };
-      await this.cosmographInstance.setConfig(this._cosmoConfig);
+      // Chained onto the same _configUpdateChain as updateGraphDataViaConfig() -- see there for
+      // why an unserialized setConfig() call is dangerous, not just wasteful.
+      this._configUpdateChain = (this._configUpdateChain || Promise.resolve())
+        .then(() => this.cosmographInstance?.setConfig(this._cosmoConfig))
+        .catch((error) => console.warn('[modina] applyDesign setConfig failed:', error));
+      await this._configUpdateChain;
+    },
+
+    // Top-N changes (slider drag, or jumping to an off-screen node/edge via ensureTopNIncludes)
+    // update the live instance's points/links through setConfig() rather than renderGraph()'s
+    // destroy+recreate, so dragging the slider doesn't reinitialize Cosmograph's whole DuckDB-WASM
+    // connection every time (renderGraph()'s constructor call does this every single time, tied to
+    // the "InternalError: out of memory" history documented in data-network.vue). setConfig()'s own
+    // internal handling of a points/links change is a genuine full-table replace (confirmed via its
+    // source: it uploads with an explicit non-append flag, unlike the addPoints()/addLinks() API
+    // this replaced, which appends and was found to silently drop specific links) plus real
+    // post-upload validation -- so this should carry the same reliability as renderGraph() without
+    // the reinit cost. Falls back to a full rebuild if it ever throws, and always runs
+    // verifyGraphIntegrity() afterward regardless, since a non-throwing call isn't itself proof
+    // the data actually landed.
+    async updateGraphDataViaConfig() {
+      if (!this.cosmographInstance) {
+        await this.renderGraph();
+        return;
+      }
+
+      this.dataConfig.points.pointColorByMap = this.buildPointColorMap();
+
+      const prepared = await prepareCosmographData(
+        this.dataConfig,
+        this.graphPoints,
+        this.graphLinks
+      );
+      if (!prepared) {
+        this.errorMessage = 'Failed to prepare graph data for Cosmograph.';
+        return;
+      }
+      const { points, links, cosmographConfig } = prepared;
+
+      this._cosmoConfig = {
+        ...this._cosmoConfig,
+        ...cosmographConfig,
+        points,
+        links,
+      };
+
+      // Chained onto the same _configUpdateChain applyDesign() uses -- setConfig() doesn't
+      // serialize against a prior in-flight call on its own (outside its internal data-upload
+      // promise), so a Top-N change and a theme/selection refresh landing close together could
+      // otherwise race into the same underlying DuckDB-WASM worker.
+      const applyUpdate = async () => {
+        await this.cosmographInstance.setConfig(this._cosmoConfig);
+        // getConfig() awaits the full config-update chain (upload + rebuild + stats), same
+        // reasoning as renderGraph()'s wait -- see its comment.
+        await this.cosmographInstance.getConfig();
+      };
+      this._configUpdateChain = (this._configUpdateChain || Promise.resolve()).then(applyUpdate);
+
+      try {
+        await this._configUpdateChain;
+      } catch (error) {
+        console.error('[modina] setConfig-based graph update failed, falling back to a full rebuild:', error);
+        this._configUpdateChain = null;
+        await this.renderGraph();
+        return;
+      }
+
+      this._renderedPoints = this.graphPoints;
+      this._renderedLinks = this.graphLinks;
+      this.reapplySelection();
+      this.verifyGraphIntegrity();
     },
 
     // The selected node renders much bigger than the rest -- the value column named by
@@ -675,69 +796,13 @@ export default {
 
       this.drawNodeLabels(offscreenCtx, canvas);
 
-      this.drawLegendPanel(offscreenCtx, offscreenCanvas, this.legendGroups.map(({ group, color }) => ({
-        color,
-        label: group.charAt(0).toUpperCase() + group.slice(1),
-      })));
-
-      this.imageUrl = offscreenCanvas.toDataURL();
-    },
-
-    // Bottom-left rounded panel with a color swatch + label per row, matching where the on-screen
-    // legend (position: absolute; bottom/left) sits over the live graph, rather than the previous
-    // fixed circle/text offsets that assumed default canvas text alignment (and clipped once
-    // drawNodeLabels' 'center'/'middle' alignment leaked into it -- see the ctx.save()/restore()
-    // there now). Panel width is sized to the longest label instead of a guessed fixed width.
-    drawLegendPanel(ctx, canvas, entries) {
-      if (!entries.length) return;
-      ctx.save();
-
-      const padding = 14;
-      const circleRadius = 8;
-      const gap = 10;
-      const rowHeight = 26;
-      const font = '14px system-ui, -apple-system, sans-serif';
-      const textColor = this.labelColor('text') || '#111111';
-      const panelColor = this.labelColor('surface-bright') || '#ffffff';
-      const borderColor = this.labelColor('surface-variant') || '#dddddd';
-
-      ctx.font = font;
-      const maxTextWidth = Math.max(...entries.map(({ label }) => ctx.measureText(label).width));
-      const panelWidth = padding * 2 + circleRadius * 2 + gap + maxTextWidth;
-      const panelHeight = padding * 2 + entries.length * rowHeight;
-      const panelX = 20;
-      const panelY = canvas.height - panelHeight - 20;
-      const cornerRadius = 10;
-
-      ctx.beginPath();
-      ctx.moveTo(panelX + cornerRadius, panelY);
-      ctx.arcTo(panelX + panelWidth, panelY, panelX + panelWidth, panelY + panelHeight, cornerRadius);
-      ctx.arcTo(panelX + panelWidth, panelY + panelHeight, panelX, panelY + panelHeight, cornerRadius);
-      ctx.arcTo(panelX, panelY + panelHeight, panelX, panelY, cornerRadius);
-      ctx.arcTo(panelX, panelY, panelX + panelWidth, panelY, cornerRadius);
-      ctx.closePath();
-      ctx.fillStyle = panelColor;
-      ctx.fill();
-      ctx.strokeStyle = borderColor;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      entries.forEach(({ color, label }, i) => {
-        const rowCenterY = panelY + padding + rowHeight * i + rowHeight / 2;
-        const circleCenterX = panelX + padding + circleRadius;
-
-        ctx.beginPath();
-        ctx.arc(circleCenterX, rowCenterY, circleRadius, 0, 2 * Math.PI);
-        ctx.fillStyle = color;
-        ctx.fill();
-
-        ctx.fillStyle = textColor;
-        ctx.fillText(label, circleCenterX + circleRadius + gap, rowCenterY);
+      drawLegendPanel(offscreenCtx, offscreenCanvas, this.legendItems, {
+        textColor: this.labelColor('text'),
+        panelColor: this.labelColor('surface-bright'),
+        borderColor: this.labelColor('surface-variant'),
       });
 
-      ctx.restore();
+      this.imageUrl = offscreenCanvas.toDataURL();
     },
 
     // Node labels are rendered as absolutely-positioned DOM elements overlaid on the canvas (see
@@ -786,10 +851,6 @@ export default {
     labelColor(colorName) {
       const themeName = this.$vuetify.theme.global.name;
       return this.$vuetify.theme.themes[themeName]?.colors[colorName];
-    },
-
-    getShapeStyle(color) {
-      return { borderRadius: '50%', backgroundColor: color, width: '13px', height: '13px' };
     },
 
     async safeDestroy(instance) {
@@ -846,125 +907,24 @@ export default {
     },
 
     // If the given node id is currently outside the Top-N cutoff, raises Top-N just enough to
-    // include it (and patches the graph) rather than leaving selectNodeById/selectEdgeByLabels
+    // include it (and updates the graph) rather than leaving selectNodeById/selectEdgeByLabels
     // unable to find it.
     async ensureTopNIncludes(id) {
       if (this.topN == null || this.topN >= this.totalNodeCount) return;
       const idx = (this.result?.points || []).findIndex((p) => p.id === id);
       if (idx >= 0 && idx + 1 > this.topN) {
         this.topN = idx + 1;
-        await this.updateGraphData();
+        await this.updateGraphDataViaConfig();
       }
     },
 
+    // See updateGraphDataViaConfig() for why this goes through setConfig() on the live instance
+    // rather than renderGraph()'s destroy+recreate.
     async onTopNChange(value) {
       const next = Number(value);
       if (!Number.isFinite(next) || next === this.topN) return;
       this.topN = next;
-      await this.updateGraphData();
-    },
-
-    // Patches the live Cosmograph instance to match the current Top-N target (graphPoints/
-    // graphLinks) instead of renderGraph()'s full destroy+recreate -- preserves camera position
-    // and the running simulation for points that stay. Falls back to renderGraph() if there's no
-    // live instance yet (first render).
-    //
-    // Diffing is done against _renderedPoints/_renderedLinks (what's actually in Cosmograph right
-    // now), not the previous graphPoints/graphLinks -- they're equivalent for points (Top-N is
-    // always a prefix of the same rank-sorted list, so growing/shrinking it only ever adds/removes
-    // a contiguous tail), but NOT for links: result.links has its own fixed, non-rank-sorted order,
-    // so a newly-qualifying link can belong anywhere in that order, not just at the end. Rather
-    // than rely on that distinction, _renderedPoints/_renderedLinks are updated afterwards with the
-    // exact same remove-then-append sequence sent to Cosmograph, so index-based resolution
-    // (onPointClick/onLinkClick, centerOnEdge, reapplySelection) always matches Cosmograph's actual
-    // row order, whatever internal reindexing it performs.
-    async updateGraphData() {
-      if (!this.cosmographInstance) {
-        await this.renderGraph();
-        return;
-      }
-
-      // Capture the current selection by identity (not index -- that shifts as points/links are
-      // removed), so it can be re-resolved against the patched order afterwards: kept if it
-      // survived the Top-N change, cleared if it didn't.
-      const selectedPointId = this.selectedPoint?.id ?? null;
-      const linkKey = (l) => `${l.source}|${l.target}`;
-      const selectedLinkKey = this.selectedLink ? linkKey(this.selectedLink) : null;
-
-      const prevPoints = this._renderedPoints;
-      const prevLinks = this._renderedLinks;
-      const nextPoints = this.graphPoints;
-      const nextLinks = this.graphLinks;
-
-      const prevPointIds = new Set(prevPoints.map((p) => p.id));
-      const nextPointIds = new Set(nextPoints.map((p) => p.id));
-      const removedPointIds = prevPoints.filter((p) => !nextPointIds.has(p.id)).map((p) => p.id);
-      const addedPoints = nextPoints.filter((p) => !prevPointIds.has(p.id));
-
-      const prevLinkKeys = new Set(prevLinks.map(linkKey));
-      const nextLinkKeys = new Set(nextLinks.map(linkKey));
-      const removedLinks = prevLinks.filter((l) => !nextLinkKeys.has(linkKey(l)));
-      const addedLinks = nextLinks.filter((l) => !prevLinkKeys.has(linkKey(l)));
-
-      if (!removedPointIds.length && !addedPoints.length && !removedLinks.length && !addedLinks.length) return;
-
-      try {
-        // Links first, so no add/remove ever leaves a link dangling on a point that's mid-removal.
-        if (removedLinks.length) {
-          await this.cosmographInstance.removeLinksByPointIdPairs(removedLinks.map((l) => [l.source, l.target]));
-        }
-        if (removedPointIds.length) {
-          await this.cosmographInstance.removePointsByIds(removedPointIds);
-        }
-        if (addedPoints.length) {
-          await this.cosmographInstance.addPoints(addedPoints);
-        }
-        if (addedLinks.length) {
-          await this.cosmographInstance.addLinks(addedLinks);
-        }
-      } catch (error) {
-        console.error('[modina] Incremental graph update failed, falling back to a full rebuild:', error);
-        await this.renderGraph();
-        return;
-      }
-
-      const removedPointIdSet = new Set(removedPointIds);
-      this._renderedPoints = [...prevPoints.filter((p) => !removedPointIdSet.has(p.id)), ...addedPoints];
-      const removedLinkKeySet = new Set(removedLinks.map(linkKey));
-      this._renderedLinks = [...prevLinks.filter((l) => !removedLinkKeySet.has(linkKey(l))), ...addedLinks];
-
-      // addPoints() can introduce a group not present in the previous pointColorByMap (e.g.
-      // raising Top-N reveals a node from a data layer that had no other nodes in view yet).
-      if (addedPoints.length) {
-        this._cosmoConfig = { ...this._cosmoConfig, pointColorByMap: this.buildPointColorMap() };
-      }
-
-      let newSelectedPointIndex = null;
-      if (selectedPointId != null) {
-        const i = this._renderedPoints.findIndex((p) => p.id === selectedPointId);
-        if (i >= 0) newSelectedPointIndex = i;
-      }
-      let newSelectedLinkIndex = null;
-      if (newSelectedPointIndex == null && selectedLinkKey != null) {
-        const i = this._renderedLinks.findIndex((l) => linkKey(l) === selectedLinkKey);
-        if (i >= 0) newSelectedLinkIndex = i;
-      }
-      this.selectedPointIndex = newSelectedPointIndex;
-      this.selectedLinkIndex = newSelectedLinkIndex;
-
-      // Gently reheat the simulation so newly added/removed points settle into the layout instead
-      // of sitting exactly where they landed, without flinging the already-settled points around
-      // the way a fresh start(1) would -- start() reuses each point's current position, it doesn't
-      // reset them. Respects the physics toggle: if the user paused it, leave the layout as-is.
-      // No explicit fitView()/recentering here -- the whole point of patching instead of rebuilding
-      // is to leave the camera where the user left it; the existing onSimulationEnd handler (see
-      // renderGraph()) will fit the view once this settles, same as it does after any other
-      // simulation run, but only while nothing is selected.
-      if (this.physics_on && (addedPoints.length || removedPointIds.length)) {
-        this.cosmographInstance.start(0.3);
-      }
-
-      await this.applyDesign();
+      await this.updateGraphDataViaConfig();
     },
 
     clearSelection() {
@@ -1095,21 +1055,14 @@ export default {
   height: 640px;
 }
 
-/* Legend -- same structure/classes as data-network.vue's, so both pages read the same way. */
+/* Legend item/color/text styling now lives in the shared NetworkLegend.vue
+   component; only this page's own positioning stays here. */
 .legend {
   position: absolute;
   bottom: 20px;
   left: 20px;
   background: transparent;
   z-index: 10;
-}
-
-.legend-color {
-  margin-right: 8px;
-}
-
-.legend-item {
-  cursor: default;
 }
 
 .topn-control {

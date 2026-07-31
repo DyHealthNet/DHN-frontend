@@ -135,17 +135,14 @@ export default {
     };
   },
 
+  // A single watcher on the combined fetch-relevant props, rather than one watcher per prop
+  // -- when several of these change together in the same tick (e.g. selecting a new edge
+  // changes both xVar and yVar at once), Vue batches the computed's re-evaluation and this
+  // watcher into a single flush, so exactly one fetch fires instead of one per prop that moved.
   watch: {
-    xVar: "fetchAndUpdateChart",
-    yVar: "fetchAndUpdateChart",
-    contextValue: "fetchAndUpdateChart",
-    "context1.contextValue": "fetchAndUpdateChart",
-    "context2.contextValue": "fetchAndUpdateChart",
-    palette: "fetchAndUpdateChart",
-    textSize: "fetchAndUpdateChart",
+    fetchDeps: "fetchAndUpdateChart",
     width: "renderPlot",
     height: "renderPlot",
-    showValues: "fetchAndUpdateChart",
     "$vuetify.theme.global.name": "renderPlot",
   },
 
@@ -172,6 +169,20 @@ export default {
       const name1 = this.context1?.contextName || "Context 1";
       const name2 = this.context2?.contextName || "Context 2";
       return `Difference of values, calculated as ${name1} − ${name2}`;
+    },
+    // Bundles every prop that should trigger a re-fetch into one reactive value, so the
+    // watcher below fires once per batch of prop changes instead of once per individual prop.
+    fetchDeps() {
+      return [
+        this.xVar,
+        this.yVar,
+        this.contextValue,
+        this.context1?.contextValue,
+        this.context2?.contextValue,
+        this.palette,
+        this.textSize,
+        this.showValues,
+      ];
     },
   },
 

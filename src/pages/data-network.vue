@@ -282,6 +282,8 @@
                     <v-tabs v-model="selectionTab" density="compact" color="primary-darken-1">
                       <v-tab value="nodes">Selected Nodes</v-tab>
                       <v-tab v-if="hasSelectedProtein" value="enrichment">Protein Enrichment</v-tab>
+                      <v-tab v-if="hasSelectedProtein || hasSelectedMetabolite" value="reactomeEnrichment">Reactome Enrichment</v-tab>
+                      <v-tab value="gemini">Gemini Label</v-tab>
                     </v-tabs>
                     <v-window v-model="selectionTab">
                       <v-window-item value="nodes">
@@ -337,6 +339,72 @@
                         </v-table>
                         <p v-else-if="enrichmentRan && !enrichmentLoading" class="text-caption text-medium-emphasis mt-4">
                           No significant terms found.
+                        </p>
+                      </v-window-item>
+                      <v-window-item v-if="hasSelectedProtein || hasSelectedMetabolite" value="reactomeEnrichment">
+                        <p class="text-caption text-medium-emphasis mt-2">
+                          Joint pathway over-representation of {{ selectedProteinAccessions.length }} protein(s) and
+                          {{ selectedMetaboliteCount - reactomeUnmappedMetabolites.length }} metabolite(s), via <a href="https://reactome.org/PathwayBrowser/#/ANALYSIS" target="_blank" rel="noopener">Reactome</a>.
+                        </p>
+                        <p v-if="selectedMetabolitesWithoutChebi.length && !reactomeEnrichmentRan" class="text-caption text-medium-emphasis">
+                          {{ selectedMetabolitesWithoutChebi.length }} selected metabolite(s) have no stored ChEBI cross-reference yet -- they'll be
+                          mapped live via <a href="https://www.ebi.ac.uk/unichem/" target="_blank" rel="noopener">UniChem</a> when you run enrichment.
+                        </p>
+                        <p v-if="reactomeUnmappedMetabolites.length" class="text-caption text-medium-emphasis">
+                          {{ reactomeUnmappedMetabolites.length }} selected metabolite(s) could not be mapped to a ChEBI id and were excluded:
+                          {{ reactomeUnmappedMetabolites.map((node) => node.display_name).join(', ') }}
+                        </p>
+                        <v-btn
+                          class="mt-2"
+                          color="primary"
+                          variant="outlined"
+                          :loading="reactomeEnrichmentLoading"
+                          :disabled="selectedProteinAccessions.length + selectedMetaboliteChebiIds.length + selectedMetabolitesWithoutChebi.length === 0"
+                          @click="runReactomeEnrichment"
+                        >Run Enrichment</v-btn>
+
+                        <v-table v-if="reactomeEnrichmentResults.length" dense class="mt-4">
+                          <thead>
+                            <tr>
+                              <th>Pathway</th>
+                              <th>p-value</th>
+                              <th>FDR</th>
+                              <th>Entities</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr v-for="pathway in reactomeEnrichmentResults" :key="pathway.stId">
+                              <td><a :href="`https://reactome.org/PathwayBrowser/#/${pathway.stId}`" target="_blank" rel="noopener">{{ pathway.name }}</a></td>
+                              <td>{{ pathway.entities.pValue.toExponential(2) }}</td>
+                              <td>{{ pathway.entities.fdr.toExponential(2) }}</td>
+                              <td>{{ pathway.entities.found }}/{{ pathway.entities.total }}</td>
+                            </tr>
+                          </tbody>
+                        </v-table>
+                        <p v-else-if="reactomeEnrichmentRan && !reactomeEnrichmentLoading" class="text-caption text-medium-emphasis mt-4">
+                          No significant pathways found.
+                        </p>
+                      </v-window-item>
+                      <v-window-item value="gemini">
+                        <p class="text-caption text-medium-emphasis mt-2">
+                          Ask Gemini to propose a label for the {{ selectedNetworkNodes.length }} selected node(s), based on their
+                          name, group/subgroup, and description.
+                        </p>
+                        <v-btn
+                          class="mt-2"
+                          color="primary"
+                          variant="outlined"
+                          :loading="geminiLoading"
+                          :disabled="selectedNetworkNodes.length === 0"
+                          @click="runGeminiLabel"
+                        >Get Gemini Label</v-btn>
+
+                        <div v-if="geminiLabel" class="mt-4">
+                          <div class="text-subtitle-1 font-weight-medium">{{ geminiLabel.label }}</div>
+                          <p class="text-caption text-medium-emphasis">{{ geminiLabel.rationale }}</p>
+                        </div>
+                        <p v-else-if="geminiRan && !geminiLoading" class="text-caption text-medium-emphasis mt-4">
+                          No label returned.
                         </p>
                       </v-window-item>
                     </v-window>
@@ -426,6 +494,20 @@
                     <v-divider class="my-4"></v-divider>
                     <p>Community Detection</p>
                     <template v-if="lastNetworkMode === 'whole'">
+                      <v-select
+                        v-model="selectedAlgorithm"
+                        :items="communityAlgorithms"
+                        item-title="label"
+                        item-value="value"
+                        label="Algorithm"
+                        density="compact"
+                        variant="outlined"
+                        class="mt-2"
+                        :disabled="isClusteringLoading"
+                      ></v-select>
+                      <p class="text-caption text-medium-emphasis mt-n2 mb-2">
+                        {{ algorithmDescription }}
+                      </p>
                       <v-btn
                         color="primary-darken-1"
                         block
@@ -433,7 +515,7 @@
                         :loading="isClusteringLoading"
                         :disabled="isClusteringLoading"
                         @click="runLeidenClustering"
-                      >{{ clusteringActive ? 'Re-run Leiden Clustering' : 'Run Leiden Clustering' }}</v-btn>
+                      >{{ clusteringActive ? `Re-run ${selectedAlgorithmLabel} Clustering` : `Run ${selectedAlgorithmLabel} Clustering` }}</v-btn>
 
                       <template v-if="clusteringActive">
                         <v-btn
@@ -444,30 +526,61 @@
                         >Reset to Node Type Colors</v-btn>
 
                         <div class="mt-4">
-                          <label class="text-caption">Leiden resolution: {{ leidenResolutions[resolutionIndex] }}</label>
-                          <v-slider
-                            v-model="resolutionIndex"
-                            :min="0"
-                            :max="leidenResolutions.length - 1"
-                            :step="1"
-                            show-ticks="always"
-                            thumb-label="always"
-                            density="compact"
-                            color="primary"
-                          >
-                            <template #thumb-label>{{ leidenResolutions[resolutionIndex] }}</template>
-                          </v-slider>
-                          <p class="text-caption text-medium-emphasis">
-                            {{ includedNodeTypes.size }} communities at this resolution. Higher values produce more communities.
-                          </p>
+                          <template v-if="algorithmUsesResolution">
+                            <label class="text-caption">Leiden resolution: {{ leidenResolutions[resolutionIndex] }}</label>
+                            <v-slider
+                              v-model="resolutionIndex"
+                              :min="0"
+                              :max="leidenResolutions.length - 1"
+                              :step="1"
+                              show-ticks="always"
+                              thumb-label="always"
+                              density="compact"
+                              color="primary"
+                            >
+                              <template #thumb-label>{{ leidenResolutions[resolutionIndex] }}</template>
+                            </v-slider>
+                            <p class="text-caption text-medium-emphasis">
+                              {{ includedNodeTypes.size }} communities at this resolution. Higher values produce more communities.
+                            </p>
+                          </template>
                           <p v-if="currentModularity != null" class="text-caption text-medium-emphasis">
                             Modularity: {{ currentModularity.toFixed(3) }} · Conductance: {{ currentConductance.toFixed(3) }}
+                          </p>
+
+                          <v-btn
+                            class="mt-2"
+                            color="primary"
+                            variant="outlined"
+                            :loading="communityLabelsLoading"
+                            :disabled="legendGroups.length === 0"
+                            @click="runCommunityLabeling"
+                          >Label All Communities</v-btn>
+
+                          <v-table v-if="Object.keys(communityLabels).length" dense class="mt-4">
+                            <thead>
+                              <tr>
+                                <th>Community</th>
+                                <th>Label</th>
+                                <th>Rationale</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr v-for="(entry, communityId) in communityLabels" :key="communityId">
+                                <td>{{ communityId }}</td>
+                                <td>{{ entry.label }}</td>
+                                <td>{{ entry.rationale }}</td>
+                              </tr>
+                            </tbody>
+                          </v-table>
+                          <p v-else-if="communityLabelsRan && !communityLabelsLoading" class="text-caption text-medium-emphasis mt-4">
+                            No community labels returned.
                           </p>
                         </div>
                       </template>
                     </template>
                     <p v-else class="text-medium-emphasis">
-                      Community detection is available once you've sent the whole network above ("Send Whole Network") -- it isn't supported for node-search-built subnetworks.
+                      Community detection is available once you've sent the whole network above ("Send Whole Network") -- it isn't supported for node-set-built subnetworks.
                     </p>
                   </v-expansion-panel-text>
                 </v-expansion-panel>
@@ -485,29 +598,13 @@
                     <v-col>
                       <div ref="network" id="network" style="height: 550px;"></div>
                       <!-- Legend -->
-                      <div class="legend">
-                        <v-row
-                          v-for="groupKey in legendGroups"
-                          :key="groupKey"
-                          align="center"
-                          class="mb-2 legend-item"
-                          :class="{ 'legend-item-active': isGroupFullySelected(groupKey) }"
-                          no-gutters
-                          @click="selectNodesByGroup(groupKey)"
-                        >
-                          <v-tooltip bottom>
-                            <template v-slot:activator="{ props }">
-                              <v-col cols="auto" class="legend-dot" v-bind="props">
-                                <div class="legend-color" :style="getShapeStyle(colorForLegendKey(groupKey))"></div>
-                              </v-col>
-                              <v-col cols="auto" class="legend-text" v-bind="props">
-                                <span>{{ legendLabel(groupKey) }}</span>
-                              </v-col>
-                            </template>
-                            <span>Click to select/deselect all {{ legendLabel(groupKey) }} nodes</span>
-                          </v-tooltip>
-                        </v-row>
-                      </div>
+                      <NetworkLegend
+                        class="legend"
+                        :items="legendItems"
+                        :title="legendTitle"
+                        selectable
+                        @select="selectNodesByGroup"
+                      />
                   </v-col>
                 </v-row>
               </v-card-text>
@@ -640,10 +737,11 @@
 import AdvancedSettings from "@/components/AdvancedSettings.vue";
 import FilterToolbar from "@/components/FilterToolbar.vue";
 import {BASE_URL, isLoading, setIsLoading} from "@/components/constants.js";
-import {darkenHexColor, assignGroupColors, getNodeIcon, loadNetworkState, saveNetworkState} from "../components/network/networkData.js";
+import {darkenHexColor, assignGroupColors, getNodeIcon, loadNetworkState, saveNetworkState, capitalizeFirstLetter, drawLegendPanel} from "../components/network/networkData.js";
 import {interpolateRainbow} from 'd3-scale-chromatic';
 import NodeDetails from '@/components/network/NodeDetails.vue';
 import EdgeDetails from '@/components/network/EdgeDetails.vue';
+import NetworkLegend from '@/components/network/NetworkLegend.vue';
 import {Cosmograph} from "@cosmograph/cosmograph";
 import {getCookie} from "@/components/authentication/auth.js";
 import StatisticalTestLine from "@/components/StatisticalTestLine.vue";
@@ -657,7 +755,7 @@ import {useTheme} from 'vuetify';
 export default {
   components: {
     StatisticalTestLine, FilterToolbar, AdvancedSettings, NodeDetails, NetworkEdgeLine,
-    WholeNetworkSettings, EdgeDetails, GraphToolbar},
+    WholeNetworkSettings, EdgeDetails, GraphToolbar, NetworkLegend},
   data() {
     return {
       // context filter
@@ -721,13 +819,31 @@ export default {
       enrichmentRan: false,
       enrichmentResults: [],
 
+      // Reactome Enrichment (joint UniProt protein + ChEBI-mapped metabolite over-representation)
+      reactomeEnrichmentLoading: false,
+      reactomeEnrichmentRan: false,
+      reactomeEnrichmentResults: [],
+      // Metabolites with neither a stored ChEBI xref nor a live UniChem mapping -- populated
+      // after a run, distinct from selectedMetabolitesWithoutChebi (known before running).
+      reactomeUnmappedMetabolites: [],
+
+      // Gemini community labeling
+      geminiLoading: false,
+      geminiRan: false,
+      geminiLabel: null,
+
+      // Gemini bulk community labeling (one call for all communities at the active resolution)
+      communityLabelsLoading: false,
+      communityLabelsRan: false,
+      communityLabels: {},
+
       // Advanced Settings (default) values
       selectedTests: { testType: 'parametric', correction: 'bh' },
       // Real correction used to precompute the static (no-context) network's
       // edges -- fetched in mounted() via fetchNetworkConfig(). 'bh' fallback
       // matches today's default in case the fetch fails.
       staticCorrection: 'bh',
-      signThresh: 0.999,
+      signThresh: 0.01,
       fixThreshold: true,
       topNodesNumber: 5,
       topPerNodeCount: true,
@@ -750,6 +866,22 @@ export default {
       leidenResolutions: [0.2, 0.5, 1.0, 1.5, 2.0, 3.0],
       resolutionIndex: 2, // default 1.0
       leidenMeta: {},
+      // Algorithm that actually produced the communities currently colored on
+      // the graph -- set from the response once a run succeeds, so it stays
+      // correct even if the user changes selectedAlgorithm afterward without
+      // clicking "Re-run" (selectedAlgorithm is just the dropdown's pending
+      // choice; this is "what's actually on screen right now").
+      clusteringAlgorithm: null,
+      // Community detection algorithm. Only 'leiden' actually uses the
+      // resolution slider above -- the others (see algorithmUsesResolution)
+      // return one fixed partition regardless of resolution.
+      selectedAlgorithm: 'leiden',
+      communityAlgorithms: [
+        { label: 'Leiden', value: 'leiden', description: 'Modularity optimization with a tunable resolution -- higher values split into more, smaller communities.' },
+        { label: 'Louvain', value: 'louvain', description: 'Fast modularity optimization, single partition (no resolution parameter).' },
+        { label: 'Infomap', value: 'infomap', description: 'Flow-based clustering that finds communities where a random walker gets "trapped"' },
+        { label: 'HSBM', value: 'hsbm', description: 'Hierarchical stochastic block model -- fits a generative block model instead of optimizing modularity, so it can also detect bipartite/disassortative structure.' },
+      ],
 
       // Popup
       showInfo: false,
@@ -781,6 +913,16 @@ export default {
     legendGroups() {
       return this.sortLegendKeys(Array.from(this.includedNodeTypes));
     },
+    // Render-ready form of legendGroups for NetworkLegend (shared with
+    // differential-network.vue) and for the exported-PNG legend panel.
+    legendItems() {
+      return this.legendGroups.map((key) => ({
+        key,
+        label: this.legendLabel(key),
+        color: this.colorForLegendKey(key),
+        active: this.isGroupFullySelected(key),
+      }));
+    },
     hasSelectedProtein() {
       return this.selectedNetworkNodes.some((node) => node.source_table === 'proteins');
     },
@@ -800,6 +942,50 @@ export default {
             .forEach((accession) => accessions.add(accession));
         });
       return Array.from(accessions);
+    },
+    hasSelectedMetabolite() {
+      return this.selectedNetworkNodes.some((node) => node.source_table === 'metabolites');
+    },
+    selectedMetaboliteCount() {
+      return this.selectedNetworkNodes.filter((node) => node.source_table === 'metabolites').length;
+    },
+    // ChEBI ids for Reactome's Analysis Service (it doesn't recognize HMDB directly). x_refs is
+    // a single CharField that packs multiple refs as pipe-delimited "prefix.value" pairs (e.g.
+    // "hmdb.HMDB0001539|kegg.C00086") -- same convention NodeDetails.vue already parses via
+    // generateLink() -- not a JS array and not a single bare value.
+    selectedMetaboliteChebiIds() {
+      const ids = new Set();
+      this.selectedNetworkNodes
+        .filter((node) => node.source_table === 'metabolites')
+        .forEach((node) => {
+          (this.parseXrefs(node.x_refs).chebi || []).forEach((id) => ids.add(id));
+        });
+      return Array.from(ids);
+    },
+    selectedMetabolitesWithoutChebi() {
+      return this.selectedNetworkNodes.filter((node) => node.source_table === 'metabolites' &&
+        !(this.parseXrefs(node.x_refs).chebi || []).length);
+    },
+    selectedAlgorithmLabel() {
+      return this.communityAlgorithms.find((algo) => algo.value === this.selectedAlgorithm)?.label ?? this.selectedAlgorithm;
+    },
+    // Legend heading while clustering is active -- names whichever algorithm
+    // actually produced what's on screen (clusteringAlgorithm), not whatever's
+    // currently selected in the dropdown. Persisted/restored via saveState()/
+    // loadState() so it's still correct after a localStorage reload.
+    legendTitle() {
+      if (!this.clusteringActive || !this.clusteringAlgorithm) return '';
+      const label = this.communityAlgorithms.find((algo) => algo.value === this.clusteringAlgorithm)?.label ?? this.clusteringAlgorithm;
+      return `Communities (${label})`;
+    },
+    algorithmDescription() {
+      return this.communityAlgorithms.find((algo) => algo.value === this.selectedAlgorithm)?.description ?? '';
+    },
+    // Only Leiden's partition actually changes with the resolution parameter --
+    // the backend computes the others once and reuses that result for every
+    // resolution slot (see RESOLUTION_INDEPENDENT_METHODS in metagraph.py).
+    algorithmUsesResolution() {
+      return this.selectedAlgorithm === 'leiden';
     },
     // Matches the backend's resolution_to_key(): normalize to 6 decimals, strip
     // trailing zeros/dot, keep at least one decimal place.
@@ -1100,7 +1286,7 @@ export default {
     // back to a literal "None" for everything else.
     getPrettyType(sourceTable) {
       if (!sourceTable) return 'Unknown';
-      return this.capitalizeFirstLetter(sourceTable.split('_').pop());
+      return capitalizeFirstLetter(sourceTable.split('_').pop());
     },
     // The legend/coloring key for a node: its community id (while Leiden
     // clustering is active) or its node-type group otherwise. Both
@@ -1127,7 +1313,7 @@ export default {
     // meaningful on their own -- label them explicitly instead of running them
     // through capitalizeFirstLetter (which is for node-type group names).
     legendLabel(key) {
-      return this.clusteringActive ? `Community ${key}` : this.capitalizeFirstLetter(key);
+      return this.clusteringActive ? `Community ${key}` : capitalizeFirstLetter(key);
     },
     labelColor(colorName) {
       // chartjs does not support theme colors so we just directly call the theme color
@@ -1137,10 +1323,6 @@ export default {
         return this.$vuetify.theme.themes.dyHealthNetThemeDark.colors[colorName];
       }
 
-    },
-    capitalizeFirstLetter(str) {
-      if (typeof str !== "string" || str.length === 0) return str;
-      return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
     },
     handleClickOutside(event) {
       if (this.isReadOnly){
@@ -1275,6 +1457,7 @@ export default {
           display_name: point.label ?? point.id,
           description: point.description ?? "",
           source_table: point.source_table ?? point.type,
+          x_refs: point.xrefs,
           set: "CHRIS", //TODO change to internal/cohort or smth when backend became more modular
         }));
         // getCosmograph doesn't return final_p_value (only final_e_value/test_type) --
@@ -1327,12 +1510,17 @@ export default {
       params.set('testType', this.wholeNetworkTests.testType);
       params.set('density', String(this.density));
       params.set('resolutions', this.leidenResolutions.join(','));
+      params.set('algorithm', this.selectedAlgorithm);
       if (this.contextValue != null) params.set('c', this.contextValue);
       return `${BASE_URL}/metagraph/api/getLeidenMetagraph/?${params.toString()}`;
     },
     async runLeidenClustering() {
       if (this.lastNetworkMode !== 'whole') return;
       this.isClusteringLoading = true;
+      // Community numbering can change on recompute, so any previously-fetched
+      // bulk community labels no longer match -- clear them.
+      this.communityLabels = {};
+      this.communityLabelsRan = false;
       try {
         const csrfToken = getCookie('csrftoken');
         const response = await fetch(this.buildLeidenUrl(), {
@@ -1344,9 +1532,15 @@ export default {
           credentials: 'include',
         });
 
-        if (!response.ok) throw new Error("Network response was not ok");
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => '');
+          throw new Error(errorText || "Network response was not ok");
+        }
         const data = await response.json();
         this.leidenMeta = data.meta ?? {};
+        // Backend is authoritative on what actually ran (data.meta.algorithm),
+        // rather than trusting the request's own selectedAlgorithm.
+        this.clusteringAlgorithm = data.meta?.algorithm ?? this.selectedAlgorithm;
 
         this.selectedNetworkNodes = [];
         this.networkNodes = (data.points || []).map((point) => {
@@ -1355,6 +1549,7 @@ export default {
             display_name: point.label ?? point.id,
             description: point.description ?? "",
             source_table: point.source_table ?? point.type,
+            x_refs: point.xrefs,
             set: "CHRIS",
           };
           // Carry every requested resolution's community_rX field onto the
@@ -1384,8 +1579,8 @@ export default {
         await this.initializeCosmograph();
         this.applyDesign();
       } catch (error) {
-        console.error("Error running Leiden clustering:", error);
-        this.infoText = "Could not run community detection. Please try again.";
+        console.error("Error running community detection:", error);
+        this.infoText = error?.message || "Could not run community detection. Please try again.";
         this.infoType = "error";
         this.showInfo = true;
       }
@@ -1394,6 +1589,7 @@ export default {
     // Back to node-type-group coloring, keeping the same nodes/edges displayed.
     async resetClusteringColors() {
       this.clusteringActive = false;
+      this.clusteringAlgorithm = null;
       await this.initializeCosmograph();
       this.applyDesign();
     },
@@ -1746,6 +1942,188 @@ export default {
       }
       this.enrichmentRan = true;
       this.enrichmentLoading = false;
+    },
+    // x_refs packs multiple cross-references into one string as "prefix.value" pairs joined
+    // by "|" (e.g. "hmdb.HMDB0001539|kegg.C00086") -- same convention NodeDetails.vue's
+    // generateLink() already parses. Returns {prefix: [values...]}; a prefix can repeat
+    // (e.g. multiple secondary HMDB accessions), so each maps to an array, not a single value.
+    parseXrefs(xrefsString) {
+      const map = {};
+      if (typeof xrefsString !== 'string' || !xrefsString) return map;
+      xrefsString.split('|').forEach((entry) => {
+        const dotIndex = entry.indexOf('.');
+        if (dotIndex === -1) return;
+        const prefix = entry.slice(0, dotIndex).trim().toLowerCase();
+        const value = entry.slice(dotIndex + 1).trim();
+        if (!prefix || !value) return;
+        (map[prefix] ??= []).push(value);
+      });
+      return map;
+    },
+    // UniChem matches HMDB ids by exact string equality against "HMDB" + a zero-padded
+    // 7-digit accession (e.g. "HMDB0000148") -- verified directly: the older 5-digit style
+    // ("HMDB00148"), a missing/lowercase prefix, or stray whitespace all return zero matches
+    // with no error, they just silently find nothing. Node ids come straight from whichever
+    // raw column the cohort's data file uses for DATA_LABEL_COLUMNS, so they aren't guaranteed
+    // to already be in that exact shape -- normalize before calling out.
+    normalizeHmdbId(rawId) {
+      const match = String(rawId).trim().match(/^hmdb0*(\d+)$/i);
+      if (!match) return null;
+      return `HMDB${match[1].padStart(7, '0')}`;
+    },
+    // Live HMDB -> ChEBI lookup via EBI's UniChem, for metabolites ingested before the
+    // chebi_id xref extraction was added (or added via "Send Whole Network", which never
+    // carries x_refs at all). UniChem source ids are fixed registry constants: 18 = HMDB,
+    // 7 = ChEBI (see https://www.ebi.ac.uk/unichem/api/v1/sources). A compound can map to
+    // more than one ChEBI id (e.g. stereoisomers) -- all are kept, same as IMPaLA mapping
+    // "lactate" to both its R- and S- forms.
+    async mapHmdbToChebi(hmdbId) {
+      const normalizedId = this.normalizeHmdbId(hmdbId);
+      if (!normalizedId) return [];
+      try {
+        const response = await fetch('https://www.ebi.ac.uk/unichem/api/v1/compounds', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'sourceID', compound: normalizedId, sourceID: 18 }),
+        });
+        if (!response.ok) return [];
+        const data = await response.json();
+        const compound = (data.compounds || [])[0];
+        if (!compound) return [];
+        return compound.sources
+          .filter((source) => source.shortName === 'chebi')
+          .map((source) => source.compoundId.replace(/^CHEBI:/i, ''));
+      } catch (error) {
+        console.error(`Could not map ${hmdbId} to ChEBI via UniChem:`, error);
+        return [];
+      }
+    },
+    // Reactome's Analysis Service auto-detects identifier type per line and treats
+    // proteins/metabolites as one physical-entity list -- unlike IMPaLA there are no
+    // separate per-datatype p-values, just one combined pathway over-representation.
+    async runReactomeEnrichment() {
+      this.reactomeEnrichmentLoading = true;
+      this.reactomeEnrichmentRan = false;
+      this.reactomeEnrichmentResults = [];
+      this.reactomeUnmappedMetabolites = [];
+      try {
+        const chebiIds = [...this.selectedMetaboliteChebiIds];
+        const lookups = await Promise.all(
+          this.selectedMetabolitesWithoutChebi.map(async (node) => {
+            // A "sum composition" species (e.g. a Biocrates lipid like "PC ae C40:3") can list
+            // several distinct HMDB ids for the different isomers the assay can't tell apart --
+            // map *every* candidate (not just the first hit) and union the resulting ChEBI ids,
+            // same convention IMPaLA uses for chiral/ambiguous compounds (e.g. lactate -> both
+            // its R- and S- entries) rather than arbitrarily keeping only one.
+            // x_refs delimits multiple entries with "|" in some sources and ";" in others (this
+            // project's own data uses ";"), and entries are sometimes bare accessions with no
+            // "prefix." at all (e.g. "HMDB0000191", not "hmdb.HMDB0000191") -- so every
+            // pipe/semicolon-delimited raw segment is tried too, alongside any properly prefixed
+            // "hmdb." entries and the node id itself. normalizeHmdbId() rejects non-matches for
+            // free, so extra candidates cost nothing but an early-return, not a wasted call.
+            const rawSegments = typeof node.x_refs === 'string' ? node.x_refs.split(/[|;]/).map((s) => s.trim()) : [];
+            const candidates = [...new Set([...(this.parseXrefs(node.x_refs).hmdb || []), ...rawSegments, node.id])];
+            const results = await Promise.all(candidates.map((candidate) => this.mapHmdbToChebi(candidate)));
+            const chebiIds = [...new Set(results.flat())];
+            return { node, chebiIds };
+          }),
+        );
+        lookups.forEach(({ node, chebiIds: mapped }) => {
+          if (mapped.length) {
+            chebiIds.push(...mapped);
+          } else {
+            this.reactomeUnmappedMetabolites.push(node);
+          }
+        });
+
+        const identifiers = [...this.selectedProteinAccessions, ...chebiIds];
+        if (identifiers.length > 0) {
+          const response = await fetch('https://reactome.org/AnalysisService/identifiers/projection', {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: identifiers.join('\n'),
+          });
+          if (!response.ok) throw new Error("Reactome response was not ok");
+          const data = await response.json();
+          this.reactomeEnrichmentResults = (data.pathways || [])
+            .sort((a, b) => a.entities.pValue - b.entities.pValue)
+            .slice(0, 20);
+        }
+      } catch (error) {
+        console.error("Error running Reactome enrichment:", error);
+        this.infoText = "Could not fetch enrichment results from Reactome. Please try again.";
+        this.infoType = "error";
+        this.showInfo = true;
+      }
+      this.reactomeEnrichmentRan = true;
+      this.reactomeEnrichmentLoading = false;
+    },
+    // Unlike g:Profiler/Reactome above, this goes through our own backend rather than
+    // calling a third party directly from the browser -- the Gemini API key is a
+    // secret and must stay server-side.
+    async runGeminiLabel() {
+      if (this.selectedNetworkNodes.length === 0) return;
+      this.geminiLoading = true;
+      this.geminiRan = false;
+      this.geminiLabel = null;
+      try {
+        const csrfToken = getCookie('csrftoken');
+        const response = await fetch(`${BASE_URL}/gemini/api/getGeminiLabel/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+          },
+          credentials: 'include',
+          body: JSON.stringify({ node_ids: this.selectedNetworkNodes.map((node) => node.id) }),
+        });
+        if (!response.ok) throw new Error("Gemini labeling response was not ok");
+        this.geminiLabel = await response.json();
+      } catch (error) {
+        console.error("Error running Gemini labeling:", error);
+        this.infoText = "Could not fetch a label from Gemini. Please try again.";
+        this.infoType = "error";
+        this.showInfo = true;
+      }
+      this.geminiRan = true;
+      this.geminiLoading = false;
+    },
+    // Labels every community at the active resolution in a single Gemini call (rather
+    // than one call per community), so quota is bounded and the model can see every
+    // community at once to produce mutually distinctive labels.
+    async runCommunityLabeling() {
+      const communityKeys = this.legendGroups.filter((key) => key !== 'Unassigned');
+      if (communityKeys.length === 0) return;
+      this.communityLabelsLoading = true;
+      this.communityLabelsRan = false;
+      this.communityLabels = {};
+      try {
+        const csrfToken = getCookie('csrftoken');
+        const response = await fetch(`${BASE_URL}/gemini/api/getGeminiClusterLabels/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            resolution: this.currentResolutionKey,
+            communities: Object.fromEntries(
+              communityKeys.map((key) => [key, this.groupNodesFor(key).map((node) => node.id)])
+            ),
+          }),
+        });
+        if (!response.ok) throw new Error("Gemini cluster-labeling response was not ok");
+        const data = await response.json();
+        this.communityLabels = data.communities || {};
+      } catch (error) {
+        console.error("Error running Gemini community labeling:", error);
+        this.infoText = "Could not fetch community labels from Gemini. Please try again.";
+        this.infoType = "error";
+        this.showInfo = true;
+      }
+      this.communityLabelsRan = true;
+      this.communityLabelsLoading = false;
     },
     groupNodesFor(groupKey) {
       return this.networkNodes.filter((node) => this.legendKeyFor(node) === groupKey);
@@ -2198,9 +2576,6 @@ export default {
       if (this.clusteringActive) return this.buildCommunityColorMap()[key] ?? this.labelColor('text');
       return this.colorForGroup(key);
     },
-    getShapeStyle(color) {
-      return { borderRadius: "50%", backgroundColor: color, width: "13px", height: "13px" };
-    },
     updatePhysics() {
       if (!this.cosmographInstance) return;
       if (this.physics_on) {
@@ -2359,10 +2734,11 @@ export default {
         this.drawNodeLabels(offscreenCtx, canvas);
 
         // Legend entries: whatever groups are actually present, same as the on-screen legend
-        this.drawLegendPanel(offscreenCtx, offscreenCanvas, this.legendGroups.map((groupKey) => ({
-          color: this.colorForLegendKey(groupKey),
-          label: this.legendLabel(groupKey),
-        })));
+        drawLegendPanel(offscreenCtx, offscreenCanvas, this.legendItems, {
+          textColor: this.labelColor('text'),
+          panelColor: this.labelColor('surface-bright'),
+          borderColor: this.labelColor('surface-variant'),
+        }, this.legendTitle);
 
         // Generate the image URL
         this.imageUrl = offscreenCanvas.toDataURL();
@@ -2412,62 +2788,6 @@ export default {
       ctx.restore();
     },
 
-    // Bottom-left rounded panel with a color swatch + label per row, matching where the on-screen
-    // legend (position: absolute; bottom/left) sits over the live graph, rather than the previous
-    // fixed circle/text offsets that assumed default canvas text alignment (and clipped once
-    // drawNodeLabels' 'center'/'middle' alignment leaked into it -- see the ctx.save()/restore()
-    // there now). Panel width is sized to the longest label instead of a guessed fixed width.
-    drawLegendPanel(ctx, canvas, entries) {
-      if (!entries.length) return;
-      ctx.save();
-
-      const padding = 14;
-      const circleRadius = 8;
-      const gap = 10;
-      const rowHeight = 26;
-      const font = '14px system-ui, -apple-system, sans-serif';
-      const textColor = this.labelColor('text') || '#111111';
-      const panelColor = this.labelColor('surface-bright') || '#ffffff';
-      const borderColor = this.labelColor('surface-variant') || '#dddddd';
-
-      ctx.font = font;
-      const maxTextWidth = Math.max(...entries.map(({ label }) => ctx.measureText(label).width));
-      const panelWidth = padding * 2 + circleRadius * 2 + gap + maxTextWidth;
-      const panelHeight = padding * 2 + entries.length * rowHeight;
-      const panelX = 20;
-      const panelY = canvas.height - panelHeight - 20;
-      const cornerRadius = 10;
-
-      ctx.beginPath();
-      ctx.moveTo(panelX + cornerRadius, panelY);
-      ctx.arcTo(panelX + panelWidth, panelY, panelX + panelWidth, panelY + panelHeight, cornerRadius);
-      ctx.arcTo(panelX + panelWidth, panelY + panelHeight, panelX, panelY + panelHeight, cornerRadius);
-      ctx.arcTo(panelX, panelY + panelHeight, panelX, panelY, cornerRadius);
-      ctx.arcTo(panelX, panelY, panelX + panelWidth, panelY, cornerRadius);
-      ctx.closePath();
-      ctx.fillStyle = panelColor;
-      ctx.fill();
-      ctx.strokeStyle = borderColor;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      entries.forEach(({ color, label }, i) => {
-        const rowCenterY = panelY + padding + rowHeight * i + rowHeight / 2;
-        const circleCenterX = panelX + padding + circleRadius;
-
-        ctx.beginPath();
-        ctx.arc(circleCenterX, rowCenterY, circleRadius, 0, 2 * Math.PI);
-        ctx.fillStyle = color;
-        ctx.fill();
-
-        ctx.fillStyle = textColor;
-        ctx.fillText(label, circleCenterX + circleRadius + gap, rowCenterY);
-      });
-
-      ctx.restore();
-    },
 
     // Advanced Settings methods
     addSettings(data) {
@@ -2603,6 +2923,15 @@ export default {
         wholeNetworkTests: this.wholeNetworkTests,
         density: this.density,
         lastNetworkMode: this.lastNetworkMode,
+        // Community detection -- persisted so the legend still shows "Communities
+        // (Infomap)" etc. (and the modularity/conductance readout still works)
+        // after a localStorage reload, instead of silently reverting to node-type
+        // colors. The nodes themselves already carry their community_rX fields.
+        clusteringActive: this.clusteringActive,
+        clusteringAlgorithm: this.clusteringAlgorithm,
+        selectedAlgorithm: this.selectedAlgorithm,
+        resolutionIndex: this.resolutionIndex,
+        leidenMeta: this.leidenMeta,
       }
 
       const exportData = { nodes: nodes, edges: edges ,
@@ -2645,6 +2974,14 @@ export default {
         this.wholeNetworkTests = user_settings.wholeNetworkTests ?? { testType: 'parametric', correction: 'bh' };
         this.density = user_settings.density !== undefined ? parseFloat(user_settings.density) : 0.01;
         this.lastNetworkMode = user_settings.lastNetworkMode ?? null;
+        // Community detection -- older saved states won't have these fields, so
+        // fall back to "no clustering" rather than showing a legend title for
+        // data that isn't actually there.
+        this.clusteringActive = user_settings.clusteringActive ?? false;
+        this.clusteringAlgorithm = user_settings.clusteringAlgorithm ?? null;
+        this.selectedAlgorithm = user_settings.selectedAlgorithm ?? 'leiden';
+        this.resolutionIndex = user_settings.resolutionIndex ?? 2;
+        this.leidenMeta = user_settings.leidenMeta ?? {};
         await this.initializeCosmograph(); // Reapply the state to the new network
         this.applyDesign(false);
       }
@@ -2684,6 +3021,10 @@ export default {
     // flight (same "graph renders twice" bug already hit and fixed once before
     // on the old Metagraph page's own resolution slider).
     async resolutionIndex() {
+      // Switching resolution changes which communities exist, so any previously
+      // -fetched bulk community labels no longer match -- clear them.
+      this.communityLabels = {};
+      this.communityLabelsRan = false;
       if (this.clusteringActive && !this.isClusteringLoading) {
         await this.initializeCosmograph();
         this.applyDesign();
@@ -2697,6 +3038,8 @@ export default {
       handler() {
         this.enrichmentResults = [];
         this.enrichmentRan = false;
+        this.geminiLabel = null;
+        this.geminiRan = false;
       },
     },
     hasSelectedProtein(newVal) {
@@ -2785,17 +3128,9 @@ export default {
   }
 }
 
-.legend-color {
-  margin-right: 8px; /* Space between the color and the text */
-}
-.legend-item {
-  cursor: pointer;
-}
-.legend-item-active .legend-text span {
-  font-weight: 700;
-  text-decoration: underline;
-}
-/* Style for the legend container */
+/* .legend-item/.legend-color/etc. now live in NetworkLegend.vue's own scoped
+   styles; only the positioning of the legend within this page's graph area
+   stays here, since that differs per page. */
 .legend {
   position: absolute;  /* Position relative to the nearest positioned ancestor (network container) */
   bottom: 60px;  /* Shifted further into the graph so it doesn't hug the corner */
