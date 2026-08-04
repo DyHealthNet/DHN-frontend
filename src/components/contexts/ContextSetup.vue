@@ -593,38 +593,57 @@ export default {
       });
     },
 
+    // A variable whose layer has no entry in selectedSubLayers is unrestricted
+    // (all its subgroups count as selected).
+    isColumnAvailable(column, selectedLayersLower) {
+      const layer = this.variableLayers[column];
+      if (!selectedLayersLower.includes(layer)) {
+        return false;
+      }
+      const subgroup = this.variableSubLayers[column];
+      if (subgroup && this.selectedSubLayers[layer]) {
+        return this.selectedSubLayers[layer].includes(subgroup);
+      }
+      return true;
+    },
+
     filterVariables() {
       // filter allVariables down to whatever layers/subgroups are currently selected,
       // using the explicit per-variable layer/subgroup info returned alongside
-      // allVariables. A variable whose layer has no entry in selectedSubLayers is
-      // unrestricted (all its subgroups count as selected).
+      // allVariables.
       const selectedLayersLower = this.selectedLayers.map(layer => layer.toLowerCase());
       this.allVariablesFiltered = Object.fromEntries(
         Object.entries(this.allVariables).map(([key, value]) => [
           key,
-          value.filter(item => {
-            const layer = this.variableLayers[item];
-            if (!selectedLayersLower.includes(layer)) {
-              return false;
-            }
-            const subgroup = this.variableSubLayers[item];
-            if (subgroup && this.selectedSubLayers[layer]) {
-              return this.selectedSubLayers[layer].includes(subgroup);
-            }
-            return true;
-          }),
+          value.filter(item => this.isColumnAvailable(item, selectedLayersLower)),
         ])
       );
+    },
+
+    // Clear any existing rule whose column belongs to a layer/subgroup that's no
+    // longer selected, so a stale rule can't get sent to the backend for a column
+    // that's about to be dropped from the context data.
+    pruneStaleRules() {
+      const selectedLayersLower = this.selectedLayers.map(layer => layer.toLowerCase());
+      for (const item of this.innerRows) {
+        if (item.rule.column !== undefined && !this.isColumnAvailable(item.rule.column, selectedLayersLower)) {
+          item.rule = {};
+        }
+      }
     },
 
     updateSelectedLayers(newSelectedLayers) {
       this.selectedLayers = newSelectedLayers;
       this.filterVariables();
+      this.pruneStaleRules();
+      this.$nextTick(() => this.fetchParticipants(this.createParams()));
     },
 
     updateSelectedSubLayers(newSelectedSubLayers) {
       this.selectedSubLayers = newSelectedSubLayers;
       this.filterVariables();
+      this.pruneStaleRules();
+      this.$nextTick(() => this.fetchParticipants(this.createParams()));
     },
 
     createParams() {

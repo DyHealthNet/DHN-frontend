@@ -386,7 +386,7 @@ export default {
       }
     },
     async fetchGraph(requestUrl) {
-      const res = await fetch(requestUrl)
+      const res = await fetch(requestUrl, { credentials: 'include' })
       if (!res.ok) {
         throw new Error(`Request failed with status ${res.status}`)
       }
