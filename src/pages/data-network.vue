@@ -924,7 +924,7 @@ export default {
       }));
     },
     hasSelectedProtein() {
-      return this.selectedNetworkNodes.some((node) => node.source_table === 'proteins');
+      return this.selectedNetworkNodes.some((node) => node.source_table === 'protein');
     },
     // UniProt accessions for g:Profiler's query -- display_name holds the
     // accession(s) for protein nodes (semicolon-separated when a protein has
@@ -933,7 +933,7 @@ export default {
     selectedProteinAccessions() {
       const accessions = new Set();
       this.selectedNetworkNodes
-        .filter((node) => node.source_table === 'proteins')
+        .filter((node) => node.source_table === 'protein')
         .forEach((node) => {
           (node.display_name || '')
             .split(';')
@@ -944,10 +944,10 @@ export default {
       return Array.from(accessions);
     },
     hasSelectedMetabolite() {
-      return this.selectedNetworkNodes.some((node) => node.source_table === 'metabolites');
+      return this.selectedNetworkNodes.some((node) => node.source_table === 'metabolite');
     },
     selectedMetaboliteCount() {
-      return this.selectedNetworkNodes.filter((node) => node.source_table === 'metabolites').length;
+      return this.selectedNetworkNodes.filter((node) => node.source_table === 'metabolite').length;
     },
     // ChEBI ids for Reactome's Analysis Service (it doesn't recognize HMDB directly). x_refs is
     // a single CharField that packs multiple refs as pipe-delimited "prefix.value" pairs (e.g.
@@ -956,14 +956,14 @@ export default {
     selectedMetaboliteChebiIds() {
       const ids = new Set();
       this.selectedNetworkNodes
-        .filter((node) => node.source_table === 'metabolites')
+        .filter((node) => node.source_table === 'metabolite')
         .forEach((node) => {
           (this.parseXrefs(node.x_refs).chebi || []).forEach((id) => ids.add(id));
         });
       return Array.from(ids);
     },
     selectedMetabolitesWithoutChebi() {
-      return this.selectedNetworkNodes.filter((node) => node.source_table === 'metabolites' &&
+      return this.selectedNetworkNodes.filter((node) => node.source_table === 'metabolite' &&
         !(this.parseXrefs(node.x_refs).chebi || []).length);
     },
     selectedAlgorithmLabel() {
@@ -1999,7 +1999,7 @@ export default {
       }
     },
     // Reactome's Analysis Service auto-detects identifier type per line and treats
-    // proteins/metabolites as one physical-entity list -- unlike IMPaLA there are no
+    // protein/metabolite as one physical-entity list -- unlike IMPaLA there are no
     // separate per-datatype p-values, just one combined pathway over-representation.
     async runReactomeEnrichment() {
       this.reactomeEnrichmentLoading = true;
