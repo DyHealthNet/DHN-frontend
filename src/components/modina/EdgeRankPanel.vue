@@ -19,7 +19,7 @@
       ></v-text-field>
     </v-toolbar>
 
-    <v-data-table
+    <DownloadableDataTable
       :headers="headers"
       :items="tableItems"
       :search="search"
@@ -27,9 +27,9 @@
       filter-mode="union"
       :sort-by="[{ key: 'rank', order: 'asc' }]"
       :loading="loading"
-      density="compact"
       items-per-page="10"
       class="edge-rank-table"
+      filename="edge-rank.csv"
       @click:row="onRowClick"
     >
       <template v-slot:item.edge="{ item }">
@@ -64,12 +64,13 @@
       <template v-slot:no-data>
         <span class="text-medium-emphasis">No edge ranking available. Select an edge metric to enable edge ranking.</span>
       </template>
-    </v-data-table>
+    </DownloadableDataTable>
   </v-card>
 </template>
 
 <script>
 import { EDGE_METRIC_INFO, metricLabel, metricDescription } from './metricInfo.js';
+import DownloadableDataTable from '@/components/DownloadableDataTable.vue';
 
 // v-data-table's default sort coerces values to strings before comparing, which sorts negative
 // numbers (e.g. 'signed') lexicographically instead of by magnitude -- force pure numeric compare.
@@ -91,6 +92,7 @@ function scoreSort(a, b) {
 
 export default {
   name: 'EdgeRankPanel',
+  components: { DownloadableDataTable },
   props: {
     items: {
       type: Array,
@@ -127,7 +129,7 @@ export default {
       search: '',
       headers: [
         { title: 'Rank', key: 'rank', width: 90, sort: rankSort },
-        { title: 'Edge', key: 'edge' },
+        { title: 'Edge', key: 'edge', csvValue: (item) => (item.label1Name && item.label2Name ? `${item.label1Name} <-> ${item.label2Name}` : item.edge) },
         { title: 'Score', key: 'score', sort: scoreSort },
         { title: 'Signed', key: 'signed', sort: scoreSort },
       ],

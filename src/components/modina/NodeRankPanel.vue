@@ -19,7 +19,7 @@
       ></v-text-field>
     </v-toolbar>
 
-    <v-data-table
+    <DownloadableDataTable
       :headers="headers"
       :items="items"
       :search="search"
@@ -27,9 +27,9 @@
       filter-mode="union"
       :sort-by="[{ key: 'rank', order: 'asc' }]"
       :loading="loading"
-      density="compact"
       items-per-page="10"
       class="node-rank-table"
+      filename="node-rank.csv"
       @click:row="onRowClick"
     >
       <template v-slot:item.id="{ item }">
@@ -83,12 +83,13 @@
       <template v-slot:no-data>
         <span class="text-medium-emphasis">No node ranking available. Select a node metric to enable node ranking.</span>
       </template>
-    </v-data-table>
+    </DownloadableDataTable>
   </v-card>
 </template>
 
 <script>
 import { NODE_METRIC_INFO, RANKING_ALGORITHM_INFO, metricLabel, metricDescription } from './metricInfo.js';
+import DownloadableDataTable from '@/components/DownloadableDataTable.vue';
 
 // Rank columns: lower number = better, so a missing rank (no surviving edges for PageRank+) is
 // worse than every real rank -- sorts as if it were the largest number, regardless of which
@@ -113,6 +114,7 @@ function scoreSort(a, b) {
 
 export default {
   name: 'NodeRankPanel',
+  components: { DownloadableDataTable },
   props: {
     items: {
       type: Array,
@@ -151,7 +153,7 @@ export default {
       // without this, clicking a numeric header sorts lexicographically instead of by magnitude.
       return [
         { title: 'Rank', key: 'rank', width: 90, sort: rankSort },
-        { title: 'Node', key: 'id' },
+        { title: 'Node', key: 'id', csvValue: (item) => item.display_name || item.id },
         { title: 'Group', key: 'group', width: 130 },
         { title: 'Type', key: 'type', width: 130 },
         { title: 'Score', key: 'score', sort: scoreSort },

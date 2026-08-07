@@ -13,7 +13,9 @@ import Metagraph from './pages/metagraph.vue'
 import DifferentialNetwork from './pages/differential-network.vue'
 import Login from './pages/user-login.vue'
 import Logout from './pages/user-logout.vue'
+import PlatformLogin from './pages/platform-login.vue'
 import {checkLogin} from "@/components/authentication/auth.js";
+import {checkPlatformAuth} from "@/components/authentication/platformAuth.js";
 import {BASE_URL} from "@/components/constants.js";
 
 
@@ -74,6 +76,14 @@ const routes = [
         path: '/logout',
         name: 'Logout',
         component: Logout,
+    },
+    {
+        // Platform-wide login page, see platformAuth.js / network/middleware.py.
+        // Self-contained: remove this route + platform-login.vue + platformAuth.js
+        // + the router.beforeEach guard below to rip the feature out.
+        path: '/platform-login',
+        name: 'PlatformLogin',
+        component: PlatformLogin,
     }
   ]
 
@@ -88,6 +98,27 @@ const router = createRouter({
 })
 
 export default router;
+
+// Platform-wide gate: runs before the per-user auth guard below. Remove this
+// block (see the route definition above for the rest of the removal steps)
+// if the platform-login feature goes away.
+router.beforeEach(async (to, from, next) => {
+  if (to.name === 'PlatformLogin') {
+    next();
+    return;
+  }
+
+  const { enabled, isAuthenticated } = await checkPlatformAuth();
+  if (!enabled || isAuthenticated) {
+    next();
+  } else {
+    next({
+      name: 'PlatformLogin',
+      query: { redirect: to.fullPath },
+    });
+  }
+});
+
 router.beforeEach(async (to, from, next) => {
     console.log("to", to);
     console.log("from", from);

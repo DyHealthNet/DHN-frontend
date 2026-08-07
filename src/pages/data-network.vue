@@ -279,135 +279,25 @@
                     </v-row>
                     <v-divider class="my-4"></v-divider>
 
-                    <v-tabs v-model="selectionTab" density="compact" color="primary-darken-1">
-                      <v-tab value="nodes">Selected Nodes</v-tab>
-                      <v-tab v-if="hasSelectedProtein" value="enrichment">Protein Enrichment</v-tab>
-                      <v-tab v-if="hasSelectedProtein || hasSelectedMetabolite" value="reactomeEnrichment">Reactome Enrichment</v-tab>
-                      <v-tab value="gemini">Gemini Label</v-tab>
-                    </v-tabs>
-                    <v-window v-model="selectionTab">
-                      <v-window-item value="nodes">
-                        <span v-if="selectedNetworkNodes.length === 0">
-                              No node selected. Double click on a node to add it to this panel or select it via the Details panel.
-                        </span>
-                        <v-table dense v-else="selectedNetworkNodes.length === 0">
-                          <thead>
-                            <tr>
-                              <th>Name</th>
-                              <th>Type</th>
-                              <th>Description</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr v-for="(node, index) in selectedNetworkNodes" :key="node.id">
-                              <td>{{ node.display_name }}</td>
-                              <td>{{ this.getPrettyType(node.source_table) }}</td>
-                              <td>{{ node.description }}</td>
-                            </tr>
-                          </tbody>
-                        </v-table>
-                      </v-window-item>
-                      <v-window-item v-if="hasSelectedProtein" value="enrichment">
-                        <p class="text-caption text-medium-emphasis mt-2">
-                          Functional enrichment of the {{ selectedProteinAccessions.length }} selected protein(s), via <a href="https://biit.cs.ut.ee/gprofiler/gost" target="_blank" rel="noopener">g:Profiler</a>.
-                        </p>
-                        <v-btn
-                          class="mt-2"
-                          color="primary"
-                          variant="outlined"
-                          :loading="enrichmentLoading"
-                          @click="runProteinEnrichment"
-                        >Run Enrichment</v-btn>
-
-                        <v-table v-if="enrichmentResults.length" dense class="mt-4">
-                          <thead>
-                            <tr>
-                              <th>Source</th>
-                              <th>Term</th>
-                              <th>p-value</th>
-                              <th>Genes</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr v-for="term in enrichmentResults" :key="term.native">
-                              <td>{{ term.source }}</td>
-                              <td>{{ term.name }}</td>
-                              <td>{{ term.p_value.toExponential(2) }}</td>
-                              <td>{{ term.intersection_size }}/{{ term.term_size }}</td>
-                            </tr>
-                          </tbody>
-                        </v-table>
-                        <p v-else-if="enrichmentRan && !enrichmentLoading" class="text-caption text-medium-emphasis mt-4">
-                          No significant terms found.
-                        </p>
-                      </v-window-item>
-                      <v-window-item v-if="hasSelectedProtein || hasSelectedMetabolite" value="reactomeEnrichment">
-                        <p class="text-caption text-medium-emphasis mt-2">
-                          Joint pathway over-representation of {{ selectedProteinAccessions.length }} protein(s) and
-                          {{ selectedMetaboliteCount - reactomeUnmappedMetabolites.length }} metabolite(s), via <a href="https://reactome.org/PathwayBrowser/#/ANALYSIS" target="_blank" rel="noopener">Reactome</a>.
-                        </p>
-                        <p v-if="selectedMetabolitesWithoutChebi.length && !reactomeEnrichmentRan" class="text-caption text-medium-emphasis">
-                          {{ selectedMetabolitesWithoutChebi.length }} selected metabolite(s) have no stored ChEBI cross-reference yet -- they'll be
-                          mapped live via <a href="https://www.ebi.ac.uk/unichem/" target="_blank" rel="noopener">UniChem</a> when you run enrichment.
-                        </p>
-                        <p v-if="reactomeUnmappedMetabolites.length" class="text-caption text-medium-emphasis">
-                          {{ reactomeUnmappedMetabolites.length }} selected metabolite(s) could not be mapped to a ChEBI id and were excluded:
-                          {{ reactomeUnmappedMetabolites.map((node) => node.display_name).join(', ') }}
-                        </p>
-                        <v-btn
-                          class="mt-2"
-                          color="primary"
-                          variant="outlined"
-                          :loading="reactomeEnrichmentLoading"
-                          :disabled="selectedProteinAccessions.length + selectedMetaboliteChebiIds.length + selectedMetabolitesWithoutChebi.length === 0"
-                          @click="runReactomeEnrichment"
-                        >Run Enrichment</v-btn>
-
-                        <v-table v-if="reactomeEnrichmentResults.length" dense class="mt-4">
-                          <thead>
-                            <tr>
-                              <th>Pathway</th>
-                              <th>p-value</th>
-                              <th>FDR</th>
-                              <th>Entities</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr v-for="pathway in reactomeEnrichmentResults" :key="pathway.stId">
-                              <td><a :href="`https://reactome.org/PathwayBrowser/#/${pathway.stId}`" target="_blank" rel="noopener">{{ pathway.name }}</a></td>
-                              <td>{{ pathway.entities.pValue.toExponential(2) }}</td>
-                              <td>{{ pathway.entities.fdr.toExponential(2) }}</td>
-                              <td>{{ pathway.entities.found }}/{{ pathway.entities.total }}</td>
-                            </tr>
-                          </tbody>
-                        </v-table>
-                        <p v-else-if="reactomeEnrichmentRan && !reactomeEnrichmentLoading" class="text-caption text-medium-emphasis mt-4">
-                          No significant pathways found.
-                        </p>
-                      </v-window-item>
-                      <v-window-item value="gemini">
-                        <p class="text-caption text-medium-emphasis mt-2">
-                          Ask Gemini to propose a label for the {{ selectedNetworkNodes.length }} selected node(s), based on their
-                          name, group/subgroup, and description.
-                        </p>
-                        <v-btn
-                          class="mt-2"
-                          color="primary"
-                          variant="outlined"
-                          :loading="geminiLoading"
-                          :disabled="selectedNetworkNodes.length === 0"
-                          @click="runGeminiLabel"
-                        >Get Gemini Label</v-btn>
-
-                        <div v-if="geminiLabel" class="mt-4">
-                          <div class="text-subtitle-1 font-weight-medium">{{ geminiLabel.label }}</div>
-                          <p class="text-caption text-medium-emphasis">{{ geminiLabel.rationale }}</p>
-                        </div>
-                        <p v-else-if="geminiRan && !geminiLoading" class="text-caption text-medium-emphasis mt-4">
-                          No label returned.
-                        </p>
-                      </v-window-item>
-                    </v-window>
+                    <span v-if="selectedNetworkNodes.length === 0">
+                          No node selected. Double click on a node to add it to this panel or select it via the Details panel.
+                    </span>
+                    <v-table dense v-else="selectedNetworkNodes.length === 0">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Type</th>
+                          <th>Description</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="(node, index) in selectedNetworkNodes" :key="node.id">
+                          <td>{{ node.display_name }}</td>
+                          <td>{{ this.getPrettyType(node.source_table) }}</td>
+                          <td>{{ node.description }}</td>
+                        </tr>
+                      </tbody>
+                    </v-table>
                   </v-expansion-panel-text>
                 </v-expansion-panel>
 
@@ -582,6 +472,24 @@
                     <p v-else class="text-medium-emphasis">
                       Community detection is available once you've sent the whole network above ("Send Whole Network") -- it isn't supported for node-set-built subnetworks.
                     </p>
+
+                    <NodeSetActionsPanel
+                      :selected-node-count="selectedNetworkNodes.length"
+                      :has-selected-protein="hasSelectedProtein"
+                      :has-selected-metabolite="hasSelectedMetabolite"
+                      :selected-protein-count="selectedProteinAccessions.length"
+                      :selected-metabolite-mapped-count="selectedMetaboliteCount - reactomeUnmappedMetabolites.length"
+                      :selected-metabolites-without-chebi-count="selectedMetabolitesWithoutChebi.length"
+                      :reactome-unmapped-metabolite-names="reactomeUnmappedMetabolites.map((node) => node.display_name)"
+                      :reactome-run-disabled="selectedProteinAccessions.length + selectedMetaboliteChebiIds.length + selectedMetabolitesWithoutChebi.length === 0"
+                      :reactome-enrichment-ran="reactomeEnrichmentRan"
+                      :gemini-loading="geminiLoading"
+                      :enrichment-loading="enrichmentLoading"
+                      :reactome-enrichment-loading="reactomeEnrichmentLoading"
+                      @run-gemini-label="runGeminiLabel(); resultsPanelOpen = true; resultsPanelTab = 'gemini';"
+                      @run-protein-enrichment="runProteinEnrichment(); resultsPanelOpen = true; resultsPanelTab = 'enrichment';"
+                      @run-reactome-enrichment="runReactomeEnrichment(); resultsPanelOpen = true; resultsPanelTab = 'reactomeEnrichment';"
+                    />
                   </v-expansion-panel-text>
                 </v-expansion-panel>
               </v-expansion-panels>
@@ -707,6 +615,24 @@
               </v-card>
             </v-col>
           </v-row>
+
+          <v-row v-if="resultsPanelOpen || enrichmentRan || reactomeEnrichmentRan || geminiRan">
+            <v-col cols="12">
+              <EnrichmentResultsPanel
+                v-model:open="resultsPanelOpen"
+                v-model:tab="resultsPanelTab"
+                :enrichment-ran="enrichmentRan"
+                :enrichment-results="enrichmentResults"
+                :enrichment-loading="enrichmentLoading"
+                :reactome-enrichment-ran="reactomeEnrichmentRan"
+                :reactome-enrichment-results="reactomeEnrichmentResults"
+                :reactome-enrichment-loading="reactomeEnrichmentLoading"
+                :gemini-ran="geminiRan"
+                :gemini-label="geminiLabel"
+                :gemini-loading="geminiLoading"
+              />
+            </v-col>
+          </v-row>
         </v-card>
         <v-row>
           <div class="ma-2">
@@ -748,6 +674,8 @@ import StatisticalTestLine from "@/components/StatisticalTestLine.vue";
 import NetworkEdgeLine from "@/components/network/NetworkEdgeLine.vue";
 import WholeNetworkSettings from "@/components/network/WholeNetworkSettings.vue";
 import GraphToolbar from "@/components/network/GraphToolbar.vue";
+import EnrichmentResultsPanel from "@/components/network/EnrichmentResultsPanel.vue";
+import NodeSetActionsPanel from "@/components/network/NodeSetActionsPanel.vue";
 import {useTheme} from 'vuetify';
 
 
@@ -755,7 +683,7 @@ import {useTheme} from 'vuetify';
 export default {
   components: {
     StatisticalTestLine, FilterToolbar, AdvancedSettings, NodeDetails, NetworkEdgeLine,
-    WholeNetworkSettings, EdgeDetails, GraphToolbar, NetworkLegend},
+    WholeNetworkSettings, EdgeDetails, GraphToolbar, NetworkLegend, EnrichmentResultsPanel, NodeSetActionsPanel},
   data() {
     return {
       // context filter
@@ -813,8 +741,12 @@ export default {
       selectAll: false,
       clearNetworkWarn: false,
 
-      // Selection panel tabs + Protein Enrichment (g:Profiler)
-      selectionTab: 'nodes',
+      // Results panel (below the network) shown once an Analysis-panel
+      // action -- Protein Enrichment, Reactome Enrichment, or Gemini Label -- has been run
+      resultsPanelOpen: false,
+      resultsPanelTab: 'enrichment',
+
+      // Protein Enrichment (g:Profiler)
       enrichmentLoading: false,
       enrichmentRan: false,
       enrichmentResults: [],
@@ -3041,11 +2973,6 @@ export default {
         this.geminiLabel = null;
         this.geminiRan = false;
       },
-    },
-    hasSelectedProtein(newVal) {
-      if (!newVal && this.selectionTab === 'enrichment') {
-        this.selectionTab = 'nodes';
-      }
     },
     },
     beforeUnmount() {
