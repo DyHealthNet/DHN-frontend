@@ -442,30 +442,74 @@
                             class="mt-2"
                             color="primary"
                             variant="outlined"
-                            :loading="communityLabelsLoading"
                             :disabled="legendGroups.length === 0"
-                            @click="runCommunityLabeling"
-                          >Label All Communities</v-btn>
+                            @click="resultsPanelOpen = true; resultsPanelTab = 'communityAnnotation';"
+                          >Community Annotation</v-btn>
 
-                          <v-table v-if="Object.keys(communityLabels).length" dense class="mt-4">
-                            <thead>
-                              <tr>
-                                <th>Community</th>
-                                <th>Label</th>
-                                <th>Rationale</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr v-for="(entry, communityId) in communityLabels" :key="communityId">
-                                <td>{{ communityId }}</td>
-                                <td>{{ entry.label }}</td>
-                                <td>{{ entry.rationale }}</td>
-                              </tr>
-                            </tbody>
-                          </v-table>
-                          <p v-else-if="communityLabelsRan && !communityLabelsLoading" class="text-caption text-medium-emphasis mt-4">
-                            No community labels returned.
+                          <v-divider class="my-4"></v-divider>
+                          <p class="text-caption text-medium-emphasis mb-2">
+                            Scores the current clustering's biological coherence via DIGEST, against
+                            random background partitions of the same size. Only one node type can be
+                            scored per run.
                           </p>
+                          <v-select
+                            v-model="scoreClusteringNodeGroup"
+                            :items="scoreClusteringNodeGroups"
+                            label="Node type to score"
+                            density="compact"
+                            variant="outlined"
+                            :disabled="scoreClusteringStatus === 'running'"
+                          ></v-select>
+                          <v-select
+                            v-model="scoreClusteringType"
+                            :items="scoreClusteringTypeOptions"
+                            item-title="title"
+                            item-value="value"
+                            label="Category"
+                            density="compact"
+                            variant="outlined"
+                            :disabled="scoreClusteringStatus === 'running'"
+                          ></v-select>
+                          <v-select
+                            v-model="scoreClusteringTarId"
+                            :items="scoreClusteringTarIdOptions"
+                            item-title="title"
+                            item-value="value"
+                            label="Identifier scheme"
+                            density="compact"
+                            variant="outlined"
+                            :disabled="scoreClusteringStatus === 'running'"
+                          ></v-select>
+                          <v-btn
+                            block
+                            color="primary"
+                            variant="outlined"
+                            :loading="scoreClusteringStatus === 'running'"
+                            :disabled="scoreClusteringStatus === 'running' || !scoreClusteringNodeGroup || !scoreClusteringTarId"
+                            @click="runScoreClustering"
+                          >{{ scoreClusteringStatus === 'success' ? 'Re-score Clustering' : 'Score Clustering' }}</v-btn>
+
+                          <div v-if="scoreClusteringStatus === 'success' && scoreClusteringResult" class="mt-3">
+                            <v-table density="compact">
+                              <thead>
+                                <tr><th>Metric</th><th>Value</th><th>p-value</th></tr>
+                              </thead>
+                              <tbody>
+                                <tr v-for="metric in ['DI-based', 'SS-based', 'DBI-based']" :key="metric">
+                                  <td>{{ metric }}</td>
+                                  <td>{{ formatScoreValue(scoreClusteringResult.input_values?.values?.[metric]) }}</td>
+                                  <td>{{ formatScoreValue(scoreClusteringResult.p_values?.values?.[metric]) }}</td>
+                                </tr>
+                              </tbody>
+                            </v-table>
+                            <p class="text-caption text-medium-emphasis mt-2">
+                              DBI-based is better when lower; DI-based and SS-based are better when
+                              higher. Scored {{ scoreClusteringResult.coverage?.scoredNodeCount }} of
+                              {{ scoreClusteringResult.coverage?.inputNodeCount }} clustered nodes
+                              ({{ scoreClusteringResult.coverage?.nodeGroup }} via
+                              {{ scoreClusteringResult.coverage?.tarId }}).
+                            </p>
+                          </div>
                         </div>
                       </template>
                     </template>
@@ -630,6 +674,11 @@
                 :gemini-ran="geminiRan"
                 :gemini-label="geminiLabel"
                 :gemini-loading="geminiLoading"
+                :community-annotation-available="clusteringActive"
+                :community-annotation-status="communityAnnotationStatus"
+                :community-annotation-progress="communityAnnotationProgress"
+                :community-annotation-results="communityAnnotationResults"
+                @run-community-annotation="runCommunityAnnotation"
               />
             </v-col>
           </v-row>
@@ -764,10 +813,31 @@ export default {
       geminiRan: false,
       geminiLabel: null,
 
-      // Gemini bulk community labeling (one call for all communities at the active resolution)
-      communityLabelsLoading: false,
-      communityLabelsRan: false,
-      communityLabels: {},
+      // Community Annotation (g:Profiler + Reactome + Gemini for every community at the
+      // active resolution, run as a background job -- see runCommunityAnnotation()).
+      communityAnnotationStatus: 'idle', // 'idle' | 'running' | 'success' | 'error'
+      communityAnnotationProgress: null, // {stage: 'gprofiler'|'reactome'|'gemini', completed, total}
+      communityAnnotationResults: {},
+      // Persisted (see saveState/loadState) so a run survives a reload: the Celery task keeps
+      // running server-side regardless of whether this tab is open, and the runId is the only
+      // way to reconnect to it afterward.
+      communityAnnotationRunId: null,
+      communityAnnotationStartedAt: null,
+      communityAnnotationPollTimer: null,
+
+      // Score Clustering (biological coherence of the active clustering via a self-hosted
+      // DIGEST instance -- see runScoreClustering()). scoreClusteringNodeGroup defaults once
+      // scoreClusteringNodeGroups is known (see its watcher below).
+      scoreClusteringNodeGroup: null,
+      scoreClusteringType: 'gene', // 'gene' | 'disease'
+      scoreClusteringTarId: 'uniprot',
+      scoreClusteringStatus: 'idle', // 'idle' | 'running' | 'success'
+      scoreClusteringResult: null,
+      // Persisted (see saveState/loadState) so a run survives a reload, same reasoning as
+      // communityAnnotationRunId above.
+      scoreClusteringRunId: null,
+      scoreClusteringStartedAt: null,
+      scoreClusteringPollTimer: null,
 
       // Advanced Settings (default) values
       selectedTests: { testType: 'parametric', correction: 'bh' },
@@ -937,6 +1007,41 @@ export default {
     },
     currentConductance() {
       return this.leidenMeta?.conductance_by_resolution?.[this.currentResolutionKey];
+    },
+    // Node types present in the active clustering -- DIGEST only scores one node type per run
+    // (see network/views/biodigest_scoring.py), derived from source_table the same way
+    // legendKeyFor's non-clustering fallback does, since legendKeyFor itself returns community
+    // ids while clusteringActive.
+    scoreClusteringNodeGroups() {
+      return this.sortLegendKeys(Array.from(new Set(
+        this.networkNodes
+          .map((node) => (node.source_table ? node.source_table.split('_').pop() : undefined))
+          .filter((key) => key !== undefined)
+      )));
+    },
+    scoreClusteringTypeOptions() {
+      return [{ title: 'Gene', value: 'gene' }, { title: 'Disease', value: 'disease' }];
+    },
+    // DIGEST's supported id schemes per category (see evaluation/config.py's
+    // SUPPORTED_GENE_IDS/SUPPORTED_DISEASE_IDS in bionetslab/digest).
+    scoreClusteringTarIdOptions() {
+      return this.scoreClusteringType === 'disease'
+        ? [
+            { title: 'MONDO', value: 'mondo' },
+            { title: 'OMIM', value: 'omim' },
+            { title: 'SNOMED CT', value: 'snomedct' },
+            { title: 'UMLS', value: 'umls' },
+            { title: 'Orphanet', value: 'orpha' },
+            { title: 'MeSH', value: 'mesh' },
+            { title: 'DOID', value: 'doid' },
+            { title: 'ICD-10', value: 'ICD-10' },
+          ]
+        : [
+            { title: 'UniProt (Swiss-Prot)', value: 'uniprot' },
+            { title: 'Gene Symbol', value: 'symbol' },
+            { title: 'Entrez Gene ID', value: 'entrez' },
+            { title: 'Ensembl Gene ID', value: 'ensembl' },
+          ];
     },
     // Limit the number of displayed nodes to 5
     limitedDropdownNodes() {
@@ -1449,10 +1554,10 @@ export default {
     async runLeidenClustering() {
       if (this.lastNetworkMode !== 'whole') return;
       this.isClusteringLoading = true;
-      // Community numbering can change on recompute, so any previously-fetched
-      // bulk community labels no longer match -- clear them.
-      this.communityLabels = {};
-      this.communityLabelsRan = false;
+      // Community numbering can change on recompute, so any previously-fetched or
+      // in-progress Community Annotation / Score Clustering run no longer matches -- discard it.
+      this.resetCommunityAnnotation();
+      this.resetScoreClustering();
       try {
         const csrfToken = getCookie('csrftoken');
         const response = await fetch(this.buildLeidenUrl(), {
@@ -2020,18 +2125,19 @@ export default {
       this.geminiRan = true;
       this.geminiLoading = false;
     },
-    // Labels every community at the active resolution in a single Gemini call (rather
-    // than one call per community), so quota is bounded and the model can see every
-    // community at once to produce mutually distinctive labels.
-    async runCommunityLabeling() {
+    // Kicks off the Community Annotation batch job (g:Profiler + Reactome enrichment, then a
+    // single bulk Gemini call grounded in that enrichment) for every community at the active
+    // resolution. Runs as a background Celery job (can take several minutes) rather than a
+    // blocking request -- see pollCommunityAnnotationStatus.
+    async runCommunityAnnotation() {
       const communityKeys = this.legendGroups.filter((key) => key !== 'Unassigned');
       if (communityKeys.length === 0) return;
-      this.communityLabelsLoading = true;
-      this.communityLabelsRan = false;
-      this.communityLabels = {};
+      this.communityAnnotationStatus = 'running';
+      this.communityAnnotationProgress = null;
+      this.communityAnnotationResults = {};
       try {
         const csrfToken = getCookie('csrftoken');
-        const response = await fetch(`${BASE_URL}/gemini/api/getGeminiClusterLabels/`, {
+        const response = await fetch(`${BASE_URL}/community-annotation/api/runCommunityAnnotation`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2045,17 +2151,206 @@ export default {
             ),
           }),
         });
-        if (!response.ok) throw new Error("Gemini cluster-labeling response was not ok");
+        if (!response.ok) throw new Error("Community annotation could not be started.");
         const data = await response.json();
-        this.communityLabels = data.communities || {};
+        this.communityAnnotationRunId = data.runId;
+        this.communityAnnotationStartedAt = Date.now();
+        // Persist the runId right away -- the Celery task keeps running server-side
+        // regardless of this tab, and the runId is the only way to reconnect to it after
+        // a reload (see resumeCommunityAnnotationIfNeeded).
+        this.saveState();
+        this.pollCommunityAnnotationStatus();
       } catch (error) {
-        console.error("Error running Gemini community labeling:", error);
-        this.infoText = "Could not fetch community labels from Gemini. Please try again.";
+        console.error("Error starting community annotation:", error);
+        this.infoText = "Could not start community annotation. Please try again.";
         this.infoType = "error";
         this.showInfo = true;
+        this.communityAnnotationStatus = 'idle';
       }
-      this.communityLabelsRan = true;
-      this.communityLabelsLoading = false;
+    },
+    // Polls the run started by runCommunityAnnotation() (or resumed by
+    // resumeCommunityAnnotationIfNeeded()) until it succeeds or fails.
+    // giveUpAt (ms epoch, only set on resume-after-reload): Celery reports PENDING
+    // identically for "queued, not started yet" and "unknown/expired runId" -- there's no way
+    // to tell these apart from the status alone. A run just started by this tab is known-good
+    // (no giveUpAt, poll indefinitely); a resumed run gets a generous ceiling so a stale
+    // pointer from a past session doesn't spin a loading indicator forever.
+    async pollCommunityAnnotationStatus(giveUpAt = null) {
+      const runId = this.communityAnnotationRunId;
+      if (!runId) return;
+      try {
+        const response = await fetch(
+          `${BASE_URL}/community-annotation/api/runCommunityAnnotationStatus?runId=${encodeURIComponent(runId)}`,
+          { credentials: 'include' },
+        );
+        if (!response.ok) throw new Error("Community annotation status request was not ok");
+        const data = await response.json();
+
+        if (data.status === 'SUCCESS') {
+          this.communityAnnotationResults = data.result || {};
+          this.communityAnnotationProgress = null;
+          this.communityAnnotationStatus = 'success';
+          this.communityAnnotationRunId = null;
+          this.communityAnnotationStartedAt = null;
+          this.saveState();
+          return;
+        }
+        if (data.status === 'FAILURE') {
+          throw new Error(data.result || "Community annotation failed.");
+        }
+        if (data.status === 'PROGRESS' && data.result) {
+          this.communityAnnotationProgress = data.result;
+        } else if (giveUpAt != null && Date.now() > giveUpAt) {
+          this.communityAnnotationStatus = 'idle';
+          this.communityAnnotationProgress = null;
+          this.communityAnnotationRunId = null;
+          this.communityAnnotationStartedAt = null;
+          this.saveState();
+          return;
+        }
+        this.communityAnnotationPollTimer = setTimeout(() => this.pollCommunityAnnotationStatus(giveUpAt), 3000);
+      } catch (error) {
+        console.error("Error polling community annotation status:", error);
+        this.infoText = "Could not fetch community annotation results. Please try again.";
+        this.infoType = "error";
+        this.showInfo = true;
+        this.communityAnnotationStatus = 'idle';
+        this.communityAnnotationProgress = null;
+        this.communityAnnotationRunId = null;
+        this.communityAnnotationStartedAt = null;
+        this.saveState();
+      }
+    },
+    // Called once from loadState() after it restores a persisted runId -- reconnects to a run
+    // that was still going (or had already finished) when the page was last closed/reloaded.
+    resumeCommunityAnnotationIfNeeded() {
+      if (!this.communityAnnotationRunId || !this.clusteringActive) return;
+      this.communityAnnotationStatus = 'running';
+      const giveUpAt = (this.communityAnnotationStartedAt ?? Date.now()) + 20 * 60 * 1000;
+      this.pollCommunityAnnotationStatus(giveUpAt);
+    },
+    // Discards any in-progress or finished Community Annotation run -- communities are
+    // renumbered on every re-cluster/resolution change, so a stale run must not linger or be
+    // reconnected to after the fact.
+    resetCommunityAnnotation() {
+      clearTimeout(this.communityAnnotationPollTimer);
+      this.communityAnnotationStatus = 'idle';
+      this.communityAnnotationProgress = null;
+      this.communityAnnotationResults = {};
+      this.communityAnnotationRunId = null;
+      this.communityAnnotationStartedAt = null;
+    },
+    // Scores the active clustering's biological coherence via a self-hosted DIGEST instance
+    // (see network/views/biodigest_scoring.py) for the chosen node type/id scheme. Async job,
+    // same submit-then-poll pattern as runCommunityAnnotation() above.
+    async runScoreClustering() {
+      if (!this.scoreClusteringNodeGroup || !this.scoreClusteringTarId) return;
+      this.scoreClusteringStatus = 'running';
+      this.scoreClusteringResult = null;
+      try {
+        const csrfToken = getCookie('csrftoken');
+        const response = await fetch(`${BASE_URL}/biodigest/api/scoreClustering`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            clustering: Object.fromEntries(
+              this.networkNodes
+                .filter((node) => this.legendKeyFor(node) !== 'Unassigned')
+                .map((node) => [node.id, this.legendKeyFor(node)])
+            ),
+            nodeGroup: this.scoreClusteringNodeGroup,
+            tarId: this.scoreClusteringTarId,
+            type: this.scoreClusteringType,
+          }),
+        });
+        if (!response.ok) {
+          const errorBody = await response.json().catch(() => null);
+          throw new Error(errorBody?.message || "Clustering scoring could not be started.");
+        }
+        const data = await response.json();
+        this.scoreClusteringRunId = data.runId;
+        this.scoreClusteringStartedAt = Date.now();
+        // Persist right away -- DIGEST keeps running server-side regardless of this tab, and
+        // the runId is the only way to reconnect to it after a reload (see
+        // resumeScoreClusteringIfNeeded).
+        this.saveState();
+        this.pollScoreClusteringStatus();
+      } catch (error) {
+        console.error("Error starting clustering scoring:", error);
+        this.infoText = error?.message || "Could not start clustering scoring. Please try again.";
+        this.infoType = "error";
+        this.showInfo = true;
+        this.scoreClusteringStatus = 'idle';
+      }
+    },
+    // Polls the run started by runScoreClustering() (or resumed by
+    // resumeScoreClusteringIfNeeded()) until it succeeds or fails. giveUpAt: see
+    // pollCommunityAnnotationStatus's comment -- same PENDING-forever-vs-stale-runId ambiguity.
+    async pollScoreClusteringStatus(giveUpAt = null) {
+      const runId = this.scoreClusteringRunId;
+      if (!runId) return;
+      try {
+        const response = await fetch(
+          `${BASE_URL}/biodigest/api/scoreClusteringStatus?runId=${encodeURIComponent(runId)}`,
+          { credentials: 'include' },
+        );
+        if (!response.ok) throw new Error("Clustering scoring status request was not ok");
+        const data = await response.json();
+
+        if (data.status === 'SUCCESS') {
+          this.scoreClusteringResult = data.result || null;
+          this.scoreClusteringStatus = 'success';
+          this.scoreClusteringRunId = null;
+          this.scoreClusteringStartedAt = null;
+          this.saveState();
+          return;
+        }
+        if (data.status === 'FAILURE') {
+          throw new Error(data.result || "Clustering scoring failed.");
+        }
+        if (giveUpAt != null && Date.now() > giveUpAt) {
+          this.scoreClusteringStatus = 'idle';
+          this.scoreClusteringRunId = null;
+          this.scoreClusteringStartedAt = null;
+          this.saveState();
+          return;
+        }
+        this.scoreClusteringPollTimer = setTimeout(() => this.pollScoreClusteringStatus(giveUpAt), 3000);
+      } catch (error) {
+        console.error("Error polling clustering scoring status:", error);
+        this.infoText = "Could not fetch clustering scoring results. Please try again.";
+        this.infoType = "error";
+        this.showInfo = true;
+        this.scoreClusteringStatus = 'idle';
+        this.scoreClusteringRunId = null;
+        this.scoreClusteringStartedAt = null;
+        this.saveState();
+      }
+    },
+    // Called once from loadState() after it restores a persisted runId -- reconnects to a run
+    // that was still going (or had already finished) when the page was last closed/reloaded.
+    resumeScoreClusteringIfNeeded() {
+      if (!this.scoreClusteringRunId || !this.clusteringActive) return;
+      this.scoreClusteringStatus = 'running';
+      const giveUpAt = (this.scoreClusteringStartedAt ?? Date.now()) + 20 * 60 * 1000;
+      this.pollScoreClusteringStatus(giveUpAt);
+    },
+    // Discards any in-progress or finished scoring run -- communities are renumbered on every
+    // re-cluster/resolution change, so a stale run must not linger or be reconnected to after
+    // the fact (same reasoning as resetCommunityAnnotation).
+    resetScoreClustering() {
+      clearTimeout(this.scoreClusteringPollTimer);
+      this.scoreClusteringStatus = 'idle';
+      this.scoreClusteringResult = null;
+      this.scoreClusteringRunId = null;
+      this.scoreClusteringStartedAt = null;
+    },
+    formatScoreValue(value) {
+      return typeof value === 'number' ? value.toFixed(4) : '—';
     },
     groupNodesFor(groupKey) {
       return this.networkNodes.filter((node) => this.legendKeyFor(node) === groupKey);
@@ -2864,6 +3159,15 @@ export default {
         selectedAlgorithm: this.selectedAlgorithm,
         resolutionIndex: this.resolutionIndex,
         leidenMeta: this.leidenMeta,
+        // Community Annotation -- only the runId/startedAt pointer is persisted, not the
+        // (potentially large) result payload itself, so a reload can reconnect to a run
+        // still in progress server-side rather than losing track of it entirely.
+        communityAnnotationRunId: this.communityAnnotationRunId,
+        communityAnnotationStartedAt: this.communityAnnotationStartedAt,
+        // Score Clustering -- same runId/startedAt-only persistence reasoning as Community
+        // Annotation above.
+        scoreClusteringRunId: this.scoreClusteringRunId,
+        scoreClusteringStartedAt: this.scoreClusteringStartedAt,
       }
 
       const exportData = { nodes: nodes, edges: edges ,
@@ -2914,8 +3218,14 @@ export default {
         this.selectedAlgorithm = user_settings.selectedAlgorithm ?? 'leiden';
         this.resolutionIndex = user_settings.resolutionIndex ?? 2;
         this.leidenMeta = user_settings.leidenMeta ?? {};
+        this.communityAnnotationRunId = user_settings.communityAnnotationRunId ?? null;
+        this.communityAnnotationStartedAt = user_settings.communityAnnotationStartedAt ?? null;
+        this.scoreClusteringRunId = user_settings.scoreClusteringRunId ?? null;
+        this.scoreClusteringStartedAt = user_settings.scoreClusteringStartedAt ?? null;
         await this.initializeCosmograph(); // Reapply the state to the new network
         this.applyDesign(false);
+        this.resumeCommunityAnnotationIfNeeded();
+        this.resumeScoreClusteringIfNeeded();
       }
     },
   },
@@ -2932,6 +3242,22 @@ export default {
     '$vuetify.theme.global.name'(newTheme, oldTheme) {
       console.log(`Theme changed from ${oldTheme} to ${newTheme}`);
       this.applyDesign(false); // Trigger the network update
+    },
+    // Keeps the "Node type to score" select pointed at a node type that's actually present --
+    // defaults it once node types become known, and re-defaults if the previously-selected one
+    // disappears (e.g. after re-clustering a different network).
+    scoreClusteringNodeGroups: {
+      immediate: true,
+      handler(groups) {
+        if (!groups.includes(this.scoreClusteringNodeGroup)) {
+          this.scoreClusteringNodeGroup = groups[0] ?? null;
+        }
+      },
+    },
+    // Switching between Gene/Disease invalidates the previously-selected id scheme (they're
+    // disjoint option lists) -- reset to that category's first scheme.
+    scoreClusteringType() {
+      this.scoreClusteringTarId = this.scoreClusteringTarIdOptions[0]?.value ?? null;
     },
     // fetchNetworkConfig() is async and may resolve after updateData() already ran
     // with the 'bh' fallback -- re-sync selectedTests.correction once the real
@@ -2953,10 +3279,10 @@ export default {
     // flight (same "graph renders twice" bug already hit and fixed once before
     // on the old Metagraph page's own resolution slider).
     async resolutionIndex() {
-      // Switching resolution changes which communities exist, so any previously
-      // -fetched bulk community labels no longer match -- clear them.
-      this.communityLabels = {};
-      this.communityLabelsRan = false;
+      // Switching resolution changes which communities exist, so any previously-fetched or
+      // in-progress Community Annotation / Score Clustering run no longer matches -- discard it.
+      this.resetCommunityAnnotation();
+      this.resetScoreClustering();
       if (this.clusteringActive && !this.isClusteringLoading) {
         await this.initializeCosmograph();
         this.applyDesign();
@@ -2979,6 +3305,11 @@ export default {
       // Clean up event listener when component is destroyed
       document.removeEventListener('click', this.handleClickOutside);
       this.destroyCosmograph();
+      // Only stops this tab's local polling loop -- the Celery task/DIGEST job itself keeps
+      // running server-side, and its runId (already persisted via saveState) is what lets a
+      // later reload reconnect to it instead of losing track of it.
+      clearTimeout(this.communityAnnotationPollTimer);
+      clearTimeout(this.scoreClusteringPollTimer);
     },
 
   mounted() {

@@ -12,6 +12,7 @@
       <v-tab v-if="enrichmentRan || enrichmentLoading" value="enrichment">Protein Enrichment</v-tab>
       <v-tab v-if="reactomeEnrichmentRan || reactomeEnrichmentLoading" value="reactomeEnrichment">Reactome Enrichment</v-tab>
       <v-tab v-if="geminiRan || geminiLoading" value="gemini">Gemini Label</v-tab>
+      <v-tab v-if="communityAnnotationAvailable" value="communityAnnotation">Community Annotation</v-tab>
     </v-tabs>
     <v-card-text>
       <!-- Each v-window-item owns its own loading state (via DownloadableDataTable's
@@ -19,38 +20,10 @@
            its own tab -- switching to an already-finished tab is never blocked by it. -->
       <v-window :model-value="tab">
         <v-window-item value="enrichment">
-          <DownloadableDataTable
-            :headers="proteinEnrichmentHeaders"
-            :items="enrichmentResults"
-            :loading="enrichmentLoading"
-            :sort-by="[{ key: 'p_value', order: 'asc' }]"
-            filename="protein-enrichment-results.csv"
-            no-data-text="No significant terms found."
-          >
-            <template #item.name="{ item }">
-              <a v-if="gProfilerTermUrl(item)" :href="gProfilerTermUrl(item)" target="_blank" rel="noopener">{{ item.name }}</a>
-              <template v-else>{{ item.name }}</template>
-            </template>
-            <template #item.p_value="{ item }">{{ item.p_value.toExponential(2) }}</template>
-            <template #item.intersection_size="{ item }">{{ item.intersection_size }}/{{ item.term_size }}</template>
-          </DownloadableDataTable>
+          <GProfilerResultsTable :items="enrichmentResults" :loading="enrichmentLoading" />
         </v-window-item>
         <v-window-item value="reactomeEnrichment">
-          <DownloadableDataTable
-            :headers="reactomeHeaders"
-            :items="reactomeTableItems"
-            :loading="reactomeEnrichmentLoading"
-            :sort-by="[{ key: 'pValue', order: 'asc' }]"
-            filename="reactome-enrichment-results.csv"
-            no-data-text="No significant pathways found."
-          >
-            <template #item.name="{ item }">
-              <a :href="`https://reactome.org/PathwayBrowser/#/${item.stId}`" target="_blank" rel="noopener">{{ item.name }}</a>
-            </template>
-            <template #item.pValue="{ item }">{{ item.pValue.toExponential(2) }}</template>
-            <template #item.fdr="{ item }">{{ item.fdr.toExponential(2) }}</template>
-            <template #item.found="{ item }">{{ item.found }}/{{ item.total }}</template>
-          </DownloadableDataTable>
+          <ReactomeResultsTable :results="reactomeEnrichmentResults" :loading="reactomeEnrichmentLoading" />
         </v-window-item>
         <v-window-item value="gemini">
           <div v-if="geminiLoading" class="d-flex align-center mt-4">
@@ -65,6 +38,69 @@
             No label returned.
           </p>
         </v-window-item>
+        <v-window-item value="communityAnnotation">
+          <div v-if="communityAnnotationStatus === 'running'" class="mt-4">
+            <div class="d-flex align-center mb-2">
+              <v-progress-circular indeterminate size="20" width="2" color="primary" class="mr-3"></v-progress-circular>
+              <span class="text-caption text-medium-emphasis">{{ communityAnnotationProgressText }}</span>
+            </div>
+            <v-progress-linear
+              v-if="communityAnnotationProgress && communityAnnotationProgress.total"
+              :model-value="(communityAnnotationProgress.completed / communityAnnotationProgress.total) * 100"
+              color="primary"
+              height="6"
+              rounded
+            ></v-progress-linear>
+          </div>
+          <div v-else-if="communityAnnotationStatus === 'success'" class="mt-4">
+            <v-btn color="primary" variant="outlined" class="mb-4" @click="$emit('run-community-annotation')">
+              Re-run Community Annotation
+            </v-btn>
+            <p v-if="!communityAnnotationCommunityIds.length" class="text-caption text-medium-emphasis">
+              No community annotation results returned.
+            </p>
+            <v-expansion-panels v-else variant="accordion">
+              <v-expansion-panel v-for="communityId in communityAnnotationCommunityIds" :key="communityId">
+                <v-expansion-panel-title>
+                  <div>
+                    <div class="text-subtitle-2">
+                      Community {{ communityId }} ({{ communityAnnotationResults[communityId].node_count }} nodes)<template v-if="communityAnnotationResults[communityId].label"> &mdash; {{ communityAnnotationResults[communityId].label }}</template>
+                    </div>
+                    <div class="text-caption text-medium-emphasis">
+                      <template v-if="topGProfilerTerm(communityId)">Top term: {{ topGProfilerTerm(communityId).name }}</template>
+                      <template v-if="topReactomePathway(communityId)"><span v-if="topGProfilerTerm(communityId)"> &middot; </span>Top pathway: {{ topReactomePathway(communityId).name }}</template>
+                      <template v-if="!topGProfilerTerm(communityId) && !topReactomePathway(communityId)">No significant enrichment found.</template>
+                    </div>
+                  </div>
+                </v-expansion-panel-title>
+                <v-expansion-panel-text>
+                  <p v-if="communityAnnotationResults[communityId].rationale" class="text-caption text-medium-emphasis">
+                    {{ communityAnnotationResults[communityId].rationale }}
+                  </p>
+                  <div class="text-subtitle-2 mt-2">g:Profiler (top 20)</div>
+                  <GProfilerResultsTable
+                    :items="communityAnnotationResults[communityId].gprofiler"
+                    :filename="`community-${communityId}-gprofiler.csv`"
+                  />
+                  <div class="text-subtitle-2 mt-4">Reactome (top 20)</div>
+                  <ReactomeResultsTable
+                    :results="communityAnnotationResults[communityId].reactome"
+                    :filename="`community-${communityId}-reactome.csv`"
+                  />
+                </v-expansion-panel-text>
+              </v-expansion-panel>
+            </v-expansion-panels>
+          </div>
+          <div v-else class="mt-4">
+            <p class="text-caption text-medium-emphasis">
+              Runs g:Profiler and Reactome enrichment, then a single Gemini call grounded in those
+              results, for every community at the active resolution. This can take a few minutes.
+            </p>
+            <v-btn color="primary" variant="outlined" class="mt-2" @click="$emit('run-community-annotation')">
+              Run Community Annotation
+            </v-btn>
+          </div>
+        </v-window-item>
       </v-window>
     </v-card-text>
   </v-card>
@@ -72,16 +108,17 @@
 
 <script>
 // Full-width results panel shown below the network view once a Protein
-// Enrichment (g:Profiler), Reactome Enrichment, or Gemini Label action has
-// been run from the Analysis panel -- pulled out of data-network.vue so
+// Enrichment (g:Profiler), Reactome Enrichment, Gemini Label, or Community Annotation
+// action has been run from the Analysis panel -- pulled out of data-network.vue so
 // that already-large file doesn't grow further with result-table markup.
 // Purely presentational/controlled: data-network.vue owns all the state
 // and run-methods, this only renders it and reports open/tab changes back.
-import DownloadableDataTable from '@/components/DownloadableDataTable.vue';
+import GProfilerResultsTable from '@/components/network/GProfilerResultsTable.vue';
+import ReactomeResultsTable from '@/components/network/ReactomeResultsTable.vue';
 
 export default {
   name: 'EnrichmentResultsPanel',
-  components: { DownloadableDataTable },
+  components: { GProfilerResultsTable, ReactomeResultsTable },
   props: {
     open: { type: Boolean, default: false },
     tab: { type: String, default: 'enrichment' },
@@ -97,51 +134,43 @@ export default {
     geminiRan: { type: Boolean, default: false },
     geminiLabel: { type: Object, default: null },
     geminiLoading: { type: Boolean, default: false },
+
+    // Community Annotation: g:Profiler + Reactome + Gemini for every community at the active
+    // resolution, run as a background job (see data-network.vue's runCommunityAnnotation).
+    // Unlike the three tabs above, this isn't gated on a node selection -- it's available
+    // whenever a clustering run exists.
+    communityAnnotationAvailable: { type: Boolean, default: false },
+    communityAnnotationStatus: { type: String, default: 'idle' }, // 'idle' | 'running' | 'success'
+    communityAnnotationProgress: { type: Object, default: null }, // {stage, completed, total}
+    communityAnnotationResults: { type: Object, default: () => ({}) },
   },
-  emits: ['update:open', 'update:tab'],
-  data() {
-    return {
-      proteinEnrichmentHeaders: [
-        { title: 'Source', key: 'source', width: 110 },
-        { title: 'Term', key: 'name' },
-        { title: 'p-value', key: 'p_value', width: 110 },
-        { title: 'Genes', key: 'intersection_size', width: 100, csvValue: (item) => `${item.intersection_size}/${item.term_size}` },
-      ],
-      reactomeHeaders: [
-        { title: 'Pathway', key: 'name' },
-        { title: 'p-value', key: 'pValue', width: 110 },
-        { title: 'FDR', key: 'fdr', width: 110 },
-        { title: 'Entities', key: 'found', width: 100, csvValue: (item) => `${item.found}/${item.total}` },
-      ],
-    };
-  },
+  emits: ['update:open', 'update:tab', 'run-community-annotation'],
   computed: {
-    // Flattened so DownloadableDataTable's headers can use plain keys instead
-    // of nested paths (pathway.entities.pValue etc.).
-    reactomeTableItems() {
-      return this.reactomeEnrichmentResults.map((pathway) => ({
-        stId: pathway.stId,
-        name: pathway.name,
-        pValue: pathway.entities.pValue,
-        fdr: pathway.entities.fdr,
-        found: pathway.entities.found,
-        total: pathway.entities.total,
-      }));
+    communityAnnotationProgressText() {
+      const progress = this.communityAnnotationProgress;
+      if (!progress) return 'Starting...';
+      if (progress.stage === 'gprofiler') return 'Running g:Profiler enrichment...';
+      if (progress.stage === 'reactome') return `Reactome enrichment: ${progress.completed} / ${progress.total} communities`;
+      if (progress.stage === 'gemini') return 'Generating Gemini labels...';
+      return 'Running...';
+    },
+    // Numeric-aware sort (so "Community 2" comes before "Community 14") -- community ids are
+    // plain numeric strings ("0", "1", ...) but object key order isn't guaranteed to reflect
+    // that.
+    communityAnnotationCommunityIds() {
+      return Object.keys(this.communityAnnotationResults).sort((a, b) => {
+        const [numA, numB] = [Number(a), Number(b)];
+        if (!Number.isNaN(numA) && !Number.isNaN(numB)) return numA - numB;
+        return a.localeCompare(b);
+      });
     },
   },
   methods: {
-    // g:Profiler's API doesn't return a per-term link, so build one from the source
-    // prefix baked into `native` -- only for sources with a well-established public
-    // term-browser URL (GO via AmiGO, Reactome, WikiPathways, Human Phenotype Ontology).
-    // Other sources (KEGG, MIRNA, CORUM, HPA, TF, ...) are left as plain text rather than
-    // risk linking to a wrong/broken page.
-    gProfilerTermUrl(term) {
-      const native = term.native || '';
-      if (native.startsWith('GO:')) return `https://amigo.geneontology.org/amigo/term/${native}`;
-      if (native.startsWith('REAC:')) return `https://reactome.org/PathwayBrowser/#/${native.slice(5)}`;
-      if (native.startsWith('WP:')) return `https://www.wikipathways.org/pathways/${native.slice(3)}`;
-      if (native.startsWith('HP:')) return `https://hpo.jax.org/browse/term/${native}`;
-      return null;
+    topGProfilerTerm(communityId) {
+      return this.communityAnnotationResults[communityId]?.gprofiler?.[0] ?? null;
+    },
+    topReactomePathway(communityId) {
+      return this.communityAnnotationResults[communityId]?.reactome?.[0] ?? null;
     },
   },
 };
