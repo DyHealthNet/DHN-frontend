@@ -1983,20 +1983,21 @@ export default {
       this.enrichmentRan = true;
       this.enrichmentLoading = false;
     },
-    // x_refs packs multiple cross-references into one string as "prefix.value" pairs joined
-    // by "|" (e.g. "hmdb.HMDB0001539|kegg.C00086") -- same convention NodeDetails.vue's
-    // generateLink() already parses. Returns {prefix: [values...]}; a prefix can repeat
+    // x_refs packs multiple cross-references into one string for metabolites (e.g. HMDB0012107;HMDB0240635;CHEBI:74535) 
+    // joined by ";" individual handling depending on prefix, a prefix can repeat
     // (e.g. multiple secondary HMDB accessions), so each maps to an array, not a single value.
     parseXrefs(xrefsString) {
       const map = {};
       if (typeof xrefsString !== 'string' || !xrefsString) return map;
-      xrefsString.split('|').forEach((entry) => {
-        const dotIndex = entry.indexOf('.');
-        if (dotIndex === -1) return;
-        const prefix = entry.slice(0, dotIndex).trim().toLowerCase();
-        const value = entry.slice(dotIndex + 1).trim();
-        if (!prefix || !value) return;
-        (map[prefix] ??= []).push(value);
+      xrefsString.split(';').forEach((entry) => {
+        if (entry.includes('HMDB')) (map['hmdb'] ??= []).push(entry);
+        if (entry.includes('CHEBI:')) {
+          const chebiIndex = entry.indexOf(':');
+          const prefix = entry.slice(0, chebiIndex).trim().toLowerCase();
+          const value = entry.slice(chebiIndex + 1).trim();
+          if (!prefix || !value) return;
+          (map[prefix] ??= []).push(value);
+        }
       });
       return map;
     },
