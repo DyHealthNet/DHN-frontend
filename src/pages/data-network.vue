@@ -443,7 +443,7 @@
                             color="primary"
                             variant="outlined"
                             :disabled="legendGroups.length === 0"
-                            @click="resultsPanelOpen = true; resultsPanelTab = 'communityAnnotation';"
+                            @click="resultsPanelOpen = true; resultsPanelTab = 'communityAnnotation'; if (communityAnnotationStatus === 'idle') runCommunityAnnotation();"
                           >Community Annotation</v-btn>
 
                           <v-divider class="my-4"></v-divider>
@@ -1049,15 +1049,16 @@ export default {
     },
     // Items for the Details panel's "search node in network" field -- searches
     // only the nodes already loaded into the current network (client-side),
-    // unlike the Network Input field above which queries the backend. id and
-    // description ride along on the raw item (not shown in title) so
-    // nodeSearchFilter can match against them too.
+    // unlike the Network Input field above which queries the backend. id,
+    // description and x_refs ride along on the raw item (not shown in title)
+    // so nodeSearchFilter can match against them too.
     networkNodeSearchItems() {
       return this.networkNodes.map((node) => ({
         title: `${node.display_name} (${this.getPrettyType(node.source_table)})`,
         value: node.id,
         id: node.id,
         description: node.description,
+        x_refs: node.x_refs,
       }));
     },
     // v-btn-toggle's `color` prop only ever styles the currently-active button
@@ -1494,6 +1495,7 @@ export default {
           display_name: point.label ?? point.id,
           description: point.description ?? "",
           source_table: point.source_table ?? point.type,
+          subtype: point.subtype,
           x_refs: point.xrefs,
           set: "CHRIS", //TODO change to internal/cohort or smth when backend became more modular
         }));
@@ -1586,6 +1588,7 @@ export default {
             display_name: point.label ?? point.id,
             description: point.description ?? "",
             source_table: point.source_table ?? point.type,
+            subtype: point.subtype,
             x_refs: point.xrefs,
             set: "CHRIS",
           };
@@ -1837,14 +1840,14 @@ export default {
       });
     },
     // v-autocomplete's default filter only matches the displayed `title`, which
-    // doesn't include id/description -- custom-filter gets the raw item instead
-    // (item.raw), so it can match those too. Mirrors NodeRankPanel's
+    // doesn't include id/description/x_refs -- custom-filter gets the raw item
+    // instead (item.raw), so it can match those too. Mirrors NodeRankPanel's
     // nodeSearchFilter and the backend typeahead's id+name+description search.
     nodeSearchFilter(_itemTitle, query, item) {
       const q = String(query ?? '').toLowerCase();
       if (!q) return true;
       const raw = item?.raw || {};
-      const haystack = `${raw.id ?? ''} ${raw.title ?? ''} ${raw.description ?? ''}`.toLowerCase();
+      const haystack = `${raw.id ?? ''} ${raw.title ?? ''} ${raw.description ?? ''} ${raw.x_refs ?? ''}`.toLowerCase();
       return haystack.includes(q);
     },
     handlePointDoubleClick(index) {
