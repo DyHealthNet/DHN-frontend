@@ -3292,14 +3292,19 @@ export default {
         this.applyDesign();
       }
     },
-    // The selection changed, so any previously-fetched enrichment results no
-    // longer match -- clear them rather than showing stale results next to a
-    // different node selection.
+    // The selection changed, so any previously-fetched enrichment/label results no longer
+    // match -- clear all three node-set-scoped tabs (g:Profiler, Reactome, Gemini) rather than
+    // showing stale results computed on a different node set next to freshly-run ones with no
+    // way to tell them apart. Community Annotation is deliberately not included here -- it's
+    // scoped to all communities, not the current selection, so it isn't invalidated by this.
     selectedNetworkNodes: {
       deep: true,
       handler() {
         this.enrichmentResults = [];
         this.enrichmentRan = false;
+        this.reactomeEnrichmentResults = [];
+        this.reactomeEnrichmentRan = false;
+        this.reactomeUnmappedMetabolites = [];
         this.geminiLabel = null;
         this.geminiRan = false;
       },

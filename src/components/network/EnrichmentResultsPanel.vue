@@ -9,9 +9,9 @@
       </v-btn>
     </v-card-title>
     <v-tabs :model-value="tab" color="primary-darken-1" @update:model-value="$emit('update:tab', $event)">
-      <v-tab v-if="enrichmentRan || enrichmentLoading" value="enrichment">Protein Enrichment</v-tab>
-      <v-tab v-if="reactomeEnrichmentRan || reactomeEnrichmentLoading" value="reactomeEnrichment">Reactome Enrichment</v-tab>
-      <v-tab v-if="geminiRan || geminiLoading" value="gemini">Gemini Label</v-tab>
+      <v-tab v-if="enrichmentRan || enrichmentLoading" value="enrichment">Subset Protein Enrichment</v-tab>
+      <v-tab v-if="reactomeEnrichmentRan || reactomeEnrichmentLoading" value="reactomeEnrichment">Subset Reactome Enrichment</v-tab>
+      <v-tab v-if="geminiRan || geminiLoading" value="gemini">Subset Gemini Label</v-tab>
       <v-tab v-if="communityAnnotationAvailable" value="communityAnnotation">Community Annotation</v-tab>
     </v-tabs>
     <v-card-text>
