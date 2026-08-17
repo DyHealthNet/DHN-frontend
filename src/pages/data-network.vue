@@ -446,7 +446,7 @@
                             @click="resultsPanelOpen = true; resultsPanelTab = 'communityAnnotation'; if (communityAnnotationStatus === 'idle') runCommunityAnnotation();"
                           >Community Annotation</v-btn>
 
-                          <v-divider class="my-4"></v-divider>
+                          <!-- <v-divider class="my-4"></v-divider>
                           <p class="text-caption text-medium-emphasis mb-2">
                             Scores the current clustering's biological coherence via DIGEST, against
                             random background partitions of the same size. Only one node type can be
@@ -509,7 +509,7 @@
                               ({{ scoreClusteringResult.coverage?.nodeGroup }} via
                               {{ scoreClusteringResult.coverage?.tarId }}).
                             </p>
-                          </div>
+                          </div> -->
                         </div>
                       </template>
                     </template>
