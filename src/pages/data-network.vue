@@ -669,7 +669,7 @@
                 <NodeEdgeTable
                   :node-label="displayedElement?.display_name"
                   :items="nodeEdgeTableItems"
-                  @select-edge="(edge) => { displayEdge(edge); applyDesign(false); }"
+                  @select-neighbor="jumpToSearchedNode"
                 />
               </v-col>
             </v-row>

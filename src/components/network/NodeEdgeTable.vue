@@ -1,5 +1,5 @@
 <template>
-  <v-card outlined>
+  <v-card outlined class="mt-4">
     <v-toolbar color="primary-darken-1" density="compact">
       <v-toolbar-title>
         Edges of {{ nodeLabel }}
@@ -23,7 +23,8 @@
       :headers="headers"
       :items="items"
       :search="search"
-      :sort-by="[{ key: 'pValue', order: 'asc' }]"
+      :sort-by="[{ key: 'pValue', order: 'asc' }, { key: 'effectSize', order: 'asc' }]"
+      multi-sort
       items-per-page="10"
       class="node-edge-table"
       filename="node-edges.csv"
@@ -65,7 +66,7 @@ export default {
       default: () => [],
     },
   },
-  emits: ['select-edge'],
+  emits: ['select-neighbor'],
   data() {
     return {
       search: '',
@@ -83,7 +84,7 @@ export default {
       return value.toPrecision(4);
     },
     onRowClick(_, { item }) {
-      this.$emit('select-edge', item.edge);
+      this.$emit('select-neighbor', item.neighborId);
     },
   },
 };
