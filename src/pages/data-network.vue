@@ -443,7 +443,7 @@
                             color="primary"
                             variant="outlined"
                             :disabled="legendGroups.length === 0"
-                            @click="resultsPanelOpen = true; resultsPanelTab = 'communityAnnotation'; if (communityAnnotationStatus === 'idle') runCommunityAnnotation();"
+                            @click="resultsPanelOpen = true; resultsPanelTab = 'communityAnnotation'; lastTriggeredSection = 'enrichment'; if (communityAnnotationStatus === 'idle') runCommunityAnnotation();"
                           >Community Annotation</v-btn>
 
                           <!-- <v-divider class="my-4"></v-divider>
@@ -530,9 +530,9 @@
                       :gemini-loading="geminiLoading"
                       :enrichment-loading="enrichmentLoading"
                       :reactome-enrichment-loading="reactomeEnrichmentLoading"
-                      @run-gemini-label="runGeminiLabel(); resultsPanelOpen = true; resultsPanelTab = 'gemini';"
-                      @run-protein-enrichment="runProteinEnrichment(); resultsPanelOpen = true; resultsPanelTab = 'enrichment';"
-                      @run-reactome-enrichment="runReactomeEnrichment(); resultsPanelOpen = true; resultsPanelTab = 'reactomeEnrichment';"
+                      @run-gemini-label="runGeminiLabel(); resultsPanelOpen = true; resultsPanelTab = 'gemini'; lastTriggeredSection = 'enrichment';"
+                      @run-protein-enrichment="runProteinEnrichment(); resultsPanelOpen = true; resultsPanelTab = 'enrichment'; lastTriggeredSection = 'enrichment';"
+                      @run-reactome-enrichment="runReactomeEnrichment(); resultsPanelOpen = true; resultsPanelTab = 'reactomeEnrichment'; lastTriggeredSection = 'enrichment';"
                     />
                   </v-expansion-panel-text>
                 </v-expansion-panel>
@@ -660,28 +660,46 @@
             </v-col>
           </v-row>
 
-          <v-row v-if="resultsPanelOpen || enrichmentRan || reactomeEnrichmentRan || geminiRan">
-            <v-col cols="12">
-              <EnrichmentResultsPanel
-                v-model:open="resultsPanelOpen"
-                v-model:tab="resultsPanelTab"
-                :enrichment-ran="enrichmentRan"
-                :enrichment-results="enrichmentResults"
-                :enrichment-loading="enrichmentLoading"
-                :reactome-enrichment-ran="reactomeEnrichmentRan"
-                :reactome-enrichment-results="reactomeEnrichmentResults"
-                :reactome-enrichment-loading="reactomeEnrichmentLoading"
-                :gemini-ran="geminiRan"
-                :gemini-label="geminiLabel"
-                :gemini-loading="geminiLoading"
-                :community-annotation-available="clusteringActive"
-                :community-annotation-status="communityAnnotationStatus"
-                :community-annotation-progress="communityAnnotationProgress"
-                :community-annotation-results="communityAnnotationResults"
-                @run-community-annotation="runCommunityAnnotation"
-              />
-            </v-col>
-          </v-row>
+          <div style="display: flex; flex-direction: column;">
+            <v-row
+              v-if="nodeEdgeTableVisible"
+              :style="{ order: lastTriggeredSection === 'enrichment' ? 1 : 0 }"
+            >
+              <v-col cols="12">
+                <NodeEdgeTable
+                  :node-label="displayedElement?.display_name"
+                  :items="nodeEdgeTableItems"
+                  @select-edge="(edge) => { displayEdge(edge); applyDesign(false); }"
+                />
+              </v-col>
+            </v-row>
+
+            <v-row
+              v-if="resultsPanelOpen || enrichmentRan || reactomeEnrichmentRan || geminiRan"
+              :style="{ order: lastTriggeredSection === 'enrichment' ? 0 : 1 }"
+            >
+              <v-col cols="12">
+                <EnrichmentResultsPanel
+                  v-model:open="resultsPanelOpen"
+                  v-model:tab="resultsPanelTab"
+                  :enrichment-ran="enrichmentRan"
+                  :enrichment-results="enrichmentResults"
+                  :enrichment-loading="enrichmentLoading"
+                  :reactome-enrichment-ran="reactomeEnrichmentRan"
+                  :reactome-enrichment-results="reactomeEnrichmentResults"
+                  :reactome-enrichment-loading="reactomeEnrichmentLoading"
+                  :gemini-ran="geminiRan"
+                  :gemini-label="geminiLabel"
+                  :gemini-loading="geminiLoading"
+                  :community-annotation-available="clusteringActive"
+                  :community-annotation-status="communityAnnotationStatus"
+                  :community-annotation-progress="communityAnnotationProgress"
+                  :community-annotation-results="communityAnnotationResults"
+                  @run-community-annotation="runCommunityAnnotation"
+                />
+              </v-col>
+            </v-row>
+          </div>
         </v-card>
         <v-row>
           <div class="ma-2">
@@ -725,6 +743,7 @@ import WholeNetworkSettings from "@/components/network/WholeNetworkSettings.vue"
 import GraphToolbar from "@/components/network/GraphToolbar.vue";
 import EnrichmentResultsPanel from "@/components/network/EnrichmentResultsPanel.vue";
 import NodeSetActionsPanel from "@/components/network/NodeSetActionsPanel.vue";
+import NodeEdgeTable from "@/components/network/NodeEdgeTable.vue";
 import {useTheme} from 'vuetify';
 
 
@@ -732,7 +751,8 @@ import {useTheme} from 'vuetify';
 export default {
   components: {
     StatisticalTestLine, FilterToolbar, AdvancedSettings, NodeDetails, NetworkEdgeLine,
-    WholeNetworkSettings, EdgeDetails, GraphToolbar, NetworkLegend, EnrichmentResultsPanel, NodeSetActionsPanel},
+    WholeNetworkSettings, EdgeDetails, GraphToolbar, NetworkLegend, EnrichmentResultsPanel, NodeSetActionsPanel,
+    NodeEdgeTable},
   data() {
     return {
       // context filter
@@ -794,6 +814,9 @@ export default {
       // action -- Protein Enrichment, Reactome Enrichment, or Gemini Label -- has been run
       resultsPanelOpen: false,
       resultsPanelTab: 'enrichment',
+      // Which of the two below-graph panels (the per-node edge table vs the Analysis
+      // Results panel) was triggered most recently -- rendered first via CSS order.
+      lastTriggeredSection: null, // 'edgeTable' | 'enrichment'
 
       // Protein Enrichment (g:Profiler)
       enrichmentLoading: false,
@@ -907,6 +930,34 @@ export default {
         connectedIds.add(edge.to);
       }
       return this.networkNodes.filter((node) => connectedIds.has(node.id));
+    },
+    // Gating the per-node edge table purely on displayedElementType (rather than a
+    // separate open/close flag) means it disappears automatically whenever selection
+    // moves to an edge or is cleared -- see handleBackgroundClick/displayEdge/clearNetwork.
+    nodeEdgeTableVisible() {
+      return this.displayedElementType === 'node';
+    },
+    // Every edge incident to the currently displayed node, shaped for NodeEdgeTable.
+    // Neighbor labels aren't pre-populated on networkEdges entries (only the single
+    // currently-displayed edge gets that via displayEdge), so resolve them here the
+    // same way displayEdge does.
+    nodeEdgeTableItems() {
+      if (!this.nodeEdgeTableVisible || !this.displayedElement) return [];
+      const nodeId = this.displayedElement.id;
+      return this.networkEdges
+        .filter((edge) => edge.from === nodeId || edge.to === nodeId)
+        .map((edge) => {
+          const neighborId = edge.from === nodeId ? edge.to : edge.from;
+          const neighbor = this.networkNodes.find((n) => n.id === neighborId);
+          return {
+            edge,
+            neighborId,
+            neighborLabel: neighbor?.display_name ?? neighborId,
+            testType: edge.test_type,
+            pValue: edge.p_value,
+            effectSize: edge.effect_size,
+          };
+        });
     },
     // Legend entries: whatever groups are actually present in the current network --
     // node_group/source_table has no fixed set of values (see colorForGroup()).
@@ -1499,8 +1550,6 @@ export default {
           x_refs: point.xrefs,
           set: "CHRIS", //TODO change to internal/cohort or smth when backend became more modular
         }));
-        // getCosmograph doesn't return final_p_value (only final_e_value/test_type) --
-        // EdgeDetails' "Ranking P Value" row renders blank for these edges.
         this.allInternalEdges = (data.links || []).map((link) => ({
           id: link.id,
           from: link.source,
@@ -1508,7 +1557,8 @@ export default {
           type: link.edge_type,
           set: "cohort (calculated)",
           width: 2,
-          final_e_value: link.final_e_value,
+          p_value: link.p_value,
+          effect_size: link.effect_size,
           test_type: link.test_type,
         }));
         this.allExternalEdges = [];
@@ -1606,7 +1656,8 @@ export default {
           type: link.edge_type,
           set: "cohort (calculated)",
           width: 2,
-          final_e_value: link.final_e_value,
+          p_value: link.p_value,
+          effect_size: link.effect_size,
           test_type: link.test_type,
         }));
         this.allExternalEdges = [];
@@ -1904,6 +1955,7 @@ export default {
       this.applyDesign(false);
     },
     displayNode(node) {
+      this.lastTriggeredSection = 'edgeTable';
       node.type = this.getPrettyType(node.source_table);
       this.displayedElement = node;
       this.displayedElementType = "node";
@@ -2597,7 +2649,7 @@ export default {
                 ...renamedEdge,
                 type: key,
                 set: "cohort (calculated)",
-                width: 2, //Math.min(Math.max(-Math.log10(renamedEdge.final_p_value) * 2, 0.01), 10), // TODO: adjust width
+                width: 2, //Math.min(Math.max(-Math.log10(renamedEdge.p_value) * 2, 0.01), 10), // TODO: adjust width
               });
               existingInternalEdgeIds.add(edge.id);
             }

@@ -1,7 +1,7 @@
 <template>
     <p><span class="label-title">Edge</span></p>
     <p><span class="label">Ranking P Value:</span><br>
-      <span class="value">{{ formatValue(edge.final_p_value) }}</span>
+      <span class="value">{{ formatValue(edge.p_value) }}</span>
     </p>
     <p><span class="label">Origin:</span><br>
       <span class="value">{{ edge.set }}</span>
@@ -18,8 +18,8 @@
       <tbody>
         <tr>
           <td>{{ edge.test_type }}</td>
-          <td>{{ formatValue(edge.final_p_value) }}</td>
-          <td>{{ formatValue(edge.final_e_value) }}</td>
+          <td>{{ formatValue(edge.p_value) }}</td>
+          <td>{{ formatValue(edge.effect_size) }}</td>
         </tr>
       </tbody>
     </v-table>

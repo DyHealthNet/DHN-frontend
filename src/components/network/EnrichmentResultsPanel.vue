@@ -2,7 +2,7 @@
   <v-card v-if="open" outlined class="mt-4 enrichment-results-panel">
     <v-card-title class="d-flex align-center">
       <v-icon color="primary-darken-1" class="mr-2">mdi-table-large</v-icon>
-      Results
+      Analysis Results
       <v-spacer></v-spacer>
       <v-btn icon variant="text" @click="$emit('update:open', false)">
         <v-icon>mdi-close</v-icon>
