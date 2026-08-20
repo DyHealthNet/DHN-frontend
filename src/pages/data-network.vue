@@ -25,7 +25,7 @@
         <NetworkRankingTabs
           v-if="fullNetworkStatsNodes.length > 0"
           title="Full Network Statistics"
-          :subtitle="`Significant edges only (p ≤ ${significantPValueThreshold}), capped at the top ${maxSignificantEdges.toLocaleString()} by significance.`"
+          :subtitle="`Significant edges only (p ≤ $0.05).`"
           :edges="fullOverviewEdges"
           :nodes="fullNetworkStatsNodes"
           :nodes-by-id="fullNetworkStatsNodesById"
@@ -760,7 +760,6 @@ import AdvancedSettings from "@/components/AdvancedSettings.vue";
 import FilterToolbar from "@/components/FilterToolbar.vue";
 import {BASE_URL, isLoading, setIsLoading} from "@/components/constants.js";
 import {darkenHexColor, assignGroupColors, getNodeIcon, loadNetworkState, saveNetworkState, capitalizeFirstLetter, drawLegendPanel} from "../components/network/networkData.js";
-import {selectSignificantEdges, SIGNIFICANT_P_VALUE_THRESHOLD, MAX_SIGNIFICANT_EDGES} from "../components/network/networkRanking.js";
 import {interpolateRainbow} from 'd3-scale-chromatic';
 import NodeDetails from '@/components/network/NodeDetails.vue';
 import EdgeDetails from '@/components/network/EdgeDetails.vue';
@@ -995,13 +994,7 @@ export default {
     // so this is mostly a defensive re-filter (e.g. floating-point edge cases
     // right at the threshold) rather than the primary cap.
     fullOverviewEdges() {
-      return selectSignificantEdges(this.fullNetworkStatsEdges);
-    },
-    significantPValueThreshold() {
-      return SIGNIFICANT_P_VALUE_THRESHOLD;
-    },
-    maxSignificantEdges() {
-      return MAX_SIGNIFICANT_EDGES;
+      return this.fullNetworkStatsEdges;
     },
     // Gating the per-node edge table purely on displayedElementType (rather than a
     // separate open/close flag) means it disappears automatically whenever selection
@@ -1666,9 +1659,9 @@ export default {
     // whatever density the graph visualization is currently configured with.
     buildSignificantEdgesUrl() {
       const params = new URLSearchParams();
-      params.set('testType', this.wholeNetworkTests.testType);
-      params.set('threshold', String(SIGNIFICANT_P_VALUE_THRESHOLD));
-      params.set('limit', String(MAX_SIGNIFICANT_EDGES));
+      params.set('testType', "nonparametric");
+      params.set('threshold', String(0.05));
+      //params.set('limit', String(20000));
       if (this.contextValue != null) params.set('c', this.contextValue);
       return `${BASE_URL}/metagraph/api/getCosmograph/?${params.toString()}`;
     },
