@@ -1,12 +1,6 @@
 <template>
-  <v-card outlined class="mt-4">
-    <v-toolbar color="primary-darken-1" density="compact">
-      <v-toolbar-title>
-        Edge Ranking
-        <v-chip size="small" color="white" variant="outlined" class="ml-2">{{ scopeLabel }}</v-chip>
-        <v-chip size="small" color="white" variant="outlined" class="ml-2">{{ rankedEdges.length }}</v-chip>
-      </v-toolbar-title>
-      <v-spacer></v-spacer>
+  <div>
+    <div class="d-flex align-center px-4 py-2" style="gap: 8px;">
       <v-select
         v-model="testTypeFilter"
         :items="testTypeOptions"
@@ -15,9 +9,9 @@
         variant="outlined"
         hide-details
         single-line
-        class="mr-2"
         style="max-width: 180px"
       ></v-select>
+      <v-spacer></v-spacer>
       <v-text-field
         v-model="search"
         prepend-inner-icon="mdi-magnify"
@@ -26,10 +20,9 @@
         variant="outlined"
         hide-details
         single-line
-        class="mr-2"
         style="max-width: 220px"
       ></v-text-field>
-    </v-toolbar>
+    </div>
 
     <DownloadableDataTable
       :headers="headers"
@@ -39,7 +32,7 @@
       filter-mode="union"
       :sort-by="[{ key: 'rank', order: 'asc' }]"
       items-per-page="10"
-      class="edge-ranking-table"
+      :class="['edge-ranking-table', { 'is-interactive': interactive }]"
       filename="edge-ranking.csv"
       no-data-text="No edges to rank."
       @click:row="onRowClick"
@@ -69,7 +62,7 @@
         {{ formatNumber(item.effect_size) }}
       </template>
     </DownloadableDataTable>
-  </v-card>
+  </div>
 </template>
 
 <script>
@@ -100,12 +93,15 @@ export default {
       type: [Map, Object],
       default: () => new Map(),
     },
-    scopeLabel: {
-      type: String,
-      default: '',
+    // When false, rows are inert -- no click emit, no pointer cursor. Used
+    // for the "Full Network Overview" instance, which is a read-only
+    // starting point shown before any node/edge is selected in the graph.
+    interactive: {
+      type: Boolean,
+      default: true,
     },
   },
-  emits: ['select-node'],
+  emits: ['select-edge'],
   data() {
     return {
       search: '',
@@ -145,7 +141,8 @@ export default {
       return value.toPrecision(4);
     },
     onRowClick(_, { item }) {
-      this.$emit('select-node', item.from);
+      if (!this.interactive) return;
+      this.$emit('select-edge', item.id);
     },
     // v-data-table's built-in filter-keys only reaches values declared as
     // header columns, which node1/node2 already are -- but they're rendered
@@ -163,7 +160,7 @@ export default {
 </script>
 
 <style scoped>
-.edge-ranking-table :deep(tbody tr) {
+.edge-ranking-table.is-interactive :deep(tbody tr) {
   cursor: pointer;
 }
 </style>

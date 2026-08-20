@@ -1,11 +1,6 @@
 <template>
-  <v-card outlined class="mt-4">
-    <v-toolbar color="primary-darken-1" density="compact">
-      <v-toolbar-title>
-        Node Ranking
-        <v-chip size="small" color="white" variant="outlined" class="ml-2">{{ scopeLabel }}</v-chip>
-        <v-chip size="small" color="white" variant="outlined" class="ml-2">{{ rankedNodes.length }}</v-chip>
-      </v-toolbar-title>
+  <div>
+    <div class="d-flex align-center px-4 py-2" style="gap: 8px;">
       <v-spacer></v-spacer>
       <v-text-field
         v-model="search"
@@ -15,10 +10,9 @@
         variant="outlined"
         hide-details
         single-line
-        class="mr-2"
         style="max-width: 220px"
       ></v-text-field>
-    </v-toolbar>
+    </div>
 
     <DownloadableDataTable
       :headers="headers"
@@ -28,7 +22,7 @@
       filter-mode="union"
       :sort-by="[{ key: 'rank', order: 'asc' }]"
       items-per-page="10"
-      class="node-ranking-table"
+      :class="['node-ranking-table', { 'is-interactive': interactive }]"
       filename="node-ranking.csv"
       no-data-text="No nodes to rank."
       @click:row="onRowClick"
@@ -55,7 +49,7 @@
         {{ formatNumber(item.weightedDegree) }}
       </template>
     </DownloadableDataTable>
-  </v-card>
+  </div>
 </template>
 
 <script>
@@ -83,9 +77,12 @@ export default {
       type: Array,
       default: () => [],
     },
-    scopeLabel: {
-      type: String,
-      default: '',
+    // When false, rows are inert -- no click emit, no pointer cursor. Used
+    // for the "Full Network Overview" instance, which is a read-only
+    // starting point shown before any node/edge is selected in the graph.
+    interactive: {
+      type: Boolean,
+      default: true,
     },
   },
   emits: ['select-node'],
@@ -112,6 +109,7 @@ export default {
       return value.toPrecision(4);
     },
     onRowClick(_, { item }) {
+      if (!this.interactive) return;
       this.$emit('select-node', item.id);
     },
     // Same reasoning as NodeRankPanel's nodeSearchFilter: display_name isn't
@@ -129,7 +127,7 @@ export default {
 </script>
 
 <style scoped>
-.node-ranking-table :deep(tbody tr) {
+.node-ranking-table.is-interactive :deep(tbody tr) {
   cursor: pointer;
 }
 </style>

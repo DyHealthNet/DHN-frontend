@@ -1,10 +1,17 @@
 <template>
-  <div>
-    <v-tabs v-model="activeGroup" bg-color="primary-darken-1" show-arrows density="compact">
-      <v-tab v-for="group in groups" :key="group" :text="group" :value="group"></v-tab>
-    </v-tabs>
-
-    <v-toolbar color="surface" density="compact" flat>
+  <v-card outlined>
+    <v-toolbar color="primary-darken-1" density="compact">
+      <v-toolbar-title>
+        Variable Overview
+        <v-tooltip bottom>
+          <template v-slot:activator="{ props }">
+            <v-icon class="ml-1" v-bind="props">mdi-information</v-icon>
+          </template>
+          <span>
+            Browse all variables by group and click one to add its plot to the Data Overview panel below.
+          </span>
+        </v-tooltip>
+      </v-toolbar-title>
       <v-spacer></v-spacer>
       <v-text-field
           v-model="search"
@@ -18,6 +25,10 @@
           style="max-width: 220px"
       ></v-text-field>
     </v-toolbar>
+
+    <v-tabs v-model="activeGroup" bg-color="primary-darken-1" show-arrows density="compact">
+      <v-tab v-for="group in groups" :key="group" :text="group" :value="group"></v-tab>
+    </v-tabs>
 
     <DownloadableDataTable
         :headers="headers"
@@ -41,7 +52,7 @@
         <span class="text-medium-emphasis">No variables available for this group.</span>
       </template>
     </DownloadableDataTable>
-  </div>
+  </v-card>
 </template>
 
 <script>

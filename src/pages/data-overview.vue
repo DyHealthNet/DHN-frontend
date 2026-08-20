@@ -71,43 +71,24 @@
         </v-card>
         <v-spacer class="my-10"></v-spacer>
         <!--Variable Overview-->
-        <v-card outlined>
-          <v-toolbar color="primary-darken-1" density="compact">
-            <v-toolbar-title>
-              Variable Overview
-              <v-tooltip bottom>
-                <template v-slot:activator="{ props }">
-                  <v-icon v-bind="props">mdi-information</v-icon>
-                </template>
-                <span>
-                  Browse all variables by group and click one to add its plot to the Data Overview panel below.
-                </span>
-              </v-tooltip>
-            </v-toolbar-title>
-          </v-toolbar>
+        <VariableCatalogTable
+            :context-value="contextValue"
+            :active-identifiers="addedIdentifiers"
+            @add-variable="addVariablePlot"
+        ></VariableCatalogTable>
 
-          <VariableCatalogTable
-              :context-value="contextValue"
-              :active-identifiers="addedIdentifiers"
-              @add-variable="addVariablePlot"
-          ></VariableCatalogTable>
-          <v-card-text>
-            <span class="text-medium-emphasis">Click a variable above to add its plot to the Data Overview panel below.</span>
-          </v-card-text>
-
-          <div class="text-center ma-2">
-            <v-snackbar
-                v-model="showVariablePlotMessage"
-                color="warning"
-            >
-              <v-icon class="my-0 mr-2">mdi-information-outline</v-icon>
-              Data Overview panel is full (40 plots) — remove or replace one before adding another.
-              <template v-slot:actions>
-                <v-btn variant="text" @click="showVariablePlotMessage = false">Close</v-btn>
-              </template>
-            </v-snackbar>
-          </div>
-        </v-card>
+        <div class="text-center ma-2">
+          <v-snackbar
+              v-model="showVariablePlotMessage"
+              color="warning"
+          >
+            <v-icon class="my-0 mr-2">mdi-information-outline</v-icon>
+            Data Overview panel is full (40 plots) — remove or replace one before adding another.
+            <template v-slot:actions>
+              <v-btn variant="text" @click="showVariablePlotMessage = false">Close</v-btn>
+            </template>
+          </v-snackbar>
+        </div>
         <v-spacer class="my-10"></v-spacer>
         <!--Tab bar-->
         <v-card outlined>
@@ -409,11 +390,22 @@ export default {
         const [, row, col] = String(id).split('-');
         targetKey = this.slotKey(row, col);
       } else {
-        const lastRow = this.plotRows;
-        const lastRowCols = this.plotCols[lastRow - 1] || 1;
-        if (lastRowCols < 4) {
-          this.plotCols[lastRow - 1] = lastRowCols + 1;
-          targetKey = this.slotKey(lastRow, lastRowCols + 1);
+        // No existing "+" placeholder anywhere -- but a row can still have spare room even
+        // without one (e.g. row 2 sitting at 2/4 columns while a later row is already full),
+        // so grow the *earliest* row that has fewer than 4 columns rather than always the
+        // last one, and only add a whole new row once every existing row is maxed out.
+        let growRow = null;
+        for (let row = 1; row <= this.plotRows; row++) {
+          if ((this.plotCols[row - 1] || 1) < 4) {
+            growRow = row;
+            break;
+          }
+        }
+
+        if (growRow !== null) {
+          const newCol = (this.plotCols[growRow - 1] || 1) + 1;
+          this.plotCols[growRow - 1] = newCol;
+          targetKey = this.slotKey(growRow, newCol);
         } else if (this.plotRows < 10) {
           this.plotRows += 1;
           this.plotCols[this.plotRows - 1] = 1;

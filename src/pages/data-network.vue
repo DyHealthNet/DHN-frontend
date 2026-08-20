@@ -17,6 +17,18 @@
         <div class="filter-toolbar-slot">
           <FilterToolbar :disable-move="true" @change-context="updateData"></FilterToolbar>
         </div>
+        <!-- Full Network Overview: read-only starting point for agnostic exploration,
+             ranked over the whole loaded context subset (networkNodes/networkEdges),
+             shown before the user has clicked into any specific node or edge. -->
+        <NetworkRankingTabs
+          v-if="networkNodes.length > 0"
+          title="Full Network Overview"
+          :edges="networkEdges"
+          :nodes="networkNodes"
+          :nodes-by-id="nodesById"
+          :interactive="false"
+        />
+
         <!-- Network Input -->
         <v-card outlined>
            <v-toolbar color="primary-darken-1" density="compact">
@@ -184,23 +196,6 @@
               </v-tooltip>
             </v-toolbar-title>
           </v-toolbar>
-
-          <v-row v-if="networkNodes.length > 0">
-            <v-col cols="12">
-              <EdgeRankingTable
-                :edges="networkEdges"
-                :nodes-by-id="nodesById"
-                scope-label="Context subset"
-                @select-node="jumpToSearchedNode"
-              />
-              <NodeRankingTable
-                :nodes="networkNodes"
-                :edges="networkEdges"
-                scope-label="Context subset"
-                @select-node="jumpToSearchedNode"
-              />
-            </v-col>
-          </v-row>
 
           <v-row no-gutters>
             <v-overlay v-model="showLoading" scroll-strategy="none" contained
@@ -680,17 +675,14 @@
           <div style="display: flex; flex-direction: column;">
             <v-row v-if="graphNodes.length > 0">
               <v-col cols="12">
-                <EdgeRankingTable
+                <NetworkRankingTabs
+                  title="Network Ranking"
                   :edges="graphEdges"
-                  :nodes-by-id="nodesById"
-                  scope-label="Current view"
-                  @select-node="jumpToSearchedNode"
-                />
-                <NodeRankingTable
                   :nodes="graphNodes"
-                  :edges="graphEdges"
-                  scope-label="Current view"
+                  :nodes-by-id="nodesById"
+                  :interactive="true"
                   @select-node="jumpToSearchedNode"
+                  @select-edge="jumpToEdgeSelection"
                 />
               </v-col>
             </v-row>
@@ -778,8 +770,7 @@ import GraphToolbar from "@/components/network/GraphToolbar.vue";
 import EnrichmentResultsPanel from "@/components/network/EnrichmentResultsPanel.vue";
 import NodeSetActionsPanel from "@/components/network/NodeSetActionsPanel.vue";
 import NodeEdgeTable from "@/components/network/NodeEdgeTable.vue";
-import EdgeRankingTable from "@/components/network/EdgeRankingTable.vue";
-import NodeRankingTable from "@/components/network/NodeRankingTable.vue";
+import NetworkRankingTabs from "@/components/network/NetworkRankingTabs.vue";
 import {useTheme} from 'vuetify';
 
 
@@ -788,7 +779,7 @@ export default {
   components: {
     StatisticalTestLine, FilterToolbar, AdvancedSettings, NodeDetails, NetworkEdgeLine,
     WholeNetworkSettings, EdgeDetails, GraphToolbar, NetworkLegend, EnrichmentResultsPanel, NodeSetActionsPanel,
-    NodeEdgeTable, EdgeRankingTable, NodeRankingTable},
+    NodeEdgeTable, NetworkRankingTabs},
   data() {
     return {
       // context filter
@@ -1856,7 +1847,7 @@ export default {
         // zoom back out to the full graph, undoing the "center on this node" the
         // click just asked for.
         onSimulationEnd: () => {
-          if (this.displayedElementType !== 'node') {
+          if (this.displayedElementType !== 'node' && this.displayedElementType !== 'edge') {
             this.cosmographInstance?.fitView();
           }
         },
@@ -1996,6 +1987,32 @@ export default {
       // Clears the "currently clicked node" big/highlighted treatment, since the
       // details panel is now showing an edge instead of a node.
       this.applyDesign(false);
+    },
+    // NetworkRankingTable's Edge tab row click: behaves like clicking the edge
+    // directly on the canvas (handleLinkClick) -- show it in the Details panel
+    // and center the camera on it -- but the table only knows the edge's id,
+    // not a Cosmograph link index, so this resolves the edge first.
+    jumpToEdgeSelection(edgeId) {
+      if (!edgeId) return;
+      const edge = this.networkEdges.find((e) => e.id === edgeId);
+      if (!edge) return;
+      this.displayEdge(edge);
+      this.applyDesign(false);
+      this.centerOnEdge(edge);
+    },
+    // Cosmograph has no "get link position" API -- an edge has no position of
+    // its own, so center on the midpoint of its two endpoints instead, using
+    // the same pan/center (no zoom change) approach as centerOnPoint.
+    centerOnEdge(edge) {
+      const index0 = this.indexToNodeId.indexOf(edge.from);
+      const index1 = this.indexToNodeId.indexOf(edge.to);
+      if (index0 === -1 || index1 === -1) return;
+      const pos0 = this.cosmographInstance?.getPointPositionByIndex(index0);
+      const pos1 = this.cosmographInstance?.getPointPositionByIndex(index1);
+      if (!pos0 || !pos1) return;
+      const midpoint = new Float32Array([(pos0[0] + pos1[0]) / 2, (pos0[1] + pos1[1]) / 2]);
+      const currentZoom = this.cosmographInstance.getZoomLevel();
+      this.cosmographInstance.setZoomTransformByPointPositions(midpoint, 700, currentZoom);
     },
     handleBackgroundClick() {
       this.displayedElement = null;
