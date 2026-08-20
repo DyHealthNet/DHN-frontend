@@ -42,6 +42,9 @@
       <template v-slot:item.weightedDegree="{ item }">
         {{ formatNumber(item.weightedDegree) }}
       </template>
+      <template v-slot:item.description="{ item }">
+        <span class="description-cell" :title="item.description">{{ item.description || '-' }}</span>
+      </template>
     </DownloadableDataTable>
   </div>
 </template>
@@ -89,6 +92,7 @@ export default {
         { title: 'Group', key: 'group', width: 130 },
         { title: 'Degree', key: 'degree', width: 100, sort: numericSort },
         { title: 'Weighted Degree', key: 'weightedDegree', sort: numericSort },
+        { title: 'Description', key: 'description' },
       ],
     };
   },
@@ -133,5 +137,17 @@ export default {
 <style scoped>
 .node-ranking-table.is-interactive :deep(tbody tr) {
   cursor: pointer;
+}
+
+/* Descriptions can run long -- truncate to one line with the full text
+   available via the native title tooltip on hover, rather than blowing out
+   row height or column width. */
+.description-cell {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 320px;
 }
 </style>

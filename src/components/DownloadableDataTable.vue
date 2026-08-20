@@ -16,6 +16,7 @@
       :loading="loading"
       :sort-by="sortBy"
       :items-per-page="itemsPerPage"
+      :items-per-page-options="itemsPerPageOptions"
       density="compact"
     >
       <template v-if="!$slots.loading" #loading>
@@ -57,6 +58,25 @@ export default {
     noDataText: { type: String, default: 'No data available.' },
     itemsPerPage: { type: [Number, String], default: 10 },
     sortBy: { type: Array, default: () => [] },
+  },
+  computed: {
+    // Vuetify's own default items-per-page options, minus "All" once there's
+    // enough rows that selecting it would actually dump more than 100 rows
+    // into the table at once (the same page-breaker concern that shaped the
+    // network ranking tables' own row caps).
+    itemsPerPageOptions() {
+      const options = [
+        { value: 10, title: '10' },
+        { value: 25, title: '25' },
+        { value: 50, title: '50' },
+        { value: 100, title: '100' },
+        { value: -1, title: 'All' },
+      ];
+      if (this.items.length > 100) {
+        return options.filter((option) => option.value !== -1);
+      }
+      return options;
+    },
   },
   methods: {
     getPath(obj, path) {
