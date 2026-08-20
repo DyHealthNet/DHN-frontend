@@ -80,7 +80,7 @@
                   <v-icon v-bind="props">mdi-information</v-icon>
                 </template>
                 <span>
-                  Browse all variables by group and click one to add its plot below.
+                  Browse all variables by group and click one to add its plot to the Data Overview panel below.
                 </span>
               </v-tooltip>
             </v-toolbar-title>
@@ -91,34 +91,8 @@
               :active-identifiers="addedIdentifiers"
               @add-variable="addVariablePlot"
           ></VariableCatalogTable>
-
-          <v-card-text v-if="variablePlots.length === 0">
-            <span class="text-medium-emphasis">Click a variable in the table above to add its plot here.</span>
-          </v-card-text>
-
-          <v-card-text v-else>
-            <v-row class="fill-height" justify="space-around" align="stretch" id="coolrow"
-                   v-for="(row, rowIndex) in variablePlotRows" :key="rowIndex">
-              <v-col cols="3" v-for="plot in row" :key="plot.identifier" class="plot-col variable-plot-col"
-                     style="height: 600px;">
-                <v-btn
-                    icon="mdi-close"
-                    size="small"
-                    variant="tonal"
-                    class="variable-plot-remove-btn"
-                    @click="removeVariablePlot(plot.id)"
-                ></v-btn>
-                <PlotComponent
-                    :id="plot.id"
-                    :context-value="contextValue"
-                    :initial-plot-type="plot.plotType"
-                    :initial-x-variable="plot.identifier"
-                    :palette-c-a="userSelectedPaletteCa"
-                    :palette-c-o="userSelectedPaletteCo"
-                ></PlotComponent>
-                <v-divider thickness="2"></v-divider>
-              </v-col>
-            </v-row>
+          <v-card-text>
+            <span class="text-medium-emphasis">Click a variable above to add its plot to the Data Overview panel below.</span>
           </v-card-text>
 
           <div class="text-center ma-2">
@@ -127,7 +101,7 @@
                 color="warning"
             >
               <v-icon class="my-0 mr-2">mdi-information-outline</v-icon>
-              Maximum of 40 plots reached — remove one before adding another.
+              Data Overview panel is full (40 plots) — remove or replace one before adding another.
               <template v-slot:actions>
                 <v-btn variant="text" @click="showVariablePlotMessage = false">Close</v-btn>
               </template>
@@ -287,9 +261,12 @@
                 <PlotComponent
                     ref="plotComponents"
                     :id="'plot-' + row + '-' + col"
+                    :key="slotKey(row, col) + ':' + (slotContents[slotKey(row, col)]?.xVariable || '')"
                     :contextValue="contextValue"
                     :paletteCA="userSelectedPaletteCa"
                     :paletteCO="userSelectedPaletteCo"
+                    :initial-plot-type="slotContents[slotKey(row, col)]?.plotType"
+                    :initial-x-variable="slotContents[slotKey(row, col)]?.xVariable"
                 >
                 </PlotComponent>
                 <v-divider thickness="2"></v-divider>
@@ -358,9 +335,10 @@ export default {
       // context value
       contextValue: null,
 
-      // variable overview plot grid (click-to-add, max 4 cols x 10 rows = 40)
-      variablePlots: [],
-      nextVariablePlotId: 1,
+      // Variable Overview table clicks fill slots in the Data Overview grid below
+      // (keyed 'row-col', matching that grid's plotRows/plotCols loop) instead of a
+      // separate grid -- {plotType, xVariable} per occupied slot.
+      slotContents: {},
       showVariablePlotMessage: false,
 
       // options
@@ -393,35 +371,67 @@ export default {
 
   computed: {
     addedIdentifiers() {
-      return this.variablePlots.map((plot) => plot.identifier);
-    },
-    // Chunk into rows of 4 (mirrors the Data Overview grid's max 4 columns), filled in
-    // insertion order -- row-wise left-to-right, top-to-bottom.
-    variablePlotRows() {
-      const rows = [];
-      for (let i = 0; i < this.variablePlots.length; i += 4) {
-        rows.push(this.variablePlots.slice(i, i + 4));
-      }
-      return rows;
+      return Object.values(this.slotContents).map((slot) => slot.xVariable);
     },
   },
 
   // +++++++++++ Methods ++++++++++++++
   methods: {
 
-    addVariablePlot({identifier, plotType}) {
-      if (this.addedIdentifiers.includes(identifier)) {
-        return;
-      }
-      if (this.variablePlots.length >= 40) {
-        this.showVariablePlotMessage = true;
-        return;
-      }
-      this.variablePlots.push({id: this.nextVariablePlotId++, identifier, plotType});
+    slotKey(row, col) {
+      return `${row}-${col}`;
     },
 
-    removeVariablePlot(id) {
-      this.variablePlots = this.variablePlots.filter((plot) => plot.id !== id);
+    // Fills the first empty slot in the existing Data Overview grid (in its current
+    // row/column configuration, row-wise). If the grid is already full it grows it --
+    // one more column on the last row (up to 4), else one more row (up to 10, defaulting
+    // to a single column) -- mirroring that grid's own max-4-cols/max-10-rows sliders,
+    // and only shows the "full" message once that ceiling (40 slots) is actually hit.
+    addVariablePlot({identifier, plotType}) {
+      const refs = this.$refs.plotComponents || [];
+
+      // A variable can already be plotted either because it was added from this table, or
+      // because the user picked it manually via a cell's own settings dialog -- check the live
+      // instances (not just slotContents, which only records what this table has placed) so a
+      // re-click on an already-plotted variable is a safe no-op either way.
+      if (refs.some((r) => r.selectedXVariable === identifier)) {
+        return;
+      }
+
+      // Likewise, find the first slot that's genuinely empty right now. A manually-configured
+      // slot was never recorded in slotContents, so trusting slotContents here could pick an
+      // occupied slot and silently overwrite the user's manual choice.
+      const emptyRef = refs.find((r) => !r.selectedPlotType);
+      let targetKey;
+      if (emptyRef) {
+        const id = emptyRef.id || emptyRef.$props?.id;
+        const [, row, col] = String(id).split('-');
+        targetKey = this.slotKey(row, col);
+      } else {
+        const lastRow = this.plotRows;
+        const lastRowCols = this.plotCols[lastRow - 1] || 1;
+        if (lastRowCols < 4) {
+          this.plotCols[lastRow - 1] = lastRowCols + 1;
+          targetKey = this.slotKey(lastRow, lastRowCols + 1);
+        } else if (this.plotRows < 10) {
+          this.plotRows += 1;
+          this.plotCols[this.plotRows - 1] = 1;
+          if (!this.plotHeights[this.plotRows - 1]) {
+            this.plotHeights[this.plotRows - 1] = 600;
+          }
+          targetKey = this.slotKey(this.plotRows, 1);
+        } else {
+          this.showVariablePlotMessage = true;
+          return;
+        }
+      }
+
+      // Assigning here changes this slot's :key (row-col + xVariable), forcing Vue to remount
+      // a fresh PlotComponent so initial-plot-type/initial-x-variable seed cleanly via data().
+      // Mutating an already-mounted instance's selectedPlotType instead would trigger its own
+      // watcher (which resets selectedXVariable when switching to/from Density) and clobber
+      // the value being set here.
+      this.slotContents[targetKey] = {plotType, xVariable: identifier};
     },
 
     updatePlotColsHeights() {
@@ -519,10 +529,10 @@ export default {
 
     async updateData(val) {
       this.contextValue = val ? val.value : null;
-      // The variable catalog and its available groups are rebuilt for the new context, and an
-      // already-added variable may not exist under it anymore -- clear the grid rather than risk
-      // showing a stale/broken plot.
-      this.variablePlots = [];
+      // The variable catalog is rebuilt for the new context, and a variable added from it may
+      // not exist under the new one -- forget slots we placed (any plot the user configured
+      // manually via a cell's own settings dialog is untouched, since we never tracked those).
+      this.slotContents = {};
       await this.getTableDataFromApi();
     },
 
@@ -790,17 +800,6 @@ export default {
   height: 100%;
   max-width: 100%;
   width: auto;
-}
-
-.variable-plot-col {
-  position: relative;
-}
-
-.variable-plot-remove-btn {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  z-index: 11;
 }
 
 </style>

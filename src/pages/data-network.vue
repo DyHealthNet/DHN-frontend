@@ -2442,19 +2442,6 @@ export default {
         this.selectAll = true;
       }
     },
-    // editThreshold(){
-    //   if (this.fixThreshold){
-    //     // do a popup here asking the user if he/she really wants to change the significance threshold as this
-    //     // would result in inconcistencies or would delete the current network
-    //     this.fixThreshold = false;
-    //   } else {
-    //     // do a popup here asking the user if he/she really wants to change the significance threshold as this
-    //     // would result in inconcistencies or would delete the current network
-    //     this.fixThreshold = true;
-    //     this.signThresh = this.signThreshTemp
-    //     this.clearNetwork();
-    //   }
-    // },
     async connectIndividualNode(count=false) {
       // Use the first element of selectedNetworkNodes
       const firstNode = this.selectedNetworkNodes?.[0];
@@ -2955,38 +2942,6 @@ export default {
       this.checkSelectAll();
       this.applyDesign(true);
     },
-    // saveNetworkFile() {
-    //   if (this.vis_network_nodes.length > 0) {
-    //     const nodes = this.vis_network_nodes.get();
-    //     const edges = this.vis_network_edges.get();
-    //
-    //     const exportData = { options: this.selectedTests, nodes: nodes, edges: edges };
-    //     const dataStr = JSON.stringify(exportData, null, 2);
-    //     const blob = new Blob([dataStr], { type: "application/json" });
-    //
-    //     // Create a link element
-    //     const link = document.createElement("a");
-    //
-    //     const timestamp = new Date().toISOString();
-    //     link.download = `network-data-${timestamp}.json`;
-    //
-    //     // Create a URL for the Blob and set it as the href attribute
-    //     link.href = window.URL.createObjectURL(blob);
-    //
-    //     // Append the link to the body (needed for triggering the click event)
-    //     document.body.appendChild(link);
-    //
-    //     // Programmatically click the link to trigger the download
-    //     link.click();
-    //
-    //     // Remove the link from the document
-    //     document.body.removeChild(link);
-    //   } else {
-    //     console.log("No network displayed");
-    //     // Optionally, show an alert to the user
-    //     alert("No network available to save.");
-    //   }
-    // },
     async saveNetworkImage() {
       await this.captureImage();
       if (this.imageUrl) {
