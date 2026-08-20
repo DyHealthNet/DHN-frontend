@@ -25,12 +25,33 @@
         <NetworkRankingTabs
           v-if="fullNetworkStatsNodes.length > 0"
           title="Full Network Statistics"
-          :subtitle="`Significant edges only (p ≤ $0.05).`"
+          subtitle="Significant edges only (p ≤ 0.05)."
           :edges="fullOverviewEdges"
           :nodes="fullNetworkStatsNodes"
           :nodes-by-id="fullNetworkStatsNodesById"
           :interactive="false"
-        />
+        >
+          <template #toolbar-actions>
+            <v-tooltip location="bottom" max-width="280">
+              <template v-slot:activator="{ props }">
+                <div v-bind="props">
+                  <v-select
+                    v-model="fullNetworkStatsTestType"
+                    :items="[{ title: 'Nonparametric', value: 'nonparametric' }, { title: 'Parametric', value: 'parametric' }]"
+                    label="Test type"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    single-line
+                    :disabled="contextValue != null"
+                    style="max-width: 180px"
+                  ></v-select>
+                </div>
+              </template>
+              <span>{{ contextValue != null ? "The selected context's own test type is used while a context is active." : 'Which edge table (parametric/nonparametric) this panel reads from.' }}</span>
+            </v-tooltip>
+          </template>
+        </NetworkRankingTabs>
 
         <!-- Network Input -->
         <v-card outlined class="mt-4">
@@ -915,6 +936,11 @@ export default {
       fullNetworkStatsNodes: [],
       fullNetworkStatsEdges: [],
       fullNetworkStatsLoading: false,
+      // Own test-type selector, deliberately separate from wholeNetworkTests.testType
+      // (which defaults to 'parametric' and drives the graph's own whole-network/Leiden
+      // fetches) -- only matters in no-context mode, since a selected context fixes its
+      // own test type server-side regardless of this value (see buildSignificantEdgesUrl).
+      fullNetworkStatsTestType: 'nonparametric',
       // Which flow last populated the displayed network -- 'nodes' (node-search
       // "Send to Network") or 'whole' ("Send Whole Network"). Lets addSettings()/
       // updateWholeNetworkSettings() know which fetch to re-run when their
@@ -1659,7 +1685,7 @@ export default {
     // whatever density the graph visualization is currently configured with.
     buildSignificantEdgesUrl() {
       const params = new URLSearchParams();
-      params.set('testType', "nonparametric");
+      params.set('testType', this.fullNetworkStatsTestType);
       params.set('threshold', String(0.05));
       //params.set('limit', String(20000));
       if (this.contextValue != null) params.set('c', this.contextValue);
@@ -3400,8 +3426,8 @@ export default {
     },
     // Only matters in no-context mode -- when a context is selected the
     // backend uses the context's own fixed testType regardless of this param
-    // (see buildSignificantEdgesUrl/buildWholeNetworkUrl).
-    'wholeNetworkTests.testType'() {
+    // (see buildSignificantEdgesUrl).
+    fullNetworkStatsTestType() {
       if (this.contextValue == null) this.fetchFullNetworkStatistics();
     },
     showDropdown(newVal) {

@@ -2,6 +2,8 @@
   <v-card outlined class="mt-4">
     <v-toolbar color="primary-darken-1" density="compact">
       <v-toolbar-title>{{ title }}</v-toolbar-title>
+      <v-spacer></v-spacer>
+      <slot name="toolbar-actions"></slot>
     </v-toolbar>
     <div v-if="subtitle" class="px-4 pt-2 text-caption text-medium-emphasis">{{ subtitle }}</div>
 
