@@ -185,6 +185,23 @@
             </v-toolbar-title>
           </v-toolbar>
 
+          <v-row v-if="networkNodes.length > 0">
+            <v-col cols="12">
+              <EdgeRankingTable
+                :edges="networkEdges"
+                :nodes-by-id="nodesById"
+                scope-label="Context subset"
+                @select-node="jumpToSearchedNode"
+              />
+              <NodeRankingTable
+                :nodes="networkNodes"
+                :edges="networkEdges"
+                scope-label="Context subset"
+                @select-node="jumpToSearchedNode"
+              />
+            </v-col>
+          </v-row>
+
           <v-row no-gutters>
             <v-overlay v-model="showLoading" scroll-strategy="none" contained
                         class="d-flex justify-center align-center">
@@ -661,6 +678,23 @@
           </v-row>
 
           <div style="display: flex; flex-direction: column;">
+            <v-row v-if="graphNodes.length > 0">
+              <v-col cols="12">
+                <EdgeRankingTable
+                  :edges="graphEdges"
+                  :nodes-by-id="nodesById"
+                  scope-label="Current view"
+                  @select-node="jumpToSearchedNode"
+                />
+                <NodeRankingTable
+                  :nodes="graphNodes"
+                  :edges="graphEdges"
+                  scope-label="Current view"
+                  @select-node="jumpToSearchedNode"
+                />
+              </v-col>
+            </v-row>
+
             <v-row
               v-if="nodeEdgeTableVisible"
               :style="{ order: lastTriggeredSection === 'enrichment' ? 1 : 0 }"
@@ -744,6 +778,8 @@ import GraphToolbar from "@/components/network/GraphToolbar.vue";
 import EnrichmentResultsPanel from "@/components/network/EnrichmentResultsPanel.vue";
 import NodeSetActionsPanel from "@/components/network/NodeSetActionsPanel.vue";
 import NodeEdgeTable from "@/components/network/NodeEdgeTable.vue";
+import EdgeRankingTable from "@/components/network/EdgeRankingTable.vue";
+import NodeRankingTable from "@/components/network/NodeRankingTable.vue";
 import {useTheme} from 'vuetify';
 
 
@@ -752,7 +788,7 @@ export default {
   components: {
     StatisticalTestLine, FilterToolbar, AdvancedSettings, NodeDetails, NetworkEdgeLine,
     WholeNetworkSettings, EdgeDetails, GraphToolbar, NetworkLegend, EnrichmentResultsPanel, NodeSetActionsPanel,
-    NodeEdgeTable},
+    NodeEdgeTable, EdgeRankingTable, NodeRankingTable},
   data() {
     return {
       // context filter
@@ -930,6 +966,18 @@ export default {
         connectedIds.add(edge.to);
       }
       return this.networkNodes.filter((node) => connectedIds.has(node.id));
+    },
+    // id -> node lookup shared by the top (context subset) and bottom (current
+    // view) EdgeRankingTable instances to resolve from/to ids to display names.
+    nodesById() {
+      return new Map(this.networkNodes.map((node) => [node.id, node]));
+    },
+    // Edges of networkEdges restricted to graphNodes -- the edge-side analog of
+    // graphNodes, for the "current view" ranking tables below the graph.
+    graphEdges() {
+      if (!this.hideUnconnected) return this.networkEdges;
+      const connectedIds = new Set(this.graphNodes.map((node) => node.id));
+      return this.networkEdges.filter((edge) => connectedIds.has(edge.from) && connectedIds.has(edge.to));
     },
     // Gating the per-node edge table purely on displayedElementType (rather than a
     // separate open/close flag) means it disappears automatically whenever selection

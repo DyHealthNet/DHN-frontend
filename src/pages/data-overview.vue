@@ -267,6 +267,7 @@
                     :paletteCO="userSelectedPaletteCo"
                     :initial-plot-type="slotContents[slotKey(row, col)]?.plotType"
                     :initial-x-variable="slotContents[slotKey(row, col)]?.xVariable"
+                    @remove="removePlot(row, col)"
                 >
                 </PlotComponent>
                 <v-divider thickness="2"></v-divider>
@@ -432,6 +433,69 @@ export default {
       // watcher (which resets selectedXVariable when switching to/from Density) and clobber
       // the value being set here.
       this.slotContents[targetKey] = {plotType, xVariable: identifier};
+    },
+
+    plotRef(row, col) {
+      const refs = this.$refs.plotComponents || [];
+      const id = `plot-${row}-${col}`;
+      return refs.find((ref) => (ref.id || ref.$props?.id) === id);
+    },
+
+    slotOccupied(row, col) {
+      if (this.slotContents[this.slotKey(row, col)]) {
+        return true;
+      }
+      const ref = this.plotRef(row, col);
+      return !!(ref && ref.selectedPlotType);
+    },
+
+    // Drops trailing empty columns from a row (down to a floor of 1 so the ":cols" binding
+    // never divides by zero), and drops the row itself if it's the trailing row and now
+    // completely empty. Only ever touches the *end* of a row/grid -- removing a slot or row
+    // in the middle would require re-indexing every later slotContents key, plotCols/
+    // plotHeights entry and PlotComponent id, which this grid (and the download feature's
+    // id parsing) doesn't support.
+    shrinkRowIfEmpty(row) {
+      let rowCols = this.plotCols[row - 1] || 1;
+      while (rowCols > 1 && !this.slotOccupied(row, rowCols)) {
+        rowCols -= 1;
+        this.plotCols[row - 1] = rowCols;
+      }
+      if (row === this.plotRows && this.plotRows > 1 && !this.slotOccupied(row, 1)) {
+        this.plotRows -= 1;
+      }
+    },
+
+    // Called when a PlotComponent's own remove button is clicked (see PlotComponent.vue's
+    // removePlot, which clears itself and emits). If this slot was added from the Variable
+    // Overview table, shift every later *tracked* slot in the row left to close the gap --
+    // stopping at the first untracked slot, since that's either genuinely empty (nothing
+    // left to shift) or a plot configured manually via its own settings dialog (never
+    // recorded in slotContents, so it can't be safely moved without losing its config, and
+    // must never be overwritten). Then shrink the row/grid if that emptied its tail.
+    async removePlot(row, col) {
+      const key = this.slotKey(row, col);
+      if (this.slotContents[key]) {
+        delete this.slotContents[key];
+        const rowCols = this.plotCols[row - 1] || 1;
+        let writeCol = col;
+        for (let c = col + 1; c <= rowCols; c++) {
+          const fromKey = this.slotKey(row, c);
+          if (!this.slotContents[fromKey]) {
+            break;
+          }
+          this.slotContents[this.slotKey(row, writeCol)] = this.slotContents[fromKey];
+          delete this.slotContents[fromKey];
+          writeCol += 1;
+        }
+      }
+
+      // Wait for the shift above (and the child's own clear) to actually re-render --
+      // slotContents changes force affected cells to remount via their :key -- before
+      // inspecting live refs in shrinkRowIfEmpty, otherwise that check would read stale,
+      // pre-shift instances.
+      await this.$nextTick();
+      this.shrinkRowIfEmpty(row);
     },
 
     updatePlotColsHeights() {

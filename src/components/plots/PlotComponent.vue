@@ -5,6 +5,8 @@
         <!--Button-->
         <v-btn class="plot-settings-btn" icon="mdi-cog-outline" size="small" variant="tonal"
                @click="plotOptions = true"></v-btn>
+        <v-btn v-if="!showNewPlot" class="plot-remove-btn" icon="mdi-close" size="small" variant="tonal"
+               @click="removePlot"></v-btn>
       </v-col>
       <v-col>
         <!-- Render CustomBarPlot ONLY if selectedPlotType is 'Bar' -->
@@ -281,6 +283,7 @@ export default {
     OverviewPie,
     OverviewDensity
   },
+  emits: ['remove'],
   props: {
     id: {
       type: Number,
@@ -582,6 +585,16 @@ export default {
       }
     },
 
+    // Clears this cell back to its empty "+" placeholder and lets the parent grid know, so
+    // it can shift/shrink around the gap (see data-overview.vue's removePlot).
+    removePlot() {
+      this.selectedPlotType = null;
+      this.selectedXVariable = null;
+      this.selectedYVariable = null;
+      this.selectedCVariable = null;
+      this.$emit('remove');
+    },
+
     // Helper functions to prevent that a variable of the wrong type stays being selected
     isHeatmap(type) {
       return type === "Heatmap";
@@ -642,6 +655,13 @@ export default {
   margin-top: 5px;
   margin-bottom: -5px;
 
+}
+
+.plot-remove-btn {
+  background-color: rgb(var(--v-theme-error)) !important;
+  color: rgb(var(--v-theme-white-surface)) !important;
+  margin-left: 5px;
+  margin-top: 10px;
 }
 
 .overlay {
