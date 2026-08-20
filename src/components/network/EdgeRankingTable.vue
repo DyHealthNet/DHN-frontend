@@ -4,7 +4,7 @@
       <v-select
         v-model="testTypeFilter"
         :items="testTypeOptions"
-        label="Test type"
+        label="Filter test type"
         density="compact"
         variant="outlined"
         hide-details
@@ -26,7 +26,7 @@
 
     <DownloadableDataTable
       :headers="headers"
-      :items="rankedEdges"
+      :items="tableItems"
       :search="search"
       :custom-key-filter="{ node1: edgeSearchFilter }"
       filter-mode="union"
@@ -37,12 +37,6 @@
       no-data-text="No edges to rank."
       @click:row="onRowClick"
     >
-      <template v-slot:item.node1="{ item }">
-        {{ nodeLabel(item.from) }}
-      </template>
-      <template v-slot:item.node2="{ item }">
-        {{ nodeLabel(item.to) }}
-      </template>
       <template v-slot:header.p_value="{ column, getSortIcon }">
         <div class="v-data-table-header__content">
           <span>{{ column.title }}</span>
@@ -94,7 +88,7 @@ export default {
       default: () => new Map(),
     },
     // When false, rows are inert -- no click emit, no pointer cursor. Used
-    // for the "Full Network Overview" instance, which is a read-only
+    // for the "Full Network Statistics" instance, which is a read-only
     // starting point shown before any node/edge is selected in the graph.
     interactive: {
       type: Boolean,
@@ -126,6 +120,16 @@ export default {
     },
     rankedEdges() {
       return rankEdges(this.filteredEdges);
+    },
+    // Resolves from/to node ids to display names as real item fields (node1/
+    // node2) rather than only in a render slot -- v-data-table's default sort
+    // reads item[column.key] directly, so a slot-only value never sorts.
+    tableItems() {
+      return this.rankedEdges.map((edge) => ({
+        ...edge,
+        node1: this.nodeLabel(edge.from),
+        node2: this.nodeLabel(edge.to),
+      }));
     },
   },
   methods: {

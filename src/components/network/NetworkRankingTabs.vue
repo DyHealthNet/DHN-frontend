@@ -3,6 +3,7 @@
     <v-toolbar color="primary-darken-1" density="compact">
       <v-toolbar-title>{{ title }}</v-toolbar-title>
     </v-toolbar>
+    <div v-if="subtitle" class="px-4 pt-2 text-caption text-medium-emphasis">{{ subtitle }}</div>
 
     <v-tabs v-model="tab" color="primary">
       <v-tab value="edges">
@@ -48,6 +49,10 @@ export default {
       type: String,
       default: 'Network Ranking',
     },
+    subtitle: {
+      type: String,
+      default: '',
+    },
     edges: {
       type: Array,
       default: () => [],
@@ -60,7 +65,7 @@ export default {
       type: [Map, Object],
       default: () => new Map(),
     },
-    // Forwarded to both tables -- false for the "Full Network Overview"
+    // Forwarded to both tables -- false for the "Full Network Statistics"
     // instance (a read-only starting point above the graph), true for the
     // instance under the graph, where a row click should focus that node/edge.
     interactive: {

@@ -17,20 +17,23 @@
         <div class="filter-toolbar-slot">
           <FilterToolbar :disable-move="true" @change-context="updateData"></FilterToolbar>
         </div>
-        <!-- Full Network Overview: read-only starting point for agnostic exploration,
-             ranked over the whole loaded context subset (networkNodes/networkEdges),
-             shown before the user has clicked into any specific node or edge. -->
+        <!-- Full Network Statistics: read-only starting point for agnostic exploration.
+             Independently fetched (see fetchFullNetworkStatistics/contextValue watcher)
+             for the current context subset -- decoupled from whatever density/threshold
+             the graph visualization below happens to be using -- so it's available
+             before the user has sent anything to the graph or clicked into any node/edge. -->
         <NetworkRankingTabs
-          v-if="networkNodes.length > 0"
-          title="Full Network Overview"
-          :edges="networkEdges"
-          :nodes="networkNodes"
-          :nodes-by-id="nodesById"
+          v-if="fullNetworkStatsNodes.length > 0"
+          title="Full Network Statistics"
+          :subtitle="`Significant edges only (p ≤ ${significantPValueThreshold}), capped at the top ${maxSignificantEdges.toLocaleString()} by significance.`"
+          :edges="fullOverviewEdges"
+          :nodes="fullNetworkStatsNodes"
+          :nodes-by-id="fullNetworkStatsNodesById"
           :interactive="false"
         />
 
         <!-- Network Input -->
-        <v-card outlined>
+        <v-card outlined class="mt-4">
            <v-toolbar color="primary-darken-1" density="compact">
             <v-toolbar-title>
               Network Input
@@ -757,6 +760,7 @@ import AdvancedSettings from "@/components/AdvancedSettings.vue";
 import FilterToolbar from "@/components/FilterToolbar.vue";
 import {BASE_URL, isLoading, setIsLoading} from "@/components/constants.js";
 import {darkenHexColor, assignGroupColors, getNodeIcon, loadNetworkState, saveNetworkState, capitalizeFirstLetter, drawLegendPanel} from "../components/network/networkData.js";
+import {selectSignificantEdges, SIGNIFICANT_P_VALUE_THRESHOLD, MAX_SIGNIFICANT_EDGES} from "../components/network/networkRanking.js";
 import {interpolateRainbow} from 'd3-scale-chromatic';
 import NodeDetails from '@/components/network/NodeDetails.vue';
 import EdgeDetails from '@/components/network/EdgeDetails.vue';
@@ -903,6 +907,15 @@ export default {
       // Whole Network Settings (default) values
       wholeNetworkTests: { testType: 'parametric', correction: 'bh' },
       density: 0.01,
+
+      // "Full Network Statistics" panel data -- fetched independently of
+      // networkNodes/networkEdges (see the contextValue watcher and
+      // fetchFullNetworkStatistics()) so its p<=0.05/top-20000 significant-edge
+      // ranking reflects the actual context subset, not whatever density/
+      // threshold the graph visualization itself happens to be using.
+      fullNetworkStatsNodes: [],
+      fullNetworkStatsEdges: [],
+      fullNetworkStatsLoading: false,
       // Which flow last populated the displayed network -- 'nodes' (node-search
       // "Send to Network") or 'whole' ("Send Whole Network"). Lets addSettings()/
       // updateWholeNetworkSettings() know which fetch to re-run when their
@@ -958,10 +971,16 @@ export default {
       }
       return this.networkNodes.filter((node) => connectedIds.has(node.id));
     },
-    // id -> node lookup shared by the top (context subset) and bottom (current
-    // view) EdgeRankingTable instances to resolve from/to ids to display names.
+    // id -> node lookup for the bottom (current view) EdgeRankingTable instance,
+    // to resolve from/to ids to display names.
     nodesById() {
       return new Map(this.networkNodes.map((node) => [node.id, node]));
+    },
+    // Same, but for fullNetworkStatsNodes -- the top instance's own
+    // independently-fetched node set, which may not match networkNodes (e.g.
+    // stats can be loaded before any graph has been sent).
+    fullNetworkStatsNodesById() {
+      return new Map(this.fullNetworkStatsNodes.map((node) => [node.id, node]));
     },
     // Edges of networkEdges restricted to graphNodes -- the edge-side analog of
     // graphNodes, for the "current view" ranking tables below the graph.
@@ -969,6 +988,20 @@ export default {
       if (!this.hideUnconnected) return this.networkEdges;
       const connectedIds = new Set(this.graphNodes.map((node) => node.id));
       return this.networkEdges.filter((edge) => connectedIds.has(edge.from) && connectedIds.has(edge.to));
+    },
+    // "Full Network Statistics" is meant to surface what's actually significant
+    // in the context subset -- fullNetworkStatsEdges already comes from its own
+    // threshold=0.05/limit=20000 backend fetch (see fetchFullNetworkStatistics),
+    // so this is mostly a defensive re-filter (e.g. floating-point edge cases
+    // right at the threshold) rather than the primary cap.
+    fullOverviewEdges() {
+      return selectSignificantEdges(this.fullNetworkStatsEdges);
+    },
+    significantPValueThreshold() {
+      return SIGNIFICANT_P_VALUE_THRESHOLD;
+    },
+    maxSignificantEdges() {
+      return MAX_SIGNIFICANT_EDGES;
     },
     // Gating the per-node edge table purely on displayedElementType (rather than a
     // separate open/close flag) means it disappears automatically whenever selection
@@ -1625,6 +1658,61 @@ export default {
       // it's only kept for the no-context case.
       if (this.contextValue != null) params.set('c', this.contextValue);
       return `${BASE_URL}/metagraph/api/getCosmograph/?${params.toString()}`;
+    },
+
+    // "Full Network Statistics" panel: a getCosmograph fetch scoped by
+    // significance (threshold) rather than density -- deliberately separate
+    // from buildWholeNetworkUrl() so the panel's coverage doesn't depend on
+    // whatever density the graph visualization is currently configured with.
+    buildSignificantEdgesUrl() {
+      const params = new URLSearchParams();
+      params.set('testType', this.wholeNetworkTests.testType);
+      params.set('threshold', String(SIGNIFICANT_P_VALUE_THRESHOLD));
+      params.set('limit', String(MAX_SIGNIFICANT_EDGES));
+      if (this.contextValue != null) params.set('c', this.contextValue);
+      return `${BASE_URL}/metagraph/api/getCosmograph/?${params.toString()}`;
+    },
+    // Fired by the contextValue watcher (immediate, so it also covers initial
+    // load / state restored via loadState()) -- independent of sendWholeNetwork,
+    // so switching context updates the stats panel even before the user sends
+    // anything to the graph.
+    async fetchFullNetworkStatistics() {
+      this.fullNetworkStatsLoading = true;
+      try {
+        const csrfToken = getCookie('csrftoken');
+        const response = await fetch(this.buildSignificantEdgesUrl(), {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+          },
+          credentials: 'include',
+        });
+        if (!response.ok) throw new Error("Network response was not ok");
+        const data = await response.json();
+        this.fullNetworkStatsNodes = (data.points || []).map((point) => ({
+          id: point.id,
+          display_name: point.label ?? point.id,
+          description: point.description ?? "",
+          source_table: point.source_table ?? point.type,
+          subtype: point.subtype,
+          x_refs: point.xrefs,
+        }));
+        this.fullNetworkStatsEdges = (data.links || []).map((link) => ({
+          id: link.id,
+          from: link.source,
+          to: link.target,
+          type: link.edge_type,
+          p_value: link.p_value,
+          effect_size: link.effect_size,
+          test_type: link.test_type,
+        }));
+      } catch (error) {
+        console.error("Error fetching full network statistics:", error);
+        this.fullNetworkStatsNodes = [];
+        this.fullNetworkStatsEdges = [];
+      }
+      this.fullNetworkStatsLoading = false;
     },
 
     // Community Detection (Leiden clustering). Only available in 'whole' mode
@@ -3306,6 +3394,23 @@ export default {
     },
   },
   watch: {
+    // Keeps "Full Network Statistics" in sync with whichever context is
+    // selected, independent of whether/when a network is sent to the graph.
+    // immediate: true covers the initial load, including a context restored
+    // by loadState() in mounted() (which sets contextValue directly, not via
+    // updateData()).
+    contextValue: {
+      immediate: true,
+      handler() {
+        this.fetchFullNetworkStatistics();
+      },
+    },
+    // Only matters in no-context mode -- when a context is selected the
+    // backend uses the context's own fixed testType regardless of this param
+    // (see buildSignificantEdgesUrl/buildWholeNetworkUrl).
+    'wholeNetworkTests.testType'() {
+      if (this.contextValue == null) this.fetchFullNetworkStatistics();
+    },
     showDropdown(newVal) {
       // Add or remove the global click listener when dropdown visibility changes
       if (newVal) {

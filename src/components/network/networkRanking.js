@@ -73,4 +73,26 @@ function distinctTestTypes(edges) {
   return Array.from(types).sort();
 }
 
-export { computeEdgeWeight, rankEdges, computeWeightedDegree, distinctTestTypes };
+const SIGNIFICANT_P_VALUE_THRESHOLD = 0.05;
+const MAX_SIGNIFICANT_EDGES = 20000;
+
+// The "Full Network Statistics" instance ranks over every significant edge in
+// the loaded context subset, not just whatever the graph itself happened to
+// fetch -- but still needs its own cap so a cohort with tens of thousands of
+// significant edges doesn't dump them all into one table. Edges with no
+// p-value can't be judged significant, so they're excluded rather than kept.
+function selectSignificantEdges(edges, { threshold = SIGNIFICANT_P_VALUE_THRESHOLD, maxEdges = MAX_SIGNIFICANT_EDGES } = {}) {
+  const significant = edges.filter((edge) => edge.p_value != null && edge.p_value <= threshold);
+  if (significant.length <= maxEdges) return significant;
+  return rankEdges(significant).slice(0, maxEdges);
+}
+
+export {
+  computeEdgeWeight,
+  rankEdges,
+  computeWeightedDegree,
+  distinctTestTypes,
+  selectSignificantEdges,
+  SIGNIFICANT_P_VALUE_THRESHOLD,
+  MAX_SIGNIFICANT_EDGES,
+};

@@ -16,7 +16,7 @@
 
     <DownloadableDataTable
       :headers="headers"
-      :items="rankedNodes"
+      :items="tableItems"
       :search="search"
       :custom-key-filter="{ id: nodeSearchFilter }"
       filter-mode="union"
@@ -27,12 +27,6 @@
       no-data-text="No nodes to rank."
       @click:row="onRowClick"
     >
-      <template v-slot:item.id="{ item }">
-        {{ item.display_name || item.id }}
-      </template>
-      <template v-slot:item.group="{ item }">
-        {{ item.source_table || item.subtype || '-' }}
-      </template>
       <template v-slot:header.weightedDegree="{ column, getSortIcon }">
         <div class="v-data-table-header__content">
           <span>{{ column.title }}</span>
@@ -78,7 +72,7 @@ export default {
       default: () => [],
     },
     // When false, rows are inert -- no click emit, no pointer cursor. Used
-    // for the "Full Network Overview" instance, which is a read-only
+    // for the "Full Network Statistics" instance, which is a read-only
     // starting point shown before any node/edge is selected in the graph.
     interactive: {
       type: Boolean,
@@ -91,7 +85,7 @@ export default {
       search: '',
       headers: [
         { title: 'Rank', key: 'rank', width: 90, sort: numericSort },
-        { title: 'Node', key: 'id', csvValue: (item) => item.display_name || item.id },
+        { title: 'Node', key: 'label' },
         { title: 'Group', key: 'group', width: 130 },
         { title: 'Degree', key: 'degree', width: 100, sort: numericSort },
         { title: 'Weighted Degree', key: 'weightedDegree', sort: numericSort },
@@ -101,6 +95,16 @@ export default {
   computed: {
     rankedNodes() {
       return computeWeightedDegree(this.nodes, this.edges);
+    },
+    // Resolves display label and group as real item fields rather than only
+    // in a render slot -- v-data-table's default sort reads item[column.key]
+    // directly, so a slot-only value never sorts.
+    tableItems() {
+      return this.rankedNodes.map((node) => ({
+        ...node,
+        label: node.display_name || node.id,
+        group: node.source_table || node.subtype || '-',
+      }));
     },
   },
   methods: {
