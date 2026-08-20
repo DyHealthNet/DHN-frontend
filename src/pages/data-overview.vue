@@ -70,6 +70,71 @@
           </v-tabs-window>
         </v-card>
         <v-spacer class="my-10"></v-spacer>
+        <!--Variable Overview-->
+        <v-card outlined>
+          <v-toolbar color="primary-darken-1" density="compact">
+            <v-toolbar-title>
+              Variable Overview
+              <v-tooltip bottom>
+                <template v-slot:activator="{ props }">
+                  <v-icon v-bind="props">mdi-information</v-icon>
+                </template>
+                <span>
+                  Browse all variables by group and click one to add its plot below.
+                </span>
+              </v-tooltip>
+            </v-toolbar-title>
+          </v-toolbar>
+
+          <VariableCatalogTable
+              :context-value="contextValue"
+              :active-identifiers="addedIdentifiers"
+              @add-variable="addVariablePlot"
+          ></VariableCatalogTable>
+
+          <v-card-text v-if="variablePlots.length === 0">
+            <span class="text-medium-emphasis">Click a variable in the table above to add its plot here.</span>
+          </v-card-text>
+
+          <v-card-text v-else>
+            <v-row class="fill-height" justify="space-around" align="stretch" id="coolrow"
+                   v-for="(row, rowIndex) in variablePlotRows" :key="rowIndex">
+              <v-col cols="3" v-for="plot in row" :key="plot.identifier" class="plot-col variable-plot-col"
+                     style="height: 600px;">
+                <v-btn
+                    icon="mdi-close"
+                    size="small"
+                    variant="tonal"
+                    class="variable-plot-remove-btn"
+                    @click="removeVariablePlot(plot.id)"
+                ></v-btn>
+                <PlotComponent
+                    :id="plot.id"
+                    :context-value="contextValue"
+                    :initial-plot-type="plot.plotType"
+                    :initial-x-variable="plot.identifier"
+                    :palette-c-a="userSelectedPaletteCa"
+                    :palette-c-o="userSelectedPaletteCo"
+                ></PlotComponent>
+                <v-divider thickness="2"></v-divider>
+              </v-col>
+            </v-row>
+          </v-card-text>
+
+          <div class="text-center ma-2">
+            <v-snackbar
+                v-model="showVariablePlotMessage"
+                color="warning"
+            >
+              <v-icon class="my-0 mr-2">mdi-information-outline</v-icon>
+              Maximum of 40 plots reached — remove one before adding another.
+              <template v-slot:actions>
+                <v-btn variant="text" @click="showVariablePlotMessage = false">Close</v-btn>
+              </template>
+            </v-snackbar>
+          </div>
+        </v-card>
+        <v-spacer class="my-10"></v-spacer>
         <!--Tab bar-->
         <v-card outlined>
           <!--Tab bar name-->
@@ -259,6 +324,7 @@
 <script>
 import {BASE_URL} from "../components/constants.js";
 import PlotComponent from "@/components/plots/PlotComponent.vue";
+import VariableCatalogTable from "@/components/plots/VariableCatalogTable.vue";
 
 
 import FilterToolbar from "@/components/FilterToolbar.vue";
@@ -273,6 +339,7 @@ export default {
   components: {
     FilterToolbar,
     PlotComponent,
+    VariableCatalogTable,
     ColorPalette
   },
   data() {
@@ -290,6 +357,11 @@ export default {
 
       // context value
       contextValue: null,
+
+      // variable overview plot grid (click-to-add, max 4 cols x 10 rows = 40)
+      variablePlots: [],
+      nextVariablePlotId: 1,
+      showVariablePlotMessage: false,
 
       // options
       showLoading: isLoading,
@@ -319,9 +391,38 @@ export default {
     await this.getTableDataFromApi();
   },
 
+  computed: {
+    addedIdentifiers() {
+      return this.variablePlots.map((plot) => plot.identifier);
+    },
+    // Chunk into rows of 4 (mirrors the Data Overview grid's max 4 columns), filled in
+    // insertion order -- row-wise left-to-right, top-to-bottom.
+    variablePlotRows() {
+      const rows = [];
+      for (let i = 0; i < this.variablePlots.length; i += 4) {
+        rows.push(this.variablePlots.slice(i, i + 4));
+      }
+      return rows;
+    },
+  },
 
   // +++++++++++ Methods ++++++++++++++
   methods: {
+
+    addVariablePlot({identifier, plotType}) {
+      if (this.addedIdentifiers.includes(identifier)) {
+        return;
+      }
+      if (this.variablePlots.length >= 40) {
+        this.showVariablePlotMessage = true;
+        return;
+      }
+      this.variablePlots.push({id: this.nextVariablePlotId++, identifier, plotType});
+    },
+
+    removeVariablePlot(id) {
+      this.variablePlots = this.variablePlots.filter((plot) => plot.id !== id);
+    },
 
     updatePlotColsHeights() {
       for (let row = 0; row < this.plotRows; row++) {
@@ -418,6 +519,10 @@ export default {
 
     async updateData(val) {
       this.contextValue = val ? val.value : null;
+      // The variable catalog and its available groups are rebuilt for the new context, and an
+      // already-added variable may not exist under it anymore -- clear the grid rather than risk
+      // showing a stale/broken plot.
+      this.variablePlots = [];
       await this.getTableDataFromApi();
     },
 
@@ -685,6 +790,17 @@ export default {
   height: 100%;
   max-width: 100%;
   width: auto;
+}
+
+.variable-plot-col {
+  position: relative;
+}
+
+.variable-plot-remove-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 11;
 }
 
 </style>

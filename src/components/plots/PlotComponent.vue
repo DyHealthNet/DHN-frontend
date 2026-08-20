@@ -297,6 +297,17 @@ export default {
     paletteCO: {
       type: String,
       required: false,
+    },
+    // Optional pre-seeded plot type + X variable, so a caller can drop in a fully
+    // configured plot instead of the user manually going through the "+" dialog
+    // (e.g. clicking a variable in VariableCatalogTable).
+    initialPlotType: {
+      type: String,
+      default: null,
+    },
+    initialXVariable: {
+      type: String,
+      default: null,
     }
   },
 
@@ -312,7 +323,7 @@ export default {
       yItems: [],
       cItems: [],
 
-      selectedXVariable: null,
+      selectedXVariable: this.initialXVariable,
       selectedYVariable: null,
       selectedCVariable: null,
       selectedBarPlotType: "Grouped",
@@ -323,7 +334,7 @@ export default {
 
       plotTypes: ["Bar", "Box", "Line", "Heatmap", "Pie", "Density"],
 
-      selectedPlotType: null,
+      selectedPlotType: this.initialPlotType,
 
       xVarTypes: {
         "Bar": "Categorical",
