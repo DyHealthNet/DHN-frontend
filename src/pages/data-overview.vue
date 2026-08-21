@@ -156,7 +156,7 @@
                         <!-- Number of Columns Slider -->
                         <v-col cols="6">
                           <p>Number of Columns for Row {{ row }}</p>
-                          <v-slider v-model="plotCols[row - 1]" max="4" min="1" step="1">
+                          <v-slider v-model="plotCols[row - 1]" max="4" min="1" step="1" @update:modelValue="pruneRowSlots(row)">
                             <template v-slot:append>
                               <v-text-field
                                   v-model="plotCols[row - 1]"
@@ -490,7 +490,33 @@ export default {
       this.shrinkRowIfEmpty(row);
     },
 
+    // Clears slotContents for a row's columns beyond its current count, so shrinking a
+    // row via its "Number of Columns" slider actually deletes that plot instead of just
+    // hiding it -- otherwise growing the row back would resurrect the stale plot at its
+    // old key (see updatePlotColsHeights, which does the same for whole rows).
+    pruneRowSlots(row) {
+      const cols = this.plotCols[row - 1] || 1;
+      for (const key of Object.keys(this.slotContents)) {
+        const [r, c] = key.split('-').map(Number);
+        if (r === row && c > cols) {
+          delete this.slotContents[key];
+        }
+      }
+    },
+
     updatePlotColsHeights() {
+      // Drop slot data for rows beyond the new row count, and truncate the per-row config
+      // arrays to match, so shrinking the row count then growing it back never resurrects
+      // a stale plot.
+      for (const key of Object.keys(this.slotContents)) {
+        const [row] = key.split('-').map(Number);
+        if (row > this.plotRows) {
+          delete this.slotContents[key];
+        }
+      }
+      this.plotCols.length = this.plotRows;
+      this.plotHeights.length = this.plotRows;
+
       for (let row = 0; row < this.plotRows; row++) {
         if (!this.plotCols[row]) {
           this.plotCols[row] = 1;
