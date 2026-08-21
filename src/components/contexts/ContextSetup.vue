@@ -504,6 +504,10 @@ export default {
             if (!this.content?.variables) {
               this.selectedVariables = this.allVariablesFlat;
             }
+            // the variable selection just changed (empty -> populated, or a saved one just
+            // arrived) - refresh the participant count so it reflects the no-missingness
+            // filtering over that selection from the very start.
+            this.$nextTick(() => this.fetchParticipants(this.createParams()));
           })
           .catch((error) => {
             console.error('Error:', error);
@@ -514,7 +518,10 @@ export default {
       let newParticipants = '';
       console.log("Fetching participants");
       console.log("count of rules" , this.outerRows.length + this.innerRows.length)
-      if (Object.keys(params.conditions).length === 0) {
+      // conditions alone used to gate this fetch, but the no-missingness filtering over
+      // the selected variables can shrink the participant count even with zero rules
+      // defined, so we still need to hit the backend whenever any variable is selected.
+      if (Object.keys(params.conditions).length === 0 && (!params.variables || params.variables.length === 0)) {
         this.removedPatients = ("+ " + this.spacedNumber(Math.abs(parseInt(this.participantNumber.replace(/\s/g, ''))
             - this.initialParticipants)))
         this.participantNumber = this.spacedNumber(this.initialParticipants);
@@ -842,6 +849,9 @@ export default {
       this.disableSelections = false;
 
       this.sendContextName();
+      // selection just reset to "all variables" - refresh the participant count so it
+      // reflects the no-missingness filtering instead of the raw unfiltered baseline.
+      this.$nextTick(() => this.fetchParticipants(this.createParams()));
 
       // Only call api if there was a context created for this tab otherwise merely the form was being cleared
       if (this.status === "Finished" && deleteTables) {
