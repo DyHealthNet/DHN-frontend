@@ -85,16 +85,35 @@
         ></VariableSelector>
       </v-col>
     </v-row>
-    <v-row class="no-bottom-padding">
+    <v-row class="py-1">
       <v-col cols="6" class="no-bottom-padding">
-        <v-checkbox
-            v-model="dropMissing"
-            :readonly="disableSelections"
-            label="Remove samples with missing values in selected variables"
-            density="compact"
-            hide-details
-            @update:model-value="updateDropMissing"
-        ></v-checkbox>
+        <p><b>Remove samples with missing values in</b></p>
+      </v-col>
+    </v-row>
+    <v-row class="filter-padding">
+      <v-col cols="6" class="filter-padding">
+        <v-tabs v-model="missingnessMode" density="compact" @update:model-value="onMissingnessModeChange">
+          <v-tab value="variables">By Variable</v-tab>
+          <v-tab value="layers">By Layer</v-tab>
+        </v-tabs>
+        <v-window v-model="missingnessMode">
+          <v-window-item value="variables">
+            <VariableSelector
+                :items="selectedVariables"
+                :model-value="missingnessVariables"
+                :disable-selections="disableSelections"
+                @update:model-value="updateMissingnessVariables"
+            ></VariableSelector>
+          </v-window-item>
+          <v-window-item value="layers">
+            <VariableSelector
+                :items="selectedLayers"
+                :model-value="missingnessLayers"
+                :disable-selections="disableSelections"
+                @update:model-value="updateMissingnessLayers"
+            ></VariableSelector>
+          </v-window-item>
+        </v-window>
       </v-col>
     </v-row>
 
@@ -213,6 +232,29 @@
       </v-col>
     </v-row>
 
+    <v-row v-if="removedVariables.length || droppedEdgeCount">
+      <v-col>
+        <v-alert
+            type="warning"
+            density="compact"
+            variant="tonal"
+            closable
+            class="mb-2"
+        >
+          <div v-if="removedVariables.length">
+            {{ removedVariables.length }} variable(s) were removed from this context because they
+            have no usable variation (e.g. constant or entirely missing) in the selected patients:
+            {{ removedVariables.join(', ') }}
+          </div>
+          <div v-if="droppedEdgeCount">
+            Additionally, {{ droppedEdgeCount }} pairwise association(s) could not be calculated by
+            the NaPy test (the underlying data was too sparse or unbalanced to produce a valid test
+            statistic) and were excluded.
+          </div>
+        </v-alert>
+      </v-col>
+    </v-row>
+
     <v-dialog width="auto" v-model="deleteWarn">
         <v-card color="error" rounded="lg">
           <v-card-title class="headline">
@@ -299,6 +341,16 @@ export default {
         ])
       );
     },
+    // the variable identifiers actually sent to the backend for the missingness check:
+    // either the direct pick, or - when picking whole layers instead - every currently
+    // selected variable that belongs to one of the chosen layers.
+    effectiveMissingnessVariables() {
+      if (this.missingnessMode === 'layers') {
+        const layersLower = new Set(this.missingnessLayers.map(layer => layer.toLowerCase()));
+        return this.selectedVariables.filter(item => layersLower.has(this.variableLayers[item]));
+      }
+      return this.missingnessVariables;
+    },
   },
   components: {AdvancedSettings, NewFilterButton, ConnectorLine, FilterLine, ConnectorButton, StatusBox, LayerSelector, VariableSelector},
   emits: ['data-changed','calculation-start','calculation-end'],
@@ -363,8 +415,13 @@ export default {
       // Identifiers of the variables selected to be part of this context's calculation.
       // Empty for a brand-new tab until fetchVariables() defaults it to "all available".
       selectedVariables: this.content?.variables ?? [],
-      // opt-in: drop any sample with a missing value in any selected variable.
-      dropMissing: this.content?.dropMissing ?? false,
+      // opt-in subset of selectedVariables: drop any sample with a missing value in any
+      // of THESE, though every selected variable stays part of the resulting data. Can be
+      // picked directly (missingnessMode 'variables') or derived from whole layers
+      // (missingnessMode 'layers', via missingnessLayers) - see effectiveMissingnessVariables.
+      missingnessVariables: this.content?.missingnessVariables ?? [],
+      missingnessLayers: this.content?.missingnessLayers ?? [],
+      missingnessMode: this.content?.missingnessLayers?.length ? 'layers' : 'variables',
       columnType: "value",
 
       outerRows: groups.length > 0 ? groups : ['group-0'],
@@ -393,6 +450,8 @@ export default {
       taskInfo: "",
       taskType: "",
       sendDisabled: false,
+      removedVariables: [],
+      droppedEdgeCount: 0,
     };
   },
   methods: {
@@ -616,6 +675,8 @@ export default {
             console.log(this.progressIcon)
             contextState.processFinished = data.status === "SUCCESS";
             if (contextState.processFinished) {
+              this.removedVariables = data.result?.removed_variables ?? [];
+              this.droppedEdgeCount = data.result?.dropped_edge_count ?? 0;
               this.$emit('calculation-end');
               contextState.taskInfo = "Context Creation of context " + this.contextName + " is finished.";
               contextState.taskStarted = true;
@@ -717,14 +778,38 @@ export default {
       }
     },
 
+    // Drop any missingness-check variable that's no longer part of the (newly narrowed)
+    // variable selection - it's only ever meant to be a subset of selectedVariables.
+    pruneStaleMissingnessVariables() {
+      const selected = new Set(this.selectedVariables);
+      this.missingnessVariables = this.missingnessVariables.filter(item => selected.has(item));
+    },
+
+    // Drop any missingness-check layer that's no longer selected - it's only ever meant
+    // to be a subset of selectedLayers.
+    pruneStaleMissingnessLayers() {
+      const selected = new Set(this.selectedLayers);
+      this.missingnessLayers = this.missingnessLayers.filter(item => selected.has(item));
+    },
+
     updateSelectedVariables(newSelectedVariables) {
       this.selectedVariables = newSelectedVariables;
       this.pruneStaleRulesByVariables();
+      this.pruneStaleMissingnessVariables();
       this.$nextTick(() => this.fetchParticipants(this.createParams()));
     },
 
-    updateDropMissing(value) {
-      this.dropMissing = value;
+    updateMissingnessVariables(newMissingnessVariables) {
+      this.missingnessVariables = newMissingnessVariables;
+      this.$nextTick(() => this.fetchParticipants(this.createParams()));
+    },
+
+    updateMissingnessLayers(newMissingnessLayers) {
+      this.missingnessLayers = newMissingnessLayers;
+      this.$nextTick(() => this.fetchParticipants(this.createParams()));
+    },
+
+    onMissingnessModeChange() {
       this.$nextTick(() => this.fetchParticipants(this.createParams()));
     },
 
@@ -733,6 +818,8 @@ export default {
       this.filterVariables();
       this.pruneStaleRules();
       this.pruneStaleVariables();
+      this.pruneStaleMissingnessVariables();
+      this.pruneStaleMissingnessLayers();
       this.$nextTick(() => this.fetchParticipants(this.createParams()));
     },
 
@@ -741,6 +828,7 @@ export default {
       this.filterVariables();
       this.pruneStaleRules();
       this.pruneStaleVariables();
+      this.pruneStaleMissingnessVariables();
       this.$nextTick(() => this.fetchParticipants(this.createParams()));
     },
 
@@ -764,7 +852,8 @@ export default {
         layers: this.selectedLayers.map(layer => layer.toLowerCase()),
         subLayers: this.selectedSubLayers,
         variables: this.selectedVariables,
-        dropMissing: this.dropMissing,
+        missingnessVariables: this.effectiveMissingnessVariables,
+        missingnessLayers: this.missingnessLayers,
         testType: this.selectedTests?.testType ?? 'parametric',
         correction: this.selectedTests?.correction ?? 'bh',
         contextValue: this.value
@@ -856,7 +945,9 @@ export default {
       this.selectedSubLayers = {};
       this.filterVariables();
       this.selectedVariables = this.allVariablesFlat;
-      this.dropMissing = false;
+      this.missingnessVariables = [];
+      this.missingnessLayers = [];
+      this.missingnessMode = 'variables';
       this.outerRows = ['group-0'];
       this.innerRows = [{group: 'group-0', id: uuidv4(), rule: {}}];
       this.progressIcon = "mdi-clock-outline";
