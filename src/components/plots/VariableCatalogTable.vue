@@ -43,7 +43,7 @@
         @click:row="onRowClick"
     >
       <template v-slot:item.identifier="{ item }">
-        <span :class="{ 'font-weight-bold': isSelected(item) }">{{ item.identifier }}</span>
+        <span>{{ item.identifier }}</span>
       </template>
       <template v-slot:item.subgroup="{ item }">
         {{ item.subgroup || '-' }}
