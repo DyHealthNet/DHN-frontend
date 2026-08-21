@@ -69,7 +69,24 @@
       </v-col>
     </v-row>
 
-    <!-- Second row (connectors) -->
+    <!-- Second row (variable selection) -->
+    <v-row class="py-1">
+      <v-col cols="6" class="no-bottom-padding">
+        <p><b>Select variables for context</b></p>
+      </v-col>
+    </v-row>
+    <v-row class="filter-padding">
+      <v-col cols="6" class="filter-padding">
+        <VariableSelector
+            :items="allVariablesFlat"
+            :model-value="selectedVariables"
+            :disable-selections="disableSelections"
+            @update:model-value="updateSelectedVariables"
+        ></VariableSelector>
+      </v-col>
+    </v-row>
+
+    <!-- Third row (connectors) -->
     <v-row class="no-bottom-padding">
       <div class="mx-3">
         <p><b>Define Rules for Context</b></p>
@@ -93,7 +110,7 @@
       </v-col>
     </v-row>
 
-    <!-- Thrid row (variables) -->
+    <!-- Rule column headers -->
     <v-row>
       <v-col cols="3">
         <p><b>Variable</b></p>
@@ -120,7 +137,7 @@
 
             <v-row class="my-1">
               <FilterLine
-                  :all-variables="allVariablesFiltered"
+                  :all-variables="allVariablesForRules"
                   :connection="innerConnection"
                   :only-rule="(outerRows.length + innerRows.length) === 2"
                   :disable-selections="disableSelections"
@@ -238,6 +255,7 @@ import ConnectorLine from "@/components/contexts/ConnectorLine.vue";
 import NewFilterButton from "@/components/contexts/NewFilterButton.vue";
 import AdvancedSettings from "@/components/AdvancedSettings.vue";
 import LayerSelector from "@/components/contexts/LayerSelector.vue";
+import VariableSelector from "@/components/contexts/VariableSelector.vue";
 import {v4 as uuidv4} from 'uuid';
 import { getCookie } from "@/components/authentication/auth.js";
 import { contextState } from '@/components/contexts/contextStatus.js';
@@ -255,8 +273,22 @@ export default {
     selectedLayersSummary() {
       return this.selectedLayers.join(', ');
     },
+    allVariablesFlat() {
+      return this.flattenVariables(this.allVariablesFiltered);
+    },
+    // rule variables must be both layer/subgroup-available AND part of the explicit
+    // variable selection - what's actually going to be part of the calculated context.
+    allVariablesForRules() {
+      const selected = new Set(this.selectedVariables);
+      return Object.fromEntries(
+        Object.entries(this.allVariablesFiltered).map(([key, value]) => [
+          key,
+          value.filter(item => selected.has(item)),
+        ])
+      );
+    },
   },
-  components: {AdvancedSettings, NewFilterButton, ConnectorLine, FilterLine, ConnectorButton, StatusBox, LayerSelector},
+  components: {AdvancedSettings, NewFilterButton, ConnectorLine, FilterLine, ConnectorButton, StatusBox, LayerSelector, VariableSelector},
   emits: ['data-changed','calculation-start','calculation-end'],
   props: {
     title: {
@@ -316,6 +348,9 @@ export default {
 
       allVariables: {},
       allVariablesFiltered: {},
+      // Identifiers of the variables selected to be part of this context's calculation.
+      // Empty for a brand-new tab until fetchVariables() defaults it to "all available".
+      selectedVariables: this.content?.variables ?? [],
       columnType: "value",
 
       outerRows: groups.length > 0 ? groups : ['group-0'],
@@ -464,6 +499,11 @@ export default {
               this.selectedLayers = this.layers;
             }
             this.filterVariables();
+            // only default to "all variables selected" for a brand new context;
+            // an existing context's saved selection (this.content?.variables) takes priority.
+            if (!this.content?.variables) {
+              this.selectedVariables = this.allVariablesFlat;
+            }
           })
           .catch((error) => {
             console.error('Error:', error);
@@ -620,6 +660,10 @@ export default {
       );
     },
 
+    flattenVariables(variablesObj) {
+      return [...new Set(Object.values(variablesObj).flat())];
+    },
+
     // Clear any existing rule whose column belongs to a layer/subgroup that's no
     // longer selected, so a stale rule can't get sent to the backend for a column
     // that's about to be dropped from the context data.
@@ -632,10 +676,37 @@ export default {
       }
     },
 
+    // Drop any selected variable that's no longer part of the layer/subgroup-filtered
+    // pool, so a stale selection can't get sent to the backend for a column that's
+    // about to be dropped from the context data.
+    pruneStaleVariables() {
+      const available = new Set(this.allVariablesFlat);
+      this.selectedVariables = this.selectedVariables.filter(item => available.has(item));
+    },
+
+    // Clear any existing rule whose column isn't part of the (newly narrowed) variable
+    // selection, so a stale rule can't get sent to the backend for a column that's about
+    // to be dropped from the context data.
+    pruneStaleRulesByVariables() {
+      const selected = new Set(this.selectedVariables);
+      for (const item of this.innerRows) {
+        if (item.rule.column !== undefined && !selected.has(item.rule.column)) {
+          item.rule = {};
+        }
+      }
+    },
+
+    updateSelectedVariables(newSelectedVariables) {
+      this.selectedVariables = newSelectedVariables;
+      this.pruneStaleRulesByVariables();
+      this.$nextTick(() => this.fetchParticipants(this.createParams()));
+    },
+
     updateSelectedLayers(newSelectedLayers) {
       this.selectedLayers = newSelectedLayers;
       this.filterVariables();
       this.pruneStaleRules();
+      this.pruneStaleVariables();
       this.$nextTick(() => this.fetchParticipants(this.createParams()));
     },
 
@@ -643,6 +714,7 @@ export default {
       this.selectedSubLayers = newSelectedSubLayers;
       this.filterVariables();
       this.pruneStaleRules();
+      this.pruneStaleVariables();
       this.$nextTick(() => this.fetchParticipants(this.createParams()));
     },
 
@@ -665,6 +737,7 @@ export default {
         contextName: this.contextName,
         layers: this.selectedLayers.map(layer => layer.toLowerCase()),
         subLayers: this.selectedSubLayers,
+        variables: this.selectedVariables,
         testType: this.selectedTests?.testType ?? 'parametric',
         correction: this.selectedTests?.correction ?? 'bh',
         contextValue: this.value
@@ -684,6 +757,12 @@ export default {
       if (this.contextName.length === 0) {
         this.taskStarted = true;
         this.taskInfo = "Please enter a context name";
+        this.taskType = "error";
+        return;
+      }
+      if (this.selectedVariables.length === 0) {
+        this.taskStarted = true;
+        this.taskInfo = "Please select at least one variable";
         this.taskType = "error";
         return;
       }
@@ -749,6 +828,7 @@ export default {
       this.selectedLayers = this.layers;
       this.selectedSubLayers = {};
       this.filterVariables();
+      this.selectedVariables = this.allVariablesFlat;
       this.outerRows = ['group-0'];
       this.innerRows = [{group: 'group-0', id: uuidv4(), rule: {}}];
       this.progressIcon = "mdi-clock-outline";
