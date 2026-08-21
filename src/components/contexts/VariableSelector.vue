@@ -4,13 +4,16 @@
       :items="filteredItems"
       :readonly="disableSelections"
       multiple
-      chips
-      closable-chips
       density="compact"
       variant="outlined"
       :placeholder="items.length ? 'Select variables...' : 'No variables available'"
       @update:search="onSearch"
   >
+    <template v-slot:selection="{ index }">
+      <span v-if="index === 0" class="text-body-2">
+        {{ internalValue.length }} variable{{ internalValue.length === 1 ? '' : 's' }} selected
+      </span>
+    </template>
     <template v-slot:prepend-item>
       <v-list-item title="Select All" :disabled="disableSelections" @click="selectAll">
         <template v-slot:prepend>
