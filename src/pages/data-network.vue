@@ -25,7 +25,7 @@
         <NetworkRankingTabs
           title="Full Network Statistics"
           subtitle="Significant edges only (p ≤ 0.05)."
-          :edges="fullOverviewEdges"
+          :edges="fullNetworkStatsEdges"
           :nodes="fullNetworkStatsNodes"
           :nodes-by-id="fullNetworkStatsNodesById"
           :interactive="false"
@@ -929,9 +929,9 @@ export default {
 
       // "Full Network Statistics" panel data -- fetched independently of
       // networkNodes/networkEdges (see the contextValue watcher and
-      // fetchFullNetworkStatistics()) so its p<=0.05/top-20000 significant-edge
-      // ranking reflects the actual context subset, not whatever density/
-      // threshold the graph visualization itself happens to be using.
+      // fetchFullNetworkStatistics()) so its significant-edge ranking (p <= 0.05,
+      // filtered/limited server-side) reflects the actual context subset, not
+      // whatever density/threshold the graph visualization itself happens to be using.
       fullNetworkStatsNodes: [],
       fullNetworkStatsEdges: [],
       // Own test-type selector, deliberately separate from wholeNetworkTests.testType
@@ -1011,14 +1011,6 @@ export default {
       if (!this.hideUnconnected) return this.networkEdges;
       const connectedIds = new Set(this.graphNodes.map((node) => node.id));
       return this.networkEdges.filter((edge) => connectedIds.has(edge.from) && connectedIds.has(edge.to));
-    },
-    // "Full Network Statistics" is meant to surface what's actually significant
-    // in the context subset -- fullNetworkStatsEdges already comes from its own
-    // threshold=0.05/limit=20000 backend fetch (see fetchFullNetworkStatistics),
-    // so this is mostly a defensive re-filter (e.g. floating-point edge cases
-    // right at the threshold) rather than the primary cap.
-    fullOverviewEdges() {
-      return this.fullNetworkStatsEdges;
     },
     // Gating the per-node edge table purely on displayedElementType (rather than a
     // separate open/close flag) means it disappears automatically whenever selection
@@ -1685,7 +1677,6 @@ export default {
       const params = new URLSearchParams();
       params.set('testType', this.fullNetworkStatsTestType);
       params.set('threshold', String(0.05));
-      //params.set('limit', String(20000));
       if (this.contextValue != null) params.set('c', this.contextValue);
       return `${BASE_URL}/metagraph/api/getCosmograph/?${params.toString()}`;
     },
