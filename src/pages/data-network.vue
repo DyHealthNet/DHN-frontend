@@ -3547,7 +3547,7 @@ export default {
 
 .hero {
   padding: 2rem;
-  border-radius: 24px;
+  border-radius: 4px;
   background: linear-gradient(135deg, rgba(25, 118, 210, 0.12), rgba(17, 24, 39, 0.04));
   border: 1px solid rgba(25, 118, 210, 0.16);
 }
