@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="d-flex align-center px-4 py-2" style="gap: 8px;">
-      <v-select
+      <!-- <v-select
         v-model="testTypeFilter"
         :items="testTypeOptions"
         label="Filter test type"
@@ -10,7 +10,7 @@
         hide-details
         single-line
         style="max-width: 180px"
-      ></v-select>
+      ></v-select> -->
       <v-spacer></v-spacer>
       <v-text-field
         v-model="search"

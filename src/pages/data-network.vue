@@ -23,7 +23,6 @@
              the graph visualization below happens to be using -- so it's available
              before the user has sent anything to the graph or clicked into any node/edge. -->
         <NetworkRankingTabs
-          v-if="fullNetworkStatsNodes.length > 0"
           title="Full Network Statistics"
           subtitle="Significant edges only (p ≤ 0.05)."
           :edges="fullOverviewEdges"
@@ -779,7 +778,7 @@
 <script>
 import AdvancedSettings from "@/components/AdvancedSettings.vue";
 import FilterToolbar from "@/components/FilterToolbar.vue";
-import {BASE_URL, isLoading, setIsLoading} from "@/components/constants.js";
+import {BASE_URL, isLoading, setIsLoading, setLoadingState, loadingStates} from "@/components/constants.js";
 import {darkenHexColor, assignGroupColors, getNodeIcon, loadNetworkState, saveNetworkState, capitalizeFirstLetter, drawLegendPanel} from "../components/network/networkData.js";
 import {interpolateRainbow} from 'd3-scale-chromatic';
 import NodeDetails from '@/components/network/NodeDetails.vue';
@@ -935,7 +934,6 @@ export default {
       // threshold the graph visualization itself happens to be using.
       fullNetworkStatsNodes: [],
       fullNetworkStatsEdges: [],
-      fullNetworkStatsLoading: false,
       // Own test-type selector, deliberately separate from wholeNetworkTests.testType
       // (which defaults to 'parametric' and drives the graph's own whole-network/Leiden
       // fetches) -- only matters in no-context mode, since a selected context fixes its
@@ -1696,7 +1694,7 @@ export default {
     // so switching context updates the stats panel even before the user sends
     // anything to the graph.
     async fetchFullNetworkStatistics() {
-      this.fullNetworkStatsLoading = true;
+      setLoadingState("isLoadingfullNetworkStats", true)
       try {
         const csrfToken = getCookie('csrftoken');
         const response = await fetch(this.buildSignificantEdgesUrl(), {
@@ -1731,7 +1729,7 @@ export default {
         this.fullNetworkStatsNodes = [];
         this.fullNetworkStatsEdges = [];
       }
-      this.fullNetworkStatsLoading = false;
+      setLoadingState("isLoadingfullNetworkStats", false)
     },
 
     // Community Detection (Leiden clustering). Only available in 'whole' mode

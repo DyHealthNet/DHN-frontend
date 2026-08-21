@@ -1,5 +1,8 @@
 <template>
   <v-card outlined class="mt-4">
+    <v-overlay v-model="showLoadingfullNetworkStats" scroll-strategy="none" contained class="d-flex justify-center align-center">
+      <v-progress-circular indeterminate color="primary" size="60"></v-progress-circular>
+    </v-overlay>
     <v-toolbar color="primary-darken-1" density="compact">
       <v-toolbar-title>{{ title }}</v-toolbar-title>
       <v-spacer></v-spacer>
@@ -42,6 +45,8 @@
 <script>
 import EdgeRankingTable from './EdgeRankingTable.vue';
 import NodeRankingTable from './NodeRankingTable.vue';
+import {loadingStates} from "@/components/constants.js";
+
 
 export default {
   name: 'NetworkRankingTabs',
@@ -81,5 +86,10 @@ export default {
       tab: 'edges',
     };
   },
+  computed: {
+        showLoadingfullNetworkStats() {
+      return loadingStates.value.isLoadingfullNetworkStats; // Directly reactive to `loadingStates`
+    },
+  }
 };
 </script>

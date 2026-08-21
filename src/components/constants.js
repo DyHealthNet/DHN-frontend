@@ -13,7 +13,8 @@ export const loadingStates = ref({
   isLoadingLine: false,
   isLoadingHeatmap: false,
   isLoadingPie: false,
-  isLoadingDensity: false
+  isLoadingDensity: false,
+  isLoadingfullNetworkStats: false,
 })
 
 export function setLoadingState(key, value){
