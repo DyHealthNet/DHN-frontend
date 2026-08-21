@@ -30,7 +30,7 @@
       @row-click="handleRowClick"
       :loading="loading"
       paginator
-      :rows="itemsPerPage"
+      :rows="rows"
       :rows-per-page-options="rowsPerPageOptions"
       density="compact"
       scrollable
@@ -122,11 +122,17 @@ export default {
     };
   },
   computed: {
+    // itemsPerPage arrives as a string when callers pass it as a bare HTML attribute
+    // (items-per-page="10" rather than :items-per-page="10") -- coerce once here rather than
+    // passing that string straight into PrimeVue's :rows, whose internal pagination math (e.g.
+    // first + rows) does numeric addition and silently string-concatenates instead on page 2+.
+    rows() {
+      return Number(this.itemsPerPage) || 10;
+    },
     rowsPerPageOptions() {
       const options = [10, 25, 50, 100];
-      const current = Number(this.itemsPerPage);
-      if (current && !options.includes(current)) {
-        return [...options, current].sort((a, b) => a - b);
+      if (!options.includes(this.rows)) {
+        return [...options, this.rows].sort((a, b) => a - b);
       }
       return options;
     },
