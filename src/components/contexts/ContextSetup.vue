@@ -85,6 +85,18 @@
         ></VariableSelector>
       </v-col>
     </v-row>
+    <v-row class="no-bottom-padding">
+      <v-col cols="6" class="no-bottom-padding">
+        <v-checkbox
+            v-model="dropMissing"
+            :readonly="disableSelections"
+            label="Remove samples with missing values in selected variables"
+            density="compact"
+            hide-details
+            @update:model-value="updateDropMissing"
+        ></v-checkbox>
+      </v-col>
+    </v-row>
 
     <!-- Third row (connectors) -->
     <v-row class="no-bottom-padding">
@@ -351,6 +363,8 @@ export default {
       // Identifiers of the variables selected to be part of this context's calculation.
       // Empty for a brand-new tab until fetchVariables() defaults it to "all available".
       selectedVariables: this.content?.variables ?? [],
+      // opt-in: drop any sample with a missing value in any selected variable.
+      dropMissing: this.content?.dropMissing ?? false,
       columnType: "value",
 
       outerRows: groups.length > 0 ? groups : ['group-0'],
@@ -709,6 +723,11 @@ export default {
       this.$nextTick(() => this.fetchParticipants(this.createParams()));
     },
 
+    updateDropMissing(value) {
+      this.dropMissing = value;
+      this.$nextTick(() => this.fetchParticipants(this.createParams()));
+    },
+
     updateSelectedLayers(newSelectedLayers) {
       this.selectedLayers = newSelectedLayers;
       this.filterVariables();
@@ -745,6 +764,7 @@ export default {
         layers: this.selectedLayers.map(layer => layer.toLowerCase()),
         subLayers: this.selectedSubLayers,
         variables: this.selectedVariables,
+        dropMissing: this.dropMissing,
         testType: this.selectedTests?.testType ?? 'parametric',
         correction: this.selectedTests?.correction ?? 'bh',
         contextValue: this.value
@@ -836,6 +856,7 @@ export default {
       this.selectedSubLayers = {};
       this.filterVariables();
       this.selectedVariables = this.allVariablesFlat;
+      this.dropMissing = false;
       this.outerRows = ['group-0'];
       this.innerRows = [{group: 'group-0', id: uuidv4(), rule: {}}];
       this.progressIcon = "mdi-clock-outline";
