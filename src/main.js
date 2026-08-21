@@ -10,6 +10,11 @@ import { createVuetify } from 'vuetify'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 
+// PrimeVue (used by DownloadableDataTable.vue)
+import PrimeVue from 'primevue/config'
+import Aura from '@primevue/themes/aura'
+import 'primeicons/primeicons.css'
+
 // Components
 import App from './App.vue'
 
@@ -100,4 +105,15 @@ const vuetify = createVuetify({
   directives,
 })
 
-createApp(App).use(vuetify).use(router).mount('#app')
+createApp(App)
+  .use(vuetify)
+  .use(router)
+  .use(PrimeVue, {
+    theme: {
+      preset: Aura,
+      // Color comes from Vuetify's own --v-theme-* CSS vars (see DownloadableDataTable.vue),
+      // not PrimeVue's dark-mode class -- disable its own dark-mode token swapping.
+      options: { darkModeSelector: false },
+    },
+  })
+  .mount('#app')
