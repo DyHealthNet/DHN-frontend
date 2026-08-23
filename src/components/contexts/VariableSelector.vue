@@ -1,13 +1,13 @@
 <template>
   <v-autocomplete
       v-model="internalValue"
+      v-model:search="searchQuery"
       :items="filteredItems"
       :readonly="disableSelections"
       multiple
       density="compact"
       variant="outlined"
       :placeholder="items.length ? 'Select variables...' : 'No variables available'"
-      @update:search="onSearch"
   >
     <template v-slot:selection="{ index }">
       <span v-if="index === 0" class="text-body-2">
@@ -61,6 +61,9 @@ export default {
       },
       set(value) {
         this.$emit('update:modelValue', value);
+        // clear the typed search text after a pick, so the user isn't stuck manually
+        // clearing it before searching for the next variable
+        this.searchQuery = '';
       },
     },
     filteredItems() {
@@ -73,9 +76,6 @@ export default {
     },
   },
   methods: {
-    onSearch(query) {
-      this.searchQuery = query;
-    },
     selectAll() {
       this.$emit('update:modelValue', [...this.items]);
     },
