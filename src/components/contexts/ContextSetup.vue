@@ -93,8 +93,8 @@
     <v-row class="filter-padding">
       <v-col cols="6" class="filter-padding">
         <v-tabs v-model="missingnessMode" density="compact" @update:model-value="onMissingnessModeChange">
-          <v-tab value="variables">By Variable</v-tab>
-          <v-tab value="layers">By Layer</v-tab>
+          <v-tab value="variables">Variable</v-tab>
+          <v-tab value="layers">Layer</v-tab>
         </v-tabs>
         <v-window v-model="missingnessMode">
           <v-window-item value="variables">
@@ -106,12 +106,15 @@
             ></VariableSelector>
           </v-window-item>
           <v-window-item value="layers">
-            <VariableSelector
-                :items="selectedLayers"
-                :model-value="missingnessLayers"
+            <LayerSelector
+                :layers="selectedLayers"
+                :layer-sub-layers="missingnessLayerSubLayers"
+                :selected-layers="missingnessLayers"
+                :selected-sub-layers="missingnessSubLayers"
                 :disable-selections="disableSelections"
-                @update:model-value="updateMissingnessLayers"
-            ></VariableSelector>
+                @update:selected-layers="updateMissingnessLayers"
+                @update:selected-sub-layers="updateMissingnessSubLayers"
+            ></LayerSelector>
           </v-window-item>
         </v-window>
       </v-col>
@@ -234,13 +237,11 @@
 
     <v-row v-if="removedVariables.length || droppedEdgeCount">
       <v-col>
-        <v-alert
-            type="warning"
-            density="compact"
-            variant="tonal"
-            closable
-            class="mb-2"
-        >
+        <div class="context-log">
+          <div class="context-log-title">
+            <v-icon size="small" class="mr-1">mdi-text-box-outline</v-icon>
+            Variable removal log
+          </div>
           <div v-if="removedVariables.length">
             {{ removedVariables.length }} variable(s) were removed from this context because they
             have no usable variation (e.g. constant or entirely missing) in the selected patients:
@@ -251,7 +252,7 @@
             the NaPy test (the underlying data was too sparse or unbalanced to produce a valid test
             statistic) and were excluded.
           </div>
-        </v-alert>
+        </div>
       </v-col>
     </v-row>
 
@@ -342,14 +343,45 @@ export default {
       );
     },
     // the variable identifiers actually sent to the backend for the missingness check:
-    // either the direct pick, or - when picking whole layers instead - every currently
-    // selected variable that belongs to one of the chosen layers.
+    // either the direct pick, or - when picking whole layers/subgroups instead - every
+    // currently selected variable that belongs to one of the chosen layers/subgroups.
     effectiveMissingnessVariables() {
       if (this.missingnessMode === 'layers') {
         const layersLower = new Set(this.missingnessLayers.map(layer => layer.toLowerCase()));
-        return this.selectedVariables.filter(item => layersLower.has(this.variableLayers[item]));
+        return this.selectedVariables.filter(item => {
+          const layer = this.variableLayers[item];
+          if (!layersLower.has(layer)) {
+            return false;
+          }
+          const subgroup = this.variableSubLayers[item];
+          if (subgroup && this.missingnessSubLayers[layer]) {
+            return this.missingnessSubLayers[layer].includes(subgroup);
+          }
+          return true;
+        });
       }
       return this.missingnessVariables;
+    },
+    // narrows layerSubLayers down to only the subgroups the context itself actually
+    // selected, so the missingness-by-layer picker can't offer a subgroup that isn't
+    // even part of this context.
+    missingnessLayerSubLayers() {
+      const result = {};
+      for (const layer of this.selectedLayers) {
+        const raw = layer.toLowerCase();
+        const allSubgroups = this.layerSubLayers[raw];
+        if (!allSubgroups) {
+          continue;
+        }
+        const contextSubgroups = this.selectedSubLayers[raw];
+        const available = contextSubgroups
+          ? allSubgroups.filter(subgroup => contextSubgroups.includes(subgroup))
+          : allSubgroups;
+        if (available.length) {
+          result[raw] = available;
+        }
+      }
+      return result;
     },
   },
   components: {AdvancedSettings, NewFilterButton, ConnectorLine, FilterLine, ConnectorButton, StatusBox, LayerSelector, VariableSelector},
@@ -421,6 +453,9 @@ export default {
       // (missingnessMode 'layers', via missingnessLayers) - see effectiveMissingnessVariables.
       missingnessVariables: this.content?.missingnessVariables ?? [],
       missingnessLayers: this.content?.missingnessLayers ?? [],
+      // Raw lowercase-keyed map of layer -> selected subgroup names for the missingness
+      // check, same convention as selectedSubLayers (a layer absent here is unrestricted).
+      missingnessSubLayers: this.content?.missingnessSubLayers ?? {},
       missingnessMode: this.content?.missingnessLayers?.length ? 'layers' : 'variables',
       columnType: "value",
 
@@ -450,8 +485,8 @@ export default {
       taskInfo: "",
       taskType: "",
       sendDisabled: false,
-      removedVariables: [],
-      droppedEdgeCount: 0,
+      removedVariables: this.content?.removedVariables ?? [],
+      droppedEdgeCount: this.content?.droppedEdgeCount ?? 0,
     };
   },
   methods: {
@@ -785,11 +820,26 @@ export default {
       this.missingnessVariables = this.missingnessVariables.filter(item => selected.has(item));
     },
 
-    // Drop any missingness-check layer that's no longer selected - it's only ever meant
-    // to be a subset of selectedLayers.
+    // Drop any missingness-check layer/subgroup that's no longer selected (at the
+    // context level) - missingnessLayers/missingnessSubLayers are only ever meant to be
+    // a subset of selectedLayers/selectedSubLayers.
     pruneStaleMissingnessLayers() {
       const selected = new Set(this.selectedLayers);
       this.missingnessLayers = this.missingnessLayers.filter(item => selected.has(item));
+
+      const availableSubLayers = this.missingnessLayerSubLayers;
+      const prunedSubLayers = {};
+      for (const [layer, subgroups] of Object.entries(this.missingnessSubLayers)) {
+        const allowed = availableSubLayers[layer];
+        if (!allowed) {
+          continue;
+        }
+        const kept = subgroups.filter(subgroup => allowed.includes(subgroup));
+        if (kept.length) {
+          prunedSubLayers[layer] = kept;
+        }
+      }
+      this.missingnessSubLayers = prunedSubLayers;
     },
 
     updateSelectedVariables(newSelectedVariables) {
@@ -806,6 +856,11 @@ export default {
 
     updateMissingnessLayers(newMissingnessLayers) {
       this.missingnessLayers = newMissingnessLayers;
+      this.$nextTick(() => this.fetchParticipants(this.createParams()));
+    },
+
+    updateMissingnessSubLayers(newMissingnessSubLayers) {
+      this.missingnessSubLayers = newMissingnessSubLayers;
       this.$nextTick(() => this.fetchParticipants(this.createParams()));
     },
 
@@ -829,6 +884,7 @@ export default {
       this.pruneStaleRules();
       this.pruneStaleVariables();
       this.pruneStaleMissingnessVariables();
+      this.pruneStaleMissingnessLayers();
       this.$nextTick(() => this.fetchParticipants(this.createParams()));
     },
 
@@ -854,6 +910,7 @@ export default {
         variables: this.selectedVariables,
         missingnessVariables: this.effectiveMissingnessVariables,
         missingnessLayers: this.missingnessLayers,
+        missingnessSubLayers: this.missingnessSubLayers,
         testType: this.selectedTests?.testType ?? 'parametric',
         correction: this.selectedTests?.correction ?? 'bh',
         contextValue: this.value
@@ -947,6 +1004,7 @@ export default {
       this.selectedVariables = this.allVariablesFlat;
       this.missingnessVariables = [];
       this.missingnessLayers = [];
+      this.missingnessSubLayers = {};
       this.missingnessMode = 'variables';
       this.outerRows = ['group-0'];
       this.innerRows = [{group: 'group-0', id: uuidv4(), rule: {}}];
@@ -1050,5 +1108,21 @@ export default {
 
 .v-checkbox {
   color: inherit !important; /* Make text color inherit from theme */
+}
+
+.context-log {
+  padding: 10px 14px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.18);
+  border-left: 3px solid rgb(var(--v-theme-primary-darken-1));
+  border-radius: 4px;
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  font-size: 0.875rem;
+}
+
+.context-log-title {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  margin-bottom: 4px;
 }
 </style>
