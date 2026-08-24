@@ -11,9 +11,8 @@
             @update:model-value="toggleLayer(layer)"
         ></v-checkbox>
         <span
-            class="layer-label"
-            :class="{clickable: !layer.subgroups.length}"
-            @click="!layer.subgroups.length && openModal(layer.key, null, layer.title)"
+            class="layer-label clickable"
+            @click="openModal(layer.key, null, layer.title)"
         >{{ layer.title }} ({{ layer.selectedCount }}/{{ layer.totalCount }})</span>
       </div>
 

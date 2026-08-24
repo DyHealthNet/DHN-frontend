@@ -42,8 +42,9 @@
 
     <!-- Second row (variable selection) -->
     <v-row class="py-1">
-      <v-col cols="6" class="no-bottom-padding">
-        <p><b>Select variables for context</b></p>
+      <v-col cols="6" class="no-bottom-padding d-flex align-center">
+        <p class="mr-2"><b>Select variables for context</b></p>
+        <v-chip size="small" density="compact">{{ selectedVariables.length }}</v-chip>
       </v-col>
     </v-row>
     <v-row class="filter-padding">
@@ -55,7 +56,7 @@
                 :readonly="true"
                 variant="outlined"
                 density="compact"
-                :model-value="selectedVariablesSummary"
+                :model-value="selectedVariablesLayersSummary"
                 append-inner-icon="mdi-menu-down"
             ></v-text-field>
           </template>
@@ -73,8 +74,9 @@
       </v-col>
     </v-row>
     <v-row class="py-1">
-      <v-col cols="6" class="no-bottom-padding">
-        <p><b>Remove samples with missing values in</b></p>
+      <v-col cols="6" class="no-bottom-padding d-flex align-center">
+        <p class="mr-2"><b>Remove samples with missing values in</b></p>
+        <v-chip size="small" density="compact">{{ missingnessVariables.length }}</v-chip>
       </v-col>
     </v-row>
     <v-row class="filter-padding">
@@ -86,7 +88,7 @@
                 :readonly="true"
                 variant="outlined"
                 density="compact"
-                :model-value="missingnessVariablesSummary"
+                :model-value="missingnessVariablesLayersSummary"
                 append-inner-icon="mdi-menu-down"
             ></v-text-field>
           </template>
@@ -314,12 +316,14 @@ export default {
       return this.flattenVariables(this.allVariables);
     },
     // Closed-state summary text for the two collapsible dropdowns below, same role
-    // selectedLayersSummary used to play for the old "Select layers" field.
-    selectedVariablesSummary() {
-      return `${this.selectedVariables.length} variable${this.selectedVariables.length === 1 ? '' : 's'} selected`;
+    // selectedLayersSummary used to play for the old "Select layers" field - now lists
+    // every layer with at least one selected variable, instead of just a total count
+    // (the count now lives in the chip next to the field's header).
+    selectedVariablesLayersSummary() {
+      return this.layerNamesWithSelection(this.globalVariablesByLayer, this.selectedVariables);
     },
-    missingnessVariablesSummary() {
-      return `${this.missingnessVariables.length} variable${this.missingnessVariables.length === 1 ? '' : 's'} selected`;
+    missingnessVariablesLayersSummary() {
+      return this.layerNamesWithSelection(this.selectedVariablesByLayer, this.missingnessVariables);
     },
     // Grouped once per change of the underlying list (not once per layer, per lookup) -
     // see groupVariablesByLayer(). selectedVariablesByLayer backs variablesInLayer*
@@ -858,6 +862,19 @@ export default {
         }
       }
       return result;
+    },
+
+    // Comma-joined list of layer names that have at least one selected variable (fully or
+    // partially) - the closed-state text for the variable/missingness dropdown fields.
+    // Iterates this.layers (proper-cased) rather than the grouped map's keys so the order
+    // matches the tree's own display order.
+    layerNamesWithSelection(layerMap, selectedIdentifiers) {
+      const selected = new Set(selectedIdentifiers);
+      const names = this.layers.filter(layer => {
+        const entry = layerMap.get(layer.toLowerCase());
+        return entry && entry.all.some(v => selected.has(v));
+      });
+      return names.length ? names.join(', ') : 'None selected';
     },
 
     // currently-SELECTED variables (selectedVariables) belonging to a layer/subgroup -
