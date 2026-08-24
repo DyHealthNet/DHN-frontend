@@ -81,6 +81,8 @@
             :items="allVariablesFlat"
             :model-value="selectedVariables"
             :disable-selections="disableSelections"
+            :variable-layers="variableLayers"
+            :variable-sub-layers="variableSubLayers"
             @update:model-value="updateSelectedVariables"
         ></VariableSelector>
       </v-col>
@@ -92,31 +94,51 @@
     </v-row>
     <v-row class="filter-padding">
       <v-col cols="6" class="filter-padding">
-        <v-tabs v-model="missingnessMode" density="compact" @update:model-value="onMissingnessModeChange">
+        <v-tabs v-model="missingnessTab" density="compact">
           <v-tab value="variables">Variable</v-tab>
           <v-tab value="layers">Layer</v-tab>
         </v-tabs>
-        <v-window v-model="missingnessMode">
+        <v-window v-model="missingnessTab">
           <v-window-item value="variables">
             <VariableSelector
                 :items="selectedVariables"
                 :model-value="missingnessVariables"
                 :disable-selections="disableSelections"
+                :variable-layers="variableLayers"
+                :variable-sub-layers="variableSubLayers"
                 @update:model-value="updateMissingnessVariables"
             ></VariableSelector>
           </v-window-item>
           <v-window-item value="layers">
-            <LayerSelector
-                :layers="selectedLayers"
-                :layer-sub-layers="missingnessLayerSubLayers"
-                :selected-layers="missingnessLayers"
-                :selected-sub-layers="missingnessSubLayers"
-                :disable-selections="disableSelections"
-                @update:selected-layers="updateMissingnessLayers"
-                @update:selected-sub-layers="updateMissingnessSubLayers"
-            ></LayerSelector>
+            <v-menu :close-on-content-click="false" location="bottom">
+              <template v-slot:activator="{ props }">
+                <v-text-field
+                    v-bind="props"
+                    :readonly="true"
+                    variant="outlined"
+                    density="compact"
+                    :model-value="missingnessLayersSummary"
+                    :placeholder="missingnessLayersSummary ? undefined : 'Select layers...'"
+                    append-inner-icon="mdi-menu-down"
+                ></v-text-field>
+              </template>
+              <v-card class="pa-2">
+                <LayerSelector
+                    :layers="selectedLayers"
+                    :layer-sub-layers="contextLayerSubLayers"
+                    :selected-layers="missingnessLayerStates.checkedLayers"
+                    :selected-sub-layers="missingnessLayerStates.subLayers"
+                    :disable-selections="disableSelections"
+                    @update:selected-layers="onMissingnessLayerSelectorLayers"
+                    @update:selected-sub-layers="onMissingnessLayerSelectorSubLayers"
+                ></LayerSelector>
+              </v-card>
+            </v-menu>
           </v-window-item>
         </v-window>
+        <p v-if="missingnessVariables.length" class="text-caption mt-1">
+          {{ missingnessVariables.length }} variable{{ missingnessVariables.length === 1 ? '' : 's' }} require complete data
+        </p>
       </v-col>
     </v-row>
 
@@ -342,30 +364,10 @@ export default {
         ])
       );
     },
-    // the variable identifiers actually sent to the backend for the missingness check:
-    // either the direct pick, or - when picking whole layers/subgroups instead - every
-    // currently selected variable that belongs to one of the chosen layers/subgroups.
-    effectiveMissingnessVariables() {
-      if (this.missingnessMode === 'layers') {
-        const layersLower = new Set(this.missingnessLayers.map(layer => layer.toLowerCase()));
-        return this.selectedVariables.filter(item => {
-          const layer = this.variableLayers[item];
-          if (!layersLower.has(layer)) {
-            return false;
-          }
-          const subgroup = this.variableSubLayers[item];
-          if (subgroup && this.missingnessSubLayers[layer]) {
-            return this.missingnessSubLayers[layer].includes(subgroup);
-          }
-          return true;
-        });
-      }
-      return this.missingnessVariables;
-    },
     // narrows layerSubLayers down to only the subgroups the context itself actually
     // selected, so the missingness-by-layer picker can't offer a subgroup that isn't
     // even part of this context.
-    missingnessLayerSubLayers() {
+    contextLayerSubLayers() {
       const result = {};
       for (const layer of this.selectedLayers) {
         const raw = layer.toLowerCase();
@@ -382,6 +384,125 @@ export default {
         }
       }
       return result;
+    },
+    // Derives the missingness-by-layer picker's checkbox state directly from
+    // missingnessVariables (the single source of truth): a layer counts as "checked" only
+    // if EVERY one of its currently-selected variables is in missingnessVariables; a
+    // layer with some (but not all) of its subgroups fully checked shows as checked+
+    // indeterminate with those subgroups narrowed, same convention as selectedSubLayers.
+    // A layer/subgroup that's only PARTIALLY checked below the subgroup level (individual
+    // variable exceptions from the Variable tab) simply shows as unchecked here - it's
+    // still tracked in missingnessVariables and remains visible/editable on that tab.
+    missingnessLayerStates() {
+      const missing = new Set(this.missingnessVariables);
+      const checkedLayers = [];
+      const subLayers = {};
+      for (const layer of this.selectedLayers) {
+        const raw = layer.toLowerCase();
+        const vars = this.variablesInLayer(layer);
+        if (vars.length === 0) {
+          continue;
+        }
+        if (vars.every(v => missing.has(v))) {
+          checkedLayers.push(layer);
+          continue;
+        }
+        const subgroups = this.contextLayerSubLayers[raw];
+        if (subgroups) {
+          const checkedSubgroups = subgroups.filter(subgroup => {
+            const subVars = this.variablesInLayerSubgroup(layer, subgroup);
+            return subVars.length > 0 && subVars.every(v => missing.has(v));
+          });
+          if (checkedSubgroups.length) {
+            checkedLayers.push(layer);
+            subLayers[raw] = checkedSubgroups;
+          }
+        }
+      }
+      return {checkedLayers, subLayers};
+    },
+    missingnessLayersSummary() {
+      return this.missingnessLayerStates.checkedLayers.join(', ');
+    },
+    // Compacts missingnessVariables for the backend: any (sub)layer that's fully checked
+    // gets sent by name instead of enumerating every one of its variables; only the
+    // leftover variables not covered by a fully-checked (sub)layer - e.g. a single
+    // exception deselected via the Variable tab - are sent individually. That layer's
+    // OTHER variables then have to be listed individually too, since "whole layer minus
+    // one" can't be expressed compactly - matches how the (sub)layer picker itself
+    // already drops out of the checked state the moment one of its variables is excluded.
+    missingnessCompactPayload() {
+      const {checkedLayers, subLayers} = this.missingnessLayerStates;
+      const covered = new Set();
+      for (const layer of checkedLayers) {
+        const raw = layer.toLowerCase();
+        if (subLayers[raw]) {
+          for (const subgroup of subLayers[raw]) {
+            this.variablesInLayerSubgroup(layer, subgroup).forEach(v => covered.add(v));
+          }
+        } else {
+          this.variablesInLayer(layer).forEach(v => covered.add(v));
+        }
+      }
+      return {
+        missingnessVariables: this.missingnessVariables.filter(v => !covered.has(v)),
+        missingnessLayers: checkedLayers.map(layer => layer.toLowerCase()),
+        missingnessSubLayers: subLayers,
+      };
+    },
+    // Same idea as missingnessLayerStates, but for the main "Select variables for
+    // context" pool: a layer/subgroup counts as "checked" here if EVERY variable
+    // *available* to it (allVariablesFlat, not just the current selection) is selected -
+    // i.e. whether the whole (sub)layer can be represented compactly.
+    selectedVariablesLayerStates() {
+      const selected = new Set(this.selectedVariables);
+      const checkedLayers = [];
+      const subLayers = {};
+      for (const layer of this.selectedLayers) {
+        const raw = layer.toLowerCase();
+        const vars = this.variablesAvailableInLayer(layer);
+        if (vars.length === 0) {
+          continue;
+        }
+        if (vars.every(v => selected.has(v))) {
+          checkedLayers.push(layer);
+          continue;
+        }
+        const subgroups = this.contextLayerSubLayers[raw];
+        if (subgroups) {
+          const checkedSubgroups = subgroups.filter(subgroup => {
+            const subVars = this.variablesAvailableInLayerSubgroup(layer, subgroup);
+            return subVars.length > 0 && subVars.every(v => selected.has(v));
+          });
+          if (checkedSubgroups.length) {
+            checkedLayers.push(layer);
+            subLayers[raw] = checkedSubgroups;
+          }
+        }
+      }
+      return {checkedLayers, subLayers};
+    },
+    // Compacts selectedVariables for the backend the same way missingnessCompactPayload
+    // does: a fully-selected (sub)layer is sent by name instead of enumerating every one
+    // of its variables; only the leftover exceptions are sent individually.
+    selectedVariablesCompactPayload() {
+      const {checkedLayers, subLayers} = this.selectedVariablesLayerStates;
+      const covered = new Set();
+      for (const layer of checkedLayers) {
+        const raw = layer.toLowerCase();
+        if (subLayers[raw]) {
+          for (const subgroup of subLayers[raw]) {
+            this.variablesAvailableInLayerSubgroup(layer, subgroup).forEach(v => covered.add(v));
+          }
+        } else {
+          this.variablesAvailableInLayer(layer).forEach(v => covered.add(v));
+        }
+      }
+      return {
+        variables: this.selectedVariables.filter(v => !covered.has(v)),
+        variablesLayers: checkedLayers.map(layer => layer.toLowerCase()),
+        variablesSubLayers: subLayers,
+      };
     },
   },
   components: {AdvancedSettings, NewFilterButton, ConnectorLine, FilterLine, ConnectorButton, StatusBox, LayerSelector, VariableSelector},
@@ -448,15 +569,19 @@ export default {
       // Empty for a brand-new tab until fetchVariables() defaults it to "all available".
       selectedVariables: this.content?.variables ?? [],
       // opt-in subset of selectedVariables: drop any sample with a missing value in any
-      // of THESE, though every selected variable stays part of the resulting data. Can be
-      // picked directly (missingnessMode 'variables') or derived from whole layers
-      // (missingnessMode 'layers', via missingnessLayers) - see effectiveMissingnessVariables.
+      // of THESE, though every selected variable stays part of the resulting data. Single
+      // source of truth for both missingness tabs (the Layer tab bulk-edits this same
+      // array; see missingnessLayerStates/onMissingnessLayerSelector*). Starts with just
+      // whatever explicit leftover was saved - fetchVariables() merges in the variables
+      // implied by any saved missingnessLayers/missingnessSubLayers once it has the
+      // layer/variable metadata needed to expand them.
       missingnessVariables: this.content?.missingnessVariables ?? [],
-      missingnessLayers: this.content?.missingnessLayers ?? [],
-      // Raw lowercase-keyed map of layer -> selected subgroup names for the missingness
-      // check, same convention as selectedSubLayers (a layer absent here is unrestricted).
-      missingnessSubLayers: this.content?.missingnessSubLayers ?? {},
-      missingnessMode: this.content?.missingnessLayers?.length ? 'layers' : 'variables',
+      // which missingness tab is showing - purely a UI view switch, both tabs read/write
+      // the same missingnessVariables so nothing is lost switching between them.
+      missingnessTab: 'variables',
+      // bridges LayerSelector's paired update:selectedLayers/update:selectedSubLayers
+      // emits - see onMissingnessLayerSelectorLayers/-SubLayers.
+      _pendingMissingnessLayers: null,
       columnType: "value",
 
       outerRows: groups.length > 0 ? groups : ['group-0'],
@@ -611,6 +736,23 @@ export default {
             // an existing context's saved selection (this.content?.variables) takes priority.
             if (!this.content?.variables) {
               this.selectedVariables = this.allVariablesFlat;
+            } else if (this.content?.variablesLayers?.length) {
+              // saved selection may be compact - expand any (sub)layer references back
+              // into their member variables and merge with the saved leftover picks.
+              const expanded = this.expandVariablesLayers(
+                this.content.variablesLayers, this.content.variablesSubLayers
+              );
+              this.selectedVariables = [...new Set([...this.selectedVariables, ...expanded])];
+            }
+            // now that layer/variable metadata is available, expand any saved compact
+            // (sub)layer missingness selection back into its member variables and merge
+            // it into missingnessVariables (which already holds the saved leftover
+            // individual picks) - only needed once, right after loading a saved context.
+            if (this.content?.missingnessLayers?.length) {
+              const expanded = this.expandMissingnessLayers(
+                this.content.missingnessLayers, this.content.missingnessSubLayers
+              );
+              this.missingnessVariables = [...new Set([...this.missingnessVariables, ...expanded])];
             }
             // the variable selection just changed (empty -> populated, or a saved one just
             // arrived) - refresh the participant count so it reflects the no-missingness
@@ -815,31 +957,86 @@ export default {
 
     // Drop any missingness-check variable that's no longer part of the (newly narrowed)
     // variable selection - it's only ever meant to be a subset of selectedVariables.
+    // missingnessLayerStates/missingnessCompactPayload are pure derivations of
+    // missingnessVariables, so pruning this one array keeps everything else consistent.
     pruneStaleMissingnessVariables() {
       const selected = new Set(this.selectedVariables);
       this.missingnessVariables = this.missingnessVariables.filter(item => selected.has(item));
     },
 
-    // Drop any missingness-check layer/subgroup that's no longer selected (at the
-    // context level) - missingnessLayers/missingnessSubLayers are only ever meant to be
-    // a subset of selectedLayers/selectedSubLayers.
-    pruneStaleMissingnessLayers() {
-      const selected = new Set(this.selectedLayers);
-      this.missingnessLayers = this.missingnessLayers.filter(item => selected.has(item));
+    // currently-SELECTED variables (selectedVariables) belonging to a layer/subgroup -
+    // the pool the missingness check picks from, since it can only require completeness
+    // on variables that are actually part of the context.
+    variablesInLayer(layer) {
+      const raw = layer.toLowerCase();
+      return this.selectedVariables.filter(v => this.variableLayers[v] === raw);
+    },
 
-      const availableSubLayers = this.missingnessLayerSubLayers;
-      const prunedSubLayers = {};
-      for (const [layer, subgroups] of Object.entries(this.missingnessSubLayers)) {
-        const allowed = availableSubLayers[layer];
-        if (!allowed) {
+    variablesInLayerSubgroup(layer, subgroup) {
+      const raw = layer.toLowerCase();
+      return this.selectedVariables.filter(
+        v => this.variableLayers[v] === raw && this.variableSubLayers[v] === subgroup
+      );
+    },
+
+    // ALL variables AVAILABLE to a layer/subgroup (allVariablesFlat, not just the current
+    // selection) - the pool for deciding whether the whole (sub)layer is fully selected,
+    // used to compact selectedVariables itself.
+    variablesAvailableInLayer(layer) {
+      const raw = layer.toLowerCase();
+      return this.allVariablesFlat.filter(v => this.variableLayers[v] === raw);
+    },
+
+    variablesAvailableInLayerSubgroup(layer, subgroup) {
+      const raw = layer.toLowerCase();
+      return this.allVariablesFlat.filter(
+        v => this.variableLayers[v] === raw && this.variableSubLayers[v] === subgroup
+      );
+    },
+
+    // Expands a saved compact (sub)layer missingness selection back into its member
+    // variables (used once, right after a saved context's layer/variable metadata loads).
+    expandMissingnessLayers(missingnessLayersLower, missingnessSubLayersMap) {
+      const result = new Set();
+      const subLayersMap = missingnessSubLayersMap ?? {};
+      for (const raw of missingnessLayersLower ?? []) {
+        const layer = this.selectedLayers.find(l => l.toLowerCase() === raw);
+        if (!layer) {
           continue;
         }
-        const kept = subgroups.filter(subgroup => allowed.includes(subgroup));
-        if (kept.length) {
-          prunedSubLayers[layer] = kept;
+        const wantedSubgroups = subLayersMap[raw];
+        if (wantedSubgroups) {
+          for (const subgroup of wantedSubgroups) {
+            this.variablesInLayerSubgroup(layer, subgroup).forEach(v => result.add(v));
+          }
+        } else {
+          this.variablesInLayer(layer).forEach(v => result.add(v));
         }
       }
-      this.missingnessSubLayers = prunedSubLayers;
+      return result;
+    },
+
+    // Expands a saved compact (sub)layer VARIABLE selection back into its member
+    // variables - same idea as expandMissingnessLayers, but against the available pool
+    // (variablesAvailableIn*) since this reconstructs selectedVariables itself.
+    expandVariablesLayers(variablesLayersLower, variablesSubLayersMap) {
+      const result = new Set();
+      const subLayersMap = variablesSubLayersMap ?? {};
+      for (const raw of variablesLayersLower ?? []) {
+        const layer = this.selectedLayers.find(l => l.toLowerCase() === raw);
+        if (!layer) {
+          continue;
+        }
+        const wantedSubgroups = subLayersMap[raw];
+        if (wantedSubgroups) {
+          for (const subgroup of wantedSubgroups) {
+            this.variablesAvailableInLayerSubgroup(layer, subgroup).forEach(v => result.add(v));
+          }
+        } else {
+          this.variablesAvailableInLayer(layer).forEach(v => result.add(v));
+        }
+      }
+      return result;
     },
 
     updateSelectedVariables(newSelectedVariables) {
@@ -854,17 +1051,43 @@ export default {
       this.$nextTick(() => this.fetchParticipants(this.createParams()));
     },
 
-    updateMissingnessLayers(newMissingnessLayers) {
-      this.missingnessLayers = newMissingnessLayers;
-      this.$nextTick(() => this.fetchParticipants(this.createParams()));
+    // LayerSelector always emits update:selectedLayers immediately followed, synchronously,
+    // by update:selectedSubLayers for any single interaction (see LayerSelector.vue's
+    // toggleLayer/toggleSubgroup) - so the layers array is simply stashed here and combined
+    // with the subLayers array that arrives right after, in onMissingnessLayerSelectorSubLayers.
+    onMissingnessLayerSelectorLayers(newCheckedLayers) {
+      this._pendingMissingnessLayers = newCheckedLayers;
     },
 
-    updateMissingnessSubLayers(newMissingnessSubLayers) {
-      this.missingnessSubLayers = newMissingnessSubLayers;
-      this.$nextTick(() => this.fetchParticipants(this.createParams()));
-    },
+    onMissingnessLayerSelectorSubLayers(newSubLayers) {
+      const newCheckedLayers = this._pendingMissingnessLayers ?? this.missingnessLayerStates.checkedLayers;
+      this._pendingMissingnessLayers = null;
 
-    onMissingnessModeChange() {
+      // newCheckedLayers/newSubLayers together fully describe the desired new state for
+      // every layer, so just force each layer's variables to match it (add if desired,
+      // remove if not) rather than trying to diff against the previous derived state.
+      const missing = new Set(this.missingnessVariables);
+      for (const layer of this.selectedLayers) {
+        const raw = layer.toLowerCase();
+        const allVars = this.variablesInLayer(layer);
+        let desired;
+        if (!newCheckedLayers.includes(layer)) {
+          desired = [];
+        } else if (this.contextLayerSubLayers[raw] && raw in newSubLayers) {
+          desired = newSubLayers[raw].flatMap(subgroup => this.variablesInLayerSubgroup(layer, subgroup));
+        } else {
+          desired = allVars;
+        }
+        const desiredSet = new Set(desired);
+        for (const v of allVars) {
+          if (desiredSet.has(v)) {
+            missing.add(v);
+          } else {
+            missing.delete(v);
+          }
+        }
+      }
+      this.missingnessVariables = [...missing];
       this.$nextTick(() => this.fetchParticipants(this.createParams()));
     },
 
@@ -874,7 +1097,6 @@ export default {
       this.pruneStaleRules();
       this.pruneStaleVariables();
       this.pruneStaleMissingnessVariables();
-      this.pruneStaleMissingnessLayers();
       this.$nextTick(() => this.fetchParticipants(this.createParams()));
     },
 
@@ -884,7 +1106,6 @@ export default {
       this.pruneStaleRules();
       this.pruneStaleVariables();
       this.pruneStaleMissingnessVariables();
-      this.pruneStaleMissingnessLayers();
       this.$nextTick(() => this.fetchParticipants(this.createParams()));
     },
 
@@ -907,10 +1128,8 @@ export default {
         contextName: this.contextName,
         layers: this.selectedLayers.map(layer => layer.toLowerCase()),
         subLayers: this.selectedSubLayers,
-        variables: this.selectedVariables,
-        missingnessVariables: this.effectiveMissingnessVariables,
-        missingnessLayers: this.missingnessLayers,
-        missingnessSubLayers: this.missingnessSubLayers,
+        ...this.selectedVariablesCompactPayload,
+        ...this.missingnessCompactPayload,
         testType: this.selectedTests?.testType ?? 'parametric',
         correction: this.selectedTests?.correction ?? 'bh',
         contextValue: this.value
@@ -1003,9 +1222,7 @@ export default {
       this.filterVariables();
       this.selectedVariables = this.allVariablesFlat;
       this.missingnessVariables = [];
-      this.missingnessLayers = [];
-      this.missingnessSubLayers = {};
-      this.missingnessMode = 'variables';
+      this.missingnessTab = 'variables';
       this.outerRows = ['group-0'];
       this.innerRows = [{group: 'group-0', id: uuidv4(), rule: {}}];
       this.progressIcon = "mdi-clock-outline";

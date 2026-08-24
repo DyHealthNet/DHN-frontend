@@ -14,6 +14,15 @@
         {{ internalValue.length }} variable{{ internalValue.length === 1 ? '' : 's' }} selected
       </span>
     </template>
+    <template v-slot:item="{ item, props: itemProps }">
+      <v-list-item v-bind="itemProps">
+        <template v-slot:append>
+          <v-chip v-if="itemChipLabel(item.raw)" size="x-small" variant="tonal" class="ml-2">
+            {{ itemChipLabel(item.raw) }}
+          </v-chip>
+        </template>
+      </v-list-item>
+    </template>
     <template v-slot:prepend-item>
       <v-list-item title="Select All" :disabled="disableSelections" @click="selectAll">
         <template v-slot:prepend>
@@ -48,6 +57,17 @@ export default {
       type: Boolean,
       default: false,
     },
+    // lowercase-keyed maps: variable identifier -> layer / subgroup, used to render a
+    // chip next to each row so the user has layer context while searching. Optional -
+    // no chip is rendered for an identifier missing from variableLayers.
+    variableLayers: {
+      type: Object,
+      default: () => ({}),
+    },
+    variableSubLayers: {
+      type: Object,
+      default: () => ({}),
+    },
   },
   data() {
     return {
@@ -81,6 +101,15 @@ export default {
     },
     deselectAll() {
       this.$emit('update:modelValue', []);
+    },
+    itemChipLabel(identifier) {
+      const layer = this.variableLayers[identifier];
+      if (!layer) {
+        return '';
+      }
+      const capitalized = layer.charAt(0).toUpperCase() + layer.slice(1);
+      const subgroup = this.variableSubLayers[identifier];
+      return subgroup ? `${capitalized} · ${subgroup}` : capitalized;
     },
   },
 };
