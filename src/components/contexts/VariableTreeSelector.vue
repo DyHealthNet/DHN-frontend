@@ -18,9 +18,9 @@
   <v-treeview
       v-model:selected="internalValue"
       :items="treeItems"
-      :search="search"
+      :search="debouncedSearch"
       selectable
-      select-strategy="leaf"
+      select-strategy="classic"
       density="compact"
       item-value="value"
       item-title="title"
@@ -69,7 +69,22 @@ export default {
   data() {
     return {
       search: '',
+      // debounced copy of `search` fed to v-treeview's :search - re-filtering the whole
+      // tree on every single keystroke is what made typing feel laggy on a large catalog.
+      debouncedSearch: '',
+      searchDebounceTimer: null,
     };
+  },
+  watch: {
+    search(value) {
+      clearTimeout(this.searchDebounceTimer);
+      this.searchDebounceTimer = setTimeout(() => {
+        this.debouncedSearch = value;
+      }, 250);
+    },
+  },
+  beforeUnmount() {
+    clearTimeout(this.searchDebounceTimer);
   },
   computed: {
     internalValue: {
@@ -81,9 +96,11 @@ export default {
       },
     },
     // Layer -> Subgroup (where one exists) -> Variable. Pseudo ids for the layer/
-    // subgroup branch nodes are never real variable identifiers, but that's not what
-    // keeps them out of the selection anyway - select-strategy="leaf" only ever puts
-    // actual leaf (variable) nodes into modelValue, regardless of node id.
+    // subgroup branch nodes are never real variable identifiers - with select-strategy
+    // "classic", clicking one of them cascades selection to every descendant leaf (and
+    // updates ancestor indeterminate/checked state), but its own id never leaks into
+    // modelValue: VTreeview's "classic" out() transform already excludes any id that has
+    // children, so only real variable identifiers ever come back through update:selected.
     treeItems() {
       const layerEntries = new Map();
       for (const identifier of this.items) {
