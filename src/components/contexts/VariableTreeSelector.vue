@@ -16,7 +16,8 @@
   </div>
 
   <v-treeview
-      v-model:selected="internalValue"
+      :selected="treeSelected"
+      @update:selected="onTreeSelectedUpdate"
       :items="treeItems"
       :search="debouncedSearch"
       selectable
@@ -73,6 +74,22 @@ export default {
       // tree on every single keystroke is what made typing feel laggy on a large catalog.
       debouncedSearch: '',
       searchDebounceTimer: null,
+      // debounced copy of the `items` pool this tree is built from. When this component
+      // is bound to another selection (e.g. the missingness tree's pool = the main
+      // tree's selectedVariables), `items` gets a brand-new array on literally every
+      // click over there, forcing a full tree-structure rebuild + VTreeview
+      // re-registration each time even though nothing about THIS tree's own interaction
+      // changed. Debouncing lets rapid clicking settle before paying that cost once.
+      debouncedItems: this.items,
+      itemsDebounceTimer: null,
+      // VTreeview's OWN copy of the selection, seeded from modelValue but deliberately
+      // NOT kept in lockstep with it on every click - see onTreeSelectedUpdate() for why.
+      treeSelected: [...this.modelValue],
+      // what we last told the parent, so the modelValue watcher below can tell "the
+      // parent echoed our own emit back down" apart from "something external changed
+      // the selection" (a saved context finishing its load, a sibling selector's
+      // change, etc.) without needing to re-seed the tree on every single click.
+      lastEmitted: [...this.modelValue],
     };
   },
   watch: {
@@ -82,18 +99,46 @@ export default {
         this.debouncedSearch = value;
       }, 250);
     },
+    items(newVal) {
+      // skip the debounce entirely when the pool only changed by REFERENCE, not
+      // content (e.g. an upstream .filter() that happened to remove nothing) - no
+      // rebuild needed either way in that case.
+      if (newVal.length === this.debouncedItems.length) {
+        const currentSet = new Set(this.debouncedItems);
+        if (newVal.every(v => currentSet.has(v))) {
+          return;
+        }
+      }
+      clearTimeout(this.itemsDebounceTimer);
+      this.itemsDebounceTimer = setTimeout(() => {
+        this.debouncedItems = newVal;
+      }, 250);
+    },
+    // VTreeview's select-strategy="classic" recomputes checked/indeterminate state for
+    // an entire pre-selected set by walking every item's ancestors and rescanning ALL
+    // of their siblings - correct, but expensive for a large selection. It only NEEDS
+    // to run once, whenever the selection is seeded from outside (mount, a saved
+    // context arriving, an external reset). Reassigning `:selected` in lockstep with
+    // every single click - e.g. via v-model:selected bound straight to modelValue -
+    // forces that full expensive recompute on every click too, which is what made this
+    // feel laggy. So: only re-seed treeSelected when modelValue changed for a reason
+    // OTHER than us just having emitted it a moment ago.
+    modelValue(newVal) {
+      const isOwnEcho = newVal.length === this.lastEmitted.length
+        && newVal.every(v => this.lastEmittedSet.has(v));
+      if (!isOwnEcho) {
+        this.treeSelected = [...newVal];
+        this.lastEmitted = newVal;
+      }
+    },
   },
   beforeUnmount() {
     clearTimeout(this.searchDebounceTimer);
+    clearTimeout(this.itemsDebounceTimer);
   },
   computed: {
-    internalValue: {
-      get() {
-        return this.modelValue;
-      },
-      set(value) {
-        this.$emit('update:modelValue', value);
-      },
+    lastEmittedSet() {
+      return new Set(this.lastEmitted);
     },
     // Layer -> Subgroup (where one exists) -> Variable. Pseudo ids for the layer/
     // subgroup branch nodes are never real variable identifiers - with select-strategy
@@ -103,7 +148,7 @@ export default {
     // children, so only real variable identifiers ever come back through update:selected.
     treeItems() {
       const layerEntries = new Map();
-      for (const identifier of this.items) {
+      for (const identifier of this.debouncedItems) {
         const layerKey = this.variableLayers[identifier];
         if (!layerKey) {
           continue;
@@ -145,10 +190,26 @@ export default {
     },
   },
   methods: {
+    // Fired on every click - just relay it up. Deliberately does NOT touch
+    // treeSelected: VTreeview already applied the click to its own internal state
+    // directly (the cheap path), so reassigning treeSelected here would only force the
+    // expensive re-seed for no reason - see the modelValue watcher above.
+    onTreeSelectedUpdate(value) {
+      this.lastEmitted = value;
+      this.$emit('update:modelValue', value);
+    },
+    // Bulk actions originate OUTSIDE the tree's own click handling, so they do need to
+    // explicitly reseed treeSelected (one deliberate full recompute, same as loading a
+    // saved selection).
     selectAll() {
-      this.$emit('update:modelValue', [...this.items]);
+      const value = [...this.items];
+      this.treeSelected = value;
+      this.lastEmitted = value;
+      this.$emit('update:modelValue', value);
     },
     deselectAll() {
+      this.treeSelected = [];
+      this.lastEmitted = [];
       this.$emit('update:modelValue', []);
     },
   },
