@@ -42,39 +42,65 @@
 
     <!-- Second row (variable selection) -->
     <v-row class="py-1">
-      <v-col cols="6" class="no-bottom-padding d-flex align-center">
-        <p class="mr-2"><b>Select variables for context</b></p>
-        <v-chip size="small" density="compact">{{ selectedVariables.length }}</v-chip>
+      <v-col cols="6" class="no-bottom-padding">
+        <p><b>Select variables for context</b></p>
       </v-col>
     </v-row>
     <v-row class="filter-padding">
       <v-col cols="6" class="filter-padding">
-        <LayerVariableSelector
-            :items="allVariablesGlobalFlat"
-            :variable-layers="variableLayers"
-            :variable-sub-layers="variableSubLayers"
-            :model-value="selectedVariables"
-            :disable-selections="disableSelections"
-            @update:model-value="updateSelectedVariables"
-        ></LayerVariableSelector>
+        <v-menu :close-on-content-click="false" location="bottom">
+          <template v-slot:activator="{ props }">
+            <v-text-field
+                v-bind="props"
+                :readonly="true"
+                variant="outlined"
+                density="compact"
+                :model-value="selectedVariablesSummary"
+                append-inner-icon="mdi-menu-down"
+            ></v-text-field>
+          </template>
+          <v-card class="pa-2">
+            <LayerVariableSelector
+                :items="allVariablesGlobalFlat"
+                :variable-layers="variableLayers"
+                :variable-sub-layers="variableSubLayers"
+                :model-value="selectedVariables"
+                :disable-selections="disableSelections"
+                @update:model-value="updateSelectedVariables"
+            ></LayerVariableSelector>
+          </v-card>
+        </v-menu>
       </v-col>
     </v-row>
     <v-row class="py-1">
-      <v-col cols="6" class="no-bottom-padding d-flex align-center">
-        <p class="mr-2"><b>Remove samples with missing values in</b></p>
-        <v-chip size="small" density="compact">{{ missingnessVariables.length }}</v-chip>
+      <v-col cols="6" class="no-bottom-padding">
+        <p><b>Remove samples with missing values in</b></p>
       </v-col>
     </v-row>
     <v-row class="filter-padding">
       <v-col cols="6" class="filter-padding">
-        <LayerVariableSelector
-            :items="selectedVariables"
-            :variable-layers="variableLayers"
-            :variable-sub-layers="variableSubLayers"
-            :model-value="missingnessVariables"
-            :disable-selections="disableSelections"
-            @update:model-value="updateMissingnessVariables"
-        ></LayerVariableSelector>
+        <v-menu :close-on-content-click="false" location="bottom">
+          <template v-slot:activator="{ props }">
+            <v-text-field
+                v-bind="props"
+                :readonly="true"
+                variant="outlined"
+                density="compact"
+                :model-value="missingnessVariablesSummary"
+                append-inner-icon="mdi-menu-down"
+            ></v-text-field>
+          </template>
+          <v-card class="pa-2">
+            <LayerVariableSelector
+                :items="selectedVariables"
+                :variable-layers="variableLayers"
+                :variable-sub-layers="variableSubLayers"
+                :model-value="missingnessVariables"
+                :disable-selections="disableSelections"
+                @update:model-value="updateMissingnessVariables"
+            ></LayerVariableSelector>
+          </v-card>
+        </v-menu>
       </v-col>
     </v-row>
 
@@ -286,6 +312,14 @@ export default {
     // narrowed by a separate layer/subLayer picking step; the tree itself is that step.
     allVariablesGlobalFlat() {
       return this.flattenVariables(this.allVariables);
+    },
+    // Closed-state summary text for the two collapsible dropdowns below, same role
+    // selectedLayersSummary used to play for the old "Select layers" field.
+    selectedVariablesSummary() {
+      return `${this.selectedVariables.length} variable${this.selectedVariables.length === 1 ? '' : 's'} selected`;
+    },
+    missingnessVariablesSummary() {
+      return `${this.missingnessVariables.length} variable${this.missingnessVariables.length === 1 ? '' : 's'} selected`;
     },
     // Grouped once per change of the underlying list (not once per layer, per lookup) -
     // see groupVariablesByLayer(). selectedVariablesByLayer backs variablesInLayer*
