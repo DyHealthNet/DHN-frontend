@@ -353,6 +353,12 @@ export default {
     allVariablesFlat() {
       return this.flattenVariables(this.allVariablesFiltered);
     },
+    // the FULL catalog, unrestricted by the layer/subLayer UI narrowing - used only to
+    // check whether a (sub)layer is selected in its entirety for compaction purposes
+    // (see layerCoverage/variablesAvailableIn*), never for what's offered as pickable.
+    allVariablesGlobalFlat() {
+      return this.flattenVariables(this.allVariables);
+    },
     // rule variables must be both layer/subgroup-available AND part of the explicit
     // variable selection - what's actually going to be part of the calculated context.
     allVariablesForRules() {
@@ -398,25 +404,15 @@ export default {
       const checkedLayers = [];
       const subLayers = {};
       for (const layer of this.selectedLayers) {
-        const raw = layer.toLowerCase();
-        const vars = this.variablesInLayer(layer);
-        if (vars.length === 0) {
+        const coverage = this.layerCoverage(layer, this.variablesInLayer(layer), missing);
+        if (!coverage) {
           continue;
         }
-        if (vars.every(v => missing.has(v))) {
+        if (coverage.fullyChecked) {
           checkedLayers.push(layer);
-          continue;
-        }
-        const subgroups = this.contextLayerSubLayers[raw];
-        if (subgroups) {
-          const checkedSubgroups = subgroups.filter(subgroup => {
-            const subVars = this.variablesInLayerSubgroup(layer, subgroup);
-            return subVars.length > 0 && subVars.every(v => missing.has(v));
-          });
-          if (checkedSubgroups.length) {
-            checkedLayers.push(layer);
-            subLayers[raw] = checkedSubgroups;
-          }
+        } else if (coverage.checkedSubgroups.length) {
+          checkedLayers.push(layer);
+          subLayers[layer.toLowerCase()] = coverage.checkedSubgroups;
         }
       }
       return {checkedLayers, subLayers};
@@ -451,40 +447,39 @@ export default {
       };
     },
     // Same idea as missingnessLayerStates, but for the main "Select variables for
-    // context" pool: a layer/subgroup counts as "checked" here if EVERY variable
-    // *available* to it (allVariablesFlat, not just the current selection) is selected -
-    // i.e. whether the whole (sub)layer can be represented compactly.
+    // context" pool: a layer/subgroup counts as "checked" here only if EVERY variable
+    // that globally exists in it (allVariablesGlobalFlat, unrestricted by the layer/
+    // subLayer UI narrowing - not just what's currently selected) is selected. This is
+    // what makes the resulting variablesLayers/variablesSubLayers self-sufficient: a bare
+    // "phenotype" entry always means the WHOLE layer, so it never needs layers/subLayers
+    // to be interpreted correctly on the backend.
     selectedVariablesLayerStates() {
       const selected = new Set(this.selectedVariables);
       const checkedLayers = [];
       const subLayers = {};
       for (const layer of this.selectedLayers) {
-        const raw = layer.toLowerCase();
-        const vars = this.variablesAvailableInLayer(layer);
-        if (vars.length === 0) {
+        const coverage = this.layerCoverage(layer, this.variablesAvailableInLayer(layer), selected);
+        if (!coverage) {
           continue;
         }
-        if (vars.every(v => selected.has(v))) {
+        if (coverage.fullyChecked) {
           checkedLayers.push(layer);
-          continue;
-        }
-        const subgroups = this.contextLayerSubLayers[raw];
-        if (subgroups) {
-          const checkedSubgroups = subgroups.filter(subgroup => {
-            const subVars = this.variablesAvailableInLayerSubgroup(layer, subgroup);
-            return subVars.length > 0 && subVars.every(v => selected.has(v));
-          });
-          if (checkedSubgroups.length) {
-            checkedLayers.push(layer);
-            subLayers[raw] = checkedSubgroups;
-          }
+        } else if (coverage.checkedSubgroups.length) {
+          checkedLayers.push(layer);
+          subLayers[layer.toLowerCase()] = coverage.checkedSubgroups;
         }
       }
       return {checkedLayers, subLayers};
     },
     // Compacts selectedVariables for the backend the same way missingnessCompactPayload
     // does: a fully-selected (sub)layer is sent by name instead of enumerating every one
-    // of its variables; only the leftover exceptions are sent individually.
+    // of its variables; only the leftover exceptions are sent individually. Always
+    // written out explicitly, even when it happens to match layers/subLayers - these
+    // three fields (variables/variablesLayers/variablesSubLayers) are meant to be a
+    // complete, self-sufficient description of the context's variable selection on their
+    // own, deliberately not requiring layers/subLayers to interpret. layers/subLayers are
+    // still saved alongside (to redraw the "Select layers" UI on reopen) but the backend
+    // never reads them for this purpose.
     selectedVariablesCompactPayload() {
       const {checkedLayers, subLayers} = this.selectedVariablesLayerStates;
       const covered = new Set();
@@ -979,19 +974,73 @@ export default {
       );
     },
 
-    // ALL variables AVAILABLE to a layer/subgroup (allVariablesFlat, not just the current
-    // selection) - the pool for deciding whether the whole (sub)layer is fully selected,
-    // used to compact selectedVariables itself.
+    // EVERY variable that globally exists in a layer/subgroup (allVariablesGlobalFlat -
+    // the full catalog, NOT layer/subLayer-UI-restricted) - the pool for deciding whether
+    // the whole (sub)layer is selected in its entirety, so the compacted variablesLayers/
+    // variablesSubLayers reference is unambiguous on its own: it always means literally
+    // every variable in that (sub)layer, never "everything the layer/subLayer picker
+    // happens to currently allow" (which would make it meaningless without also knowing
+    // layers/subLayers - see resolve_layer_selection() on the backend).
     variablesAvailableInLayer(layer) {
       const raw = layer.toLowerCase();
-      return this.allVariablesFlat.filter(v => this.variableLayers[v] === raw);
+      return this.allVariablesGlobalFlat.filter(v => this.variableLayers[v] === raw);
     },
 
     variablesAvailableInLayerSubgroup(layer, subgroup) {
       const raw = layer.toLowerCase();
-      return this.allVariablesFlat.filter(
+      return this.allVariablesGlobalFlat.filter(
         v => this.variableLayers[v] === raw && this.variableSubLayers[v] === subgroup
       );
+    },
+
+    // Bottom-up coverage check for one layer against `includedSet`, given its variable
+    // `pool` (variablesInLayer for the missingness check, variablesAvailableInLayer for
+    // the main selection): buckets the pool by subgroup - including an "ungrouped"
+    // bucket for any variable whose layer has subgroups but that itself isn't in one -
+    // in a single pass, then derives coverage from those bucket totals instead of
+    // re-filtering the pool once per subgroup. A layer with no subgroup structure at all
+    // only has the whole-pool granularity. Returns null for an empty pool (layer not
+    // actually part of the current variable set), otherwise
+    // {fullyChecked, checkedSubgroups}: fullyChecked is true only if every bucket
+    // (subgroups and any ungrouped leftovers) is entirely within includedSet.
+    //
+    // Deliberately uses `layerSubLayers` here (the layer's FULL global subgroup list),
+    // not the context-narrowed `contextLayerSubLayers` (which only exists to decide what
+    // the LayerSelector UI offers as pickable) - a subgroup excluded by the context's own
+    // subLayers restriction has zero variables in either pool anyway, so it just never
+    // gets marked covered, correctly forcing fullyChecked=false and pushing that layer
+    // down to an explicit per-subgroup compaction instead of a misleadingly bare
+    // "whole layer" reference. That's what keeps the resulting variablesLayers/
+    // missingnessLayers entries meaningful without needing layers/subLayers to interpret.
+    layerCoverage(layer, pool, includedSet) {
+      if (pool.length === 0) {
+        return null;
+      }
+      const raw = layer.toLowerCase();
+      const subgroupNames = this.layerSubLayers[raw];
+      if (!subgroupNames) {
+        return {fullyChecked: pool.every(v => includedSet.has(v)), checkedSubgroups: []};
+      }
+      const buckets = new Map();
+      for (const v of pool) {
+        const key = this.variableSubLayers[v] ?? null;
+        const bucket = buckets.get(key) ?? {total: 0, covered: 0};
+        bucket.total += 1;
+        if (includedSet.has(v)) {
+          bucket.covered += 1;
+        }
+        buckets.set(key, bucket);
+      }
+      const checkedSubgroups = subgroupNames.filter(subgroup => {
+        const bucket = buckets.get(subgroup);
+        return !!bucket && bucket.total === bucket.covered;
+      });
+      const ungrouped = buckets.get(null);
+      const ungroupedCovered = !ungrouped || ungrouped.total === ungrouped.covered;
+      return {
+        fullyChecked: checkedSubgroups.length === subgroupNames.length && ungroupedCovered,
+        checkedSubgroups,
+      };
     },
 
     // Expands a saved compact (sub)layer missingness selection back into its member
@@ -1234,6 +1283,8 @@ export default {
       this.taskStarted = false;
       this.taskInfo = "";
       this.disableSelections = false;
+      this.removedVariables = [];
+      this.droppedEdgeCount = 0;
 
       this.sendContextName();
       // selection just reset to "all variables" - refresh the participant count so it
