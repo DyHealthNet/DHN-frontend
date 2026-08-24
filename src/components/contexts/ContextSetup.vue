@@ -42,37 +42,39 @@
 
     <!-- Second row (variable selection) -->
     <v-row class="py-1">
-      <v-col cols="6" class="no-bottom-padding">
-        <p><b>Select variables for context</b></p>
+      <v-col cols="6" class="no-bottom-padding d-flex align-center">
+        <p class="mr-2"><b>Select variables for context</b></p>
+        <v-chip size="small" density="compact">{{ selectedVariables.length }}</v-chip>
       </v-col>
     </v-row>
     <v-row class="filter-padding">
       <v-col cols="6" class="filter-padding">
-        <VariableTreeSelector
+        <LayerVariableSelector
             :items="allVariablesGlobalFlat"
             :variable-layers="variableLayers"
             :variable-sub-layers="variableSubLayers"
             :model-value="selectedVariables"
             :disable-selections="disableSelections"
             @update:model-value="updateSelectedVariables"
-        ></VariableTreeSelector>
+        ></LayerVariableSelector>
       </v-col>
     </v-row>
     <v-row class="py-1">
-      <v-col cols="6" class="no-bottom-padding">
-        <p><b>Remove samples with missing values in</b></p>
+      <v-col cols="6" class="no-bottom-padding d-flex align-center">
+        <p class="mr-2"><b>Remove samples with missing values in</b></p>
+        <v-chip size="small" density="compact">{{ missingnessVariables.length }}</v-chip>
       </v-col>
     </v-row>
     <v-row class="filter-padding">
       <v-col cols="6" class="filter-padding">
-        <VariableTreeSelector
+        <LayerVariableSelector
             :items="selectedVariables"
             :variable-layers="variableLayers"
             :variable-sub-layers="variableSubLayers"
             :model-value="missingnessVariables"
             :disable-selections="disableSelections"
             @update:model-value="updateMissingnessVariables"
-        ></VariableTreeSelector>
+        ></LayerVariableSelector>
       </v-col>
     </v-row>
 
@@ -265,7 +267,7 @@ import FilterLine from "@/components/contexts/FilterLine.vue";
 import ConnectorLine from "@/components/contexts/ConnectorLine.vue";
 import NewFilterButton from "@/components/contexts/NewFilterButton.vue";
 import AdvancedSettings from "@/components/AdvancedSettings.vue";
-import VariableTreeSelector from "@/components/contexts/VariableTreeSelector.vue";
+import LayerVariableSelector from "@/components/contexts/LayerVariableSelector.vue";
 import {v4 as uuidv4} from 'uuid';
 import { getCookie } from "@/components/authentication/auth.js";
 import { contextState } from '@/components/contexts/contextStatus.js';
@@ -406,7 +408,7 @@ export default {
       };
     },
   },
-  components: {AdvancedSettings, NewFilterButton, ConnectorLine, FilterLine, ConnectorButton, StatusBox, VariableTreeSelector},
+  components: {AdvancedSettings, NewFilterButton, ConnectorLine, FilterLine, ConnectorButton, StatusBox, LayerVariableSelector},
   emits: ['data-changed','calculation-start','calculation-end'],
   props: {
     title: {
