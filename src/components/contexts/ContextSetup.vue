@@ -285,6 +285,17 @@ export default {
     allVariablesGlobalFlat() {
       return this.flattenVariables(this.allVariables);
     },
+    // Grouped once per change of the underlying list (not once per layer, per lookup) -
+    // see groupVariablesByLayer(). selectedVariablesByLayer backs variablesInLayer*
+    // (only recomputes when the selection changes), globalVariablesByLayer backs
+    // variablesAvailableInLayer* (only recomputes when the catalog itself changes, i.e.
+    // essentially once, right after fetchVariables() loads).
+    selectedVariablesByLayer() {
+      return this.groupVariablesByLayer(this.selectedVariables);
+    },
+    globalVariablesByLayer() {
+      return this.groupVariablesByLayer(this.allVariablesGlobalFlat);
+    },
     // rule variables must be part of the explicit variable selection - what's actually
     // going to be part of the calculated context.
     allVariablesForRules() {
@@ -784,19 +795,44 @@ export default {
       this.missingnessVariables = this.missingnessVariables.filter(item => selected.has(item));
     },
 
+    // Groups a flat identifier list into layer -> {all, bySubgroup} in a single pass, so
+    // repeated lookups per layer/subgroup (layerCoverage runs once per layer, for every
+    // layer, on every selection change) don't each re-scan the whole list with .filter() -
+    // that repeated O(layers x variables) rescanning was the main source of lag on a
+    // large catalog. Used by both variablesInLayer* (selectedVariables) and
+    // variablesAvailableInLayer* (allVariablesGlobalFlat) via the computeds below.
+    groupVariablesByLayer(identifiers) {
+      const result = new Map();
+      for (const identifier of identifiers) {
+        const layerKey = this.variableLayers[identifier];
+        if (!layerKey) {
+          continue;
+        }
+        if (!result.has(layerKey)) {
+          result.set(layerKey, {all: [], bySubgroup: new Map()});
+        }
+        const entry = result.get(layerKey);
+        entry.all.push(identifier);
+        const subgroup = this.variableSubLayers[identifier];
+        if (subgroup) {
+          if (!entry.bySubgroup.has(subgroup)) {
+            entry.bySubgroup.set(subgroup, []);
+          }
+          entry.bySubgroup.get(subgroup).push(identifier);
+        }
+      }
+      return result;
+    },
+
     // currently-SELECTED variables (selectedVariables) belonging to a layer/subgroup -
     // the pool the missingness check picks from, since it can only require completeness
     // on variables that are actually part of the context.
     variablesInLayer(layer) {
-      const raw = layer.toLowerCase();
-      return this.selectedVariables.filter(v => this.variableLayers[v] === raw);
+      return this.selectedVariablesByLayer.get(layer.toLowerCase())?.all ?? [];
     },
 
     variablesInLayerSubgroup(layer, subgroup) {
-      const raw = layer.toLowerCase();
-      return this.selectedVariables.filter(
-        v => this.variableLayers[v] === raw && this.variableSubLayers[v] === subgroup
-      );
+      return this.selectedVariablesByLayer.get(layer.toLowerCase())?.bySubgroup.get(subgroup) ?? [];
     },
 
     // EVERY variable that globally exists in a layer/subgroup (allVariablesGlobalFlat -
@@ -804,15 +840,11 @@ export default {
     // in its entirety, so the compacted variablesLayers/variablesSubLayers reference is
     // unambiguous on its own: it always means literally every variable in that (sub)layer.
     variablesAvailableInLayer(layer) {
-      const raw = layer.toLowerCase();
-      return this.allVariablesGlobalFlat.filter(v => this.variableLayers[v] === raw);
+      return this.globalVariablesByLayer.get(layer.toLowerCase())?.all ?? [];
     },
 
     variablesAvailableInLayerSubgroup(layer, subgroup) {
-      const raw = layer.toLowerCase();
-      return this.allVariablesGlobalFlat.filter(
-        v => this.variableLayers[v] === raw && this.variableSubLayers[v] === subgroup
-      );
+      return this.globalVariablesByLayer.get(layer.toLowerCase())?.bySubgroup.get(subgroup) ?? [];
     },
 
     // Bottom-up coverage check for one layer against `includedSet`, given its variable
