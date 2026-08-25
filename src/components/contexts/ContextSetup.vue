@@ -6,7 +6,7 @@
         <p><b>Context name</b></p>
       </v-col>
     </v-row>
-    <v-row justify="space-between" class="filter-padding">
+    <v-row justify="space-between" align="start" class="filter-padding">
       <v-col cols="3" class="filter-padding">
         <v-text-field
             :rules="contextNameMaxLength"
@@ -200,17 +200,29 @@
     </v-row>
 
     <v-row justify="space-between">
-      <v-col cols="2">
-        <v-tooltip bottom :disabled="!calculating">
+      <v-col cols="auto" class="d-flex ga-2">
+        <v-tooltip bottom :disabled="!calculating && !titleMissing">
           <template v-slot:activator="{ props }">
               <div v-bind="props" class="d-inline-block">
-                <v-btn color="primary-darken-1" @click="sendContext" :disabled="sendDisabled || calculating">
+                <v-btn color="primary-darken-1" @click="sendContext" :disabled="sendDisabled || calculating || titleMissing">
                     <v-icon class="my-0 mr-2">mdi-check-outline</v-icon>
                     Submit Context
                   </v-btn>
               </div>
           </template>
-          <span>{{'A context calculation is already in progress. Please wait...'}}</span>
+          <span>{{ calculating ? 'A context calculation is already in progress. Please wait...' : 'Please enter a context name first.' }}</span>
+        </v-tooltip>
+
+        <v-tooltip bottom :disabled="hasFreeTab && contextCreated">
+          <template v-slot:activator="{ props }">
+              <div v-bind="props" class="d-inline-block">
+                <v-btn color="secondary" variant="outlined" @click="copyContext" :disabled="!hasFreeTab || !contextCreated || calculating">
+                    <v-icon class="my-0 mr-2">mdi-content-copy</v-icon>
+                    Copy to next tab
+                  </v-btn>
+              </div>
+          </template>
+          <span>{{ !contextCreated ? 'Submit this context before copying it.' : 'No free tab available to copy this context into.' }}</span>
         </v-tooltip>
       </v-col>
       <v-col cols="auto" class="d-flex justify-end">
@@ -329,6 +341,19 @@ export default {
     },
     participantNumberDisplay() {
       return (this.preservePrivacy ? '~' : '') + this.participantNumber;
+    },
+    // an empty (or whitespace-only) name is not a valid context name - blocks Submit
+    // proactively, on top of the same check repeated in sendContext() as a safety net.
+    titleMissing() {
+      return this.contextName.trim().length === 0;
+    },
+    // whether this context has actually been submitted to the backend - `content` is only
+    // non-null for a tab loaded from a saved context, and sendDisabled also flips true right
+    // after a successful sendContext() this session (before a reload would refresh `content`).
+    // False for a tab that's still being edited and was never submitted - copying that would
+    // just be copying in-progress scratch state, not a real context.
+    contextCreated() {
+      return !!this.content || this.sendDisabled;
     },
     // the FULL catalog, unrestricted - the pool LayerVariableSelector groups into
     // Layer/Sublayer. Never narrowed by a separate layer/subLayer picking step.
@@ -466,7 +491,7 @@ export default {
     },
   },
   components: {AdvancedSettings, NewFilterButton, ConnectorLine, FilterLine, ConnectorButton, StatusBox, LayerVariableSelector},
-  emits: ['data-changed','calculation-start','calculation-end'],
+  emits: ['data-changed','calculation-start','calculation-end','copy-context'],
   props: {
     title: {
       type: String,
@@ -487,6 +512,13 @@ export default {
     calculating: {
       type: Boolean,
       required: true,
+    },
+    // whether some other tab is currently empty and could receive a copy of this context -
+    // purely informational (disables/tooltips the Copy button), the parent re-checks this
+    // itself when the copy actually happens.
+    hasFreeTab: {
+      type: Boolean,
+      default: true,
     }
   },
   data() {
@@ -1094,8 +1126,9 @@ export default {
     async sendContext() {
       this.$emit('calculation-start')
       console.log("sendContext()");
-      // check for validity
-      if (this.contextName.length === 0) {
+      // check for validity - also enforced proactively by the Submit button's :disabled
+      // (titleMissing), this is the safety net for any other path that could call sendContext().
+      if (this.titleMissing) {
         this.taskStarted = true;
         this.taskInfo = "Please enter a context name";
         this.taskType = "error";
@@ -1149,6 +1182,15 @@ export default {
             console.error('Error:', error);
           });
 
+    },
+
+    // Sends the CURRENT live configuration (not just what was last saved) up to the parent,
+    // which seeds the next free tab with it - contextName is forced blank so the copy can't
+    // be mistaken for the original and the user must name it before submitting (titleMissing
+    // blocks Submit either way).
+    copyContext() {
+      const {contextValue, ...copyableParams} = this.createParams();
+      this.$emit('copy-context', {sourceValue: this.value, params: {...copyableParams, contextName: ''}});
     },
 
     async intervalProgress() {

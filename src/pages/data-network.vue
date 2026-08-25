@@ -3364,7 +3364,6 @@ export default {
         // vis_options.physics is the pre-Cosmograph-migration shape; fall back to it
         // so localStorage state saved before this change still loads correctly.
         this.physics_on = vis_options?.simulation?.enabled ?? vis_options?.physics?.enabled ?? true;
-        this.physics_on = vis_options?.physics?.enabled ?? true;
 
         this.selectedNodes = user_settings.selectedNodes;
         this.selectAll = user_settings.selectAll;

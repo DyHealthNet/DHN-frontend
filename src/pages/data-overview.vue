@@ -22,7 +22,7 @@
         <v-card outlined>
           <v-toolbar color="primary-darken-1" density="compact">
             <v-toolbar-title>
-              Variable Summary
+              Cohort Overview
               <v-tooltip bottom>
                 <template v-slot:activator="{ props }">
                   <v-icon v-bind="props">mdi-information</v-icon>

@@ -18,7 +18,7 @@
       :headers="headers"
       :items="tableItems"
       :search="search"
-      :custom-key-filter="{ id: nodeSearchFilter }"
+      :custom-key-filter="{ label: nodeSearchFilter }"
       filter-mode="union"
       :sort-by="[{ key: 'rank', order: 'asc' }]"
       items-per-page="10"

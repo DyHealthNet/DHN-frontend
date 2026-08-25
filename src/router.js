@@ -9,7 +9,6 @@ import CHRISDataIntro from './pages/chris-data-intro.vue'
 import DataOverview from './pages/data-overview.vue'
 import NetworkPage from './pages/data-network.vue'
 import ContextCreation from './pages/context-creation.vue'
-import Metagraph from './pages/metagraph.vue'
 import DifferentialNetwork from './pages/differential-network.vue'
 import Login from './pages/user-login.vue'
 import Logout from './pages/user-logout.vue'
@@ -54,12 +53,6 @@ const routes = [
       name: 'Context creation',
       component: ContextCreation,
       meta: { requiresAuth: true }
-    },
-    {
-      path:'/metagraph',
-      name: 'Metagraph',
-      component: () => Metagraph,
-      meta: { requiresAuth: false }
     },
     {
       path: '/modina',

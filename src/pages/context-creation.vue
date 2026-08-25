@@ -23,10 +23,15 @@
               <v-card color="surface">
                 <v-card-text>
                   <v-row>
-                    <ContextSetup :title="tab.contextName" :content="tab.content" :status="tab.status"
+                    <!-- keyed on renderVersion too: copyContextToNextTab() bumps it to force this
+                         instance to remount, since ContextSetup only reads `content` in data(). -->
+                    <ContextSetup :key="`${tab.contextValue}-${tab.renderVersion || 0}`"
+                                  :title="tab.contextName" :content="tab.content" :status="tab.status"
                                   :value="tab.contextValue" @data-changed="updateTabName"
                                   :calculating="calculating" @calculation-start="calculating = true"
-                                  @calculation-end="calculating = false" />
+                                  @calculation-end="calculating = false"
+                                  :has-free-tab="tabs.some(t => t.contextValue !== tab.contextValue && !t.content)"
+                                  @copy-context="copyContextToNextTab" />
                   </v-row>
                 </v-card-text>
               </v-card>
@@ -88,6 +93,42 @@ export default {
 
     handleCalculationStatus(isCalculating) {
       this.calculating = isCalculating;
+    },
+
+    // Finds the nearest empty tab after the source tab (wrapping around, but never the
+    // source tab itself) and seeds it with a copy of the source's live settings. contextName
+    // arrives already blanked out (see ContextSetup.copyContext) so the new tab starts
+    // untitled - the user has to name it before Submit is enabled (see titleMissing).
+    // "Empty" is judged by content, same as the backend's own free-slot check - a tab with
+    // unsaved (never-submitted) edits still counts as free and would have those edits
+    // overwritten by the copy, since they only exist in that tab's own ContextSetup instance.
+    copyContextToNextTab({sourceValue, params}) {
+      const sourceIndex = this.tabs.findIndex(t => t.contextValue === sourceValue);
+      if (sourceIndex === -1) {
+        return;
+      }
+
+      const n = this.tabs.length;
+      let targetIndex = -1;
+      for (let offset = 1; offset < n; offset++) {
+        const idx = (sourceIndex + offset) % n;
+        if (!this.tabs[idx].content) {
+          targetIndex = idx;
+          break;
+        }
+      }
+      if (targetIndex === -1) {
+        return; // no free tab available
+      }
+
+      const targetTab = this.tabs[targetIndex];
+      targetTab.content = {...params, contextValue: targetTab.contextValue};
+      targetTab.contextName = '';
+      targetTab.status = 'Waiting';
+      // force ContextSetup to remount for this tab so it re-initializes from the new content
+      targetTab.renderVersion = (targetTab.renderVersion || 0) + 1;
+
+      this.contextTab = targetTab.contextValue;
     },
 
     fillTabNames() {
