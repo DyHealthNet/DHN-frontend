@@ -147,8 +147,7 @@ export default {
       set(value) {
         const context = this.finishedContexts.find((c) => c.contextValue === value) || null;
         let context2 = this.modelValue.context2;
-        if (context2 && (!context || !this.sameLayers(context, context2))) {
-          context2 = null;
+        if (context2 && (!context || !this.sameLayers(context, context2) || !this.sameSettings(context, context2))) {
         }
         this.$emit('update:modelValue', { context1: context, context2 });
       },
