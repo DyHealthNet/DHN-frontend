@@ -717,7 +717,7 @@ export default {
       // conditions alone used to gate this fetch, but the no-missingness filtering over
       // the selected variables can shrink the participant count even with zero rules
       // defined, so we still need to hit the backend whenever any variable is selected.
-      if (Object.keys(params.conditions).length === 0 && (!params.variables || params.variables.length === 0)) {
+      if (Object.keys(params.conditions).length === 0 && (!params.variables || params.variables.length === 0) && (!params.variablesLayers || params.variablesLayers.length === 0)) {
         this.removedPatients = ("+ " + this.spacedNumber(Math.abs(parseInt(this.participantNumber.replace(/\s/g, ''))
             - this.initialParticipants)))
         this.participantNumber = this.spacedNumber(this.initialParticipants);
