@@ -330,13 +330,12 @@ export default {
     participantNumberDisplay() {
       return (this.preservePrivacy ? '~' : '') + this.participantNumber;
     },
-    // the FULL catalog, unrestricted - the pool the tree selectors are built from. Never
-    // narrowed by a separate layer/subLayer picking step; the tree itself is that step.
+    // the FULL catalog, unrestricted - the pool LayerVariableSelector groups into
+    // Layer/Sublayer. Never narrowed by a separate layer/subLayer picking step.
     allVariablesGlobalFlat() {
       return this.flattenVariables(this.allVariables);
     },
-    // Closed-state summary text for the two collapsible dropdowns below, same role
-    // selectedLayersSummary used to play for the old "Select layers" field - now lists
+    // Closed-state summary text for the two collapsible dropdowns below - lists
     // every layer with at least one selected variable, instead of just a total count
     // (the count now lives in the chip next to the field's header).
     selectedVariablesLayersSummary() {
@@ -519,8 +518,8 @@ export default {
       },
 
       // the full catalog of layers/subgroups - not a "selection", just metadata used to
-      // group the tree selectors and to resolve compact variablesLayers/missingnessLayers
-      // references. Populated by fetchVariables().
+      // group LayerVariableSelector's Layer/Sublayer list and to resolve compact
+      // variablesLayers/missingnessLayers references. Populated by fetchVariables().
       layers: layers,
       variableLayers: {},
       layerSubLayers: {},
@@ -902,7 +901,7 @@ export default {
     // Comma-joined list of layer names that have at least one selected variable (fully or
     // partially) - the closed-state text for the variable/missingness dropdown fields.
     // Iterates this.layers (proper-cased) rather than the grouped map's keys so the order
-    // matches the tree's own display order.
+    // is stable and alphabetized, matching LayerVariableSelector's own sort.
     layerNamesWithSelection(layerMap, selectedIdentifiers) {
       const selected = new Set(selectedIdentifiers);
       const names = this.layers.filter(layer => {
