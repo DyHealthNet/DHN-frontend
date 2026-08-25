@@ -259,6 +259,26 @@
 
       </v-dialog>
 
+    <v-dialog width="auto" v-model="variableRemovalConfirm.show">
+        <v-card color="warning" rounded="lg">
+          <v-card-title class="headline">
+            <v-icon class="my-0 mr-2">mdi-alert-outline</v-icon>
+            <b>Remove affected rule{{ variableRemovalConfirm.affectedColumns.length === 1 ? '' : 's' }}?</b>
+          </v-card-title>
+          <v-card-text>
+            Deselecting this changes {{ variableRemovalConfirm.affectedColumns.length }}
+            variable{{ variableRemovalConfirm.affectedColumns.length === 1 ? '' : 's' }}
+            ({{ variableRemovalConfirm.affectedColumns.join(', ') }}) that
+            {{ variableRemovalConfirm.affectedColumns.length === 1 ? 'is' : 'are' }} currently used in a rule for
+            this context. Continuing will remove those rule row{{ variableRemovalConfirm.affectedColumns.length === 1 ? '' : 's' }}.
+          </v-card-text>
+          <v-card-actions>
+            <v-btn @click="confirmVariableRemoval">Yes, remove</v-btn>
+            <v-btn @click="cancelVariableRemoval">Cancel</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
     <v-row>
       <div class="text-center ma-2">
         <v-snackbar
@@ -488,6 +508,15 @@ export default {
       contextNameMaxLength: [v => v.length <= 40 || 'Max 40 characters'],
 
       deleteWarn: false,
+
+      // pending variable deselection that would strip the column out from under an
+      // existing rule - held here until the user confirms, so the deselection can still
+      // be discarded on Cancel (selectedVariables is left untouched until then).
+      variableRemovalConfirm: {
+        show: false,
+        pendingSelection: null,
+        affectedColumns: [],
+      },
 
       // the full catalog of layers/subgroups - not a "selection", just metadata used to
       // group the tree selectors and to resolve compact variablesLayers/missingnessLayers
@@ -814,15 +843,21 @@ export default {
       return [...new Set(Object.values(variablesObj).flat())];
     },
 
-    // Clear any existing rule whose column isn't part of the (newly narrowed) variable
-    // selection, so a stale rule can't get sent to the backend for a column that's about
-    // to be dropped from the context data.
-    pruneStaleRulesByVariables() {
-      const selected = new Set(this.selectedVariables);
-      for (const item of this.innerRows) {
-        if (item.rule.column !== undefined && !selected.has(item.rule.column)) {
-          item.rule = {};
-        }
+    // Removes a single rule row, mirroring the manual delete-button logic in
+    // newInnerGroupRule(): the very last rule overall is just cleared in place (there's
+    // always at least one row rendered), the last row of a group takes its group down
+    // with it, otherwise just the row itself is spliced out.
+    removeRuleRow(item) {
+      if (this.innerRows.length === 1) {
+        item.rule = {};
+        return;
+      }
+      const groupRows = this.innerRows.filter(data => data.group === item.group);
+      if (groupRows.length === 1) {
+        this.innerRows.splice(this.innerRows.indexOf(item), 1);
+        this.outerRows.splice(this.outerRows.indexOf(item.group), 1);
+      } else {
+        this.innerRows.splice(this.innerRows.indexOf(item), 1);
       }
     },
 
@@ -987,10 +1022,44 @@ export default {
     },
 
     updateSelectedVariables(newSelectedVariables) {
+      const newSelectedSet = new Set(newSelectedVariables);
+      const affected = this.innerRows.filter(
+          item => item.rule.column !== undefined && !newSelectedSet.has(item.rule.column)
+      );
+      if (affected.length > 0) {
+        this.variableRemovalConfirm = {
+          show: true,
+          pendingSelection: newSelectedVariables,
+          affectedColumns: affected.map(item => item.rule.column),
+        };
+        return;
+      }
+      this.applySelectedVariables(newSelectedVariables);
+    },
+
+    applySelectedVariables(newSelectedVariables) {
       this.selectedVariables = newSelectedVariables;
-      this.pruneStaleRulesByVariables();
       this.pruneStaleMissingnessVariables();
       this.$nextTick(() => this.fetchParticipants(this.createParams()));
+    },
+
+    // User confirmed dropping the affected rule rows - apply the deselection and remove
+    // every rule row whose column is no longer part of the selection.
+    confirmVariableRemoval() {
+      const affectedSet = new Set(this.variableRemovalConfirm.affectedColumns);
+      for (const item of [...this.innerRows]) {
+        if (item.rule.column !== undefined && affectedSet.has(item.rule.column)) {
+          this.removeRuleRow(item);
+        }
+      }
+      this.applySelectedVariables(this.variableRemovalConfirm.pendingSelection);
+      this.variableRemovalConfirm = {show: false, pendingSelection: null, affectedColumns: []};
+    },
+
+    // User declined - discard the pending deselection entirely, leaving selectedVariables
+    // (and therefore the rule rows) untouched.
+    cancelVariableRemoval() {
+      this.variableRemovalConfirm = {show: false, pendingSelection: null, affectedColumns: []};
     },
 
     updateMissingnessVariables(newMissingnessVariables) {
