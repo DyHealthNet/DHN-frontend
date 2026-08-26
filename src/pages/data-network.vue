@@ -478,7 +478,7 @@
                             color="primary"
                             variant="outlined"
                             :disabled="legendGroups.length === 0"
-                            @click="resultsPanelOpen = true; resultsPanelTab = 'communityAnnotation'; lastTriggeredSection = 'enrichment'; if (communityAnnotationStatus === 'idle') runCommunityAnnotation();"
+                            @click="tablesActiveTab = 'communityAnnotation'; if (communityAnnotationStatus === 'idle') runCommunityAnnotation();"
                           >Community Annotation</v-btn>
 
                           <!-- <v-divider class="my-4"></v-divider>
@@ -565,9 +565,9 @@
                       :gemini-loading="geminiLoading"
                       :enrichment-loading="enrichmentLoading"
                       :reactome-enrichment-loading="reactomeEnrichmentLoading"
-                      @run-gemini-label="runGeminiLabel(); resultsPanelOpen = true; resultsPanelTab = 'gemini'; lastTriggeredSection = 'enrichment';"
-                      @run-protein-enrichment="runProteinEnrichment(); resultsPanelOpen = true; resultsPanelTab = 'enrichment'; lastTriggeredSection = 'enrichment';"
-                      @run-reactome-enrichment="runReactomeEnrichment(); resultsPanelOpen = true; resultsPanelTab = 'reactomeEnrichment'; lastTriggeredSection = 'enrichment';"
+                      @run-gemini-label="runGeminiLabel(); tablesActiveTab = 'enrichment'; enrichmentTab = 'gemini';"
+                      @run-protein-enrichment="runProteinEnrichment(); tablesActiveTab = 'enrichment'; enrichmentTab = 'enrichment';"
+                      @run-reactome-enrichment="runReactomeEnrichment(); tablesActiveTab = 'enrichment'; enrichmentTab = 'reactomeEnrichment';"
                     />
                   </v-expansion-panel-text>
                 </v-expansion-panel>
@@ -577,6 +577,14 @@
             <!-- Put this in its own file -->
             <v-col cols="8" >
               <v-card outlined class="network-container">
+
+              <v-tabs v-model="visualizationTab" color="primary-darken-1">
+                <v-tab value="visualization">Visualization</v-tab>
+                <v-tab value="tables">Tables</v-tab>
+              </v-tabs>
+
+              <v-window v-model="visualizationTab">
+                <v-window-item value="visualization">
 
               <!-- Card Content -->
               <v-card-text ref="wholeNetwork">
@@ -691,64 +699,44 @@
                   Save Network
                 </v-btn>
               </v-card-actions>-->
+
+                </v-window-item>
+
+                <v-window-item value="tables">
+                  <v-card-text>
+                    <NetworkTablesPanel
+                      v-model:active-tab="tablesActiveTab"
+                      v-model:enrichment-tab="enrichmentTab"
+                      :graph-nodes="graphNodes"
+                      :graph-edges="graphEdges"
+                      :nodes-by-id="nodesById"
+                      :node-edge-table-visible="nodeEdgeTableVisible"
+                      :node-label="displayedElement?.display_name"
+                      :node-edge-table-items="nodeEdgeTableItems"
+                      :enrichment-ran="enrichmentRan"
+                      :enrichment-results="enrichmentResults"
+                      :enrichment-loading="enrichmentLoading"
+                      :reactome-enrichment-ran="reactomeEnrichmentRan"
+                      :reactome-enrichment-results="reactomeEnrichmentResults"
+                      :reactome-enrichment-loading="reactomeEnrichmentLoading"
+                      :gemini-ran="geminiRan"
+                      :gemini-label="geminiLabel"
+                      :gemini-loading="geminiLoading"
+                      :community-annotation-available="clusteringActive"
+                      :community-annotation-status="communityAnnotationStatus"
+                      :community-annotation-progress="communityAnnotationProgress"
+                      :community-annotation-results="communityAnnotationResults"
+                      @select-node="jumpToSearchedNode"
+                      @select-edge="jumpToEdgeSelection"
+                      @select-neighbor="jumpToSearchedNode"
+                      @run-community-annotation="runCommunityAnnotation"
+                    />
+                  </v-card-text>
+                </v-window-item>
+              </v-window>
               </v-card>
             </v-col>
           </v-row>
-
-          <div style="display: flex; flex-direction: column;">
-            <v-row v-if="graphNodes.length > 0">
-              <v-col cols="12">
-                <NetworkRankingTabs
-                  title="Network Ranking"
-                  :edges="graphEdges"
-                  :nodes="graphNodes"
-                  :nodes-by-id="nodesById"
-                  :interactive="true"
-                  @select-node="jumpToSearchedNode"
-                  @select-edge="jumpToEdgeSelection"
-                />
-              </v-col>
-            </v-row>
-
-            <v-row
-              v-if="nodeEdgeTableVisible"
-              :style="{ order: lastTriggeredSection === 'enrichment' ? 1 : 0 }"
-            >
-              <v-col cols="12">
-                <NodeEdgeTable
-                  :node-label="displayedElement?.display_name"
-                  :items="nodeEdgeTableItems"
-                  @select-neighbor="jumpToSearchedNode"
-                />
-              </v-col>
-            </v-row>
-
-            <v-row
-              v-if="resultsPanelOpen || enrichmentRan || reactomeEnrichmentRan || geminiRan"
-              :style="{ order: lastTriggeredSection === 'enrichment' ? 0 : 1 }"
-            >
-              <v-col cols="12">
-                <EnrichmentResultsPanel
-                  v-model:open="resultsPanelOpen"
-                  v-model:tab="resultsPanelTab"
-                  :enrichment-ran="enrichmentRan"
-                  :enrichment-results="enrichmentResults"
-                  :enrichment-loading="enrichmentLoading"
-                  :reactome-enrichment-ran="reactomeEnrichmentRan"
-                  :reactome-enrichment-results="reactomeEnrichmentResults"
-                  :reactome-enrichment-loading="reactomeEnrichmentLoading"
-                  :gemini-ran="geminiRan"
-                  :gemini-label="geminiLabel"
-                  :gemini-loading="geminiLoading"
-                  :community-annotation-available="clusteringActive"
-                  :community-annotation-status="communityAnnotationStatus"
-                  :community-annotation-progress="communityAnnotationProgress"
-                  :community-annotation-results="communityAnnotationResults"
-                  @run-community-annotation="runCommunityAnnotation"
-                />
-              </v-col>
-            </v-row>
-          </div>
         </v-card>
         <v-row>
           <div class="ma-2">
@@ -790,10 +778,9 @@ import StatisticalTestLine from "@/components/StatisticalTestLine.vue";
 import NetworkEdgeLine from "@/components/network/NetworkEdgeLine.vue";
 import WholeNetworkSettings from "@/components/network/WholeNetworkSettings.vue";
 import GraphToolbar from "@/components/network/GraphToolbar.vue";
-import EnrichmentResultsPanel from "@/components/network/EnrichmentResultsPanel.vue";
 import NodeSetActionsPanel from "@/components/network/NodeSetActionsPanel.vue";
-import NodeEdgeTable from "@/components/network/NodeEdgeTable.vue";
 import NetworkRankingTabs from "@/components/network/NetworkRankingTabs.vue";
+import NetworkTablesPanel from "@/components/network/NetworkTablesPanel.vue";
 import {useTheme} from 'vuetify';
 
 
@@ -801,8 +788,8 @@ import {useTheme} from 'vuetify';
 export default {
   components: {
     StatisticalTestLine, FilterToolbar, AdvancedSettings, NodeDetails, NetworkEdgeLine,
-    WholeNetworkSettings, EdgeDetails, GraphToolbar, NetworkLegend, EnrichmentResultsPanel, NodeSetActionsPanel,
-    NodeEdgeTable, NetworkRankingTabs},
+    WholeNetworkSettings, EdgeDetails, GraphToolbar, NetworkLegend, NodeSetActionsPanel,
+    NetworkRankingTabs, NetworkTablesPanel},
   data() {
     return {
       // context filter
@@ -860,13 +847,13 @@ export default {
       selectAll: false,
       clearNetworkWarn: false,
 
-      // Results panel (below the network) shown once an Analysis-panel
-      // action -- Protein Enrichment, Reactome Enrichment, or Gemini Label -- has been run
-      resultsPanelOpen: false,
-      resultsPanelTab: 'enrichment',
-      // Which of the two below-graph panels (the per-node edge table vs the Analysis
-      // Results panel) was triggered most recently -- rendered first via CSS order.
-      lastTriggeredSection: null, // 'edgeTable' | 'enrichment'
+      // Visualization/Tables tab switch (graph card) and, within Tables, which sub-tab is
+      // showing -- an Analysis-panel action (node click, enrichment/community-annotation run)
+      // pre-selects the relevant Tables sub-tab without forcing the top-level tab away from
+      // Visualization.
+      visualizationTab: 'visualization',
+      tablesActiveTab: 'nodeRanking',
+      enrichmentTab: 'enrichment',
 
       // Protein Enrichment (g:Profiler)
       enrichmentLoading: false,
@@ -2116,7 +2103,7 @@ export default {
       this.applyDesign(false);
     },
     displayNode(node) {
-      this.lastTriggeredSection = 'edgeTable';
+      this.tablesActiveTab = 'edgesOfNode';
       node.type = this.getPrettyType(node.source_table);
       this.displayedElement = node;
       this.displayedElementType = "node";
