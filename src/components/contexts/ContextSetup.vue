@@ -1,35 +1,80 @@
 <template>
   <v-responsive class="pa-4">
     <!--First row (name) -->
-    <v-row class="py-1">
-      <v-col cols="3" class="no-bottom-padding">
-        <p><b>Context name</b></p>
-      </v-col>
-    </v-row>
-    <v-row justify="space-between" align="start" class="filter-padding">
-      <v-col cols="3" class="filter-padding">
-        <v-text-field
-            :rules="contextNameMaxLength"
-            :readonly="disableSelections"
-            counter="40"
-            density="compact"
-            variant="outlined"
-            v-model="contextName"
-            required
-            @change="sendContextName"
-        ></v-text-field>
-      </v-col>
+    <div class="context-header">
+      <v-row class="py-1">
+        <v-col cols="3" class="no-bottom-padding">
+          <p><b>Context name</b></p>
+        </v-col>
+      </v-row>
+      <v-row class="filter-padding">
+        <v-col cols="3" class="filter-padding">
+          <v-text-field
+              :rules="contextNameMaxLength"
+              :readonly="disableSelections"
+              counter="40"
+              density="compact"
+              variant="outlined"
+              v-model="contextName"
+              required
+              @change="sendContextName"
+          ></v-text-field>
+        </v-col>
+      </v-row>
 
-      <v-spacer></v-spacer>
+      <!-- Second row (variable selection) -->
+      <v-row class="py-1">
+        <v-col cols="6" class="no-bottom-padding d-flex align-center">
+          <p class="mr-2"><b>Select variables for context</b></p>
+          <v-chip size="small" density="compact" class="mr-1">{{ selectedVariables.length }}</v-chip>
+          <v-tooltip bottom>
+            <template v-slot:activator="{ props }">
+              <v-btn
+                  v-bind="props"
+                  icon="mdi-download"
+                  size="small"
+                  variant="text"
+                  density="compact"
+                  :disabled="!selectedVariables.length"
+                  @click="downloadSelectedVariables"
+              ></v-btn>
+            </template>
+            <span>Download the list of selected variables</span>
+          </v-tooltip>
+        </v-col>
+      </v-row>
+      <v-row class="filter-padding">
+        <v-col cols="6" class="filter-padding">
+          <v-menu :close-on-content-click="false" location="bottom">
+            <template v-slot:activator="{ props }">
+              <v-text-field
+                  v-bind="props"
+                  :readonly="true"
+                  variant="outlined"
+                  density="compact"
+                  :model-value="selectedVariablesLayersSummary"
+                  append-inner-icon="mdi-menu-down"
+              ></v-text-field>
+            </template>
+            <v-card class="pa-2">
+              <LayerVariableSelector
+                  :items="allVariablesGlobalFlat"
+                  :variable-layers="variableLayers"
+                  :variable-sub-layers="variableSubLayers"
+                  :model-value="selectedVariables"
+                  :disable-selections="disableSelections"
+                  @update:model-value="updateSelectedVariables"
+              ></LayerVariableSelector>
+            </v-card>
+          </v-menu>
+        </v-col>
+      </v-row>
 
-      <v-col cols="auto" class="filter-padding">
+      <div class="status-box-container">
         <StatusBox
             :title="progressStatus"
             subtitle="Progress"
             :icon="progressIcon"/>
-      </v-col>
-
-      <v-col cols="auto" class="filter-padding">
         <StatusBox
             :title="participantNumberDisplay"
             :remove="removedPatients"
@@ -37,46 +82,27 @@
             subtitle="Participants"
             icon="mdi-account-multiple-outline"
         />
-      </v-col>
-    </v-row>
+      </div>
+    </div>
 
-    <!-- Second row (variable selection) -->
-    <v-row class="py-1">
-      <v-col cols="6" class="no-bottom-padding d-flex align-center">
-        <p class="mr-2"><b>Select variables for context</b></p>
-        <v-chip size="small" density="compact">{{ selectedVariables.length }}</v-chip>
-      </v-col>
-    </v-row>
-    <v-row class="filter-padding">
-      <v-col cols="6" class="filter-padding">
-        <v-menu :close-on-content-click="false" location="bottom">
-          <template v-slot:activator="{ props }">
-            <v-text-field
-                v-bind="props"
-                :readonly="true"
-                variant="outlined"
-                density="compact"
-                :model-value="selectedVariablesLayersSummary"
-                append-inner-icon="mdi-menu-down"
-            ></v-text-field>
-          </template>
-          <v-card class="pa-2">
-            <LayerVariableSelector
-                :items="allVariablesGlobalFlat"
-                :variable-layers="variableLayers"
-                :variable-sub-layers="variableSubLayers"
-                :model-value="selectedVariables"
-                :disable-selections="disableSelections"
-                @update:model-value="updateSelectedVariables"
-            ></LayerVariableSelector>
-          </v-card>
-        </v-menu>
-      </v-col>
-    </v-row>
     <v-row class="py-1">
       <v-col cols="6" class="no-bottom-padding d-flex align-center">
         <p class="mr-2"><b>Remove samples with missing values in</b></p>
-        <v-chip size="small" density="compact">{{ missingnessVariables.length }}</v-chip>
+        <v-chip size="small" density="compact" class="mr-1">{{ missingnessVariables.length }}</v-chip>
+        <v-tooltip bottom>
+          <template v-slot:activator="{ props }">
+            <v-btn
+                v-bind="props"
+                icon="mdi-download"
+                size="small"
+                variant="text"
+                density="compact"
+                :disabled="!missingnessVariables.length"
+                @click="downloadMissingnessVariables"
+            ></v-btn>
+          </template>
+          <span>Download the list of missingness variables</span>
+        </v-tooltip>
       </v-col>
     </v-row>
     <v-row class="filter-padding">
@@ -1279,6 +1305,29 @@ export default {
       }
       return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
     },
+
+    // shared download helper - builds "ContextName_suffix_date.csv" following the same
+    // date convention as data-network.vue's downloadFileName (MM-DD-YYYY, no build step needed).
+    downloadVariableList(variables, suffix) {
+      const currentDate = new Date().toLocaleDateString().replace(/\//g, '-');
+      const safeContextName = (this.contextName || 'Context').trim().replace(/[^a-z0-9]+/gi, '_');
+      const filename = `${safeContextName}_${suffix}_${currentDate}.csv`;
+      const blob = new Blob([variables.join('\n')], {type: 'text/csv;charset=utf-8;'});
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    },
+
+    downloadSelectedVariables() {
+      this.downloadVariableList(this.selectedVariables, 'selectedvariables');
+    },
+
+    downloadMissingnessVariables() {
+      this.downloadVariableList(this.missingnessVariables, 'missingness');
+    },
   },
   mounted() {
     this.intervalProgress();
@@ -1302,6 +1351,18 @@ export default {
 .filter-padding {
   padding-top: 1px;
   padding-bottom: 1px;
+}
+
+.context-header {
+  position: relative;
+}
+
+.status-box-container {
+  position: absolute;
+  top: 0;
+  right: 12px;
+  display: flex;
+  gap: 12px;
 }
 
 .no-bottom-padding {
