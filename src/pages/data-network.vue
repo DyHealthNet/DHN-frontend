@@ -218,6 +218,11 @@
                 </span>
               </v-tooltip>
             </v-toolbar-title>
+            <v-spacer></v-spacer>
+            <v-tabs v-model="visualizationTab" :color="toolbarIconColor" align-tabs="end">
+              <v-tab value="visualization">Network</v-tab>
+              <v-tab value="tables">Tables</v-tab>
+            </v-tabs>
           </v-toolbar>
 
           <v-row no-gutters>
@@ -585,11 +590,6 @@
             <v-col cols="8" >
               <v-card outlined class="network-container">
 
-              <v-tabs v-model="visualizationTab" color="primary-darken-1">
-                <v-tab value="visualization">Visualization</v-tab>
-                <v-tab value="tables">Tables</v-tab>
-              </v-tabs>
-
               <v-window v-model="visualizationTab">
                 <v-window-item value="visualization">
 
@@ -619,6 +619,7 @@
                 :hide-unconnected="hideUnconnected"
                 @update:hide-unconnected="onHideUnconnectedChange"
                 @save-image="saveNetworkImage"
+                @fit-view="resetView"
               >
                 <template #prepend>
                     <v-btn-toggle
@@ -2108,6 +2109,12 @@ export default {
       const currentZoom = this.cosmographInstance.getZoomLevel();
       this.cosmographInstance.setZoomTransformByPointPositions(midpoint, 700, currentZoom);
     },
+    // Re-centers and zooms to fit the whole graph -- the toolbar's manual "Reset view"
+    // button, same fitView() Cosmograph already calls on its own once the simulation
+    // settles with nothing selected.
+    resetView() {
+      this.cosmographInstance?.fitView();
+    },
     handleBackgroundClick() {
       this.displayedElement = null;
       this.displayedElementType = null;
@@ -2431,6 +2438,19 @@ export default {
           this.communityAnnotationRunId = null;
           this.communityAnnotationStartedAt = null;
           this.saveState();
+          if (data.reactomeFailed && data.gprofilerFailed) {
+            this.infoText = "Reactome and g:Profiler were not reachable, so neither was used for community annotation. Results below are based on node names only.";
+            this.infoType = "info";
+            this.showInfo = true;
+          } else if (data.reactomeFailed) {
+            this.infoText = "Reactome was not reachable, so it was not used for community annotation. Results below are based on g:Profiler only.";
+            this.infoType = "info";
+            this.showInfo = true;
+          } else if (data.gprofilerFailed) {
+            this.infoText = "g:Profiler was not reachable, so it was not used for community annotation. Results below are based on Reactome only.";
+            this.infoType = "info";
+            this.showInfo = true;
+          }
           return;
         }
         if (data.status === 'FAILURE') {
@@ -2880,19 +2900,25 @@ export default {
       // clears the constraint when entering rect/polygon mode and calls this again
       // to reassert it once back in zoom mode.
       if (this.selectionMode !== 'zoom') return;
-      // A displayed node (single- or double-clicked, shown in the Details panel)
-      // is an *exclusive* highlight -- just that node plus its direct neighbors
-      // (and, since selectPoints() also un-dims links between two selected
-      // points, the edges connecting them), standing in for whatever the real
-      // selectedNetworkNodes highlight would otherwise be. Clicking away from any
-      // node (background or an edge) clears displayedElement, which falls through
-      // to the real multi-select highlight again.
+      // A displayed node or edge (single- or double-clicked, shown in the Details panel)
+      // is an *exclusive* highlight -- the node plus its direct neighbors, or an edge's
+      // two endpoints (and, since selectPoints() also un-dims links between two selected
+      // points, the edge connecting them) -- standing in for whatever the real
+      // selectedNetworkNodes highlight would otherwise be. Clicking away from either
+      // (background) clears displayedElement, which falls through to the real
+      // multi-select highlight again.
       let selectedIndices;
       if (this.displayedElementType === 'node' && this.displayedElement) {
         const clickedIndex = this.indexToNodeId.indexOf(this.displayedElement.id);
         selectedIndices = clickedIndex === -1
           ? []
           : [clickedIndex, ...(this.cosmographInstance.getConnectedPointIndices(clickedIndex) || [])];
+      } else if (this.displayedElementType === 'edge' && this.displayedElement) {
+        // Same exclusive-highlight treatment for a clicked edge: select its two endpoint
+        // nodes so selectPoints() un-dims them plus the link between them (the edge itself).
+        const edge = this.displayedElement;
+        selectedIndices = [this.indexToNodeId.indexOf(edge.from), this.indexToNodeId.indexOf(edge.to)]
+          .filter((i) => i !== -1);
       } else {
         const ids = new Set(this.selectedNetworkNodes.map((n) => n.id));
         selectedIndices = Array.from(ids)

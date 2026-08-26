@@ -70,6 +70,7 @@
                 :hide-unconnected="hideUnconnected"
                 @update:hide-unconnected="onHideUnconnectedChange"
                 @save-image="saveNetworkImage"
+                @fit-view="resetView"
               >
                 <template #title>Differential Network</template>
                 <template #prepend>
@@ -720,6 +721,13 @@ export default {
     // centers the same way a node click does.
     centerOnEdge(sourceIndex, targetIndex) {
       this.cosmographInstance?.fitViewByIndices([sourceIndex, targetIndex], 700);
+    },
+
+    // Re-centers and zooms to fit the whole graph -- the toolbar's manual "Reset view"
+    // button, same fitView() Cosmograph already calls on its own once the simulation
+    // settles with nothing selected.
+    resetView() {
+      this.cosmographInstance?.fitView();
     },
 
     // Highlights the selected node plus all of its direct neighbors (or an edge's two endpoints),

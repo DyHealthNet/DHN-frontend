@@ -29,6 +29,13 @@
         <span class="text-caption">{{ physicsOn ? 'Disable Physics' : 'Enable Physics' }}</span>
       </template>
     </v-switch>
+    <v-tooltip text="Reset view" location="bottom">
+      <template v-slot:activator="{ props }">
+        <v-btn icon variant="text" v-bind="props" @click="$emit('fit-view')">
+          <v-icon>mdi-fit-to-page-outline</v-icon>
+        </v-btn>
+      </template>
+    </v-tooltip>
     <v-btn icon variant="text" @click="$emit('save-image')">
       <v-icon>mdi-camera</v-icon>
     </v-btn>
@@ -52,6 +59,6 @@ export default {
     hideUnconnected: { type: Boolean, default: false },
     showHideUnconnected: { type: Boolean, default: false },
   },
-  emits: ['update:physicsOn', 'update:hideUnconnected', 'save-image'],
+  emits: ['update:physicsOn', 'update:hideUnconnected', 'save-image', 'fit-view'],
 };
 </script>

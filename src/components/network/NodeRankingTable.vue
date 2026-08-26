@@ -20,7 +20,7 @@
       :search="search"
       :custom-key-filter="{ label: nodeSearchFilter }"
       filter-mode="union"
-      :sort-by="[{ key: 'rank', order: 'asc' }]"
+      :sort-by="[{ key: 'rank', order: 'asc' }, { key: 'degree', order: 'desc' }]"
       multi-sort
       items-per-page="10"
       :class="['node-ranking-table', { 'is-interactive': interactive }]"
@@ -114,7 +114,6 @@ export default {
   computed: {
     headers() {
       const headers = [
-        { title: '', key: 'selected', width: 48, sortable: false },
         { title: 'Rank', key: 'rank', width: 90, sort: numericSort },
         { title: 'Node', key: 'label' },
         { title: 'Group', key: 'group', width: 130 },
@@ -123,10 +122,10 @@ export default {
         { title: 'Description', key: 'description' },
       ];
       if (this.clusteringActive) {
-        headers.splice(4, 0, { title: 'Community', key: 'community', width: 130 });
+        headers.splice(3, 0, { title: 'Community', key: 'community', width: 130 });
       }
-      if (!this.interactive) {
-        return headers.filter((header) => header.key !== 'selected');
+      if (this.interactive) {
+        headers.push({ title: 'Select', key: 'selected', width: 70, sortable: false });
       }
       return headers;
     },

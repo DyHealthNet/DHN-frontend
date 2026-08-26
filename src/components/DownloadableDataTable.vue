@@ -1,7 +1,7 @@
 <template>
   <div class="downloadable-data-table">
     <div class="d-flex align-center justify-end mb-1" style="gap: 8px;">
-      <span v-if="multiSort" class="text-caption text-medium-emphasis">Ctrl/Cmd+click a column to sort by a second column too</span>
+      <span v-if="multiSort" class="text-caption text-medium-emphasis">Ctrl/Cmd+click a column to multi-sort by more than one column</span>
       <v-menu location="bottom end">
         <template v-slot:activator="{ props }">
           <v-btn
@@ -31,6 +31,7 @@
       @row-click="handleRowClick"
       :loading="loading"
       paginator
+      v-model:first="first"
       :rows="rows"
       :rows-per-page-options="rowsPerPageOptions"
       density="compact"
@@ -120,7 +121,21 @@ export default {
   data() {
     return {
       internalSortBy: this.sortBy.length ? [...this.sortBy] : [],
+      // PrimeVue's paginator keeps its own page position regardless of what data is passed
+      // in -- without resetting it here, swapping in a new/smaller `items` array (e.g. after
+      // switching context) or narrowing via search leaves the table stuck on whatever page it
+      // was last on, so the visible "Rank" column can start well past 1 even though rankEdges/
+      // computeWeightedDegree always number the underlying data starting at 1.
+      first: 0,
     };
+  },
+  watch: {
+    items() {
+      this.first = 0;
+    },
+    search() {
+      this.first = 0;
+    },
   },
   computed: {
     // itemsPerPage arrives as a string when callers pass it as a bare HTML attribute
