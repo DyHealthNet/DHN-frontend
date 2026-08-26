@@ -4,6 +4,7 @@
     :items="items"
     :loading="loading"
     :sort-by="[{ key: 'p_value', order: 'asc' }]"
+    multi-sort
     :filename="filename"
     no-data-text="No significant terms found."
   >

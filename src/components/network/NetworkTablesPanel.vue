@@ -14,7 +14,11 @@
           :nodes="graphNodes"
           :edges="graphEdges"
           interactive
+          :selected-node-ids="selectedNodeIds"
+          :clustering-active="clusteringActive"
+          :community-label-for="communityLabelFor"
           @select-node="$emit('select-node', $event)"
+          @toggle-select-node="$emit('toggle-select-node', $event)"
         />
       </v-window-item>
 
@@ -89,6 +93,10 @@ export default {
     graphEdges: { type: Array, default: () => [] },
     nodesById: { type: [Map, Object], default: () => new Map() },
 
+    selectedNodeIds: { type: Array, default: () => [] },
+    clusteringActive: { type: Boolean, default: false },
+    communityLabelFor: { type: Function, default: null },
+
     nodeEdgeTableVisible: { type: Boolean, default: false },
     nodeLabel: { type: String, default: '' },
     nodeEdgeTableItems: { type: Array, default: () => [] },
@@ -117,6 +125,7 @@ export default {
     'select-node',
     'select-edge',
     'select-neighbor',
+    'toggle-select-node',
     'run-community-annotation',
   ],
   computed: {

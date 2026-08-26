@@ -36,6 +36,8 @@
         :search="search"
         :custom-key-filter="{ identifier: variableSearchFilter }"
         filter-mode="union"
+        :sort-by="[{ key: 'identifier', order: 'asc' }]"
+        multi-sort
         :loading="loading"
         items-per-page="10"
         class="variable-catalog-table"

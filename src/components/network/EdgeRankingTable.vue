@@ -31,6 +31,7 @@
       :custom-key-filter="{ node1: edgeSearchFilter }"
       filter-mode="union"
       :sort-by="[{ key: 'rank', order: 'asc' }]"
+      multi-sort
       items-per-page="10"
       :class="['edge-ranking-table', { 'is-interactive': interactive }]"
       filename="edge-ranking.csv"

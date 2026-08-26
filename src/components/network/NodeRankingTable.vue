@@ -21,12 +21,19 @@
       :custom-key-filter="{ label: nodeSearchFilter }"
       filter-mode="union"
       :sort-by="[{ key: 'rank', order: 'asc' }]"
+      multi-sort
       items-per-page="10"
       :class="['node-ranking-table', { 'is-interactive': interactive }]"
       filename="node-ranking.csv"
       no-data-text="No nodes to rank."
       @click:row="onRowClick"
     >
+      <template v-if="interactive" v-slot:item.selected="{ item }">
+        <v-checkbox-btn
+          :model-value="selectedNodeIds.includes(item.id)"
+          @click.stop="$emit('toggle-select-node', item.id)"
+        ></v-checkbox-btn>
+      </template>
       <template v-slot:header.weightedDegree="{ column, getSortIcon }">
         <div class="v-data-table-header__content">
           <span>{{ column.title }}</span>
@@ -81,22 +88,48 @@ export default {
       type: Boolean,
       default: true,
     },
+    // Ids of nodes currently in the multi-node Selection list -- drives the checkbox column's
+    // checked state. Membership only, no need for full node objects here.
+    selectedNodeIds: {
+      type: Array,
+      default: () => [],
+    },
+    clusteringActive: {
+      type: Boolean,
+      default: false,
+    },
+    // (node) => label, e.g. "Community 3" -- only called while clusteringActive. Passed in
+    // rather than duplicated here so the label always matches the legend/coloring logic.
+    communityLabelFor: {
+      type: Function,
+      default: null,
+    },
   },
-  emits: ['select-node'],
+  emits: ['select-node', 'toggle-select-node'],
   data() {
     return {
       search: '',
-      headers: [
+    };
+  },
+  computed: {
+    headers() {
+      const headers = [
+        { title: '', key: 'selected', width: 48, sortable: false },
         { title: 'Rank', key: 'rank', width: 90, sort: numericSort },
         { title: 'Node', key: 'label' },
         { title: 'Group', key: 'group', width: 130 },
         { title: 'Degree', key: 'degree', width: 100, sort: numericSort },
         { title: 'Weighted Degree', key: 'weightedDegree', sort: numericSort },
         { title: 'Description', key: 'description' },
-      ],
-    };
-  },
-  computed: {
+      ];
+      if (this.clusteringActive) {
+        headers.splice(4, 0, { title: 'Community', key: 'community', width: 130 });
+      }
+      if (!this.interactive) {
+        return headers.filter((header) => header.key !== 'selected');
+      }
+      return headers;
+    },
     rankedNodes() {
       return computeWeightedDegree(this.nodes, this.edges);
     },
@@ -108,6 +141,7 @@ export default {
         ...node,
         label: node.display_name || node.id,
         group: node.source_table || node.subtype || '-',
+        community: this.clusteringActive && this.communityLabelFor ? this.communityLabelFor(node) : null,
       }));
     },
   },

@@ -26,6 +26,7 @@
       :custom-key-filter="{ edge: edgeSearchFilter }"
       filter-mode="union"
       :sort-by="[{ key: 'rank', order: 'asc' }]"
+      multi-sort
       :loading="loading"
       items-per-page="10"
       class="edge-rank-table"

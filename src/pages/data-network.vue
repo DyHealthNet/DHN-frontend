@@ -287,6 +287,13 @@
                       color="primary"
                       class="ml-2"
                     />
+                    <v-btn
+                      variant="tonal"
+                      color="primary"
+                      prepend-icon="mdi-vector-line"
+                      class="ml-2"
+                      @click="visualizationTab = 'tables'; tablesActiveTab = 'edgesOfNode';"
+                    >View edges in Tables</v-btn>
                   </template>
                   <template v-else-if="displayedElementType === 'edge'">
                     <EdgeDetails :getIcon="getIcon" :edge="displayedElement" :selectedTests="selectedTests"/>
@@ -710,6 +717,9 @@
                       :graph-nodes="graphNodes"
                       :graph-edges="graphEdges"
                       :nodes-by-id="nodesById"
+                      :selected-node-ids="selectedNetworkNodes.map(n => n.id)"
+                      :clustering-active="clusteringActive"
+                      :community-label-for="communityLabelFor"
                       :node-edge-table-visible="nodeEdgeTableVisible"
                       :node-label="displayedElement?.display_name"
                       :node-edge-table-items="nodeEdgeTableItems"
@@ -729,6 +739,7 @@
                       @select-node="jumpToSearchedNode"
                       @select-edge="jumpToEdgeSelection"
                       @select-neighbor="jumpToSearchedNode"
+                      @toggle-select-node="toggleNodeSelectionById"
                       @run-community-annotation="runCommunityAnnotation"
                     />
                   </v-card-text>
@@ -2103,7 +2114,6 @@ export default {
       this.applyDesign(false);
     },
     displayNode(node) {
-      this.tablesActiveTab = 'edgesOfNode';
       node.type = this.getPrettyType(node.source_table);
       this.displayedElement = node;
       this.displayedElementType = "node";
@@ -2137,6 +2147,30 @@ export default {
         this.selectedNetworkNodes.splice(index, 1);
       }
       this.checkSelectAll();
+    },
+    // Selection checkbox in the Node Ranking table -- adds/removes a node from
+    // selectedNetworkNodes directly, without going through the Details panel's
+    // displayedElement/isDetailsNodeSelected pair.
+    toggleNodeSelectionById(nodeId) {
+      const node = this.graphNodes.find((n) => n.id === nodeId);
+      if (!node) return;
+      const index = this.selectedNetworkNodes.findIndex((n) => n.id === nodeId);
+      if (index === -1) {
+        this.selectedNetworkNodes.push(node);
+      } else {
+        this.selectedNetworkNodes.splice(index, 1);
+      }
+      if (this.displayedElement?.id === nodeId) {
+        this.isDetailsNodeSelected = index === -1;
+      }
+      this.applyDesign();
+      this.checkSelectAll();
+    },
+    // (node) => "Community 3" while clustering is active -- reuses the same key/label logic
+    // the legend and point coloring already agree on, so the Node Ranking table's Community
+    // column never disagrees with what's shown elsewhere.
+    communityLabelFor(node) {
+      return this.legendLabel(this.legendKeyFor(node));
     },
     toggleALLNetworkNodeSelection(){
       if(this.selectAll) {

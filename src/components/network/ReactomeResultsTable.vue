@@ -4,6 +4,7 @@
     :items="tableItems"
     :loading="loading"
     :sort-by="[{ key: 'pValue', order: 'asc' }]"
+    multi-sort
     :filename="filename"
     no-data-text="No significant pathways found."
   >

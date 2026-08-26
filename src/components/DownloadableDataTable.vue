@@ -1,6 +1,7 @@
 <template>
   <div class="downloadable-data-table">
-    <div class="d-flex justify-end mb-1">
+    <div class="d-flex align-center justify-end mb-1" style="gap: 8px;">
+      <span v-if="multiSort" class="text-caption text-medium-emphasis">Ctrl/Cmd+click a column to sort by a second column too</span>
       <v-menu location="bottom end">
         <template v-slot:activator="{ props }">
           <v-btn
