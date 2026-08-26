@@ -45,6 +45,7 @@
       v-model.number="lowerBound"
       type="number"
       :rules="[v => v >= possibleValues[0] || `No values less than ${possibleValues[0]}`]"
+      :readonly="disableSelections"
       variant="outlined"
       density="compact"
      >
@@ -54,6 +55,7 @@
       v-model.number="upperBound"
       type="number"
       :rules="[v => v <= possibleValues[1] || `No values greater than ${possibleValues[1]}`]"
+      :readonly="disableSelections"
       variant="outlined"
       density="compact"
     >

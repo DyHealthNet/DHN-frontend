@@ -1,5 +1,5 @@
 <template>
-    <v-container class="text-center">
+    <v-container class="page-container text-center">
     <v-row class="d-flex align-center justify-center">
       <v-col cols="12">
         <h1 class="title mt-4">Sign in</h1>
@@ -11,7 +11,7 @@
       </v-col>
     </v-row>
   </v-container>
-  <v-container class="d-flex text-center justify-center mt-4">
+  <v-container class="page-container d-flex text-center justify-center mt-4">
 
     <!-- Tabs -->
     <v-card width="50%" rounded="lg" elevation="1" >
@@ -262,8 +262,13 @@ export default {
               // (actually not even necessary as redirection to login restricted page should ensure another checkLogin call)
               //authState.isLoggedIn = true;
               await checkLogin();
-              // Redirect to the desired route if login is successful
-              await router.push({name: 'Context creation'});
+              // Redirect to the page the user was sent from, or home if they navigated here directly
+              const redirect = this.$route.query.redirect;
+              if (redirect) {
+                await router.push(redirect);
+              } else {
+                await router.push({ name: 'Home' });
+              }
             } else {
                 this.taskStarted = true;
                 this.taskInfo = "Username or password incorrect.";

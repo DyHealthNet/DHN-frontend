@@ -1,28 +1,28 @@
 <template>
-  <v-app>
-    <v-main>
-      <v-container class="text-center">
-        <v-row>
-          <v-col cols="12">
-            <h1 class="title mt-4">Data Overview</h1>
+  <v-container class="overview-page page-container py-10">
+    <v-row>
+      <v-col cols="12">
+            <div class="hero">
+              <div>
+                <p class="eyebrow">Overview</p>
+                <h1 class="title">Data Overview</h1>
+                <p class="subtitle">
+                  Get a comprehensive understanding of the data variables through diverse visualizations.
+                </p>
+              </div>
+            </div>
           </v-col>
         </v-row>
 
-        <v-row>
-          <v-col class="d-flex justify-center">
-            <v-divider class="my-2" thickness="2"></v-divider>
-          </v-col>
-        </v-row>
-      </v-container>
-
-      <v-container class="justify-center mt-4">
-        <FilterToolbar @change-context="updateData"></FilterToolbar>
+        <div class="filter-toolbar-slot">
+          <FilterToolbar @change-context="updateData"></FilterToolbar>
+        </div>
 
         <!--Variable Counts-->
         <v-card outlined>
           <v-toolbar color="primary-darken-1" density="compact">
             <v-toolbar-title>
-              Variable Summary
+              Cohort Overview
               <v-tooltip bottom>
                 <template v-slot:activator="{ props }">
                   <v-icon v-bind="props">mdi-information</v-icon>
@@ -69,6 +69,26 @@
             </v-card>
           </v-tabs-window>
         </v-card>
+        <v-spacer class="my-10"></v-spacer>
+        <!--Variable Overview-->
+        <VariableCatalogTable
+            :context-value="contextValue"
+            :active-identifiers="addedIdentifiers"
+            @add-variable="addVariablePlot"
+        ></VariableCatalogTable>
+
+        <div class="text-center ma-2">
+          <v-snackbar
+              v-model="showVariablePlotMessage"
+              color="warning"
+          >
+            <v-icon class="my-0 mr-2">mdi-information-outline</v-icon>
+            Data Overview panel is full (40 plots) — remove or replace one before adding another.
+            <template v-slot:actions>
+              <v-btn variant="text" @click="showVariablePlotMessage = false">Close</v-btn>
+            </template>
+          </v-snackbar>
+        </div>
         <v-spacer class="my-10"></v-spacer>
         <!--Tab bar-->
         <v-card outlined>
@@ -136,7 +156,7 @@
                         <!-- Number of Columns Slider -->
                         <v-col cols="6">
                           <p>Number of Columns for Row {{ row }}</p>
-                          <v-slider v-model="plotCols[row - 1]" max="4" min="1" step="1">
+                          <v-slider v-model="plotCols[row - 1]" max="4" min="1" step="1" @update:modelValue="pruneRowSlots(row)">
                             <template v-slot:append>
                               <v-text-field
                                   v-model="plotCols[row - 1]"
@@ -222,9 +242,13 @@
                 <PlotComponent
                     ref="plotComponents"
                     :id="'plot-' + row + '-' + col"
+                    :key="slotKey(row, col) + ':' + (slotContents[slotKey(row, col)]?.xVariable || '')"
                     :contextValue="contextValue"
                     :paletteCA="userSelectedPaletteCa"
                     :paletteCO="userSelectedPaletteCo"
+                    :initial-plot-type="slotContents[slotKey(row, col)]?.plotType"
+                    :initial-x-variable="slotContents[slotKey(row, col)]?.xVariable"
+                    @remove="removePlot(row, col)"
                 >
                 </PlotComponent>
                 <v-divider thickness="2"></v-divider>
@@ -253,14 +277,13 @@
           </div>
 
         </v-card>
-      </v-container>
-    </v-main>
-  </v-app>
+  </v-container>
 </template>
 
 <script>
 import {BASE_URL} from "../components/constants.js";
 import PlotComponent from "@/components/plots/PlotComponent.vue";
+import VariableCatalogTable from "@/components/plots/VariableCatalogTable.vue";
 
 
 import FilterToolbar from "@/components/FilterToolbar.vue";
@@ -275,6 +298,7 @@ export default {
   components: {
     FilterToolbar,
     PlotComponent,
+    VariableCatalogTable,
     ColorPalette
   },
   data() {
@@ -292,6 +316,12 @@ export default {
 
       // context value
       contextValue: null,
+
+      // Variable Overview table clicks fill slots in the Data Overview grid below
+      // (keyed 'row-col', matching that grid's plotRows/plotCols loop) instead of a
+      // separate grid -- {plotType, xVariable} per occupied slot.
+      slotContents: {},
+      showVariablePlotMessage: false,
 
       // options
       showLoading: isLoading,
@@ -321,11 +351,172 @@ export default {
     await this.getTableDataFromApi();
   },
 
+  computed: {
+    addedIdentifiers() {
+      return Object.values(this.slotContents).map((slot) => slot.xVariable);
+    },
+  },
 
   // +++++++++++ Methods ++++++++++++++
   methods: {
 
+    slotKey(row, col) {
+      return `${row}-${col}`;
+    },
+
+    // Fills the first empty slot in the existing Data Overview grid (in its current
+    // row/column configuration, row-wise). If the grid is already full it grows it --
+    // one more column on the last row (up to 4), else one more row (up to 10, defaulting
+    // to a single column) -- mirroring that grid's own max-4-cols/max-10-rows sliders,
+    // and only shows the "full" message once that ceiling (40 slots) is actually hit.
+    addVariablePlot({identifier, plotType}) {
+      const refs = this.$refs.plotComponents || [];
+
+      // A variable can already be plotted either because it was added from this table, or
+      // because the user picked it manually via a cell's own settings dialog -- check the live
+      // instances (not just slotContents, which only records what this table has placed) so a
+      // re-click on an already-plotted variable is a safe no-op either way.
+      if (refs.some((r) => r.selectedXVariable === identifier)) {
+        return;
+      }
+
+      // Likewise, find the first slot that's genuinely empty right now. A manually-configured
+      // slot was never recorded in slotContents, so trusting slotContents here could pick an
+      // occupied slot and silently overwrite the user's manual choice.
+      const emptyRef = refs.find((r) => !r.selectedPlotType);
+      let targetKey;
+      if (emptyRef) {
+        const id = emptyRef.id || emptyRef.$props?.id;
+        const [, row, col] = String(id).split('-');
+        targetKey = this.slotKey(row, col);
+      } else {
+        // No existing "+" placeholder anywhere -- but a row can still have spare room even
+        // without one (e.g. row 2 sitting at 2/4 columns while a later row is already full),
+        // so grow the *earliest* row that has fewer than 4 columns rather than always the
+        // last one, and only add a whole new row once every existing row is maxed out.
+        let growRow = null;
+        for (let row = 1; row <= this.plotRows; row++) {
+          if ((this.plotCols[row - 1] || 1) < 4) {
+            growRow = row;
+            break;
+          }
+        }
+
+        if (growRow !== null) {
+          const newCol = (this.plotCols[growRow - 1] || 1) + 1;
+          this.plotCols[growRow - 1] = newCol;
+          targetKey = this.slotKey(growRow, newCol);
+        } else if (this.plotRows < 10) {
+          this.plotRows += 1;
+          this.plotCols[this.plotRows - 1] = 1;
+          if (!this.plotHeights[this.plotRows - 1]) {
+            this.plotHeights[this.plotRows - 1] = 600;
+          }
+          targetKey = this.slotKey(this.plotRows, 1);
+        } else {
+          this.showVariablePlotMessage = true;
+          return;
+        }
+      }
+
+      // Assigning here changes this slot's :key (row-col + xVariable), forcing Vue to remount
+      // a fresh PlotComponent so initial-plot-type/initial-x-variable seed cleanly via data().
+      // Mutating an already-mounted instance's selectedPlotType instead would trigger its own
+      // watcher (which resets selectedXVariable when switching to/from Density) and clobber
+      // the value being set here.
+      this.slotContents[targetKey] = {plotType, xVariable: identifier};
+    },
+
+    plotRef(row, col) {
+      const refs = this.$refs.plotComponents || [];
+      const id = `plot-${row}-${col}`;
+      return refs.find((ref) => (ref.id || ref.$props?.id) === id);
+    },
+
+    slotOccupied(row, col) {
+      if (this.slotContents[this.slotKey(row, col)]) {
+        return true;
+      }
+      const ref = this.plotRef(row, col);
+      return !!(ref && ref.selectedPlotType);
+    },
+
+    // Drops trailing empty columns from a row (down to a floor of 1 so the ":cols" binding
+    // never divides by zero), and drops the row itself if it's the trailing row and now
+    // completely empty. Only ever touches the *end* of a row/grid -- removing a slot or row
+    // in the middle would require re-indexing every later slotContents key, plotCols/
+    // plotHeights entry and PlotComponent id, which this grid (and the download feature's
+    // id parsing) doesn't support.
+    shrinkRowIfEmpty(row) {
+      let rowCols = this.plotCols[row - 1] || 1;
+      while (rowCols > 1 && !this.slotOccupied(row, rowCols)) {
+        rowCols -= 1;
+        this.plotCols[row - 1] = rowCols;
+      }
+      if (row === this.plotRows && this.plotRows > 1 && !this.slotOccupied(row, 1)) {
+        this.plotRows -= 1;
+      }
+    },
+
+    // Called when a PlotComponent's own remove button is clicked (see PlotComponent.vue's
+    // removePlot, which clears itself and emits). If this slot was added from the Variable
+    // Overview table, shift every later *tracked* slot in the row left to close the gap --
+    // stopping at the first untracked slot, since that's either genuinely empty (nothing
+    // left to shift) or a plot configured manually via its own settings dialog (never
+    // recorded in slotContents, so it can't be safely moved without losing its config, and
+    // must never be overwritten). Then shrink the row/grid if that emptied its tail.
+    async removePlot(row, col) {
+      const key = this.slotKey(row, col);
+      if (this.slotContents[key]) {
+        delete this.slotContents[key];
+        const rowCols = this.plotCols[row - 1] || 1;
+        let writeCol = col;
+        for (let c = col + 1; c <= rowCols; c++) {
+          const fromKey = this.slotKey(row, c);
+          if (!this.slotContents[fromKey]) {
+            break;
+          }
+          this.slotContents[this.slotKey(row, writeCol)] = this.slotContents[fromKey];
+          delete this.slotContents[fromKey];
+          writeCol += 1;
+        }
+      }
+
+      // Wait for the shift above (and the child's own clear) to actually re-render --
+      // slotContents changes force affected cells to remount via their :key -- before
+      // inspecting live refs in shrinkRowIfEmpty, otherwise that check would read stale,
+      // pre-shift instances.
+      await this.$nextTick();
+      this.shrinkRowIfEmpty(row);
+    },
+
+    // Clears slotContents for a row's columns beyond its current count, so shrinking a
+    // row via its "Number of Columns" slider actually deletes that plot instead of just
+    // hiding it -- otherwise growing the row back would resurrect the stale plot at its
+    // old key (see updatePlotColsHeights, which does the same for whole rows).
+    pruneRowSlots(row) {
+      const cols = this.plotCols[row - 1] || 1;
+      for (const key of Object.keys(this.slotContents)) {
+        const [r, c] = key.split('-').map(Number);
+        if (r === row && c > cols) {
+          delete this.slotContents[key];
+        }
+      }
+    },
+
     updatePlotColsHeights() {
+      // Drop slot data for rows beyond the new row count, and truncate the per-row config
+      // arrays to match, so shrinking the row count then growing it back never resurrects
+      // a stale plot.
+      for (const key of Object.keys(this.slotContents)) {
+        const [row] = key.split('-').map(Number);
+        if (row > this.plotRows) {
+          delete this.slotContents[key];
+        }
+      }
+      this.plotCols.length = this.plotRows;
+      this.plotHeights.length = this.plotRows;
+
       for (let row = 0; row < this.plotRows; row++) {
         if (!this.plotCols[row]) {
           this.plotCols[row] = 1;
@@ -360,9 +551,11 @@ export default {
         }
         const data = await response.json();
 
-        const rows = Object.entries(data).map(([key, value]) => {
-          return {name: key, column1: value};
-        });
+        const rows = Object.entries(data)
+            .filter(([key]) => key !== 'preservePrivacy')
+            .map(([key, value]) => {
+              return {name: key, column1: value};
+            });
 
         if (rows.length === 0) {
           console.error("No data found in the response");
@@ -418,6 +611,10 @@ export default {
 
     async updateData(val) {
       this.contextValue = val ? val.value : null;
+      // The variable catalog is rebuilt for the new context, and a variable added from it may
+      // not exist under the new one -- forget slots we placed (any plot the user configured
+      // manually via a cell's own settings dialog is untouched, since we never tracked those).
+      this.slotContents = {};
       await this.getTableDataFromApi();
     },
 
@@ -601,12 +798,37 @@ export default {
 
 <style scoped>
 
-.title {
-  font-size: 2rem;
+.overview-page {
+  min-height: calc(100vh - 220px);
 }
 
-.v-container {
-  max-width: min(95%, 2500px);
+.hero {
+  padding: 2rem;
+  border-radius: 4px;
+  background: linear-gradient(135deg, rgba(25, 118, 210, 0.12), rgba(17, 24, 39, 0.04));
+  border: 1px solid rgba(25, 118, 210, 0.16);
+}
+
+.eyebrow {
+  margin: 0 0 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgb(var(--v-theme-primary-darken-1));
+}
+
+.title {
+  margin: 0;
+  font-size: 2.5rem;
+  line-height: 1.05;
+}
+
+.subtitle {
+  margin-top: 0.9rem;
+  max-width: 720px;
+  font-size: 1.02rem;
+  opacity: 0.82;
 }
 
 @media (max-width: 2500px) {

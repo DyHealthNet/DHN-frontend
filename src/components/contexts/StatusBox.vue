@@ -44,26 +44,22 @@ export default {
     remove: {
       type: String,
       required: false,
+    },
+    rounded: {
+      type: Boolean,
+      default: false,
     }
   },
   name: 'StatusBox',
-  data() {
-    return {
-      tooltipText: 'Rounded number of participants in your context',
-      // make the icon spin if the title is 'In Progress'
-    };
-  },
-  methods: {
-    disableTooltip() {
-      if (this.subtitle !== 'Participants') {
-        this.tooltipText = 'Status of the context calculation';
-      }
-    },
-  },
-  created() {
-    this.disableTooltip();
-  },
   computed: {
+    tooltipText() {
+      if (this.subtitle !== 'Participants') {
+        return 'Status of the context calculation';
+      }
+      return this.rounded
+          ? 'Rounded number of participants in your context, to protect privacy'
+          : 'Number of participants in your context';
+    },
     iconClasses() {
       return {
         'justify-center': true,

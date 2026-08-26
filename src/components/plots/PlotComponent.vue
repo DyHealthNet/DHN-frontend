@@ -5,6 +5,8 @@
         <!--Button-->
         <v-btn class="plot-settings-btn" icon="mdi-cog-outline" size="small" variant="tonal"
                @click="plotOptions = true"></v-btn>
+        <v-btn v-if="!showNewPlot" class="plot-remove-btn" icon="mdi-close" size="small" variant="tonal"
+               @click="removePlot"></v-btn>
       </v-col>
       <v-col>
         <!-- Render CustomBarPlot ONLY if selectedPlotType is 'Bar' -->
@@ -281,6 +283,7 @@ export default {
     OverviewPie,
     OverviewDensity
   },
+  emits: ['remove'],
   props: {
     id: {
       type: Number,
@@ -297,6 +300,17 @@ export default {
     paletteCO: {
       type: String,
       required: false,
+    },
+    // Optional pre-seeded plot type + X variable, so a caller can drop in a fully
+    // configured plot instead of the user manually going through the "+" dialog
+    // (e.g. clicking a variable in VariableCatalogTable).
+    initialPlotType: {
+      type: String,
+      default: null,
+    },
+    initialXVariable: {
+      type: String,
+      default: null,
     }
   },
 
@@ -312,7 +326,7 @@ export default {
       yItems: [],
       cItems: [],
 
-      selectedXVariable: null,
+      selectedXVariable: this.initialXVariable,
       selectedYVariable: null,
       selectedCVariable: null,
       selectedBarPlotType: "Grouped",
@@ -323,7 +337,7 @@ export default {
 
       plotTypes: ["Bar", "Box", "Line", "Heatmap", "Pie", "Density"],
 
-      selectedPlotType: null,
+      selectedPlotType: this.initialPlotType,
 
       xVarTypes: {
         "Bar": "Categorical",
@@ -397,7 +411,30 @@ export default {
         this.loadVariablesToAutoComplete();
       }
 
-    }
+    },
+
+    // the variable catalog is scoped to the active context - refetch it whenever the
+    // context changes (including the very first time one gets picked), and drop back to
+    // the empty "+" placeholder if whatever's currently plotted isn't in the new context,
+    // rather than silently keep showing an out-of-context variable.
+    async contextValue() {
+      await this.getAllVariables();
+      this.loadVariablesToAutoComplete();
+
+      const validX = new Set(this.xItems);
+      const validY = new Set(this.yItems);
+      const validC = new Set(this.cItems);
+      const xStillValid = !this.selectedXVariable || validX.has(this.selectedXVariable);
+      const yStillValid = !this.selectedYVariable || validY.has(this.selectedYVariable);
+      const cStillValid = !this.selectedCVariable || validC.has(this.selectedCVariable);
+
+      if (!xStillValid || !yStillValid || !cStillValid) {
+        this.selectedPlotType = null;
+        this.selectedXVariable = null;
+        this.selectedYVariable = null;
+        this.selectedCVariable = null;
+      }
+    },
   },
 
   computed: {
@@ -571,6 +608,16 @@ export default {
       }
     },
 
+    // Clears this cell back to its empty "+" placeholder and lets the parent grid know, so
+    // it can shift/shrink around the gap (see data-overview.vue's removePlot).
+    removePlot() {
+      this.selectedPlotType = null;
+      this.selectedXVariable = null;
+      this.selectedYVariable = null;
+      this.selectedCVariable = null;
+      this.$emit('remove');
+    },
+
     // Helper functions to prevent that a variable of the wrong type stays being selected
     isHeatmap(type) {
       return type === "Heatmap";
@@ -631,6 +678,13 @@ export default {
   margin-top: 5px;
   margin-bottom: -5px;
 
+}
+
+.plot-remove-btn {
+  background-color: rgb(var(--v-theme-error)) !important;
+  color: rgb(var(--v-theme-white-surface)) !important;
+  margin-left: 5px;
+  margin-top: 10px;
 }
 
 .overlay {

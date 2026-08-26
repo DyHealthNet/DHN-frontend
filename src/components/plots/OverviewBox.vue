@@ -3,6 +3,18 @@
     <v-progress-circular indeterminate color="primary" size="60"></v-progress-circular>
   </v-overlay>
 
+  <v-alert
+      v-if="privacyWarning"
+      type="warning"
+      density="compact"
+      variant="tonal"
+      closable
+      class="mb-2"
+      @click:close="privacyWarning = null"
+  >
+    {{ privacyWarning }}
+  </v-alert>
+
   <div ref="PlotlyBoxChart"></div>
 
 
@@ -52,9 +64,32 @@ export default {
       type: String,
       required: false,
     },
+    // Optional display labels for the axis titles (xVar/yVar are raw variable ids, used for
+    // the actual data query) -- defaults to xVar/yVar when not given, so existing callers
+    // that don't pass these keep seeing exactly what they do today.
+    xLabel: {
+      type: String,
+      default: null,
+    },
+    yLabel: {
+      type: String,
+      default: null,
+    },
+    // Required unless context1+context2 (below) are both given instead.
     contextValue: {
       type: [Number, null],
-      required: true,
+      default: null,
+    },
+    // Optional two-context comparison mode: when both are set, contextValue/cVar are
+    // ignored and the backend instead groups by a synthetic 'context' column (see
+    // GetDataBoxPlotView) -- rendered as a normal cVar-grouped boxplot, context as the group.
+    context1: {
+      type: Object,
+      default: null,
+    },
+    context2: {
+      type: Object,
+      default: null,
     },
     palette: {
       type: String,
@@ -83,16 +118,17 @@ export default {
       showMessage: false,
       messageInfo: null,
       messageType: "",
+      privacyWarning: null,
 
     };
   },
 
+  // A single watcher on the combined fetch-relevant props, rather than one watcher per prop
+  // -- when several of these change together in the same tick (e.g. selecting a new edge
+  // changes both xVar and yVar at once), Vue batches the computed's re-evaluation and this
+  // watcher into a single flush, so exactly one fetch fires instead of one per prop that moved.
   watch: {
-    xVar: "fetchAndUpdateChart",
-    yVar: "fetchAndUpdateChart",
-    cVar: "fetchAndUpdateChart",
-    contextValue: "fetchAndUpdateChart",
-    palette: "fetchAndUpdateChart",
+    fetchDeps: "fetchAndUpdateChart",
     textSize: "renderPlot",
     width: "renderPlot",
     height: "renderPlot",
@@ -106,7 +142,28 @@ export default {
   computed: {
     showLoadingBox() {
       return loadingStates.value.isLoadingBox; // Directly reactive to `loadingStates`
-    }
+    },
+    compareMode() {
+      return !!(this.context1 && this.context2);
+    },
+    // Whether the response has multiple (grouped) datasets to render as one trace each,
+    // vs. a single "Whole Cohort" dataset -- true for a real cVar or context comparison.
+    grouped() {
+      return this.compareMode || (this.cVar && this.cVar !== "None");
+    },
+    // Bundles every prop that should trigger a re-fetch into one reactive value, so the
+    // watcher below fires once per batch of prop changes instead of once per individual prop.
+    fetchDeps() {
+      return [
+        this.xVar,
+        this.yVar,
+        this.cVar,
+        this.contextValue,
+        this.context1?.contextValue,
+        this.context2?.contextValue,
+        this.palette,
+      ];
+    },
   },
 
   methods: {
@@ -170,11 +227,16 @@ export default {
         const url = new URL("/plotting/api/plotDataBoxPlot/", BASE_URL);
         url.searchParams.append("x", this.xVar);
         url.searchParams.append("y", this.yVar);
-        if (this.cVar) {
-          url.searchParams.append("c", this.cVar);
-        }
-        if (this.contextValue) {
-          url.searchParams.append("contextValue", String(this.contextValue));
+        if (this.compareMode) {
+          url.searchParams.append("contextValue1", String(this.context1.contextValue));
+          url.searchParams.append("contextValue2", String(this.context2.contextValue));
+        } else {
+          if (this.cVar) {
+            url.searchParams.append("c", this.cVar);
+          }
+          if (this.contextValue) {
+            url.searchParams.append("contextValue", String(this.contextValue));
+          }
         }
         if (this.palette) {
           url.searchParams.append("colors", String(this.palette))
@@ -194,6 +256,8 @@ export default {
         );
         const data = await response.json();
 
+        this.privacyWarning = data.warning || null;
+
         const filteredData = {
           labels: [],
           datasets: data.datasets.map((dataset) => ({
@@ -208,9 +272,10 @@ export default {
         for (let i = 0; i < data.labels.length; i++) {
           let validLabel = false;
 
-          // Check if all boxplots are invalid
+          // Check if all boxplots are invalid (min === null means privacy-suppressed/no data;
+          // min === 0 is a legitimate value and must not be treated as invalid)
           const allBoxplotsInvalid = data.datasets.every(
-              (dataset) => !dataset.data[i].min
+              (dataset) => dataset.data[i].min === null
           );
 
           // if not, retain the label
@@ -223,7 +288,7 @@ export default {
 
               filteredData.datasets[datasetIndex].data.push(boxplot);
 
-              if (!boxplot.min) {
+              if (boxplot.min === null) {
                 console.log(
                     "Data for label",
                     data.labels[i],
@@ -247,7 +312,11 @@ export default {
         );
 
         if (dataRemoved || dataNanMarker) {
-          this.showPopup = true;
+          this.showMessage = true;
+          this.messageType = "warning";
+          this.messageInfo = dataRemoved
+              ? "Some categories were hidden because there was no data to display for them."
+              : "Some data points could not be displayed due to insufficient data (privacy protection).";
         }
 
         // Transform data for Plotly
@@ -269,7 +338,7 @@ export default {
       console.log("API labels: ", labels);
 
       // Transform datasets into Plotly-compatible format
-      if (!this.cVar || this.cVar === "None") {
+      if (!this.grouped) {
         let entry;
         entry = datasets[0]
         // Iterate over data with integer value
@@ -318,7 +387,7 @@ export default {
 
         // Configure layout
         this.plotLayout = {
-          boxmode: this.cVar ? "group" : "overlay",
+          boxmode: this.grouped ? "group" : "overlay",
           boxmean: true,
           title: {
             text: "",
@@ -336,7 +405,7 @@ export default {
           },
           xaxis: {
             title: {
-              text: this.xVar,
+              text: this.xLabel || this.xVar,
               font: {
                 size: this.textSize,
                 color: this.labelColor(),
@@ -350,7 +419,7 @@ export default {
           },
           yaxis: {
             title: {
-              text: this.yVar,
+              text: this.yLabel || this.yVar,
               font: {
                 size: this.textSize,
                 color: this.labelColor(),

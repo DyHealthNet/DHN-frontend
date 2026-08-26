@@ -3,6 +3,18 @@
     <v-progress-circular indeterminate color="primary" size="60"></v-progress-circular>
   </v-overlay>
 
+  <v-alert
+      v-if="privacyWarning"
+      type="warning"
+      density="compact"
+      variant="tonal"
+      closable
+      class="mb-2"
+      @click:close="privacyWarning = null"
+  >
+    {{ privacyWarning }}
+  </v-alert>
+
   <div ref="PlotlyBarChart"></div>
 
 
@@ -48,9 +60,21 @@ export default {
       type: String,
       required: false,
     },
+    // Required unless context1+context2 (below) are both given instead.
     contextValue: {
       type: [Number, null],
-      required: true,
+      default: null,
+    },
+    // Optional two-context comparison mode: when both are set, contextValue/cVar are
+    // ignored and the backend instead groups by a synthetic 'context' column (see
+    // GetDataBarCountView), rendered as a normal cVar-grouped bar chart, context as the group.
+    context1: {
+      type: Object,
+      default: null,
+    },
+    context2: {
+      type: Object,
+      default: null,
     },
     barType: {
       type: String,
@@ -87,6 +111,7 @@ export default {
       showMessage: false,
       messageInfo: null,
       messageType: "",
+      privacyWarning: null,
 
       //showLoadingBar: loadingStates.value["isLoadingBar"],
 
@@ -97,6 +122,8 @@ export default {
     xVar: "fetchAndUpdateChart",
     cVar: "fetchAndUpdateChart",
     contextValue: "fetchAndUpdateChart",
+    "context1.contextValue": "fetchAndUpdateChart",
+    "context2.contextValue": "fetchAndUpdateChart",
     palette: "fetchAndUpdateChart",
     textSize: "renderPlot",
     width: "renderPlot",
@@ -113,7 +140,10 @@ export default {
   computed: {
     showLoadingBar() {
       return loadingStates.value.isLoadingBar; // Directly reactive to `loadingStates`
-    }
+    },
+    compareMode() {
+      return !!(this.context1 && this.context2);
+    },
   },
 
   methods: {
@@ -174,11 +204,16 @@ export default {
       try {
         const url = new URL("/plotting/api/plotDataBarCount/", BASE_URL);
         url.searchParams.append("x", this.xVar);
-        if (this.cVar) {
-          url.searchParams.append("c", this.cVar);
-        }
-        if (this.contextValue) {
-          url.searchParams.append("contextValue", String(this.contextValue));
+        if (this.compareMode) {
+          url.searchParams.append("contextValue1", String(this.context1.contextValue));
+          url.searchParams.append("contextValue2", String(this.context2.contextValue));
+        } else {
+          if (this.cVar) {
+            url.searchParams.append("c", this.cVar);
+          }
+          if (this.contextValue) {
+            url.searchParams.append("contextValue", String(this.contextValue));
+          }
         }
         if (this.palette) {
           url.searchParams.append("colors", String(this.palette))
@@ -198,6 +233,8 @@ export default {
         );
         this.data = await response.json();
 
+        this.privacyWarning = this.data.warning || null;
+
         // Transform data for Plotly
         this.transformDataForPlotly();
       } catch (error) {
@@ -213,7 +250,7 @@ export default {
       // Transform datasets into Plotly-compatible format
       this.plotData = datasets.map((dataset) => {
         let y;
-        if (this.cVar) {
+        if (this.cVar || this.compareMode) {
           y = dataset.data.map(point => point.y)
         } else {
           y = dataset.data

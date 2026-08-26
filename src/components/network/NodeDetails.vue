@@ -20,20 +20,22 @@
       <span class="display-name">{{ node.display_name }}</span></p>
     <p><span class="label">Description:</span> <br>
       <span class="value">{{ node.description }}</span></p>
+    <p v-if="node.subtype"><span class="label">Subtype:</span> <br>
+      <span class="value">{{ node.subtype }}</span></p>
       <p title="We use Uniprot for proteins, HMDB for metabolites and SNOMED for phenotypes">
-        <span v-if="node.x_refs && node.x_refs.length">
+        <span v-if="validXrefs.length">
           <span class="label">Reference:</span><br>
           <v-chip
-            v-for="(xref, index) in node.x_refs.split('|')"
+            v-for="(xref, index) in validXrefs"
             :key="index"
-            :class="{'me-2': index < node.x_refs.split('|').length - 1}"
+            :class="{'me-2': index < validXrefs.length - 1}"
             class="custom-chip"
             color="node-logo-background"
             outlined
             small
           >
-            <a :href="generateLink(xref.trim())" target="_blank" class="custom-link">
-              {{ xref.trim() }}
+            <a :href="xref.url" target="_blank" class="custom-link">
+              {{ xref.label }}
             </a>
           </v-chip>
         </span>
@@ -61,33 +63,65 @@ export default {
     node: Object,
     getIcon: Function,
   },
+  computed: {
+    // xrefs are usually a bare accession (e.g. "P02768", "HMDB0001539",
+    // multiple values ";"-separated) routed to the database matching the
+    // node's own type. A few datasets still carry the legacy "db.accession"
+    // form (values "|"-separated); that's only kept if the embedded db
+    // matches the node's own type too. Anything that doesn't resolve to a
+    // valid-looking id for the node's target database is dropped instead of
+    // falling back to a dead "#" link.
+    validXrefs() {
+      if (!this.node.x_refs || !this.node.x_refs.length) return [];
+      const targetDb = this.targetDbForType(this.node.type);
+      return this.node.x_refs
+        .split(/[;|]/)
+        .map((xref) => xref.trim())
+        .filter(Boolean)
+        .map((xref) => this.resolveXref(xref, targetDb))
+        .filter(Boolean);
+    },
+  },
   methods: {
-    generateLink(xref) {
-      switch (xref.split(".")[0]) {
+    targetDbForType(type) {
+      const t = (type || "").toLowerCase();
+      if (t.includes("protein")) return "uniprot";
+      if (t.includes("metabolite")) return "hmdb";
+      if (t.includes("phenotype")) return "snomedct";
+      return null;
+    },
+    resolveXref(xref, targetDb) {
+      let db = targetDb;
+      let id = xref;
+      if (xref.includes(".")) {
+        const [prefix, ...rest] = xref.split(".");
+        db = prefix.toLowerCase();
+        id = rest.join(".");
+        if (targetDb && db !== targetDb) return null;
+      }
+      if (!db || !id) return null;
+      const url = this.buildUrl(db, id);
+      return url ? { label: xref, url } : null;
+    },
+    buildUrl(db, id) {
+      switch (db) {
         case "uniprot":
-          return `https://www.uniprot.org/uniprotkb/${xref.split(".")[1]}`;
+          return /^[A-Z0-9]{6,10}(-\d+)?$/i.test(id)
+            ? `https://www.uniprot.org/uniprotkb/${id}`
+            : null;
         case "hmdb":
-          return `https://hmdb.ca/metabolites/${xref.split(".")[1]}`;
+          return /^HMDB\d{5,7}$/i.test(id)
+            ? `https://hmdb.ca/metabolites/${id}`
+            : null;
         case "snomedct":
-          return `https://browser.ihtsdotools.org/?perspective=full&conceptId1=${
-              xref.split(".")[1]
-          }`;
-        case "mondo":
-          return `https://monarchinitiative.org/MONDO:${xref.split(".")[1]}`;
-        case "umls":
-          return `https://www.ncbi.nlm.nih.gov/medgen/${xref.split(".")[1]}`;
-        case "omim":
-          return `https://omim.org/entry/${xref.split(".")[1]}`;
-        case "orpha":
-          return `https://www.orpha.net/en/disease/detail/${xref.split(".")[1]}`;
-        case "chemspider":
-          return `https://www.chemspider.com/Chemical-Structure.${xref.split(".")[1]}.html`;
-
+          return /^\d{6,18}$/.test(id)
+            ? `https://browser.ihtsdotools.org/?perspective=full&conceptId1=${id}`
+            : null;
         default:
-          return "#"; // default case if source_table doesn't match
+          return null; // only Uniprot/HMDB/SNOMED CT are linked out to
       }
     },
-  }
+  },
 };
 </script>
 

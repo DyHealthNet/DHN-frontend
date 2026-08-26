@@ -114,6 +114,7 @@ export default  {
       prevSelectedOperator: "",
       operators: [
           'equals (=)',
+          'unequals (!=)',
           'less than (<)',
           'more than (>)',
           'in',
@@ -228,7 +229,8 @@ export default  {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
-            }
+            },
+            credentials: 'include',
           })
           .then(response => response.json())
           .then(data => {
@@ -251,11 +253,11 @@ export default  {
         const variable = this.reverseAllVariables[column];
         switch (variable) {
           case 'binaryCategorical':
-            return ['equals (=)', 'in'];
+            return ['equals (=)', 'unequals (!=)', 'in'];
           case 'continuous':
             return ['less than (<)', 'more than (>)', 'in range'];
           case 'nonbinaryCategorical':
-            return ['equals (=)', 'in'];
+            return ['equals (=)', 'unequals (!=)', 'in'];
           default:
             return this.operators;
         }

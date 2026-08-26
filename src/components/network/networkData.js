@@ -1,30 +1,205 @@
-export const groups = {
-  protein: {color: '#6b6acf'},
-  metabolite: {color: '#c84d4c'},
-  phenotype: {color: '#ce9a28'},
-  variant: {color: '#44a043'},
-  gene: {color: '#28827a'},
-  disorder: {color: '#d37538'},
-};
+// Darkens a '#rrggbb' color by `amount` (0-1); used to visually distinguish
+// "external" nodes from internal nodes of the same type without a per-point border.
+export function darkenHexColor(hex, amount) {
+  const clean = hex.replace('#', '');
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  const factor = 1 - amount;
+  const toHex = (channel) => Math.round(channel * factor).toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
 
-export const options = {
-  interaction: {
-    multiselect: false,
-    selectable: true,
-    selectConnectedEdges: false,
-    dragView: true,
-    dragNodes: true
-  },
-  nodes: {
-    font: { size: 20, color: '#000000' },
-    borderWidth: 0,
-    widthConstraint: 40,
-    heightConstraint: 40,
-  },
-  edges: { width: 5,
-    color: "black"
-   }
-};
+function hslToHex(h, s, l) {
+  s /= 100;
+  l /= 100;
+  const k = (n) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  const toHex = (n) => Math.round(f(n) * 255).toString(16).padStart(2, '0');
+  return `#${toHex(0)}${toHex(8)}${toHex(4)}`;
+}
+
+// Standard sRGB relative luminance (WCAG formula) -- used to judge how *dark* a
+// color actually reads to the eye, since HSL's "lightness" isn't perceptually
+// uniform: blue/purple/magenta hues look noticeably darker and more intense than
+// green/yellow hues at the exact same L/S values.
+function relativeLuminance(hex) {
+  const clean = hex.replace('#', '');
+  const channel = (start) => parseInt(clean.substring(start, start + 2), 16) / 255;
+  const linearize = (c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  const [r, g, b] = [channel(0), channel(2), channel(4)].map(linearize);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+// `node_group`/`source_table` values are fully user-defined on the backend
+// (DATA_GROUP_COLUMNS) -- there's no fixed set of node types, so colors can't be a
+// hardcoded lookup table. Hashing the name into a hue keeps the generated color
+// stable for that name across renders/reloads without remembering assignments
+// anywhere, and every group (known or not) goes through this same path.
+const MIN_RELATIVE_LUMINANCE = 0.4;
+
+export function generateGroupColor(key) {
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  }
+  const hue = hash % 360;
+  const saturation = 65;
+  let lightness = 50;
+  let hex = hslToHex(hue, saturation, lightness);
+  // Whatever hue the hash lands on, push lightness up until it actually reads as
+  // bright enough -- rather than a fixed L=50 for every hue, which leaves
+  // blue/purple/magenta results looking dark while yellow/green ones look fine.
+  while (relativeLuminance(hex) < MIN_RELATIVE_LUMINANCE && lightness < 85) {
+    lightness += 5;
+    hex = hslToHex(hue, saturation, lightness);
+  }
+  return hex;
+}
+
+// Fixed, validated categorical palette (see the dataviz skill's color-formula.md /
+// palette.md): this ordering clears the CVD and normal-vision distinctness floors
+// for every *adjacent* pair, which is exactly the regime a small group count falls
+// into. Hash-based hues (generateGroupColor) don't guarantee any separation
+// between two arbitrary names -- two group labels can easily land within a few
+// degrees of each other, which reads as "colors too similar" when there are only
+// a handful of groups on screen.
+const CATEGORICAL_PALETTE = [
+  '#2a78d6', // blue
+  '#eb6834', // orange
+  '#1baf7a', // aqua
+  '#eda100', // yellow
+  '#e87ba4', // magenta
+  '#008300', // green
+  '#4a3aa7', // violet
+  '#e34948', // red
+];
+
+// Assigns a color to each of `keys` (pass them pre-sorted so the same group keeps
+// the same slot across re-renders/reloads). The first CATEGORICAL_PALETTE.length
+// keys get the fixed palette in order -- maximally distinct, which matters most
+// when there are only a few groups. Any keys beyond that fall back to
+// generateGroupColor's hash, since a hand-picked distinct palette doesn't extend
+// indefinitely and a large group count is much less likely to visually collide.
+export function assignGroupColors(keys) {
+  const colorMap = {};
+  keys.forEach((key, index) => {
+    colorMap[key] = index < CATEGORICAL_PALETTE.length
+      ? CATEGORICAL_PALETTE[index]
+      : generateGroupColor(key);
+  });
+  return colorMap;
+}
+
+// Shared by data-network.vue and differential-network.vue's detail panels so a node's
+// group icon looks the same everywhere. Same caveat as generateGroupColor: node_group is
+// user-defined (DATA_GROUP_COLUMNS), so anything outside this fixed set falls back to the
+// phenotype icon rather than being left unrecognized.
+export function getNodeIcon(sourceTable) {
+  // import.meta.url resolves relative to *this* file (src/components/network/), not the
+  // caller -- one directory deeper than data-network.vue (src/pages/), where this switch
+  // originally lived, hence '../../' here vs '../' there.
+  // Case-insensitive so callers don't need to pre-capitalize the raw node_group value
+  // (data-network.vue does so anyway for display purposes, but differential-network.vue's
+  // detail panels pass the raw lowercase group straight through).
+  switch (sourceTable?.toLowerCase()) {
+    case 'protein':
+      return new URL('../../assets/figures/proteins.png', import.meta.url).href;
+    case 'metabolite':
+      return new URL('../../assets/figures/metabolites.png', import.meta.url).href;
+    case 'variants':
+      return new URL('../../assets/figures/genetic_variants.png', import.meta.url).href;
+    default:
+      return new URL('../../assets/figures/phenotypes.png', import.meta.url).href;
+  }
+}
+
+// Shared by data-network.vue and differential-network.vue's legends so group names
+// (freeform node_group/source_table values, or backend group strings) read the same
+// way in both places instead of one page showing them raw/lowercase.
+export function capitalizeFirstLetter(str) {
+  if (typeof str !== "string" || str.length === 0) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
+
+// Round color dot used next to each legend label, on both pages' on-screen legends.
+export function getShapeStyle(color) {
+  return { borderRadius: "50%", backgroundColor: color, width: "13px", height: "13px" };
+}
+
+// Bottom-left rounded panel with a color swatch + label per row, drawn onto an
+// offscreen canvas for the "save image" export -- shared so both pages' exported
+// legends look identical instead of drifting independently. `colors` is resolved by
+// the caller (via its own labelColor()/theme lookup) since this file has no access
+// to $vuetify. `title` is optional -- e.g. "Communities (Leiden)" -- and mirrors
+// the on-screen NetworkLegend's own title prop, drawn as a bold heading row above
+// the entries.
+export function drawLegendPanel(ctx, canvas, entries, colors, title = '') {
+  if (!entries.length) return;
+  ctx.save();
+
+  const padding = 14;
+  const circleRadius = 8;
+  const gap = 10;
+  const rowHeight = 26;
+  const titleRowHeight = title ? 22 : 0;
+  const font = '14px system-ui, -apple-system, sans-serif';
+  const titleFont = 'bold 14px system-ui, -apple-system, sans-serif';
+  const textColor = colors?.textColor || '#111111';
+  const panelColor = colors?.panelColor || '#ffffff';
+  const borderColor = colors?.borderColor || '#dddddd';
+
+  ctx.font = font;
+  const maxEntryTextWidth = Math.max(...entries.map(({ label }) => ctx.measureText(label).width));
+  ctx.font = titleFont;
+  const titleTextWidth = title ? ctx.measureText(title).width : 0;
+  const maxTextWidth = Math.max(maxEntryTextWidth, titleTextWidth - circleRadius * 2 - gap);
+
+  const panelWidth = padding * 2 + circleRadius * 2 + gap + maxTextWidth;
+  const panelHeight = padding * 2 + titleRowHeight + entries.length * rowHeight;
+  const panelX = 20;
+  const panelY = canvas.height - panelHeight - 20;
+  const cornerRadius = 10;
+
+  ctx.beginPath();
+  ctx.moveTo(panelX + cornerRadius, panelY);
+  ctx.arcTo(panelX + panelWidth, panelY, panelX + panelWidth, panelY + panelHeight, cornerRadius);
+  ctx.arcTo(panelX + panelWidth, panelY + panelHeight, panelX, panelY + panelHeight, cornerRadius);
+  ctx.arcTo(panelX, panelY + panelHeight, panelX, panelY, cornerRadius);
+  ctx.arcTo(panelX, panelY, panelX + panelWidth, panelY, cornerRadius);
+  ctx.closePath();
+  ctx.fillStyle = panelColor;
+  ctx.fill();
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+
+  if (title) {
+    ctx.font = titleFont;
+    ctx.fillStyle = textColor;
+    ctx.fillText(title, panelX + padding, panelY + padding + titleRowHeight / 2);
+    ctx.font = font;
+  }
+
+  entries.forEach(({ color, label }, i) => {
+    const rowCenterY = panelY + padding + titleRowHeight + rowHeight * i + rowHeight / 2;
+    const circleCenterX = panelX + padding + circleRadius;
+
+    ctx.beginPath();
+    ctx.arc(circleCenterX, rowCenterY, circleRadius, 0, 2 * Math.PI);
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    ctx.fillStyle = textColor;
+    ctx.fillText(label, circleCenterX + circleRadius + gap, rowCenterY);
+  });
+
+  ctx.restore();
+}
 
 //import crypto from "crypto";
 //import {authState, checkLogin, getCookie} from '@/components/authentication/auth.js';

@@ -1,129 +1,95 @@
-<template >
-  <!-- Render only the fields specified in visibleFieldNames -->
-    <v-row v-if="showHeader">
-      <v-col cols="12">
-        <p><b>{{ headerText }}</b></p>
-      </v-col>
-    </v-row>
-      <v-row>
-    <v-col cols="4">
-      <p>Continuous-Continuous</p>
+<template>
+  <v-row v-if="showHeader">
+    <v-col cols="12">
+      <p><b>{{ headerText }}</b></p>
     </v-col>
-    <v-col cols="4">
-      <p>Categorical-Categorical</p>
-    </v-col>
-        <v-spacer></v-spacer>
-    <v-col cols="3" v-if="showMultTest">
-      <p>Multiple Testing Correction</p>
-    </v-col>
-        <v-spacer></v-spacer>
-  </v-row>
-  <v-row >
-    <v-col cols="4" class="my-0">
-      <v-select
-          v-model="contCont"
-          :items="contContItems"
-          :readonly="disableSelections"
-          variant="outlined"
-          density="compact"
-          @update:model-value="changeTest"
-          item-title="label"
-          return-object
-      >
-      </v-select>
-    </v-col>
-    <v-col cols="4" class="my-0">
-      <v-select
-          v-model="catCat"
-          :items="catCatItems"
-          :readonly="disableSelections"
-          variant="outlined"
-          density="compact"
-          @update:model-value="changeTest"
-          item-title="label"
-          return-object
-      >
-      </v-select>
-    </v-col>
-    <v-spacer></v-spacer>
-    <v-col cols="3" class="my-0" v-if="showMultTest">
-      <v-select
-          v-model="multTest"
-          :items="multTestItems"
-          variant="outlined"
-          density="compact"
-          @update:model-value="changeTest"
-          item-title="label"
-          return-object
-      >
-      </v-select>
-    </v-col>
-    <v-spacer></v-spacer>
   </v-row>
   <v-row>
-    <v-col cols="8">
-      <p>Categorical-continuous</p>
+    <v-col cols="4">
+      <p>Test type</p>
     </v-col>
-    <v-spacer></v-spacer>
+    <v-col cols="4">
+      <p>Multiple testing correction</p>
+    </v-col>
     <v-col cols="3" v-if="showMultTest">
       <p>Significance Threshold</p>
     </v-col>
-    <v-spacer></v-spacer>
+    <v-col cols="3" v-if="showDensity">
+      <p>Density</p>
+    </v-col>
   </v-row>
   <v-row>
     <v-col cols="4" class="my-0">
       <v-select
-          v-model="catContB"
-          :items="contCatItemsB"
+          v-model="testType"
+          :items="testTypeItems"
           :readonly="disableSelections"
-          label="Binary categories"
           variant="outlined"
           density="compact"
-          @update:model-value="changeTest"
           item-title="label"
-          return-object
-      >
-      </v-select>
+          item-value="value"
+          @update:model-value="changeTest"
+      ></v-select>
     </v-col>
     <v-col cols="4" class="my-0">
-      <v-select
-          v-model="catContM"
-          :items="contCatItemsM"
+      <v-select v-if="!readOnlyCorrection"
+          v-model="correction"
+          :items="correctionItems"
           :readonly="disableSelections"
-          label="Multicategorical"
           variant="outlined"
           density="compact"
-          @update:model-value="changeTest"
           item-title="label"
-          return-object
-      >
-      </v-select>
-    </v-col>
-    <v-spacer></v-spacer>
-    <v-col cols="3" v-if="showMultTest">
-        <v-text-field
-          v-model="internalSignThresh"
-          type="number"
-          step="0.01"
-          :rules="[value => (value >= 0 && value <= 1) || 'Must be between 0 and 1']"
-          density="compact"
+          item-value="value"
+          @update:model-value="changeTest"
+      ></v-select>
+      <!-- Correction never actually changes what's shown here (the backend either
+           ignores it or it's fixed at context-creation time) -- a plain readonly
+           field (no dropdown arrow, not clickable) instead of a v-select that looks
+           editable but isn't. See StatisticalTestLine usage in ContextSetup.vue,
+           where correction genuinely is a live choice and readOnlyCorrection is
+           left at its default (false) so it stays a real dropdown there. -->
+      <v-text-field v-else
+          :model-value="correctionLabel"
+          readonly
           variant="outlined"
-          @update:model-value="updateSignThresh"
-          @blur="validateThresholdInput"
-        />
-      </v-col>
-    <v-spacer></v-spacer>
+          density="compact"
+      ></v-text-field>
+    </v-col>
+    <v-col cols="3" class="my-0" v-if="showMultTest">
+      <v-text-field
+        v-model="internalSignThresh"
+        type="number"
+        step="0.01"
+        :rules="[value => (value >= 0 && value <= 1) || 'Must be between 0 and 1']"
+        density="compact"
+        variant="outlined"
+        @update:model-value="updateSignThresh"
+        @blur="validateThresholdInput"
+      />
+    </v-col>
+    <v-col cols="3" class="my-0" v-if="showDensity">
+      <v-text-field
+        v-model="internalDensity"
+        type="number"
+        step="0.001"
+        :rules="[value => (value >= 0 && value <= 1) || 'Must be between 0 and 1']"
+        density="compact"
+        variant="outlined"
+        @update:model-value="updateDensity"
+        @blur="validateDensityInput"
+      />
+    </v-col>
   </v-row>
 </template>
 
 <script>
 export default {
-emits: ["dataChanged"],
-name: "StatisticalTestLine",
+  emits: ["dataChanged"],
+  name: "StatisticalTestLine",
   props: {
     selectedTests: {
       type: Object,
-      required: false
+      required: false,
     },
     signThresh: {
       type: Number,
@@ -146,43 +112,43 @@ name: "StatisticalTestLine",
       type: Boolean,
       default: false,
     },
+    showDensity: {
+      type: Boolean,
+      default: false,
+    },
+    density: {
+      type: Number,
+      required: false,
+      default: 0.01,
+    },
+    // Default false preserves ContextSetup.vue's usage (context creation, where
+    // correction is a real, consequential choice) unchanged -- only pages that
+    // just *view* an already-computed network (data-network.vue) opt into this.
+    readOnlyCorrection: {
+      type: Boolean,
+      default: false,
+    },
   },
   data() {
     return {
-      contContItems: [
-        {label: 'Pearson correlation', value: 'pearson'},
-        {label: 'Spearmans rank correlation', value: 'spearman'},
+      testTypeItems: [
+        { label: 'Parametric', value: 'parametric' },
+        { label: 'Nonparametric', value: 'nonparametric' },
       ],
-
-      catCatItems: [
-        {label: 'Chi-squared test', value: 'chi2'}
+      correctionItems: [
+        { label: 'Benjamini-Hochberg (BH)', value: 'bh' },
+        { label: 'Benjamini-Yekutieli (BY)', value: 'by' },
       ],
-
-      multTestItems: [
-        {label: 'Bonferroni', value: 'bonferroni'},
-        {label: 'Benjamini Hochberg (FDR)', value: 'benjamini_hb'},
-        {label: 'Benjamini–Yekutieli', value: 'benjamini_yek'},
-      ],
-
-      contCatItemsB: [
-        {label: 'T-test', value: 'ttest'},
-        {label: 'ANOVA', value: 'anova'},
-        {label: 'Kruskal-Wallis', value: 'kruskal'},
-        {label: 'Mann-Whitney U', value: 'mwu'},
-      ],
-
-      contCatItemsM: [
-        {label: 'Kruskal-Wallis', value: 'kruskal'},
-        {label: 'ANOVA', value: 'anova'},
-      ],
-
-      contCont: this.selectedTests?.contCont ?? {label: 'Pearson correlation', value: 'pearson'},
-      catCat: this.selectedTests?.catCat ?? {label: 'Chi-squared test', value: 'chi2'},
-      multTest: this.selectedTests?.multTest ?? {label: 'Benjamini Hochberg (FDR)', value: 'bh'},
-      catContB: this.selectedTests?.catContB ?? {label: 'T-test', value: 'ttest'},
-      catContM: this.selectedTests?.catContM ?? {label: 'ANOVA', value: 'anova'},
+      testType: this.selectedTests?.testType ?? 'parametric',
+      correction: this.selectedTests?.correction ?? 'bh',
       internalSignThresh: this.signThresh,
-    }
+      internalDensity: this.density,
+    };
+  },
+  computed: {
+    correctionLabel() {
+      return this.correctionItems.find((item) => item.value === this.correction)?.label ?? this.correction;
+    },
   },
   methods: {
     validateThresholdInput() {
@@ -190,68 +156,55 @@ name: "StatisticalTestLine",
       if (isNaN(parsedValue) || parsedValue < 0) {
         this.internalSignThresh = 0.05;
         this.$emit("dataChanged", { signThresh: this.internalSignThresh });
-      } else if (isNaN(parsedValue) || parsedValue > 1){
+      } else if (parsedValue > 1) {
         this.internalSignThresh = 1.0;
         this.$emit("dataChanged", { signThresh: this.internalSignThresh });
       }
     },
     changeTest() {
-      console.log("changeTest")
       this.$emit('dataChanged', {
         selectedTests: {
-          contCont: this.contCont,
-            catCat: this.catCat,
-          multTest: this.multTest,
-          catContB: this.catContB,
-          catContM: this.catContM,
-      }});
+          testType: this.testType,
+          correction: this.correction,
+        },
+      });
     },
     updateSignThresh(newValue) {
       this.internalSignThresh = parseFloat(newValue);
       this.$emit("dataChanged", { signThresh: this.internalSignThresh });
     },
+    validateDensityInput() {
+      const parsedValue = parseFloat(this.internalDensity);
+      if (isNaN(parsedValue) || parsedValue < 0) {
+        this.internalDensity = 0;
+        this.$emit("dataChanged", { density: this.internalDensity });
+      } else if (parsedValue > 1) {
+        this.internalDensity = 1.0;
+        this.$emit("dataChanged", { density: this.internalDensity });
+      }
+    },
+    updateDensity(newValue) {
+      this.internalDensity = parseFloat(newValue);
+      this.$emit("dataChanged", { density: this.internalDensity });
+    },
   },
-  // So that changes in the parent are shown in the child component (e.g. if context changes correct
-  // values are immediately re-rendered)
   watch: {
     signThresh(newValue) {
       this.internalSignThresh = parseFloat(newValue);
-      this.$emit("dataChanged", { signThresh: this.internalSignThresh });
     },
-
+    density(newValue) {
+      this.internalDensity = parseFloat(newValue);
+    },
     selectedTests: {
       handler(newValue) {
-        // Only emit the change if necessary (if newValue is different from current state)
-        if (
-          newValue["contCont"] !== this.contCont ||
-          newValue["catCat"] !== this.catCat ||
-          newValue["multTest"] !== this.multTest ||
-          newValue["catContB"] !== this.catContB ||
-          newValue["catContM"] !== this.catContM
-        ) {
-          this.contCont = newValue["contCont"];
-          this.catCat = newValue["catCat"];
-          this.multTest = newValue["multTest"];
-          this.catContB = newValue["catContB"];
-          this.catContM = newValue["catContM"];
-
-          this.$emit("dataChanged", {
-            selectedTests: {
-              contCont: this.contCont,
-              catCat: this.catCat,
-              multTest: this.multTest,
-              catContB: this.catContB,
-              catContM: this.catContM,
-            },
-          });
-        }
+        if (newValue?.testType !== undefined) this.testType = newValue.testType;
+        if (newValue?.correction !== undefined) this.correction = newValue.correction;
       },
-      deep: true, // Only apply deep to the nested object
+      deep: true,
     },
   },
-}
+};
 </script>
 
 <style scoped>
-
 </style>

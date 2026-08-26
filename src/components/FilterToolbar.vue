@@ -3,7 +3,7 @@
       v-if="authState.isLoggedIn"
       :color="filterToolbarColor"
       density="compact"
-      class="stick-to-top mt-2 mb-5 filter-toolbar"
+      class="stick-to-top filter-toolbar"
       :class="{ 'is-sticky': isSticky }"
       rounded="lg"
       elevation="5"
