@@ -218,6 +218,11 @@
                 </span>
               </v-tooltip>
             </v-toolbar-title>
+            <v-spacer></v-spacer>
+            <v-tabs v-model="visualizationTab" :color="toolbarIconColor" align-tabs="end">
+              <v-tab value="visualization">Network</v-tab>
+              <v-tab value="tables">Tables</v-tab>
+            </v-tabs>
           </v-toolbar>
 
           <v-row no-gutters>
@@ -584,11 +589,6 @@
             <!-- Put this in its own file -->
             <v-col cols="8" >
               <v-card outlined class="network-container">
-
-              <v-tabs v-model="visualizationTab" color="primary-darken-1">
-                <v-tab value="visualization">Visualization</v-tab>
-                <v-tab value="tables">Tables</v-tab>
-              </v-tabs>
 
               <v-window v-model="visualizationTab">
                 <v-window-item value="visualization">
