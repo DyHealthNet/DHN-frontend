@@ -5,7 +5,7 @@
       class="mb-2"
       :color="communityActive ? 'primary' : 'primary-darken-1'"
       @click="communityDialogOpen = true"
-    >Community</v-btn>
+    >Community Detection</v-btn>
 
     <v-btn
       block
@@ -20,51 +20,59 @@
       @click="nodeSetAnnotationDialogOpen = true"
     >Node Set Annotation</v-btn>
 
-    <!-- Community: Clustering / Annotation -->
-    <AnalysisDialog v-model="communityDialogOpen" title="Community">
+    <!-- Community Detection (Clustering), with Community Annotation below it -->
+    <AnalysisDialog v-model="communityDialogOpen" title="Community Detection">
       <v-select
-        v-model="communityAction"
-        :items="communityActionOptions"
-        item-title="title"
+        :model-value="selectedAlgorithm"
+        @update:model-value="$emit('update:selectedAlgorithm', $event)"
+        :items="communityAlgorithms"
+        item-title="label"
         item-value="value"
-        label="Action"
+        label="Algorithm"
         density="compact"
         variant="outlined"
+        class="mt-2"
+        :disabled="isClusteringLoading"
       ></v-select>
-      <p class="text-caption text-medium-emphasis mt-n2 mb-2">{{ communityActionDescription }}</p>
+      <p class="text-caption text-medium-emphasis mt-n2 mb-2">
+        {{ algorithmDescription }}
+      </p>
 
-      <template v-if="communityAction === 'clustering'">
-        <v-select
-          :model-value="selectedAlgorithm"
-          @update:model-value="$emit('update:selectedAlgorithm', $event)"
-          :items="communityAlgorithms"
-          item-title="label"
-          item-value="value"
-          label="Algorithm"
+      <template v-if="algorithmUsesResolution">
+        <label class="text-caption">Leiden resolution: {{ leidenResolutions[resolutionIndex] }}</label>
+        <v-slider
+          :model-value="resolutionIndex"
+          @update:model-value="$emit('update:resolutionIndex', $event)"
+          :min="0"
+          :max="leidenResolutions.length - 1"
+          :step="1"
+          show-ticks="always"
+          thumb-label="always"
           density="compact"
-          variant="outlined"
-          class="mt-2"
-          :disabled="isClusteringLoading"
-        ></v-select>
-        <p class="text-caption text-medium-emphasis mt-n2 mb-2">
-          {{ algorithmDescription }}
+          color="primary"
+        >
+          <template #thumb-label>{{ leidenResolutions[resolutionIndex] }}</template>
+        </v-slider>
+        <p class="text-caption text-medium-emphasis mb-2">
+          Higher values produce more, smaller communities.
+          <template v-if="clusteringActive"> {{ includedNodeTypesCount }} communities at this resolution.</template>
         </p>
       </template>
 
-      <p v-if="communityRunDisabledReason" class="text-caption text-medium-emphasis">
-        {{ communityRunDisabledReason }}
+      <p v-if="clusteringDisabled" class="text-caption text-medium-emphasis">
+        {{ clusteringDisabledReason }}
       </p>
 
       <v-btn
         color="primary-darken-1"
         block
         class="mt-2"
-        :loading="communityRunLoading"
-        :disabled="communityRunDisabled"
-        @click="runCommunityAction"
-      >{{ communityRunLabel }}</v-btn>
+        :loading="isClusteringLoading"
+        :disabled="clusteringDisabled || isClusteringLoading"
+        @click="$emit('run-clustering'); communityDialogOpen = false;"
+      >{{ clusteringActive ? `Re-run ${selectedAlgorithmLabel} Clustering` : `Run ${selectedAlgorithmLabel} Clustering` }}</v-btn>
 
-      <template v-if="communityAction === 'clustering' && clusteringActive">
+      <template v-if="clusteringActive">
         <v-btn
           class="mt-2"
           variant="outlined"
@@ -72,102 +80,101 @@
           @click="$emit('reset-clustering-colors'); communityDialogOpen = false;"
         >Reset to Node Type Colors</v-btn>
 
-        <div class="mt-4">
-          <template v-if="algorithmUsesResolution">
-            <label class="text-caption">Leiden resolution: {{ leidenResolutions[resolutionIndex] }}</label>
-            <v-slider
-              :model-value="resolutionIndex"
-              @update:model-value="$emit('update:resolutionIndex', $event)"
-              :min="0"
-              :max="leidenResolutions.length - 1"
-              :step="1"
-              show-ticks="always"
-              thumb-label="always"
-              density="compact"
-              color="primary"
-            >
-              <template #thumb-label>{{ leidenResolutions[resolutionIndex] }}</template>
-            </v-slider>
-            <p class="text-caption text-medium-emphasis">
-              {{ includedNodeTypesCount }} communities at this resolution. Higher values produce more communities.
-            </p>
-          </template>
-          <p v-if="currentModularity != null" class="text-caption text-medium-emphasis">
-            Modularity: {{ currentModularity.toFixed(3) }} · Conductance: {{ currentConductance.toFixed(3) }}
-          </p>
+        <p v-if="currentModularity != null" class="text-caption text-medium-emphasis mt-2">
+          Modularity: {{ currentModularity.toFixed(3) }} · Conductance: {{ currentConductance.toFixed(3) }}
+        </p>
 
-          <!-- <v-divider class="my-4"></v-divider>
-          <p class="text-caption text-medium-emphasis mb-2">
-            Scores the current clustering's biological coherence via DIGEST, against
-            random background partitions of the same size. Only one node type can be
-            scored per run.
-          </p>
-          <v-select
-            v-model="scoreClusteringNodeGroup"
-            :items="scoreClusteringNodeGroups"
-            label="Node type to score"
-            density="compact"
-            variant="outlined"
-            :disabled="scoreClusteringStatus === 'running'"
-          ></v-select>
-          <v-select
-            v-model="scoreClusteringType"
-            :items="scoreClusteringTypeOptions"
-            item-title="title"
-            item-value="value"
-            label="Category"
-            density="compact"
-            variant="outlined"
-            :disabled="scoreClusteringStatus === 'running'"
-          ></v-select>
-          <v-select
-            v-model="scoreClusteringTarId"
-            :items="scoreClusteringTarIdOptions"
-            item-title="title"
-            item-value="value"
-            label="Identifier scheme"
-            density="compact"
-            variant="outlined"
-            :disabled="scoreClusteringStatus === 'running'"
-          ></v-select>
-          <v-btn
-            block
-            color="primary"
-            variant="outlined"
-            :loading="scoreClusteringStatus === 'running'"
-            :disabled="scoreClusteringStatus === 'running' || !scoreClusteringNodeGroup || !scoreClusteringTarId"
-            @click="runScoreClustering"
-          >{{ scoreClusteringStatus === 'success' ? 'Re-score Clustering' : 'Score Clustering' }}</v-btn>
+        <!-- <v-divider class="my-4"></v-divider>
+        <p class="text-caption text-medium-emphasis mb-2">
+          Scores the current clustering's biological coherence via DIGEST, against
+          random background partitions of the same size. Only one node type can be
+          scored per run.
+        </p>
+        <v-select
+          v-model="scoreClusteringNodeGroup"
+          :items="scoreClusteringNodeGroups"
+          label="Node type to score"
+          density="compact"
+          variant="outlined"
+          :disabled="scoreClusteringStatus === 'running'"
+        ></v-select>
+        <v-select
+          v-model="scoreClusteringType"
+          :items="scoreClusteringTypeOptions"
+          item-title="title"
+          item-value="value"
+          label="Category"
+          density="compact"
+          variant="outlined"
+          :disabled="scoreClusteringStatus === 'running'"
+        ></v-select>
+        <v-select
+          v-model="scoreClusteringTarId"
+          :items="scoreClusteringTarIdOptions"
+          item-title="title"
+          item-value="value"
+          label="Identifier scheme"
+          density="compact"
+          variant="outlined"
+          :disabled="scoreClusteringStatus === 'running'"
+        ></v-select>
+        <v-btn
+          block
+          color="primary"
+          variant="outlined"
+          :loading="scoreClusteringStatus === 'running'"
+          :disabled="scoreClusteringStatus === 'running' || !scoreClusteringNodeGroup || !scoreClusteringTarId"
+          @click="runScoreClustering"
+        >{{ scoreClusteringStatus === 'success' ? 'Re-score Clustering' : 'Score Clustering' }}</v-btn>
 
-          <div v-if="scoreClusteringStatus === 'success' && scoreClusteringResult" class="mt-3">
-            <v-table density="compact">
-              <thead>
-                <tr><th>Metric</th><th>Value</th><th>p-value</th></tr>
-              </thead>
-              <tbody>
-                <tr v-for="metric in ['DI-based', 'SS-based', 'DBI-based']" :key="metric">
-                  <td>{{ metric }}</td>
-                  <td>{{ formatScoreValue(scoreClusteringResult.input_values?.values?.[metric]) }}</td>
-                  <td>{{ formatScoreValue(scoreClusteringResult.p_values?.values?.[metric]) }}</td>
-                </tr>
-              </tbody>
-            </v-table>
-            <p class="text-caption text-medium-emphasis mt-2">
-              DBI-based is better when lower; DI-based and SS-based are better when
-              higher. Scored {{ scoreClusteringResult.coverage?.scoredNodeCount }} of
-              {{ scoreClusteringResult.coverage?.inputNodeCount }} clustered nodes
-              ({{ scoreClusteringResult.coverage?.nodeGroup }} via
-              {{ scoreClusteringResult.coverage?.tarId }}).
-            </p>
-          </div>
-          NOTE: this DIGEST "Score Clustering" UI was already commented out before the Analysis
-          panel was restructured into buttons+popups (see AnalysisPanel.vue) -- carried over as-is,
-          still unwired, in case it's finished later. The backing state/methods
-          (scoreClustering*, runScoreClustering, pollScoreClusteringStatus,
-          resumeScoreClusteringIfNeeded, resetScoreClustering, formatScoreValue) still live in
-          data-network.vue. -->
+        <div v-if="scoreClusteringStatus === 'success' && scoreClusteringResult" class="mt-3">
+          <v-table density="compact">
+            <thead>
+              <tr><th>Metric</th><th>Value</th><th>p-value</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="metric in ['DI-based', 'SS-based', 'DBI-based']" :key="metric">
+                <td>{{ metric }}</td>
+                <td>{{ formatScoreValue(scoreClusteringResult.input_values?.values?.[metric]) }}</td>
+                <td>{{ formatScoreValue(scoreClusteringResult.p_values?.values?.[metric]) }}</td>
+              </tr>
+            </tbody>
+          </v-table>
+          <p class="text-caption text-medium-emphasis mt-2">
+            DBI-based is better when lower; DI-based and SS-based are better when
+            higher. Scored {{ scoreClusteringResult.coverage?.scoredNodeCount }} of
+            {{ scoreClusteringResult.coverage?.inputNodeCount }} clustered nodes
+            ({{ scoreClusteringResult.coverage?.nodeGroup }} via
+            {{ scoreClusteringResult.coverage?.tarId }}).
+          </p>
         </div>
+        NOTE: this DIGEST "Score Clustering" UI was already commented out before the Analysis
+        panel was restructured into buttons+popups (see AnalysisPanel.vue) -- carried over as-is,
+        still unwired, in case it's finished later. The backing state/methods
+        (scoreClustering*, runScoreClustering, pollScoreClusteringStatus,
+        resumeScoreClusteringIfNeeded, resetScoreClustering, formatScoreValue) still live in
+        data-network.vue. -->
       </template>
+
+      <v-divider class="my-4"></v-divider>
+
+      <p class="text-subtitle-2 mb-2">Community Annotation</p>
+      <p class="text-caption text-medium-emphasis mb-2">
+        Runs g:Profiler enrichment, Reactome enrichment, and a Gemini-generated rationale for
+        every community at the active resolution. Runs as a background job and can take a few
+        minutes.
+      </p>
+      <p v-if="communityAnnotationDisabled" class="text-caption text-medium-emphasis">
+        {{ communityAnnotationDisabledReason }}
+      </p>
+      <v-btn
+        block
+        :color="communityAnnotationStatus === 'success' ? 'primary' : 'primary-darken-1'"
+        :class="{'grey lighten-2': communityAnnotationDisabled}"
+        :loading="communityAnnotationStatus === 'running'"
+        :disabled="communityAnnotationDisabled || communityAnnotationStatus === 'running'"
+        @click="$emit('run-community-annotation'); communityDialogOpen = false;"
+      >{{ communityAnnotationStatus === 'success' ? 'Re-run Community Annotation' : 'Run Community Annotation' }}</v-btn>
     </AnalysisDialog>
 
     <!-- Enrichments: g:Profiler / Reactome -->
@@ -296,14 +303,13 @@ export default {
       enrichmentsDialogOpen: false,
       nodeSetAnnotationDialogOpen: false,
 
-      communityAction: 'clustering', // 'clustering' | 'annotation'
       enrichmentMethod: 'gprofiler', // 'gprofiler' | 'reactome'
       nodeSetAnnotationMethod: 'gemini',
     };
   },
   computed: {
-    // Highlights the Community button once there's something to look at, same idea as the old
-    // per-button highlight: active clustering or a completed annotation run.
+    // Highlights the Community Detection button once there's something to look at: active
+    // clustering or a completed annotation run.
     communityActive() {
       return this.clusteringActive || this.communityAnnotationStatus === 'success';
     },
@@ -321,42 +327,6 @@ export default {
     },
     communityAnnotationDisabledReason() {
       return 'Run Clustering first -- annotation is generated per community.';
-    },
-
-    communityActionOptions() {
-      return [
-        {
-          title: 'Clustering',
-          value: 'clustering',
-          description: "Detect communities in the network via graph clustering (Leiden, Louvain, Infomap, or HSBM). Only available once you've sent the whole network.",
-        },
-        {
-          title: 'Annotation',
-          value: 'annotation',
-          description: 'Runs g:Profiler enrichment, Reactome enrichment, and a Gemini-generated rationale for every community at the active resolution. Requires Clustering to have been run first.',
-        },
-      ];
-    },
-    communityActionDescription() {
-      return this.communityActionOptions.find((option) => option.value === this.communityAction)?.description ?? '';
-    },
-    communityRunLabel() {
-      if (this.communityAction === 'clustering') {
-        return this.clusteringActive ? `Re-run ${this.selectedAlgorithmLabel} Clustering` : `Run ${this.selectedAlgorithmLabel} Clustering`;
-      }
-      return this.communityAnnotationStatus === 'success' ? 'Re-run Community Annotation' : 'Run Community Annotation';
-    },
-    communityRunLoading() {
-      return this.communityAction === 'clustering' ? this.isClusteringLoading : this.communityAnnotationStatus === 'running';
-    },
-    communityRunDisabled() {
-      return this.communityAction === 'clustering'
-        ? (this.clusteringDisabled || this.isClusteringLoading)
-        : (this.communityAnnotationDisabled || this.communityAnnotationStatus === 'running');
-    },
-    communityRunDisabledReason() {
-      if (this.communityAction === 'clustering') return this.clusteringDisabled ? this.clusteringDisabledReason : '';
-      return this.communityAnnotationDisabled ? this.communityAnnotationDisabledReason : '';
     },
 
     gprofilerDisabled() {
@@ -417,11 +387,6 @@ export default {
     },
   },
   methods: {
-    runCommunityAction() {
-      if (this.communityAction === 'clustering') this.$emit('run-clustering');
-      else this.$emit('run-community-annotation');
-      this.communityDialogOpen = false;
-    },
     runEnrichment() {
       if (this.enrichmentMethod === 'gprofiler') this.$emit('run-gprofiler-enrichment');
       else this.$emit('run-reactome-enrichment');
