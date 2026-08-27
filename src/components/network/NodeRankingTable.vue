@@ -116,16 +116,16 @@ export default {
       const headers = [
         { title: 'Rank', key: 'rank', width: 90, sort: numericSort },
         { title: 'Node', key: 'label' },
+        { title: 'Description', key: 'description' },
         { title: 'Group', key: 'group', width: 130 },
         { title: 'Degree', key: 'degree', width: 100, sort: numericSort },
         { title: 'Weighted Degree', key: 'weightedDegree', sort: numericSort },
-        { title: 'Description', key: 'description' },
       ];
       if (this.clusteringActive) {
-        headers.splice(3, 0, { title: 'Community', key: 'community', width: 130 });
+        headers.splice(4, 0, { title: 'Community', key: 'community', width: 130 });
       }
       if (this.interactive) {
-        headers.push({ title: 'Select', key: 'selected', width: 70, sortable: false });
+        headers.splice(1, 0, { title: 'Select', key: 'selected', width: 70, sortable: false });
       }
       return headers;
     },

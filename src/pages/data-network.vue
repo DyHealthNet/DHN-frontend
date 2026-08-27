@@ -385,8 +385,9 @@
                       :algorithm-uses-resolution="algorithmUsesResolution"
                       :is-clustering-loading="isClusteringLoading"
                       :clustering-active="clusteringActive"
-                      :leiden-resolutions="leidenResolutions"
-                      v-model:resolution-index="resolutionIndex"
+                      :leiden-resolution-min="leidenResolutionMin"
+                      :leiden-resolution-max="leidenResolutionMax"
+                      v-model:leiden-resolution="leidenResolution"
                       :current-modularity="currentModularity"
                       :current-conductance="currentConductance"
                       :included-node-types-count="includedNodeTypes.size"
@@ -405,7 +406,7 @@
                       :reactome-enrichment-loading="reactomeEnrichmentLoading"
                       @run-clustering="runLeidenClustering"
                       @reset-clustering-colors="resetClusteringColors"
-                      @run-community-annotation="communityAnnotationTabDismissed = false; tablesActiveTab = 'communityAnnotation'; runCommunityAnnotation();"
+                      @run-community-annotation="tablesActiveTab = 'communityAnnotation'; runCommunityAnnotation();"
                       @run-gprofiler-enrichment="runProteinEnrichment(); tablesActiveTab = 'enrichment'; enrichmentTab = 'enrichment';"
                       @run-reactome-enrichment="runReactomeEnrichment(); tablesActiveTab = 'enrichment'; enrichmentTab = 'reactomeEnrichment';"
                       @run-gemini-label="runGeminiLabel(); tablesActiveTab = 'nodeSetAnnotation';"
@@ -554,19 +555,17 @@
                       :node-edge-table-visible="nodeEdgeTableVisible"
                       :node-label="displayedElement?.display_name"
                       :node-edge-table-items="nodeEdgeTableItems"
-                      :neighbours-tab-shown="neighboursTabShown"
                       :enrichment-ran="enrichmentRan"
                       :enrichment-results="enrichmentResults"
                       :enrichment-loading="enrichmentLoading"
+                      :gprofiler-sub-tab-dismissed="gprofilerSubTabDismissed"
                       :reactome-enrichment-ran="reactomeEnrichmentRan"
                       :reactome-enrichment-results="reactomeEnrichmentResults"
                       :reactome-enrichment-loading="reactomeEnrichmentLoading"
-                      :gemini-ran="geminiRan"
+                      :reactome-sub-tab-dismissed="reactomeSubTabDismissed"
                       :gemini-label="geminiLabel"
                       :gemini-loading="geminiLoading"
-                      :enrichment-tab-shown="enrichmentTabVisible"
-                      :node-set-annotation-tab-shown="nodeSetAnnotationTabVisible"
-                      :community-annotation-available="communityAnnotationTabVisible"
+                      :gemini-sub-tab-dismissed="geminiSubTabDismissed"
                       :community-annotation-status="communityAnnotationStatus"
                       :community-annotation-progress="communityAnnotationProgress"
                       :community-annotation-results="communityAnnotationResults"
@@ -711,16 +710,14 @@ export default {
       enrichmentTab: 'enrichment',
       nodeSetAnnotationTab: 'gemini',
 
-      // Tables sub-tabs: Node Ranking/Edge Ranking are always present, but
-      // Neighbours/Enrichment/Node Set Annotation/Community Annotation only have anything to
-      // show once their content has actually been produced (a node click / a run button) --
-      // hidden until then. Each is also closable (see closeTablesSubTab), which flips its
-      // dismissed flag until fresh content is produced again, at which point the relevant
-      // handler below resets it.
-      neighboursTabShown: false,
-      enrichmentTabDismissed: false,
-      nodeSetAnnotationTabDismissed: false,
-      communityAnnotationTabDismissed: false,
+      // Top-level Tables tabs (Node Ranking, Edge Ranking, Neighbors of, Enrichment, Node Set
+      // Annotation, Community Annotation) are all always present now -- only their sub-tabs
+      // (gProfiler/Reactome within Enrichment, Gemini within Node Set Annotation) are
+      // individually closable (see closeTablesSubTab), which flips the relevant dismissed flag
+      // below until that method is run again, at which point the run-method resets it.
+      gprofilerSubTabDismissed: false,
+      reactomeSubTabDismissed: false,
+      geminiSubTabDismissed: false,
 
       // Lets the user know new results landed in a Tables sub-tab they aren't
       // currently looking at: lights up the top-level "Tables" tab (header) if
@@ -814,8 +811,12 @@ export default {
       // network, not an arbitrary node-search-built subgraph.
       clusteringActive: false,
       isClusteringLoading: false,
-      leidenResolutions: [0.2, 0.5, 1.0, 1.5, 2.0, 3.0],
-      resolutionIndex: 2, // default 1.0
+      // Free-form resolution input (replaces the old preset-slider) -- 0.1-5.0 is a reasonable
+      // practical range for Leiden's resolution parameter: below ~0.1 most graphs collapse into
+      // one giant community, above ~5 you're mostly fragmenting into near-singletons.
+      leidenResolutionMin: 0.1,
+      leidenResolutionMax: 5.0,
+      leidenResolution: 1.0,
       leidenMeta: {},
       // Algorithm that actually produced the communities currently colored on
       // the graph -- set from the response once a run succeeds, so it stays
@@ -880,21 +881,6 @@ export default {
     // moves to an edge or is cleared -- see handleBackgroundClick/displayEdge/clearNetwork.
     nodeEdgeTableVisible() {
       return this.displayedElementType === 'node';
-    },
-    // Whether the Enrichment tab has anything to show and hasn't been closed
-    // since -- see neighboursTabShown/enrichmentTabDismissed/
-    // communityAnnotationTabDismissed above for the general scheme.
-    enrichmentTabVisible() {
-      return (this.enrichmentRan || this.enrichmentLoading
-        || this.reactomeEnrichmentRan || this.reactomeEnrichmentLoading) && !this.enrichmentTabDismissed;
-    },
-    // Gemini's node-set label gets its own tab, separate from g:Profiler/Reactome
-    // enrichment above -- same dismiss/re-show scheme.
-    nodeSetAnnotationTabVisible() {
-      return (this.geminiRan || this.geminiLoading) && !this.nodeSetAnnotationTabDismissed;
-    },
-    communityAnnotationTabVisible() {
-      return this.clusteringActive && !this.communityAnnotationTabDismissed;
     },
     // Every edge incident to the currently displayed node, shaped for NodeEdgeTable.
     // Neighbor labels aren't pre-populated on networkEdges entries (only the single
@@ -1005,7 +991,7 @@ export default {
     // Matches the backend's resolution_to_key(): normalize to 6 decimals, strip
     // trailing zeros/dot, keep at least one decimal place.
     currentResolutionKey() {
-      const resolution = this.leidenResolutions[this.resolutionIndex] ?? 1.0;
+      const resolution = this.leidenResolution ?? 1.0;
       let text = parseFloat(resolution).toFixed(6).replace(/0+$/, '').replace(/\.$/, '');
       if (!text.includes('.')) text = text + '.0';
       return text;
@@ -1606,15 +1592,20 @@ export default {
 
     // Community Detection (Leiden clustering). Only available in 'whole' mode
     // (see the Analysis panel gating) -- reruns the whole-network fetch through
-    // getLeidenMetagraph instead of getCosmograph, requesting every resolution
-    // in one call so the slider below can switch resolutions client-side
-    // (recolor via initializeCosmograph(), see resolutionIndex watcher) without
-    // refetching.
+    // getLeidenMetagraph instead of getCosmograph. Requests only the single
+    // resolution currently entered -- the backend computes one clustering per
+    // requested resolution (see the `for resolution in resolutions` loop in
+    // GetLeidenMetagraphView), so asking for just one instead of a whole preset
+    // list is a lot cheaper on larger networks. This also means changing the
+    // resolution input no longer recolors instantly (there's nothing to recolor
+    // with until it's actually fetched) -- the user has to click "Run"/"Re-run
+    // Clustering" again to fetch and apply a different resolution; see
+    // runLeidenClustering.
     buildLeidenUrl() {
       const params = new URLSearchParams();
       params.set('testType', this.wholeNetworkTests.testType);
       params.set('density', String(this.density));
-      params.set('resolutions', this.leidenResolutions.join(','));
+      params.set('resolutions', String(this.leidenResolution));
       params.set('algorithm', this.selectedAlgorithm);
       if (this.contextValue != null) params.set('c', this.contextValue);
       return `${BASE_URL}/metagraph/api/getLeidenMetagraph/?${params.toString()}`;
@@ -1658,8 +1649,9 @@ export default {
             x_refs: point.xrefs,
             set: "CHRIS",
           };
-          // Carry every requested resolution's community_rX field onto the
-          // node so the slider can switch resolutions without refetching.
+          // Carry the requested resolution's community_rX field onto the node
+          // (just one now -- see buildLeidenUrl) so coloring/legend/community
+          // annotation can read it via communityField.
           for (const key of Object.keys(point)) {
             if (key.startsWith('community_r')) node[key] = point[key];
           }
@@ -1678,9 +1670,11 @@ export default {
         }));
         this.allExternalEdges = [];
         this.filterForNetworkEdges();
-        this.resolutionIndex = 2; // default 1.0
+        // leidenResolution is deliberately left as whatever was requested (see
+        // buildLeidenUrl) -- only that one resolution's data just came back,
+        // so resetting it here would point communityField at a resolution
+        // that was never fetched.
         this.clusteringActive = true;
-        this.communityAnnotationTabDismissed = false;
         this.notifyTablesContentProduced('communityAnnotation');
         this.isReadOnly = true;
         this.closeDropdown();
@@ -2012,7 +2006,6 @@ export default {
       this.displayedElementType = "node";
       this.isDetailsNodeSelected = this.isNodeInNetworkSelected(node);
       this.openDetailsPanel();
-      this.neighboursTabShown = true;
       this.notifyTablesContentProduced('edgesOfNode');
     },
     displayEdge(edge) {
@@ -2047,16 +2040,20 @@ export default {
         this.tableSubtabHighlights[tabKey] = true;
       }
     },
-    // Closes (hides) one of the dismissible Tables sub-tabs -- Node Ranking/
-    // Edge Ranking aren't closable and don't go through here. Falls back to
-    // Node Ranking if the closed tab was the active one.
+    // Closes (hides) one of the dismissible Enrichment/Node Set Annotation sub-tabs -- the
+    // top-level Tables tabs themselves (Node Ranking, Edge Ranking, Neighbors of, Enrichment,
+    // Node Set Annotation, Community Annotation) are always present and aren't closable. Falls
+    // back to the sibling sub-tab if the closed one was the active one within its own group.
     closeTablesSubTab(tabKey) {
-      if (tabKey === 'edgesOfNode') this.neighboursTabShown = false;
-      else if (tabKey === 'enrichment') this.enrichmentTabDismissed = true;
-      else if (tabKey === 'nodeSetAnnotation') this.nodeSetAnnotationTabDismissed = true;
-      else if (tabKey === 'communityAnnotation') this.communityAnnotationTabDismissed = true;
-      this.tableSubtabHighlights[tabKey] = false;
-      if (this.tablesActiveTab === tabKey) this.tablesActiveTab = 'nodeRanking';
+      if (tabKey === 'gprofiler') {
+        this.gprofilerSubTabDismissed = true;
+        if (this.enrichmentTab === 'enrichment') this.enrichmentTab = 'reactomeEnrichment';
+      } else if (tabKey === 'reactome') {
+        this.reactomeSubTabDismissed = true;
+        if (this.enrichmentTab === 'reactomeEnrichment') this.enrichmentTab = 'enrichment';
+      } else if (tabKey === 'gemini') {
+        this.geminiSubTabDismissed = true;
+      }
     },
     isNodeInNetworkSelected(node) {
       return this.selectedNetworkNodes.some(existingNode => existingNode.id === node.id);
@@ -2115,7 +2112,7 @@ export default {
       this.enrichmentLoading = true;
       this.enrichmentRan = false;
       this.enrichmentResults = [];
-      this.enrichmentTabDismissed = false;
+      this.gprofilerSubTabDismissed = false;
       this.notifyTablesContentProduced('enrichment');
       try {
         const response = await fetch('https://biit.cs.ut.ee/gprofiler/api/gost/profile/', {
@@ -2208,7 +2205,7 @@ export default {
       this.reactomeEnrichmentRan = false;
       this.reactomeEnrichmentResults = [];
       this.reactomeUnmappedMetabolites = [];
-      this.enrichmentTabDismissed = false;
+      this.reactomeSubTabDismissed = false;
       this.notifyTablesContentProduced('enrichment');
       try {
         const chebiIds = [...this.selectedMetaboliteChebiIds];
@@ -2270,7 +2267,7 @@ export default {
       this.geminiLoading = true;
       this.geminiRan = false;
       this.geminiLabel = null;
-      this.nodeSetAnnotationTabDismissed = false;
+      this.geminiSubTabDismissed = false;
       this.notifyTablesContentProduced('nodeSetAnnotation');
       try {
         const csrfToken = getCookie('csrftoken');
@@ -3300,7 +3297,7 @@ export default {
         clusteringActive: this.clusteringActive,
         clusteringAlgorithm: this.clusteringAlgorithm,
         selectedAlgorithm: this.selectedAlgorithm,
-        resolutionIndex: this.resolutionIndex,
+        leidenResolution: this.leidenResolution,
         leidenMeta: this.leidenMeta,
         // Community Annotation -- only the runId/startedAt pointer is persisted, not the
         // (potentially large) result payload itself, so a reload can reconnect to a run
@@ -3358,7 +3355,7 @@ export default {
         this.clusteringActive = user_settings.clusteringActive ?? false;
         this.clusteringAlgorithm = user_settings.clusteringAlgorithm ?? null;
         this.selectedAlgorithm = user_settings.selectedAlgorithm ?? 'leiden';
-        this.resolutionIndex = user_settings.resolutionIndex ?? 2;
+        this.leidenResolution = user_settings.leidenResolution ?? 1.0;
         this.leidenMeta = user_settings.leidenMeta ?? {};
         this.communityAnnotationRunId = user_settings.communityAnnotationRunId ?? null;
         this.communityAnnotationStartedAt = user_settings.communityAnnotationStartedAt ?? null;
@@ -3437,27 +3434,12 @@ export default {
         this.selectedTests = { ...this.selectedTests, correction: newVal };
       }
     },
-    // Resolutions are all already loaded on the nodes (see runLeidenClustering),
-    // so switching resolution just recolors -- no refetch needed. A full
-    // initializeCosmograph() rebuild (rather than a lighter recolor) matches how
-    // the old Metagraph page's own resolution slider already worked.
-    // isClusteringLoading guard: runLeidenClustering() sets resolutionIndex as
-    // part of its own setup and then calls initializeCosmograph() itself once
-    // the fetch lands -- this watcher fires on that same assignment too (on the
-    // next tick, by which point clusteringActive is already true), so without
-    // the guard it raced a second, redundant rebuild against the one already in
-    // flight (same "graph renders twice" bug already hit and fixed once before
-    // on the old Metagraph page's own resolution slider).
-    async resolutionIndex() {
-      // Switching resolution changes which communities exist, so any previously-fetched or
-      // in-progress Community Annotation / Score Clustering run no longer matches -- discard it.
-      this.resetCommunityAnnotation();
-      this.resetScoreClustering();
-      if (this.clusteringActive && !this.isClusteringLoading) {
-        await this.initializeCosmograph();
-        this.applyDesign();
-      }
-    },
+    // No watcher on leidenResolution anymore: since buildLeidenUrl now only requests the one
+    // entered resolution (see there), editing the input has nothing loaded yet to recolor
+    // with -- the user has to click "Run"/"Re-run Clustering" to actually fetch and apply a
+    // different resolution, same as changing the algorithm. runLeidenClustering() already
+    // resets Community Annotation/Score Clustering at the start of every run, so that's still
+    // covered.
     // The selection changed, so any previously-fetched enrichment/label results no longer
     // match -- clear all three node-set-scoped tabs (g:Profiler, Reactome, Gemini) rather than
     // showing stale results computed on a different node set next to freshly-run ones with no

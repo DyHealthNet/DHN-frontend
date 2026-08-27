@@ -39,21 +39,21 @@
       </p>
 
       <template v-if="algorithmUsesResolution">
-        <label class="text-caption">Leiden resolution: {{ leidenResolutions[resolutionIndex] }}</label>
-        <v-slider
-          :model-value="resolutionIndex"
-          @update:model-value="$emit('update:resolutionIndex', $event)"
-          :min="0"
-          :max="leidenResolutions.length - 1"
-          :step="1"
-          show-ticks="always"
-          thumb-label="always"
+        <v-text-field
+          :model-value="leidenResolution"
+          @update:model-value="onResolutionInput"
+          type="number"
+          :min="leidenResolutionMin"
+          :max="leidenResolutionMax"
+          step="0.1"
+          label="Leiden resolution"
           density="compact"
-          color="primary"
-        >
-          <template #thumb-label>{{ leidenResolutions[resolutionIndex] }}</template>
-        </v-slider>
-        <p class="text-caption text-medium-emphasis mb-2">
+          variant="outlined"
+          class="mt-2"
+          :hint="`Between ${leidenResolutionMin} and ${leidenResolutionMax}`"
+          persistent-hint
+        ></v-text-field>
+        <p class="text-caption text-medium-emphasis mb-2 mt-2">
           Higher values produce more, smaller communities.
           <template v-if="clusteringActive"> {{ includedNodeTypesCount }} communities at this resolution.</template>
         </p>
@@ -276,8 +276,9 @@ export default {
     algorithmUsesResolution: { type: Boolean, default: false },
     isClusteringLoading: { type: Boolean, default: false },
     clusteringActive: { type: Boolean, default: false },
-    leidenResolutions: { type: Array, default: () => [] },
-    resolutionIndex: { type: Number, default: 0 },
+    leidenResolution: { type: Number, default: 1.0 },
+    leidenResolutionMin: { type: Number, default: 0.1 },
+    leidenResolutionMax: { type: Number, default: 5.0 },
     currentModularity: { type: Number, default: null },
     currentConductance: { type: Number, default: null },
     includedNodeTypesCount: { type: Number, default: 0 },
@@ -300,7 +301,7 @@ export default {
   },
   emits: [
     'update:selectedAlgorithm',
-    'update:resolutionIndex',
+    'update:leidenResolution',
     'run-clustering',
     'reset-clustering-colors',
     'run-community-annotation',
@@ -390,6 +391,14 @@ export default {
     },
   },
   methods: {
+    // Clamps free-typed values into [leidenResolutionMin, leidenResolutionMax] -- the
+    // native number input's min/max only affect the spinner arrows, not typed/pasted input.
+    onResolutionInput(value) {
+      const parsed = Number(value);
+      if (Number.isNaN(parsed)) return;
+      const clamped = Math.min(this.leidenResolutionMax, Math.max(this.leidenResolutionMin, parsed));
+      this.$emit('update:leidenResolution', clamped);
+    },
     runEnrichment() {
       if (this.enrichmentMethod === 'gprofiler') this.$emit('run-gprofiler-enrichment');
       else this.$emit('run-reactome-enrichment');
