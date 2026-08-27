@@ -388,7 +388,6 @@
                       :current-modularity="currentModularity"
                       :current-conductance="currentConductance"
                       :included-node-types-count="includedNodeTypes.size"
-                      :legend-groups-count="legendGroups.length"
                       :community-annotation-status="communityAnnotationStatus"
                       :selected-node-count="selectedNetworkNodes.length"
                       :has-selected-protein="hasSelectedProtein"

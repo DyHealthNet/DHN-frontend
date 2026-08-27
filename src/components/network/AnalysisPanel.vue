@@ -70,7 +70,7 @@
         :loading="isClusteringLoading"
         :disabled="clusteringDisabled || isClusteringLoading"
         @click="$emit('run-clustering'); communityDialogOpen = false;"
-      >{{ clusteringActive ? `Re-run ${selectedAlgorithmLabel} Clustering` : `Run ${selectedAlgorithmLabel} Clustering` }}</v-btn>
+      >Run Clustering</v-btn>
 
       <template v-if="clusteringActive">
         <v-btn
@@ -281,7 +281,6 @@ export default {
     currentModularity: { type: Number, default: null },
     currentConductance: { type: Number, default: null },
     includedNodeTypesCount: { type: Number, default: 0 },
-    legendGroupsCount: { type: Number, default: 0 },
 
     communityAnnotationStatus: { type: String, default: 'idle' },
 
@@ -320,9 +319,6 @@ export default {
     };
   },
   computed: {
-    selectedAlgorithmLabel() {
-      return this.communityAlgorithms.find((algo) => algo.value === this.selectedAlgorithm)?.label ?? this.selectedAlgorithm;
-    },
     clusteringDisabled() {
       return this.lastNetworkMode !== 'whole';
     },
@@ -330,7 +326,7 @@ export default {
       return "Only available once you've sent the whole network above (\"Send Whole Network\") -- it isn't supported for node-set-built subnetworks.";
     },
     communityAnnotationDisabled() {
-      return this.legendGroupsCount === 0;
+      return !this.clusteringActive;
     },
     communityAnnotationDisabledReason() {
       return 'Run Clustering first -- annotation is generated per community.';
