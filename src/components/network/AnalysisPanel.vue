@@ -12,7 +12,7 @@
       class="mb-2"
       color="primary-darken-1"
       @click="enrichmentsDialogOpen = true"
-    >Enrichments</v-btn>
+    >Enrichment</v-btn>
 
     <v-btn
       block
@@ -177,8 +177,8 @@
       >{{ communityAnnotationStatus === 'success' ? 'Re-run Community Annotation' : 'Run Community Annotation' }}</v-btn>
     </AnalysisDialog>
 
-    <!-- Enrichments: g:Profiler / Reactome -->
-    <AnalysisDialog v-model="enrichmentsDialogOpen" title="Enrichments">
+    <!-- Enrichment: g:Profiler / Reactome -->
+    <AnalysisDialog v-model="enrichmentsDialogOpen" title="Enrichment">
       <v-select
         v-model="enrichmentMethod"
         :items="enrichmentMethodOptions"
@@ -244,7 +244,7 @@
 
 <script>
 // Button-grid front-end for the Analysis expansion panel -- one button per section (Community,
-// Enrichments, Node Set Annotation) opens a single popup (AnalysisDialog) for that whole section.
+// Enrichment, Node Set Annotation) opens a single popup (AnalysisDialog) for that whole section.
 // Inside, a select field picks which specific method to run (mirroring the Community Detection
 // algorithm select: an option list with a short description of what's selected), and one Run
 // button at the bottom triggers whichever method is currently selected. This replaces the earlier
@@ -341,7 +341,7 @@ export default {
     enrichmentMethodOptions() {
       return [
         {
-          title: 'g:Profiler (Protein)',
+          title: 'g:Profiler',
           value: 'gprofiler',
           description: `Functional enrichment (GO, KEGG, Reactome, WikiPathways) of the ${this.selectedProteinCount} selected protein(s), via g:Profiler.`,
         },
