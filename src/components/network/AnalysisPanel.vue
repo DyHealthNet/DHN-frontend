@@ -9,7 +9,7 @@
               <v-btn
                 block
                 :color="clusteringActive ? 'primary' : 'primary-darken-1'"
-                :variant="clusteringActive ? 'flat' : 'outlined'"
+                :class="{'grey lighten-2': clusteringDisabled}"
                 :loading="isClusteringLoading"
                 :disabled="clusteringDisabled"
                 @click="clusteringDialogOpen = true"
@@ -27,7 +27,7 @@
               <v-btn
                 block
                 :color="communityAnnotationStatus === 'success' ? 'primary' : 'primary-darken-1'"
-                :variant="communityAnnotationStatus === 'success' ? 'flat' : 'outlined'"
+                :class="{'grey lighten-2': communityAnnotationDisabled}"
                 :loading="communityAnnotationStatus === 'running'"
                 :disabled="communityAnnotationDisabled"
                 @click="communityAnnotationDialogOpen = true"
@@ -50,7 +50,7 @@
               <v-btn
                 block
                 color="primary-darken-1"
-                variant="outlined"
+                :class="{'grey lighten-2': gprofilerDisabled}"
                 :loading="enrichmentLoading"
                 :disabled="gprofilerDisabled"
                 @click="gprofilerDialogOpen = true"
@@ -68,7 +68,7 @@
               <v-btn
                 block
                 color="primary-darken-1"
-                variant="outlined"
+                :class="{'grey lighten-2': reactomeRunDisabled}"
                 :loading="reactomeEnrichmentLoading"
                 :disabled="reactomeRunDisabled"
                 @click="reactomeDialogOpen = true"
@@ -91,7 +91,7 @@
               <v-btn
                 block
                 color="primary-darken-1"
-                variant="outlined"
+                :class="{'grey lighten-2': geminiDisabled}"
                 :loading="geminiLoading"
                 :disabled="geminiDisabled"
                 @click="geminiDialogOpen = true"
