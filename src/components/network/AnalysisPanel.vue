@@ -3,7 +3,7 @@
     <v-btn
       block
       class="mb-2"
-      :color="communityActive ? 'primary' : 'primary-darken-1'"
+      color="primary-darken-1"
       @click="communityDialogOpen = true"
     >Community Detection</v-btn>
 
@@ -164,17 +164,21 @@
         every community at the active resolution. Runs as a background job and can take a few
         minutes.
       </p>
-      <p v-if="communityAnnotationDisabled" class="text-caption text-medium-emphasis">
+      <v-tooltip :disabled="!communityAnnotationDisabled" location="bottom">
+        <template #activator="{ props: tooltipProps }">
+          <span v-bind="tooltipProps" class="d-block">
+            <v-btn
+              block
+              :color="communityAnnotationStatus === 'success' ? 'primary' : 'primary-darken-1'"
+              :class="{'grey lighten-2': communityAnnotationDisabled}"
+              :loading="communityAnnotationStatus === 'running'"
+              :disabled="communityAnnotationDisabled || communityAnnotationStatus === 'running'"
+              @click="$emit('run-community-annotation'); communityDialogOpen = false;"
+            >{{ communityAnnotationStatus === 'success' ? 'Re-run Community Annotation' : 'Run Community Annotation' }}</v-btn>
+          </span>
+        </template>
         {{ communityAnnotationDisabledReason }}
-      </p>
-      <v-btn
-        block
-        :color="communityAnnotationStatus === 'success' ? 'primary' : 'primary-darken-1'"
-        :class="{'grey lighten-2': communityAnnotationDisabled}"
-        :loading="communityAnnotationStatus === 'running'"
-        :disabled="communityAnnotationDisabled || communityAnnotationStatus === 'running'"
-        @click="$emit('run-community-annotation'); communityDialogOpen = false;"
-      >{{ communityAnnotationStatus === 'success' ? 'Re-run Community Annotation' : 'Run Community Annotation' }}</v-btn>
+      </v-tooltip>
     </AnalysisDialog>
 
     <!-- Enrichment: g:Profiler / Reactome -->
@@ -201,18 +205,21 @@
         </p>
       </template>
 
-      <p v-if="enrichmentRunDisabledReason" class="text-caption text-medium-emphasis">
+      <v-tooltip :disabled="!enrichmentRunDisabled" location="bottom">
+        <template #activator="{ props: tooltipProps }">
+          <span v-bind="tooltipProps" class="d-block">
+            <v-btn
+              color="primary-darken-1"
+              block
+              class="mt-2"
+              :loading="enrichmentRunLoading"
+              :disabled="enrichmentRunDisabled"
+              @click="runEnrichment"
+            >Run Enrichment</v-btn>
+          </span>
+        </template>
         {{ enrichmentRunDisabledReason }}
-      </p>
-
-      <v-btn
-        color="primary-darken-1"
-        block
-        class="mt-2"
-        :loading="enrichmentRunLoading"
-        :disabled="enrichmentRunDisabled"
-        @click="runEnrichment"
-      >Run Enrichment</v-btn>
+      </v-tooltip>
     </AnalysisDialog>
 
     <!-- Node Set Annotation: Gemini (only option today) -->
@@ -228,16 +235,21 @@
       ></v-select>
       <p class="text-caption text-medium-emphasis mt-n2 mb-2">{{ nodeSetAnnotationMethodDescription }}</p>
 
-      <p v-if="geminiDisabled" class="text-caption text-medium-emphasis">{{ geminiDisabledReason }}</p>
-
-      <v-btn
-        color="primary-darken-1"
-        block
-        class="mt-2"
-        :loading="geminiLoading"
-        :disabled="geminiDisabled"
-        @click="$emit('run-gemini-label'); nodeSetAnnotationDialogOpen = false;"
-      >Get Gemini Label</v-btn>
+      <v-tooltip :disabled="!geminiDisabled" location="bottom">
+        <template #activator="{ props: tooltipProps }">
+          <span v-bind="tooltipProps" class="d-block">
+            <v-btn
+              color="primary-darken-1"
+              block
+              class="mt-2"
+              :loading="geminiLoading"
+              :disabled="geminiDisabled"
+              @click="$emit('run-gemini-label'); nodeSetAnnotationDialogOpen = false;"
+            >Get Label</v-btn>
+          </span>
+        </template>
+        {{ geminiDisabledReason }}
+      </v-tooltip>
     </AnalysisDialog>
   </div>
 </template>
@@ -308,11 +320,6 @@ export default {
     };
   },
   computed: {
-    // Highlights the Community Detection button once there's something to look at: active
-    // clustering or a completed annotation run.
-    communityActive() {
-      return this.clusteringActive || this.communityAnnotationStatus === 'success';
-    },
     selectedAlgorithmLabel() {
       return this.communityAlgorithms.find((algo) => algo.value === this.selectedAlgorithm)?.label ?? this.selectedAlgorithm;
     },
