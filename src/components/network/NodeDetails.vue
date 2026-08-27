@@ -38,7 +38,6 @@
             </a>
           </v-chip>
         </span>
-      </p>
       <!-- No chip alternative
       <p title="We use Uniprot for proteins, HMDB for metabolites and SNOMED for phenotypes">
       <span class="label">Reference:</span><br>

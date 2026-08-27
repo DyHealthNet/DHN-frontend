@@ -1,7 +1,7 @@
 <template>
   <v-card outlined class="mt-4">
     <div class="d-flex align-center pa-4 pb-2">
-      <span class="text-subtitle-1 font-weight-medium">{{ nodeLabel }}</span>
+      <span class="text-body-2 text-medium-emphasis">{{ nodeLabel }}</span>
       <v-chip size="small" variant="outlined" color="primary-darken-1" class="ml-2">{{ items.length }}</v-chip>
       <v-spacer></v-spacer>
       <v-text-field

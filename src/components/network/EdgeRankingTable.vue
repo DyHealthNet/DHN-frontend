@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <v-card outlined class="mt-4">
     <div class="d-flex align-center px-4 py-2" style="gap: 8px;">
       <!-- <v-select
         v-model="testTypeFilter"
@@ -60,7 +60,7 @@
         {{ formatNumber(item.abs_effect_size) }}
       </template>
     </DownloadableDataTable>
-  </div>
+  </v-card>
 </template>
 
 <script>

@@ -334,22 +334,24 @@
                     <span v-if="selectedNetworkNodes.length === 0">
                           No node selected. Double click on a node to add it to this panel or select it via the Details panel.
                     </span>
-                    <v-table dense v-else="selectedNetworkNodes.length === 0">
-                      <thead>
-                        <tr>
-                          <th>Name</th>
-                          <th>Type</th>
-                          <th>Description</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr v-for="(node, index) in selectedNetworkNodes" :key="node.id">
-                          <td>{{ node.display_name }}</td>
-                          <td>{{ this.getPrettyType(node.source_table) }}</td>
-                          <td>{{ node.description }}</td>
-                        </tr>
-                      </tbody>
-                    </v-table>
+                    <div v-else class="selected-nodes-scroll">
+                      <v-table dense>
+                        <thead>
+                          <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="(node, index) in selectedNetworkNodes" :key="node.id">
+                            <td>{{ node.display_name }}</td>
+                            <td>{{ this.getPrettyType(node.source_table) }}</td>
+                            <td>{{ node.description }}</td>
+                          </tr>
+                        </tbody>
+                      </v-table>
+                    </div>
                   </v-expansion-panel-text>
                 </v-expansion-panel>
 
@@ -3575,6 +3577,11 @@ export default {
 .scrollable-panels {
   max-height: 625px;  /* You can adjust the height as needed */
   overflow-y: auto;   /* This will make the content scrollable */
+}
+.selected-nodes-scroll {
+  max-height: 240px;  /* Keeps the Selection panel a fixed size regardless of how many
+                          nodes are selected, instead of growing unbounded. */
+  overflow-y: auto;
 }
 
 /* Style for the network container */

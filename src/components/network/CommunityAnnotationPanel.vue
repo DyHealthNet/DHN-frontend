@@ -1,5 +1,5 @@
 <template>
-  <div class="community-annotation-panel pa-4">
+  <v-card outlined class="mt-4 community-annotation-panel pa-4">
     <div v-if="status === 'running'">
       <div class="d-flex align-center mb-2">
         <v-progress-circular indeterminate size="20" width="2" color="primary" class="mr-3"></v-progress-circular>
@@ -56,7 +56,7 @@
         for every community at the active resolution. This can take a few minutes.
       </p>
     </div>
-  </div>
+  </v-card>
 </template>
 
 <script>

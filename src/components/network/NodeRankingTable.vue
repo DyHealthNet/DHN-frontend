@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <v-card outlined class="mt-4">
     <div class="d-flex align-center px-4 py-2" style="gap: 8px;">
       <v-spacer></v-spacer>
       <v-text-field
@@ -53,7 +53,7 @@
         <span class="description-cell" :title="item.description">{{ item.description || '-' }}</span>
       </template>
     </DownloadableDataTable>
-  </div>
+  </v-card>
 </template>
 
 <script>

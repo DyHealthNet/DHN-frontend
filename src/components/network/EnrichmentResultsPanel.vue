@@ -1,5 +1,5 @@
 <template>
-  <div class="enrichment-results-panel">
+  <v-card outlined class="mt-4 enrichment-results-panel">
     <v-tabs :model-value="tab" color="primary-darken-1" @update:model-value="$emit('update:tab', $event)">
       <v-tab v-if="enrichmentRan || enrichmentLoading" value="enrichment">Subset Protein Enrichment</v-tab>
       <v-tab v-if="reactomeEnrichmentRan || reactomeEnrichmentLoading" value="reactomeEnrichment">Subset Reactome Enrichment</v-tab>
@@ -20,7 +20,7 @@
         </v-window-item>
       </v-window>
     </div>
-  </div>
+  </v-card>
 </template>
 
 <script>
