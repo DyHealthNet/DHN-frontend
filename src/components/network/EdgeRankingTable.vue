@@ -56,6 +56,9 @@
       <template v-slot:item.effect_size="{ item }">
         {{ formatNumber(item.effect_size) }}
       </template>
+      <template v-slot:item.abs_effect_size="{ item }">
+        {{ formatNumber(item.abs_effect_size) }}
+      </template>
     </DownloadableDataTable>
   </div>
 </template>
@@ -108,6 +111,7 @@ export default {
         { title: 'Test', key: 'test_type', width: 110 },
         { title: 'P-Value', key: 'p_value', sort: numericSort },
         { title: 'Effect Size', key: 'effect_size', sort: numericSort },
+        { title: 'Abs. Effect Size', key: 'abs_effect_size', sort: numericSort },
       ],
     };
   },
@@ -130,6 +134,7 @@ export default {
         ...edge,
         node1: this.nodeLabel(edge.from),
         node2: this.nodeLabel(edge.to),
+        abs_effect_size: edge.effect_size != null ? Math.abs(edge.effect_size) : null,
       }));
     },
   },

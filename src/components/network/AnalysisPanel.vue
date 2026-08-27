@@ -1,140 +1,75 @@
 <template>
   <div class="analysis-panel">
-    <p class="text-subtitle-2 mb-2">Community</p>
-    <v-row dense>
-      <v-col cols="6">
-        <v-tooltip :disabled="!clusteringDisabled" location="bottom">
-          <template #activator="{ props: tooltipProps }">
-            <span v-bind="tooltipProps" class="d-block">
-              <v-btn
-                block
-                :color="clusteringActive ? 'primary' : 'primary-darken-1'"
-                :class="{'grey lighten-2': clusteringDisabled}"
-                :loading="isClusteringLoading"
-                :disabled="clusteringDisabled"
-                @click="clusteringDialogOpen = true"
-              >Clustering</v-btn>
-            </span>
-          </template>
-          {{ clusteringDisabledReason }}
-        </v-tooltip>
-      </v-col>
+    <v-btn
+      block
+      class="mb-2"
+      :color="communityActive ? 'primary' : 'primary-darken-1'"
+      @click="communityDialogOpen = true"
+    >Community</v-btn>
 
-      <v-col cols="6">
-        <v-tooltip :disabled="!communityAnnotationDisabled" location="bottom">
-          <template #activator="{ props: tooltipProps }">
-            <span v-bind="tooltipProps" class="d-block">
-              <v-btn
-                block
-                :color="communityAnnotationStatus === 'success' ? 'primary' : 'primary-darken-1'"
-                :class="{'grey lighten-2': communityAnnotationDisabled}"
-                :loading="communityAnnotationStatus === 'running'"
-                :disabled="communityAnnotationDisabled"
-                @click="communityAnnotationDialogOpen = true"
-              >Annotation</v-btn>
-            </span>
-          </template>
-          {{ communityAnnotationDisabledReason }}
-        </v-tooltip>
-      </v-col>
-    </v-row>
+    <v-btn
+      block
+      class="mb-2"
+      color="primary-darken-1"
+      @click="enrichmentsDialogOpen = true"
+    >Enrichments</v-btn>
 
-    <v-divider class="my-4"></v-divider>
+    <v-btn
+      block
+      color="primary-darken-1"
+      @click="nodeSetAnnotationDialogOpen = true"
+    >Node Set Annotation</v-btn>
 
-    <p class="text-subtitle-2 mb-2"></p>
-    <v-row dense>
-      <v-col cols="6">
-        <v-tooltip :disabled="!gprofilerDisabled" location="bottom">
-          <template #activator="{ props: tooltipProps }">
-            <span v-bind="tooltipProps" class="d-block">
-              <v-btn
-                block
-                color="primary-darken-1"
-                :class="{'grey lighten-2': gprofilerDisabled}"
-                :loading="enrichmentLoading"
-                :disabled="gprofilerDisabled"
-                @click="gprofilerDialogOpen = true"
-              >g:Profiler</v-btn>
-            </span>
-          </template>
-          {{ gprofilerDisabledReason }}
-        </v-tooltip>
-      </v-col>
-
-      <v-col cols="6">
-        <v-tooltip :disabled="!reactomeRunDisabled" location="bottom">
-          <template #activator="{ props: tooltipProps }">
-            <span v-bind="tooltipProps" class="d-block">
-              <v-btn
-                block
-                color="primary-darken-1"
-                :class="{'grey lighten-2': reactomeRunDisabled}"
-                :loading="reactomeEnrichmentLoading"
-                :disabled="reactomeRunDisabled"
-                @click="reactomeDialogOpen = true"
-              >Reactome</v-btn>
-            </span>
-          </template>
-          {{ reactomeDisabledReason }}
-        </v-tooltip>
-      </v-col>
-    </v-row>
-
-    <v-divider class="my-4"></v-divider>
-
-    <p class="text-subtitle-2 mb-2">Node Set Annotation</p>
-    <v-row dense>
-      <v-col cols="6">
-        <v-tooltip :disabled="!geminiDisabled" location="bottom">
-          <template #activator="{ props: tooltipProps }">
-            <span v-bind="tooltipProps" class="d-block">
-              <v-btn
-                block
-                color="primary-darken-1"
-                :class="{'grey lighten-2': geminiDisabled}"
-                :loading="geminiLoading"
-                :disabled="geminiDisabled"
-                @click="geminiDialogOpen = true"
-              >Gemini</v-btn>
-            </span>
-          </template>
-          {{ geminiDisabledReason }}
-        </v-tooltip>
-      </v-col>
-    </v-row>
-
-    <!-- Community Detection / Clustering -->
-    <AnalysisDialog v-model="clusteringDialogOpen" title="Community Detection">
+    <!-- Community: Clustering / Annotation -->
+    <AnalysisDialog v-model="communityDialogOpen" title="Community">
       <v-select
-        :model-value="selectedAlgorithm"
-        @update:model-value="$emit('update:selectedAlgorithm', $event)"
-        :items="communityAlgorithms"
-        item-title="label"
+        v-model="communityAction"
+        :items="communityActionOptions"
+        item-title="title"
         item-value="value"
-        label="Algorithm"
+        label="Action"
         density="compact"
         variant="outlined"
-        class="mt-2"
-        :disabled="isClusteringLoading"
       ></v-select>
-      <p class="text-caption text-medium-emphasis mt-n2 mb-2">
-        {{ algorithmDescription }}
+      <p class="text-caption text-medium-emphasis mt-n2 mb-2">{{ communityActionDescription }}</p>
+
+      <template v-if="communityAction === 'clustering'">
+        <v-select
+          :model-value="selectedAlgorithm"
+          @update:model-value="$emit('update:selectedAlgorithm', $event)"
+          :items="communityAlgorithms"
+          item-title="label"
+          item-value="value"
+          label="Algorithm"
+          density="compact"
+          variant="outlined"
+          class="mt-2"
+          :disabled="isClusteringLoading"
+        ></v-select>
+        <p class="text-caption text-medium-emphasis mt-n2 mb-2">
+          {{ algorithmDescription }}
+        </p>
+      </template>
+
+      <p v-if="communityRunDisabledReason" class="text-caption text-medium-emphasis">
+        {{ communityRunDisabledReason }}
       </p>
+
       <v-btn
         color="primary-darken-1"
         block
         class="mt-2"
-        :loading="isClusteringLoading"
-        :disabled="isClusteringLoading"
-        @click="$emit('run-clustering'); clusteringDialogOpen = false;"
-      >{{ clusteringActive ? `Re-run ${selectedAlgorithmLabel} Clustering` : `Run ${selectedAlgorithmLabel} Clustering` }}</v-btn>
+        :loading="communityRunLoading"
+        :disabled="communityRunDisabled"
+        @click="runCommunityAction"
+      >{{ communityRunLabel }}</v-btn>
 
-      <template v-if="clusteringActive">
+      <template v-if="communityAction === 'clustering' && clusteringActive">
         <v-btn
           class="mt-2"
           variant="outlined"
           block
-          @click="$emit('reset-clustering-colors'); clusteringDialogOpen = false;"
+          @click="$emit('reset-clustering-colors'); communityDialogOpen = false;"
         >Reset to Node Type Colors</v-btn>
 
         <div class="mt-4">
@@ -235,87 +170,79 @@
       </template>
     </AnalysisDialog>
 
-    <!-- Community Annotation -->
-    <AnalysisDialog v-model="communityAnnotationDialogOpen" title="Community Annotation">
-      <p class="text-caption text-medium-emphasis">
-        Runs g:Profiler enrichment, Reactome enrichment, and a Gemini-generated rationale for
-        every community at the current resolution. Runs as a background job and can take a few
-        minutes -- results appear in the "Node Ranking" tables' Community Annotation tab as they
-        come in.
-      </p>
-      <v-btn
-        color="primary-darken-1"
-        block
-        class="mt-2"
-        :loading="communityAnnotationStatus === 'running'"
-        :disabled="communityAnnotationDisabled || communityAnnotationStatus === 'running'"
-        @click="$emit('run-community-annotation'); communityAnnotationDialogOpen = false;"
-      >{{ communityAnnotationStatus === 'success' ? 'Re-run Community Annotation' : 'Run Community Annotation' }}</v-btn>
-    </AnalysisDialog>
+    <!-- Enrichments: g:Profiler / Reactome -->
+    <AnalysisDialog v-model="enrichmentsDialogOpen" title="Enrichments">
+      <v-select
+        v-model="enrichmentMethod"
+        :items="enrichmentMethodOptions"
+        item-title="title"
+        item-value="value"
+        label="Enrichment"
+        density="compact"
+        variant="outlined"
+      ></v-select>
+      <p class="text-caption text-medium-emphasis mt-n2 mb-2">{{ enrichmentMethodDescription }}</p>
 
-    <!-- g:Profiler Enrichment -->
-    <AnalysisDialog v-model="gprofilerDialogOpen" title="Protein Enrichment (g:Profiler)">
-      <p class="text-caption text-medium-emphasis">
-        Functional enrichment of the {{ selectedProteinCount }} selected protein(s), via <a href="https://biit.cs.ut.ee/gprofiler/gost" target="_blank" rel="noopener">g:Profiler</a>.
+      <template v-if="enrichmentMethod === 'reactome'">
+        <p v-if="selectedMetabolitesWithoutChebiCount && !reactomeEnrichmentRan" class="text-caption text-medium-emphasis">
+          {{ selectedMetabolitesWithoutChebiCount }} selected metabolite(s) have no stored ChEBI cross-reference yet -- they'll be
+          mapped live via <a href="https://www.ebi.ac.uk/unichem/" target="_blank" rel="noopener">UniChem</a> when you run enrichment.
+        </p>
+        <p v-if="reactomeUnmappedMetaboliteNames.length" class="text-caption text-medium-emphasis">
+          {{ reactomeUnmappedMetaboliteNames.length }} selected metabolite(s) could not be mapped to a ChEBI id and were excluded:
+          {{ reactomeUnmappedMetaboliteNames.join(', ') }}
+        </p>
+      </template>
+
+      <p v-if="enrichmentRunDisabledReason" class="text-caption text-medium-emphasis">
+        {{ enrichmentRunDisabledReason }}
       </p>
+
       <v-btn
         color="primary-darken-1"
         block
         class="mt-2"
-        :loading="enrichmentLoading"
-        @click="$emit('run-gprofiler-enrichment'); gprofilerDialogOpen = false;"
+        :loading="enrichmentRunLoading"
+        :disabled="enrichmentRunDisabled"
+        @click="runEnrichment"
       >Run Enrichment</v-btn>
     </AnalysisDialog>
 
-    <!-- Reactome Enrichment -->
-    <AnalysisDialog v-model="reactomeDialogOpen" title="Reactome Enrichment">
-      <p class="text-caption text-medium-emphasis">
-        Joint pathway over-representation of {{ selectedProteinCount }} protein(s) and
-        {{ selectedMetaboliteMappedCount }} metabolite(s), via <a href="https://reactome.org/PathwayBrowser/#/ANALYSIS" target="_blank" rel="noopener">Reactome</a>.
-      </p>
-      <p v-if="selectedMetabolitesWithoutChebiCount && !reactomeEnrichmentRan" class="text-caption text-medium-emphasis">
-        {{ selectedMetabolitesWithoutChebiCount }} selected metabolite(s) have no stored ChEBI cross-reference yet -- they'll be
-        mapped live via <a href="https://www.ebi.ac.uk/unichem/" target="_blank" rel="noopener">UniChem</a> when you run enrichment.
-      </p>
-      <p v-if="reactomeUnmappedMetaboliteNames.length" class="text-caption text-medium-emphasis">
-        {{ reactomeUnmappedMetaboliteNames.length }} selected metabolite(s) could not be mapped to a ChEBI id and were excluded:
-        {{ reactomeUnmappedMetaboliteNames.join(', ') }}
-      </p>
-      <v-btn
-        color="primary-darken-1"
-        block
-        class="mt-2"
-        :loading="reactomeEnrichmentLoading"
-        @click="$emit('run-reactome-enrichment'); reactomeDialogOpen = false;"
-      >Run Enrichment</v-btn>
-    </AnalysisDialog>
+    <!-- Node Set Annotation: Gemini (only option today) -->
+    <AnalysisDialog v-model="nodeSetAnnotationDialogOpen" title="Node Set Annotation">
+      <v-select
+        v-model="nodeSetAnnotationMethod"
+        :items="nodeSetAnnotationMethodOptions"
+        item-title="title"
+        item-value="value"
+        label="Method"
+        density="compact"
+        variant="outlined"
+      ></v-select>
+      <p class="text-caption text-medium-emphasis mt-n2 mb-2">{{ nodeSetAnnotationMethodDescription }}</p>
 
-    <!-- Gemini Label -->
-    <AnalysisDialog v-model="geminiDialogOpen" title="Gemini Label">
-      <p class="text-caption text-medium-emphasis">
-        Ask Gemini to propose a label for the {{ selectedNodeCount }} selected node(s), based on their
-        name, group/subgroup, and description.
-      </p>
+      <p v-if="geminiDisabled" class="text-caption text-medium-emphasis">{{ geminiDisabledReason }}</p>
+
       <v-btn
         color="primary-darken-1"
         block
         class="mt-2"
         :loading="geminiLoading"
-        @click="$emit('run-gemini-label'); geminiDialogOpen = false;"
+        :disabled="geminiDisabled"
+        @click="$emit('run-gemini-label'); nodeSetAnnotationDialogOpen = false;"
       >Get Gemini Label</v-btn>
     </AnalysisDialog>
   </div>
 </template>
 
 <script>
-// Button-grid front-end for the Analysis expansion panel -- every functionality (Community
-// Detection/Annotation, g:Profiler/Reactome enrichment, Gemini labeling) is always shown as a
-// button, greyed out with an explanatory hover tooltip when its preconditions aren't met, rather
-// than whole sections appearing/disappearing as selection changes. Clicking a button opens a
-// small popup (AnalysisDialog) with that functionality's actual form/description/run button --
-// running it emits back up to data-network.vue (which owns all the state/run-methods, same as
-// before) and closes the popup immediately, same as the old inline buttons did. Replaces the old
-// inline Community Detection markup and NodeSetActionsPanel.vue.
+// Button-grid front-end for the Analysis expansion panel -- one button per section (Community,
+// Enrichments, Node Set Annotation) opens a single popup (AnalysisDialog) for that whole section.
+// Inside, a select field picks which specific method to run (mirroring the Community Detection
+// algorithm select: an option list with a short description of what's selected), and one Run
+// button at the bottom triggers whichever method is currently selected. This replaces the earlier
+// one-button-per-method grid -- g:Profiler/Reactome/Gemini/Annotation no longer get their own
+// dedicated buttons or dialogs, they're just choices within their section's single dialog.
 import AnalysisDialog from '@/components/AnalysisDialog.vue';
 
 export default {
@@ -365,14 +292,21 @@ export default {
   ],
   data() {
     return {
-      clusteringDialogOpen: false,
-      communityAnnotationDialogOpen: false,
-      gprofilerDialogOpen: false,
-      reactomeDialogOpen: false,
-      geminiDialogOpen: false,
+      communityDialogOpen: false,
+      enrichmentsDialogOpen: false,
+      nodeSetAnnotationDialogOpen: false,
+
+      communityAction: 'clustering', // 'clustering' | 'annotation'
+      enrichmentMethod: 'gprofiler', // 'gprofiler' | 'reactome'
+      nodeSetAnnotationMethod: 'gemini',
     };
   },
   computed: {
+    // Highlights the Community button once there's something to look at, same idea as the old
+    // per-button highlight: active clustering or a completed annotation run.
+    communityActive() {
+      return this.clusteringActive || this.communityAnnotationStatus === 'success';
+    },
     selectedAlgorithmLabel() {
       return this.communityAlgorithms.find((algo) => algo.value === this.selectedAlgorithm)?.label ?? this.selectedAlgorithm;
     },
@@ -386,8 +320,45 @@ export default {
       return this.legendGroupsCount === 0;
     },
     communityAnnotationDisabledReason() {
-      return 'Run Community Detection (Clustering) first -- annotation is generated per community.';
+      return 'Run Clustering first -- annotation is generated per community.';
     },
+
+    communityActionOptions() {
+      return [
+        {
+          title: 'Clustering',
+          value: 'clustering',
+          description: "Detect communities in the network via graph clustering (Leiden, Louvain, Infomap, or HSBM). Only available once you've sent the whole network.",
+        },
+        {
+          title: 'Annotation',
+          value: 'annotation',
+          description: 'Runs g:Profiler enrichment, Reactome enrichment, and a Gemini-generated rationale for every community at the active resolution. Requires Clustering to have been run first.',
+        },
+      ];
+    },
+    communityActionDescription() {
+      return this.communityActionOptions.find((option) => option.value === this.communityAction)?.description ?? '';
+    },
+    communityRunLabel() {
+      if (this.communityAction === 'clustering') {
+        return this.clusteringActive ? `Re-run ${this.selectedAlgorithmLabel} Clustering` : `Run ${this.selectedAlgorithmLabel} Clustering`;
+      }
+      return this.communityAnnotationStatus === 'success' ? 'Re-run Community Annotation' : 'Run Community Annotation';
+    },
+    communityRunLoading() {
+      return this.communityAction === 'clustering' ? this.isClusteringLoading : this.communityAnnotationStatus === 'running';
+    },
+    communityRunDisabled() {
+      return this.communityAction === 'clustering'
+        ? (this.clusteringDisabled || this.isClusteringLoading)
+        : (this.communityAnnotationDisabled || this.communityAnnotationStatus === 'running');
+    },
+    communityRunDisabledReason() {
+      if (this.communityAction === 'clustering') return this.clusteringDisabled ? this.clusteringDisabledReason : '';
+      return this.communityAnnotationDisabled ? this.communityAnnotationDisabledReason : '';
+    },
+
     gprofilerDisabled() {
       return !this.hasSelectedProtein;
     },
@@ -397,11 +368,64 @@ export default {
     reactomeDisabledReason() {
       return 'Select at least one protein or metabolite node on the network to run pathway enrichment.';
     },
+    enrichmentMethodOptions() {
+      return [
+        {
+          title: 'g:Profiler (Protein)',
+          value: 'gprofiler',
+          description: `Functional enrichment (GO, KEGG, Reactome, WikiPathways) of the ${this.selectedProteinCount} selected protein(s), via g:Profiler.`,
+        },
+        {
+          title: 'Reactome',
+          value: 'reactome',
+          description: `Joint pathway over-representation of ${this.selectedProteinCount} protein(s) and ${this.selectedMetaboliteMappedCount} metabolite(s), via Reactome's Analysis Service.`,
+        },
+      ];
+    },
+    enrichmentMethodDescription() {
+      return this.enrichmentMethodOptions.find((option) => option.value === this.enrichmentMethod)?.description ?? '';
+    },
+    enrichmentRunLoading() {
+      return this.enrichmentMethod === 'gprofiler' ? this.enrichmentLoading : this.reactomeEnrichmentLoading;
+    },
+    enrichmentRunDisabled() {
+      return this.enrichmentMethod === 'gprofiler' ? this.gprofilerDisabled : this.reactomeRunDisabled;
+    },
+    enrichmentRunDisabledReason() {
+      return this.enrichmentMethod === 'gprofiler'
+        ? (this.gprofilerDisabled ? this.gprofilerDisabledReason : '')
+        : (this.reactomeRunDisabled ? this.reactomeDisabledReason : '');
+    },
+
     geminiDisabled() {
       return this.selectedNodeCount === 0;
     },
     geminiDisabledReason() {
       return 'Select a set of nodes on the network to ask Gemini for a label.';
+    },
+    nodeSetAnnotationMethodOptions() {
+      return [
+        {
+          title: 'Gemini Label',
+          value: 'gemini',
+          description: `Ask Gemini to propose a label for the ${this.selectedNodeCount} selected node(s), based on their name, group/subgroup, and description.`,
+        },
+      ];
+    },
+    nodeSetAnnotationMethodDescription() {
+      return this.nodeSetAnnotationMethodOptions.find((option) => option.value === this.nodeSetAnnotationMethod)?.description ?? '';
+    },
+  },
+  methods: {
+    runCommunityAction() {
+      if (this.communityAction === 'clustering') this.$emit('run-clustering');
+      else this.$emit('run-community-annotation');
+      this.communityDialogOpen = false;
+    },
+    runEnrichment() {
+      if (this.enrichmentMethod === 'gprofiler') this.$emit('run-gprofiler-enrichment');
+      else this.$emit('run-reactome-enrichment');
+      this.enrichmentsDialogOpen = false;
     },
   },
 };

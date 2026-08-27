@@ -360,61 +360,12 @@
                     Connect Nodes
                   </v-expansion-panel-title>
                     <v-expansion-panel-text>
-                  <!-- Individual Node Section -->
-                  <v-responsive class="pa-0">
-                    <v-row>
-                    </v-row>
-                    <v-divider class="my-4"></v-divider>
-                    <p class="mb-2">Individual Node</p>
-                    <v-row dense>
-                      <v-col cols="6">
-                        <!-- TODO Add a settings toggle to set the significance threshold and possibly the multiple testing
-                        correction if changeable and if we don't want the user to only be able to set it
-                        in Advanced Settings -->
-                        <v-btn
-                          :disabled="selectedNetworkNodes.length !== 1"
-                          color="primary-darken-1"
-                          block
-                          :class="{'grey lighten-2': selectedNetworkNodes.length !== 1}"
-                          @click="connectIndividualNode()"
-                        >Significance Filtering</v-btn>
-                      </v-col>
-                      <!-- TODO Add a settings toggle to set the amount of Nodes to be retrieved per type like Manuel did-->
-                      <v-col cols="6">
-                        <v-btn
-                          :disabled="selectedNetworkNodes.length !== 1"
-                          color="primary-darken-1"
-                          block
-                          :class="{'grey lighten-2': selectedNetworkNodes.length !== 1}"
-                          @click="connectIndividualNode(true)"
-                        >Node Count</v-btn>
-                      </v-col>
-                    </v-row>
-                    <v-divider class="my-4"></v-divider>
-                    <!-- Set of Nodes Section -->
-                    <p class="mb-2">Set of Nodes</p>
-                    <v-row dense>
-                      <v-col cols="6">
-                        <v-btn
-                          :disabled="selectedNetworkNodes.length <= 1"
-                          color="primary-darken-1"
-                          block
-                          :class="{'grey lighten-2': selectedNetworkNodes.length <= 1}"
-                          @click="connectGroupNodes(false)"
-                        >Significance Filtering</v-btn>
-                        </v-col>
-                      <v-col cols="6">
-                        <v-btn
-                          :disabled="selectedNetworkNodes.length <= 1"
-                          color="primary-darken-1"
-                          block
-                          :class="{'grey lighten-2': selectedNetworkNodes.length <= 1}"
-                          @click="connectGroupNodes(true)"
-                        >Minimum Spanning Tree</v-btn>
-                        </v-col>
-                        </v-row>
-                      </v-responsive>
-                      </v-expansion-panel-text>
+                      <ConnectNodesPanel
+                        :selected-node-count="selectedNetworkNodes.length"
+                        @connect-individual-node="connectIndividualNode"
+                        @connect-group-nodes="connectGroupNodes"
+                      />
+                    </v-expansion-panel-text>
                 </v-expansion-panel>
 
                 <!-- Analysis -->
@@ -673,6 +624,7 @@ import NetworkEdgeLine from "@/components/network/NetworkEdgeLine.vue";
 import WholeNetworkSettings from "@/components/network/WholeNetworkSettings.vue";
 import GraphToolbar from "@/components/network/GraphToolbar.vue";
 import AnalysisPanel from "@/components/network/AnalysisPanel.vue";
+import ConnectNodesPanel from "@/components/network/ConnectNodesPanel.vue";
 import NetworkRankingTabs from "@/components/network/NetworkRankingTabs.vue";
 import NetworkTablesPanel from "@/components/network/NetworkTablesPanel.vue";
 import {useTheme} from 'vuetify';
@@ -682,7 +634,7 @@ import {useTheme} from 'vuetify';
 export default {
   components: {
     StatisticalTestLine, FilterToolbar, AdvancedSettings, NodeDetails, NetworkEdgeLine,
-    WholeNetworkSettings, EdgeDetails, GraphToolbar, NetworkLegend, AnalysisPanel,
+    WholeNetworkSettings, EdgeDetails, GraphToolbar, NetworkLegend, AnalysisPanel, ConnectNodesPanel,
     NetworkRankingTabs, NetworkTablesPanel},
   data() {
     return {
