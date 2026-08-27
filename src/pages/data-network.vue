@@ -35,6 +35,7 @@
               <template v-slot:activator="{ props }">
                 <div v-bind="props">
                   <v-select
+                    class="mr-1"
                     v-model="fullNetworkStatsTestType"
                     :items="[{ title: 'Nonparametric', value: 'nonparametric' }, { title: 'Parametric', value: 'parametric' }]"
                     label="Test type"
