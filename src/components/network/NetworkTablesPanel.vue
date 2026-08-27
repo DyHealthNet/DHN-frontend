@@ -11,7 +11,7 @@
       </v-tab>
       <v-tab v-if="enrichmentTabShown" value="enrichment">
         <v-badge :model-value="!!tabHighlights.enrichment" color="error" dot offset-x="-2" offset-y="-2">
-          Enrichments
+          Enrichment
         </v-badge>
         <v-icon size="16" class="ml-2" @click.stop="$emit('close-tab', 'enrichment')">mdi-close</v-icon>
       </v-tab>

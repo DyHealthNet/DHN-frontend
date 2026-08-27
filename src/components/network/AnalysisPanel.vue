@@ -41,7 +41,7 @@
 
     <v-divider class="my-4"></v-divider>
 
-    <p class="text-subtitle-2 mb-2">Enrichments</p>
+    <p class="text-subtitle-2 mb-2"></p>
     <v-row dense>
       <v-col cols="6">
         <v-tooltip :disabled="!gprofilerDisabled" location="bottom">
