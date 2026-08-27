@@ -28,11 +28,11 @@
 
 <script>
 // Per-selection "Node Set Annotation" results -- its own top-level tab in NetworkTablesPanel,
-// split out of EnrichmentResultsPanel/"Enrichments" since Gemini's node-set annotation is
+// split out of EnrichmentResultsPanel/"Enrichment" since Gemini's node-set annotation is
 // conceptually distinct from g:Profiler/Reactome pathway enrichment. Structured the same way as
 // EnrichmentResultsPanel (a v-tabs/v-window with one sub-tab per method) even though there's only
 // one method (Gemini) today, so another node-set annotation method can be added the same way
-// g:Profiler/Reactome sit side by side in the Enrichments tab. Purely presentational/controlled:
+// g:Profiler/Reactome sit side by side in the Enrichment tab. Purely presentational/controlled:
 // data-network.vue owns the state.
 export default {
   name: 'NodeSetAnnotationResultsPanel',

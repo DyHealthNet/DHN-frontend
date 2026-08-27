@@ -25,7 +25,7 @@
 
 <script>
 // Per-node/subset enrichment results (Protein, Reactome) for whatever is currently selected --
-// embedded as the "Enrichments" tab of NetworkTablesPanel. Purely presentational/controlled:
+// embedded as the "Enrichment" tab of NetworkTablesPanel. Purely presentational/controlled:
 // data-network.vue owns all the state and run-methods, this only renders it and reports tab
 // changes back. Community Annotation lives in its own component/tab (CommunityAnnotationPanel.vue),
 // and Gemini's node-set label lives in its own tab too (NodeSetAnnotationResultsPanel.vue) --

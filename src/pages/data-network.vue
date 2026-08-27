@@ -710,7 +710,7 @@ export default {
       nodeSetAnnotationTab: 'gemini',
 
       // Tables sub-tabs: Node Ranking/Edge Ranking are always present, but
-      // Neighbours/Enrichments/Node Set Annotation/Community Annotation only have anything to
+      // Neighbours/Enrichment/Node Set Annotation/Community Annotation only have anything to
       // show once their content has actually been produced (a node click / a run button) --
       // hidden until then. Each is also closable (see closeTablesSubTab), which flips its
       // dismissed flag until fresh content is produced again, at which point the relevant
@@ -879,7 +879,7 @@ export default {
     nodeEdgeTableVisible() {
       return this.displayedElementType === 'node';
     },
-    // Whether the Enrichments tab has anything to show and hasn't been closed
+    // Whether the Enrichment tab has anything to show and hasn't been closed
     // since -- see neighboursTabShown/enrichmentTabDismissed/
     // communityAnnotationTabDismissed above for the general scheme.
     enrichmentTabVisible() {
