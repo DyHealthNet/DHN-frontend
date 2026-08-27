@@ -364,13 +364,9 @@
                     <v-row>
                     </v-row>
                     <v-divider class="my-4"></v-divider>
-                    <v-row>
-                      <v-col cols="12">
-                        <p>
-                          Individual Node
-                        </p>
-                      </v-col>
-                      <v-col cols="12">
+                    <p class="mb-2">Individual Node</p>
+                    <v-row dense>
+                      <v-col cols="6">
                         <!-- TODO Add a settings toggle to set the significance threshold and possibly the multiple testing
                         correction if changeable and if we don't want the user to only be able to set it
                         in Advanced Settings -->
@@ -383,7 +379,7 @@
                         >Significance Filtering</v-btn>
                       </v-col>
                       <!-- TODO Add a settings toggle to set the amount of Nodes to be retrieved per type like Manuel did-->
-                      <v-col cols="12">
+                      <v-col cols="6">
                         <v-btn
                           :disabled="selectedNetworkNodes.length !== 1"
                           color="primary-darken-1"
@@ -395,15 +391,10 @@
                     </v-row>
                     <v-divider class="my-4"></v-divider>
                     <!-- Set of Nodes Section -->
-                    <v-row>
-                      <v-col cols="12">
-                        <p>
-                          Set of Nodes
-                        </p>
-                      </v-col>
-                      <v-col cols="12">
+                    <p class="mb-2">Set of Nodes</p>
+                    <v-row dense>
+                      <v-col cols="6">
                         <v-btn
-                          class="mt-2"
                           :disabled="selectedNetworkNodes.length <= 1"
                           color="primary-darken-1"
                           block
@@ -411,9 +402,8 @@
                           @click="connectGroupNodes(false)"
                         >Significance Filtering</v-btn>
                         </v-col>
-                      <v-col cols="12">
+                      <v-col cols="6">
                         <v-btn
-                          class="mt-2"
                           :disabled="selectedNetworkNodes.length <= 1"
                           color="primary-darken-1"
                           block
@@ -462,7 +452,7 @@
                       :reactome-enrichment-loading="reactomeEnrichmentLoading"
                       @run-clustering="runLeidenClustering"
                       @reset-clustering-colors="resetClusteringColors"
-                      @run-community-annotation="communityAnnotationTabDismissed = false; tablesActiveTab = 'communityAnnotation'; if (communityAnnotationStatus === 'idle') runCommunityAnnotation();"
+                      @run-community-annotation="communityAnnotationTabDismissed = false; tablesActiveTab = 'communityAnnotation'; runCommunityAnnotation();"
                       @run-gprofiler-enrichment="runProteinEnrichment(); tablesActiveTab = 'enrichment'; enrichmentTab = 'enrichment';"
                       @run-reactome-enrichment="runReactomeEnrichment(); tablesActiveTab = 'enrichment'; enrichmentTab = 'reactomeEnrichment';"
                       @run-gemini-label="runGeminiLabel(); tablesActiveTab = 'nodeSetAnnotation';"
@@ -601,6 +591,7 @@
                     <NetworkTablesPanel
                       v-model:active-tab="tablesActiveTab"
                       v-model:enrichment-tab="enrichmentTab"
+                      v-model:node-set-annotation-tab="nodeSetAnnotationTab"
                       :graph-nodes="graphNodes"
                       :graph-edges="graphEdges"
                       :nodes-by-id="nodesById"
@@ -631,7 +622,6 @@
                       @select-edge="jumpToEdgeSelection"
                       @select-neighbor="jumpToSearchedNode"
                       @toggle-select-node="toggleNodeSelectionById"
-                      @run-community-annotation="runCommunityAnnotation"
                       @close-tab="closeTablesSubTab"
                     />
                   </v-card-text>
@@ -765,6 +755,7 @@ export default {
       visualizationTab: 'visualization',
       tablesActiveTab: 'nodeRanking',
       enrichmentTab: 'enrichment',
+      nodeSetAnnotationTab: 'gemini',
 
       // Tables sub-tabs: Node Ranking/Edge Ranking are always present, but
       // Neighbours/Enrichments/Node Set Annotation/Community Annotation only have anything to

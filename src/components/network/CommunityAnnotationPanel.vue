@@ -14,9 +14,6 @@
       ></v-progress-linear>
     </div>
     <div v-else-if="status === 'success'">
-      <v-btn color="primary" variant="outlined" class="mb-4" @click="$emit('run-community-annotation')">
-        Re-run Community Annotation
-      </v-btn>
       <p v-if="!communityIds.length" class="text-caption text-medium-emphasis">
         No community annotation results returned.
       </p>
@@ -54,12 +51,10 @@
     </div>
     <div v-else>
       <p class="text-caption text-medium-emphasis">
-        Runs g:Profiler and Reactome enrichment, then a single Gemini call grounded in those
-        results, for every community at the active resolution. This can take a few minutes.
+        Run Community Annotation from the Analysis panel to see results here -- it scores
+        g:Profiler and Reactome enrichment, then a single Gemini call grounded in those results,
+        for every community at the active resolution. This can take a few minutes.
       </p>
-      <v-btn color="primary" variant="outlined" class="mt-2" @click="$emit('run-community-annotation')">
-        Run Community Annotation
-      </v-btn>
     </div>
   </div>
 </template>
@@ -68,7 +63,8 @@
 // Community Annotation results (g:Profiler + Reactome + Gemini per community, run as a
 // background job -- see data-network.vue's runCommunityAnnotation), extracted out of
 // EnrichmentResultsPanel.vue so it can live in its own Tables sub-tab instead of being
-// bundled with the per-node enrichment results.
+// bundled with the per-node enrichment results. Purely a results display -- triggering a run is
+// only possible from the Analysis panel now (AnalysisPanel.vue's Community Annotation dialog).
 import GProfilerResultsTable from '@/components/network/GProfilerResultsTable.vue';
 import ReactomeResultsTable from '@/components/network/ReactomeResultsTable.vue';
 
@@ -80,7 +76,6 @@ export default {
     progress: { type: Object, default: null }, // {stage, completed, total}
     results: { type: Object, default: () => ({}) },
   },
-  emits: ['run-community-annotation'],
   computed: {
     progressText() {
       const progress = this.progress;

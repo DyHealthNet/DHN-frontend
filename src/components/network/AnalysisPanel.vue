@@ -1,88 +1,107 @@
 <template>
   <div class="analysis-panel">
-    <p class="text-subtitle-2">Community</p>
-    <div class="d-flex flex-wrap ga-2 mb-4">
-      <v-tooltip :disabled="!clusteringDisabled" location="bottom">
-        <template #activator="{ props: tooltipProps }">
-          <span v-bind="tooltipProps">
-            <v-btn
-              :color="clusteringActive ? 'primary' : 'primary-darken-1'"
-              :variant="clusteringActive ? 'flat' : 'outlined'"
-              :loading="isClusteringLoading"
-              :disabled="clusteringDisabled"
-              @click="clusteringDialogOpen = true"
-            >Clustering</v-btn>
-          </span>
-        </template>
-        {{ clusteringDisabledReason }}
-      </v-tooltip>
+    <p class="text-subtitle-2 mb-2">Community</p>
+    <v-row dense>
+      <v-col cols="6">
+        <v-tooltip :disabled="!clusteringDisabled" location="bottom">
+          <template #activator="{ props: tooltipProps }">
+            <span v-bind="tooltipProps" class="d-block">
+              <v-btn
+                block
+                :color="clusteringActive ? 'primary' : 'primary-darken-1'"
+                :variant="clusteringActive ? 'flat' : 'outlined'"
+                :loading="isClusteringLoading"
+                :disabled="clusteringDisabled"
+                @click="clusteringDialogOpen = true"
+              >Clustering</v-btn>
+            </span>
+          </template>
+          {{ clusteringDisabledReason }}
+        </v-tooltip>
+      </v-col>
 
-      <v-tooltip :disabled="!communityAnnotationDisabled" location="bottom">
-        <template #activator="{ props: tooltipProps }">
-          <span v-bind="tooltipProps">
-            <v-btn
-              color="primary-darken-1"
-              variant="outlined"
-              :loading="communityAnnotationStatus === 'running'"
-              :disabled="communityAnnotationDisabled"
-              @click="communityAnnotationDialogOpen = true"
-            >Annotation</v-btn>
-          </span>
-        </template>
-        {{ communityAnnotationDisabledReason }}
-      </v-tooltip>
-    </div>
+      <v-col cols="6">
+        <v-tooltip :disabled="!communityAnnotationDisabled" location="bottom">
+          <template #activator="{ props: tooltipProps }">
+            <span v-bind="tooltipProps" class="d-block">
+              <v-btn
+                block
+                :color="communityAnnotationStatus === 'success' ? 'primary' : 'primary-darken-1'"
+                :variant="communityAnnotationStatus === 'success' ? 'flat' : 'outlined'"
+                :loading="communityAnnotationStatus === 'running'"
+                :disabled="communityAnnotationDisabled"
+                @click="communityAnnotationDialogOpen = true"
+              >Annotation</v-btn>
+            </span>
+          </template>
+          {{ communityAnnotationDisabledReason }}
+        </v-tooltip>
+      </v-col>
+    </v-row>
 
-    <p class="text-subtitle-2">Enrichments</p>
-    <div class="d-flex flex-wrap ga-2 mb-4">
-      <v-tooltip :disabled="!gprofilerDisabled" location="bottom">
-        <template #activator="{ props: tooltipProps }">
-          <span v-bind="tooltipProps">
-            <v-btn
-              color="primary-darken-1"
-              variant="outlined"
-              :loading="enrichmentLoading"
-              :disabled="gprofilerDisabled"
-              @click="gprofilerDialogOpen = true"
-            >g:Profiler</v-btn>
-          </span>
-        </template>
-        {{ gprofilerDisabledReason }}
-      </v-tooltip>
+    <v-divider class="my-4"></v-divider>
 
-      <v-tooltip :disabled="!reactomeRunDisabled" location="bottom">
-        <template #activator="{ props: tooltipProps }">
-          <span v-bind="tooltipProps">
-            <v-btn
-              color="primary-darken-1"
-              variant="outlined"
-              :loading="reactomeEnrichmentLoading"
-              :disabled="reactomeRunDisabled"
-              @click="reactomeDialogOpen = true"
-            >Reactome</v-btn>
-          </span>
-        </template>
-        {{ reactomeDisabledReason }}
-      </v-tooltip>
-    </div>
+    <p class="text-subtitle-2 mb-2">Enrichments</p>
+    <v-row dense>
+      <v-col cols="6">
+        <v-tooltip :disabled="!gprofilerDisabled" location="bottom">
+          <template #activator="{ props: tooltipProps }">
+            <span v-bind="tooltipProps" class="d-block">
+              <v-btn
+                block
+                color="primary-darken-1"
+                variant="outlined"
+                :loading="enrichmentLoading"
+                :disabled="gprofilerDisabled"
+                @click="gprofilerDialogOpen = true"
+              >g:Profiler</v-btn>
+            </span>
+          </template>
+          {{ gprofilerDisabledReason }}
+        </v-tooltip>
+      </v-col>
 
-    <p class="text-subtitle-2">Node Set Annotation</p>
-    <div class="d-flex flex-wrap ga-2 mb-2">
-      <v-tooltip :disabled="!geminiDisabled" location="bottom">
-        <template #activator="{ props: tooltipProps }">
-          <span v-bind="tooltipProps">
-            <v-btn
-              color="primary-darken-1"
-              variant="outlined"
-              :loading="geminiLoading"
-              :disabled="geminiDisabled"
-              @click="geminiDialogOpen = true"
-            >Gemini</v-btn>
-          </span>
-        </template>
-        {{ geminiDisabledReason }}
-      </v-tooltip>
-    </div>
+      <v-col cols="6">
+        <v-tooltip :disabled="!reactomeRunDisabled" location="bottom">
+          <template #activator="{ props: tooltipProps }">
+            <span v-bind="tooltipProps" class="d-block">
+              <v-btn
+                block
+                color="primary-darken-1"
+                variant="outlined"
+                :loading="reactomeEnrichmentLoading"
+                :disabled="reactomeRunDisabled"
+                @click="reactomeDialogOpen = true"
+              >Reactome</v-btn>
+            </span>
+          </template>
+          {{ reactomeDisabledReason }}
+        </v-tooltip>
+      </v-col>
+    </v-row>
+
+    <v-divider class="my-4"></v-divider>
+
+    <p class="text-subtitle-2 mb-2">Node Set Annotation</p>
+    <v-row dense>
+      <v-col cols="6">
+        <v-tooltip :disabled="!geminiDisabled" location="bottom">
+          <template #activator="{ props: tooltipProps }">
+            <span v-bind="tooltipProps" class="d-block">
+              <v-btn
+                block
+                color="primary-darken-1"
+                variant="outlined"
+                :loading="geminiLoading"
+                :disabled="geminiDisabled"
+                @click="geminiDialogOpen = true"
+              >Gemini</v-btn>
+            </span>
+          </template>
+          {{ geminiDisabledReason }}
+        </v-tooltip>
+      </v-col>
+    </v-row>
 
     <!-- Community Detection / Clustering -->
     <AnalysisDialog v-model="clusteringDialogOpen" title="Community Detection">

@@ -79,6 +79,9 @@
 
       <v-window-item value="nodeSetAnnotation">
         <NodeSetAnnotationResultsPanel
+          :tab="nodeSetAnnotationTab"
+          @update:tab="$emit('update:nodeSetAnnotationTab', $event)"
+          :gemini-ran="geminiRan"
           :gemini-label="geminiLabel"
           :gemini-loading="geminiLoading"
         />
@@ -89,7 +92,6 @@
           :status="communityAnnotationStatus"
           :progress="communityAnnotationProgress"
           :results="communityAnnotationResults"
-          @run-community-annotation="$emit('run-community-annotation')"
         />
       </v-window-item>
     </v-window>
@@ -142,6 +144,7 @@ export default {
     reactomeEnrichmentResults: { type: Array, default: () => [] },
     reactomeEnrichmentLoading: { type: Boolean, default: false },
 
+    nodeSetAnnotationTab: { type: String, default: 'gemini' },
     geminiRan: { type: Boolean, default: false },
     geminiLabel: { type: Object, default: null },
     geminiLoading: { type: Boolean, default: false },
@@ -160,11 +163,11 @@ export default {
   emits: [
     'update:activeTab',
     'update:enrichmentTab',
+    'update:nodeSetAnnotationTab',
     'select-node',
     'select-edge',
     'select-neighbor',
     'toggle-select-node',
-    'run-community-annotation',
     'close-tab',
   ],
 };
