@@ -1,7 +1,7 @@
 <template>
   <v-card outlined class="mt-4">
     <div class="d-flex align-center pa-4 pb-2">
-      <span class="text-body-2 text-medium-emphasis">{{ nodeLabel }}</span>
+      <span class="node-title">{{ nodeLabel }}</span>
       <v-chip size="small" variant="outlined" color="primary-darken-1" class="ml-2">{{ items.length }}</v-chip>
       <v-spacer></v-spacer>
       <v-text-field
@@ -94,5 +94,12 @@ export default {
 <style scoped>
 .node-edge-table :deep(tbody tr) {
   cursor: pointer;
+}
+.node-title {
+  font-size: 20px;
+  color: rgb(var(--v-theme-primary-darken-1));
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 </style>
