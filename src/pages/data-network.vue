@@ -221,7 +221,11 @@
             <v-spacer></v-spacer>
             <v-tabs v-model="visualizationTab" :color="toolbarIconColor" align-tabs="end">
               <v-tab value="visualization">Network</v-tab>
-              <v-tab value="tables">Tables</v-tab>
+              <v-tab value="tables">
+                <v-badge :model-value="tablesTabHighlighted" color="error" dot offset-x="-4" offset-y="-4">
+                  Tables
+                </v-badge>
+              </v-tab>
             </v-tabs>
           </v-toolbar>
 
@@ -235,7 +239,7 @@
                 ></v-progress-circular>
             </v-overlay>
             <v-col cols="4">
-              <v-expansion-panels multiple class="scrollable-panels">
+              <v-expansion-panels v-model="openPanels" multiple class="scrollable-panels">
                 <!-- Network Overview -->
                 <v-expansion-panel>
                   <v-expansion-panel-title>
@@ -429,142 +433,21 @@
                     Analysis</v-expansion-panel-title>
                   <v-expansion-panel-text>
                     <v-divider class="my-4"></v-divider>
-                    <p>Community Detection</p>
-                    <template v-if="lastNetworkMode === 'whole'">
-                      <v-select
-                        v-model="selectedAlgorithm"
-                        :items="communityAlgorithms"
-                        item-title="label"
-                        item-value="value"
-                        label="Algorithm"
-                        density="compact"
-                        variant="outlined"
-                        class="mt-2"
-                        :disabled="isClusteringLoading"
-                      ></v-select>
-                      <p class="text-caption text-medium-emphasis mt-n2 mb-2">
-                        {{ algorithmDescription }}
-                      </p>
-                      <v-btn
-                        color="primary-darken-1"
-                        block
-                        class="mt-2"
-                        :loading="isClusteringLoading"
-                        :disabled="isClusteringLoading"
-                        @click="runLeidenClustering"
-                      >{{ clusteringActive ? `Re-run ${selectedAlgorithmLabel} Clustering` : `Run ${selectedAlgorithmLabel} Clustering` }}</v-btn>
-
-                      <template v-if="clusteringActive">
-                        <v-btn
-                          class="mt-2"
-                          variant="outlined"
-                          block
-                          @click="resetClusteringColors"
-                        >Reset to Node Type Colors</v-btn>
-
-                        <div class="mt-4">
-                          <template v-if="algorithmUsesResolution">
-                            <label class="text-caption">Leiden resolution: {{ leidenResolutions[resolutionIndex] }}</label>
-                            <v-slider
-                              v-model="resolutionIndex"
-                              :min="0"
-                              :max="leidenResolutions.length - 1"
-                              :step="1"
-                              show-ticks="always"
-                              thumb-label="always"
-                              density="compact"
-                              color="primary"
-                            >
-                              <template #thumb-label>{{ leidenResolutions[resolutionIndex] }}</template>
-                            </v-slider>
-                            <p class="text-caption text-medium-emphasis">
-                              {{ includedNodeTypes.size }} communities at this resolution. Higher values produce more communities.
-                            </p>
-                          </template>
-                          <p v-if="currentModularity != null" class="text-caption text-medium-emphasis">
-                            Modularity: {{ currentModularity.toFixed(3) }} · Conductance: {{ currentConductance.toFixed(3) }}
-                          </p>
-
-                          <v-btn
-                            class="mt-2"
-                            color="primary"
-                            variant="outlined"
-                            :disabled="legendGroups.length === 0"
-                            @click="tablesActiveTab = 'communityAnnotation'; if (communityAnnotationStatus === 'idle') runCommunityAnnotation();"
-                          >Community Annotation</v-btn>
-
-                          <!-- <v-divider class="my-4"></v-divider>
-                          <p class="text-caption text-medium-emphasis mb-2">
-                            Scores the current clustering's biological coherence via DIGEST, against
-                            random background partitions of the same size. Only one node type can be
-                            scored per run.
-                          </p>
-                          <v-select
-                            v-model="scoreClusteringNodeGroup"
-                            :items="scoreClusteringNodeGroups"
-                            label="Node type to score"
-                            density="compact"
-                            variant="outlined"
-                            :disabled="scoreClusteringStatus === 'running'"
-                          ></v-select>
-                          <v-select
-                            v-model="scoreClusteringType"
-                            :items="scoreClusteringTypeOptions"
-                            item-title="title"
-                            item-value="value"
-                            label="Category"
-                            density="compact"
-                            variant="outlined"
-                            :disabled="scoreClusteringStatus === 'running'"
-                          ></v-select>
-                          <v-select
-                            v-model="scoreClusteringTarId"
-                            :items="scoreClusteringTarIdOptions"
-                            item-title="title"
-                            item-value="value"
-                            label="Identifier scheme"
-                            density="compact"
-                            variant="outlined"
-                            :disabled="scoreClusteringStatus === 'running'"
-                          ></v-select>
-                          <v-btn
-                            block
-                            color="primary"
-                            variant="outlined"
-                            :loading="scoreClusteringStatus === 'running'"
-                            :disabled="scoreClusteringStatus === 'running' || !scoreClusteringNodeGroup || !scoreClusteringTarId"
-                            @click="runScoreClustering"
-                          >{{ scoreClusteringStatus === 'success' ? 'Re-score Clustering' : 'Score Clustering' }}</v-btn>
-
-                          <div v-if="scoreClusteringStatus === 'success' && scoreClusteringResult" class="mt-3">
-                            <v-table density="compact">
-                              <thead>
-                                <tr><th>Metric</th><th>Value</th><th>p-value</th></tr>
-                              </thead>
-                              <tbody>
-                                <tr v-for="metric in ['DI-based', 'SS-based', 'DBI-based']" :key="metric">
-                                  <td>{{ metric }}</td>
-                                  <td>{{ formatScoreValue(scoreClusteringResult.input_values?.values?.[metric]) }}</td>
-                                  <td>{{ formatScoreValue(scoreClusteringResult.p_values?.values?.[metric]) }}</td>
-                                </tr>
-                              </tbody>
-                            </v-table>
-                            <p class="text-caption text-medium-emphasis mt-2">
-                              DBI-based is better when lower; DI-based and SS-based are better when
-                              higher. Scored {{ scoreClusteringResult.coverage?.scoredNodeCount }} of
-                              {{ scoreClusteringResult.coverage?.inputNodeCount }} clustered nodes
-                              ({{ scoreClusteringResult.coverage?.nodeGroup }} via
-                              {{ scoreClusteringResult.coverage?.tarId }}).
-                            </p>
-                          </div> -->
-                        </div>
-                      </template>
-                    </template>
-                    <p v-else class="text-medium-emphasis">
-                      Community detection is available once you've sent the whole network above ("Send Whole Network") -- it isn't supported for node-set-built subnetworks.
-                    </p>
-
-                    <NodeSetActionsPanel
+                    <AnalysisPanel
+                      :last-network-mode="lastNetworkMode"
+                      v-model:selected-algorithm="selectedAlgorithm"
+                      :community-algorithms="communityAlgorithms"
+                      :algorithm-description="algorithmDescription"
+                      :algorithm-uses-resolution="algorithmUsesResolution"
+                      :is-clustering-loading="isClusteringLoading"
+                      :clustering-active="clusteringActive"
+                      :leiden-resolutions="leidenResolutions"
+                      v-model:resolution-index="resolutionIndex"
+                      :current-modularity="currentModularity"
+                      :current-conductance="currentConductance"
+                      :included-node-types-count="includedNodeTypes.size"
+                      :legend-groups-count="legendGroups.length"
+                      :community-annotation-status="communityAnnotationStatus"
                       :selected-node-count="selectedNetworkNodes.length"
                       :has-selected-protein="hasSelectedProtein"
                       :has-selected-metabolite="hasSelectedMetabolite"
@@ -572,14 +455,17 @@
                       :selected-metabolite-mapped-count="selectedMetaboliteCount - reactomeUnmappedMetabolites.length"
                       :selected-metabolites-without-chebi-count="selectedMetabolitesWithoutChebi.length"
                       :reactome-unmapped-metabolite-names="reactomeUnmappedMetabolites.map((node) => node.display_name)"
-                      :reactome-run-disabled="selectedProteinAccessions.length + selectedMetaboliteChebiIds.length + selectedMetabolitesWithoutChebi.length === 0"
+                      :reactome-run-disabled="reactomeRunDisabled"
                       :reactome-enrichment-ran="reactomeEnrichmentRan"
                       :gemini-loading="geminiLoading"
                       :enrichment-loading="enrichmentLoading"
                       :reactome-enrichment-loading="reactomeEnrichmentLoading"
-                      @run-gemini-label="runGeminiLabel(); tablesActiveTab = 'enrichment'; enrichmentTab = 'gemini';"
-                      @run-protein-enrichment="runProteinEnrichment(); tablesActiveTab = 'enrichment'; enrichmentTab = 'enrichment';"
+                      @run-clustering="runLeidenClustering"
+                      @reset-clustering-colors="resetClusteringColors"
+                      @run-community-annotation="communityAnnotationTabDismissed = false; tablesActiveTab = 'communityAnnotation'; if (communityAnnotationStatus === 'idle') runCommunityAnnotation();"
+                      @run-gprofiler-enrichment="runProteinEnrichment(); tablesActiveTab = 'enrichment'; enrichmentTab = 'enrichment';"
                       @run-reactome-enrichment="runReactomeEnrichment(); tablesActiveTab = 'enrichment'; enrichmentTab = 'reactomeEnrichment';"
+                      @run-gemini-label="runGeminiLabel(); tablesActiveTab = 'nodeSetAnnotation';"
                     />
                   </v-expansion-panel-text>
                 </v-expansion-panel>
@@ -724,6 +610,7 @@
                       :node-edge-table-visible="nodeEdgeTableVisible"
                       :node-label="displayedElement?.display_name"
                       :node-edge-table-items="nodeEdgeTableItems"
+                      :neighbours-tab-shown="neighboursTabShown"
                       :enrichment-ran="enrichmentRan"
                       :enrichment-results="enrichmentResults"
                       :enrichment-loading="enrichmentLoading"
@@ -733,15 +620,19 @@
                       :gemini-ran="geminiRan"
                       :gemini-label="geminiLabel"
                       :gemini-loading="geminiLoading"
-                      :community-annotation-available="clusteringActive"
+                      :enrichment-tab-shown="enrichmentTabVisible"
+                      :node-set-annotation-tab-shown="nodeSetAnnotationTabVisible"
+                      :community-annotation-available="communityAnnotationTabVisible"
                       :community-annotation-status="communityAnnotationStatus"
                       :community-annotation-progress="communityAnnotationProgress"
                       :community-annotation-results="communityAnnotationResults"
+                      :tab-highlights="tableSubtabHighlights"
                       @select-node="jumpToSearchedNode"
                       @select-edge="jumpToEdgeSelection"
                       @select-neighbor="jumpToSearchedNode"
                       @toggle-select-node="toggleNodeSelectionById"
                       @run-community-annotation="runCommunityAnnotation"
+                      @close-tab="closeTablesSubTab"
                     />
                   </v-card-text>
                 </v-window-item>
@@ -790,7 +681,7 @@ import StatisticalTestLine from "@/components/StatisticalTestLine.vue";
 import NetworkEdgeLine from "@/components/network/NetworkEdgeLine.vue";
 import WholeNetworkSettings from "@/components/network/WholeNetworkSettings.vue";
 import GraphToolbar from "@/components/network/GraphToolbar.vue";
-import NodeSetActionsPanel from "@/components/network/NodeSetActionsPanel.vue";
+import AnalysisPanel from "@/components/network/AnalysisPanel.vue";
 import NetworkRankingTabs from "@/components/network/NetworkRankingTabs.vue";
 import NetworkTablesPanel from "@/components/network/NetworkTablesPanel.vue";
 import {useTheme} from 'vuetify';
@@ -800,7 +691,7 @@ import {useTheme} from 'vuetify';
 export default {
   components: {
     StatisticalTestLine, FilterToolbar, AdvancedSettings, NodeDetails, NetworkEdgeLine,
-    WholeNetworkSettings, EdgeDetails, GraphToolbar, NetworkLegend, NodeSetActionsPanel,
+    WholeNetworkSettings, EdgeDetails, GraphToolbar, NetworkLegend, AnalysisPanel,
     NetworkRankingTabs, NetworkTablesPanel},
   data() {
     return {
@@ -859,6 +750,14 @@ export default {
       selectAll: false,
       clearNetworkWarn: false,
 
+      // Left accordion (v-expansion-panels multiple, index-based since panels
+      // don't set an explicit `value`): which panels are currently expanded.
+      // displayNode()/displayEdge() push the Details panel's index (1) in here
+      // so clicking a node/edge -- on the graph canvas or in a ranking table,
+      // both of which funnel through those two methods -- unfolds it, without
+      // collapsing whatever else the user already had open.
+      openPanels: [],
+
       // Visualization/Tables tab switch (graph card) and, within Tables, which sub-tab is
       // showing -- an Analysis-panel action (node click, enrichment/community-annotation run)
       // pre-selects the relevant Tables sub-tab without forcing the top-level tab away from
@@ -866,6 +765,26 @@ export default {
       visualizationTab: 'visualization',
       tablesActiveTab: 'nodeRanking',
       enrichmentTab: 'enrichment',
+
+      // Tables sub-tabs: Node Ranking/Edge Ranking are always present, but
+      // Neighbours/Enrichments/Node Set Annotation/Community Annotation only have anything to
+      // show once their content has actually been produced (a node click / a run button) --
+      // hidden until then. Each is also closable (see closeTablesSubTab), which flips its
+      // dismissed flag until fresh content is produced again, at which point the relevant
+      // handler below resets it.
+      neighboursTabShown: false,
+      enrichmentTabDismissed: false,
+      nodeSetAnnotationTabDismissed: false,
+      communityAnnotationTabDismissed: false,
+
+      // Lets the user know new results landed in a Tables sub-tab they aren't
+      // currently looking at: lights up the top-level "Tables" tab (header) if
+      // they're on the Visualization side, or the specific sub-tab if they're
+      // already in Tables but looking at a different one. Cleared by the
+      // visualizationTab/tablesActiveTab watchers once they actually navigate
+      // to what was highlighted -- see notifyTablesContentProduced().
+      tablesTabHighlighted: false,
+      tableSubtabHighlights: { edgesOfNode: false, enrichment: false, nodeSetAnnotation: false, communityAnnotation: false },
 
       // Protein Enrichment (g:Profiler)
       enrichmentLoading: false,
@@ -1017,6 +936,21 @@ export default {
     nodeEdgeTableVisible() {
       return this.displayedElementType === 'node';
     },
+    // Whether the Enrichments tab has anything to show and hasn't been closed
+    // since -- see neighboursTabShown/enrichmentTabDismissed/
+    // communityAnnotationTabDismissed above for the general scheme.
+    enrichmentTabVisible() {
+      return (this.enrichmentRan || this.enrichmentLoading
+        || this.reactomeEnrichmentRan || this.reactomeEnrichmentLoading) && !this.enrichmentTabDismissed;
+    },
+    // Gemini's node-set label gets its own tab, separate from g:Profiler/Reactome
+    // enrichment above -- same dismiss/re-show scheme.
+    nodeSetAnnotationTabVisible() {
+      return (this.geminiRan || this.geminiLoading) && !this.nodeSetAnnotationTabDismissed;
+    },
+    communityAnnotationTabVisible() {
+      return this.clusteringActive && !this.communityAnnotationTabDismissed;
+    },
     // Every edge incident to the currently displayed node, shaped for NodeEdgeTable.
     // Neighbor labels aren't pre-populated on networkEdges entries (only the single
     // currently-displayed edge gets that via displayEdge), so resolve them here the
@@ -1099,8 +1033,10 @@ export default {
       return this.selectedNetworkNodes.filter((node) => node.source_table === 'metabolite' &&
         !(this.parseXrefs(node.x_refs).chebi || []).length);
     },
-    selectedAlgorithmLabel() {
-      return this.communityAlgorithms.find((algo) => algo.value === this.selectedAlgorithm)?.label ?? this.selectedAlgorithm;
+    // True only when literally nothing selected has any identifier Reactome could use --
+    // gates both the Reactome button itself and its disabled-tooltip reason in AnalysisPanel.
+    reactomeRunDisabled() {
+      return this.selectedProteinAccessions.length + this.selectedMetaboliteChebiIds.length + this.selectedMetabolitesWithoutChebi.length === 0;
     },
     // Legend heading while clustering is active -- names whichever algorithm
     // actually produced what's on screen (clusteringAlgorithm), not whatever's
@@ -1798,6 +1734,8 @@ export default {
         this.filterForNetworkEdges();
         this.resolutionIndex = 2; // default 1.0
         this.clusteringActive = true;
+        this.communityAnnotationTabDismissed = false;
+        this.notifyTablesContentProduced('communityAnnotation');
         this.isReadOnly = true;
         this.closeDropdown();
 
@@ -2078,10 +2016,12 @@ export default {
     },
     handleLinkClick(linkIndex) {
       const edge = this.networkEdges.find((e) => e.id === this.indexToEdgeId[linkIndex]);
-      if (edge) this.displayEdge(edge);
+      if (!edge) return;
+      this.displayEdge(edge);
       // Clears the "currently clicked node" big/highlighted treatment, since the
       // details panel is now showing an edge instead of a node.
       this.applyDesign(false);
+      this.centerOnEdge(edge);
     },
     // NetworkRankingTable's Edge tab row click: behaves like clicking the edge
     // directly on the canvas (handleLinkClick) -- show it in the Details panel
@@ -2125,6 +2065,9 @@ export default {
       this.displayedElement = node;
       this.displayedElementType = "node";
       this.isDetailsNodeSelected = this.isNodeInNetworkSelected(node);
+      this.openDetailsPanel();
+      this.neighboursTabShown = true;
+      this.notifyTablesContentProduced('edgesOfNode');
     },
     displayEdge(edge) {
       const nodeID0 = edge.to;
@@ -2139,6 +2082,35 @@ export default {
       edge.node1_type = this.getPrettyType(node1.source_table);
       this.displayedElement = edge;
       this.displayedElementType = "edge";
+      this.openDetailsPanel();
+    },
+    // Unfolds the Details panel (index 1 in the left accordion) without
+    // collapsing whichever other panels the user already had open.
+    openDetailsPanel() {
+      if (!this.openPanels.includes(1)) this.openPanels.push(1);
+    },
+    // Called whenever a Tables sub-tab gets fresh content (a node click, an
+    // enrichment run, a clustering run). If the user isn't on the Tables side
+    // at all, light up the top-level "Tables" tab; if they're already there
+    // but looking at a different sub-tab, light up that sub-tab instead --
+    // either way without yanking them away from whatever they're doing.
+    notifyTablesContentProduced(tabKey) {
+      if (this.visualizationTab !== 'tables') {
+        this.tablesTabHighlighted = true;
+      } else if (this.tablesActiveTab !== tabKey) {
+        this.tableSubtabHighlights[tabKey] = true;
+      }
+    },
+    // Closes (hides) one of the dismissible Tables sub-tabs -- Node Ranking/
+    // Edge Ranking aren't closable and don't go through here. Falls back to
+    // Node Ranking if the closed tab was the active one.
+    closeTablesSubTab(tabKey) {
+      if (tabKey === 'edgesOfNode') this.neighboursTabShown = false;
+      else if (tabKey === 'enrichment') this.enrichmentTabDismissed = true;
+      else if (tabKey === 'nodeSetAnnotation') this.nodeSetAnnotationTabDismissed = true;
+      else if (tabKey === 'communityAnnotation') this.communityAnnotationTabDismissed = true;
+      this.tableSubtabHighlights[tabKey] = false;
+      if (this.tablesActiveTab === tabKey) this.tablesActiveTab = 'nodeRanking';
     },
     isNodeInNetworkSelected(node) {
       return this.selectedNetworkNodes.some(existingNode => existingNode.id === node.id);
@@ -2197,6 +2169,8 @@ export default {
       this.enrichmentLoading = true;
       this.enrichmentRan = false;
       this.enrichmentResults = [];
+      this.enrichmentTabDismissed = false;
+      this.notifyTablesContentProduced('enrichment');
       try {
         const response = await fetch('https://biit.cs.ut.ee/gprofiler/api/gost/profile/', {
           method: 'POST',
@@ -2288,6 +2262,8 @@ export default {
       this.reactomeEnrichmentRan = false;
       this.reactomeEnrichmentResults = [];
       this.reactomeUnmappedMetabolites = [];
+      this.enrichmentTabDismissed = false;
+      this.notifyTablesContentProduced('enrichment');
       try {
         const chebiIds = [...this.selectedMetaboliteChebiIds];
         const lookups = await Promise.all(
@@ -2348,6 +2324,8 @@ export default {
       this.geminiLoading = true;
       this.geminiRan = false;
       this.geminiLabel = null;
+      this.nodeSetAnnotationTabDismissed = false;
+      this.notifyTablesContentProduced('nodeSetAnnotation');
       try {
         const csrfToken = getCookie('csrftoken');
         const response = await fetch(`${BASE_URL}/gemini/api/getGeminiLabel/`, {
@@ -3448,6 +3426,17 @@ export default {
     },
   },
   watch: {
+    // Clears the header "Tables" highlight once the user actually switches
+    // over there -- see notifyTablesContentProduced().
+    visualizationTab(value) {
+      if (value === 'tables') this.tablesTabHighlighted = false;
+    },
+    // Same, but for a Tables sub-tab's own highlight once it becomes active.
+    tablesActiveTab(value) {
+      if (Object.prototype.hasOwnProperty.call(this.tableSubtabHighlights, value)) {
+        this.tableSubtabHighlights[value] = false;
+      }
+    },
     // Keeps "Full Network Statistics" in sync with whichever context is
     // selected, independent of whether/when a network is sent to the graph.
     // immediate: true covers the initial load, including a context restored

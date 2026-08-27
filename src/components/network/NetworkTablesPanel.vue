@@ -3,9 +3,30 @@
     <v-tabs :model-value="activeTab" color="primary-darken-1" @update:model-value="$emit('update:activeTab', $event)">
       <v-tab value="nodeRanking">Node Ranking</v-tab>
       <v-tab value="edgeRanking">Edge Ranking</v-tab>
-      <v-tab value="edgesOfNode" :disabled="!nodeEdgeTableVisible">Edges of Node</v-tab>
-      <v-tab value="enrichment" :disabled="!enrichmentTabAvailable">Enrichments</v-tab>
-      <v-tab value="communityAnnotation" :disabled="!communityAnnotationAvailable">Community Annotation</v-tab>
+      <v-tab v-if="neighboursTabShown" value="edgesOfNode">
+        <v-badge :model-value="!!tabHighlights.edgesOfNode" color="error" dot offset-x="-2" offset-y="-2">
+          Neighbours
+        </v-badge>
+        <v-icon size="16" class="ml-2" @click.stop="$emit('close-tab', 'edgesOfNode')">mdi-close</v-icon>
+      </v-tab>
+      <v-tab v-if="enrichmentTabShown" value="enrichment">
+        <v-badge :model-value="!!tabHighlights.enrichment" color="error" dot offset-x="-2" offset-y="-2">
+          Enrichments
+        </v-badge>
+        <v-icon size="16" class="ml-2" @click.stop="$emit('close-tab', 'enrichment')">mdi-close</v-icon>
+      </v-tab>
+      <v-tab v-if="nodeSetAnnotationTabShown" value="nodeSetAnnotation">
+        <v-badge :model-value="!!tabHighlights.nodeSetAnnotation" color="error" dot offset-x="-2" offset-y="-2">
+          Node Set Annotation
+        </v-badge>
+        <v-icon size="16" class="ml-2" @click.stop="$emit('close-tab', 'nodeSetAnnotation')">mdi-close</v-icon>
+      </v-tab>
+      <v-tab v-if="communityAnnotationAvailable" value="communityAnnotation">
+        <v-badge :model-value="!!tabHighlights.communityAnnotation" color="error" dot offset-x="-2" offset-y="-2">
+          Community Annotation
+        </v-badge>
+        <v-icon size="16" class="ml-2" @click.stop="$emit('close-tab', 'communityAnnotation')">mdi-close</v-icon>
+      </v-tab>
     </v-tabs>
 
     <v-window :model-value="activeTab">
@@ -53,7 +74,11 @@
           :reactome-enrichment-ran="reactomeEnrichmentRan"
           :reactome-enrichment-results="reactomeEnrichmentResults"
           :reactome-enrichment-loading="reactomeEnrichmentLoading"
-          :gemini-ran="geminiRan"
+        />
+      </v-window-item>
+
+      <v-window-item value="nodeSetAnnotation">
+        <NodeSetAnnotationResultsPanel
           :gemini-label="geminiLabel"
           :gemini-loading="geminiLoading"
         />
@@ -81,11 +106,12 @@ import NodeRankingTable from './NodeRankingTable.vue';
 import EdgeRankingTable from './EdgeRankingTable.vue';
 import NodeEdgeTable from './NodeEdgeTable.vue';
 import EnrichmentResultsPanel from './EnrichmentResultsPanel.vue';
+import NodeSetAnnotationResultsPanel from './NodeSetAnnotationResultsPanel.vue';
 import CommunityAnnotationPanel from './CommunityAnnotationPanel.vue';
 
 export default {
   name: 'NetworkTablesPanel',
-  components: { NodeRankingTable, EdgeRankingTable, NodeEdgeTable, EnrichmentResultsPanel, CommunityAnnotationPanel },
+  components: { NodeRankingTable, EdgeRankingTable, NodeEdgeTable, EnrichmentResultsPanel, NodeSetAnnotationResultsPanel, CommunityAnnotationPanel },
   props: {
     activeTab: { type: String, default: 'nodeRanking' },
 
@@ -100,11 +126,17 @@ export default {
     nodeEdgeTableVisible: { type: Boolean, default: false },
     nodeLabel: { type: String, default: '' },
     nodeEdgeTableItems: { type: Array, default: () => [] },
+    // Whether the Neighbours tab itself is in the tab bar -- distinct from
+    // nodeEdgeTableVisible (whether a node is *currently* displayed), since
+    // the tab stays put after it's first produced until the user closes it,
+    // even if they then click the background or select an edge.
+    neighboursTabShown: { type: Boolean, default: false },
 
     enrichmentTab: { type: String, default: 'enrichment' },
     enrichmentRan: { type: Boolean, default: false },
     enrichmentResults: { type: Array, default: () => [] },
     enrichmentLoading: { type: Boolean, default: false },
+    enrichmentTabShown: { type: Boolean, default: false },
 
     reactomeEnrichmentRan: { type: Boolean, default: false },
     reactomeEnrichmentResults: { type: Array, default: () => [] },
@@ -113,11 +145,17 @@ export default {
     geminiRan: { type: Boolean, default: false },
     geminiLabel: { type: Object, default: null },
     geminiLoading: { type: Boolean, default: false },
+    nodeSetAnnotationTabShown: { type: Boolean, default: false },
 
     communityAnnotationAvailable: { type: Boolean, default: false },
     communityAnnotationStatus: { type: String, default: 'idle' },
     communityAnnotationProgress: { type: Object, default: null },
     communityAnnotationResults: { type: Object, default: () => ({}) },
+
+    // { edgesOfNode, enrichment, nodeSetAnnotation, communityAnnotation } -- true for a tab
+    // that got fresh content while the user was looking elsewhere (see
+    // data-network.vue's notifyTablesContentProduced).
+    tabHighlights: { type: Object, default: () => ({}) },
   },
   emits: [
     'update:activeTab',
@@ -127,13 +165,7 @@ export default {
     'select-neighbor',
     'toggle-select-node',
     'run-community-annotation',
+    'close-tab',
   ],
-  computed: {
-    enrichmentTabAvailable() {
-      return this.enrichmentRan || this.enrichmentLoading
-        || this.reactomeEnrichmentRan || this.reactomeEnrichmentLoading
-        || this.geminiRan || this.geminiLoading;
-    },
-  },
 };
 </script>
