@@ -1,27 +1,34 @@
 <template>
   <div class="network-tables-panel">
-    <v-tabs :model-value="activeTab" color="primary-darken-1" @update:model-value="$emit('update:activeTab', $event)">
-      <v-tab value="nodeRanking">Node Ranking</v-tab>
-      <v-tab value="edgeRanking">Edge Ranking</v-tab>
-      <v-tab v-if="neighboursTabShown" value="edgesOfNode">
+    <v-tabs
+      :model-value="activeTab"
+      color="primary-darken-1"
+      slider-color="transparent"
+      density="comfortable"
+      class="chip-tabs"
+      @update:model-value="$emit('update:activeTab', $event)"
+    >
+      <v-tab value="nodeRanking" rounded="pill" variant="tonal" class="mr-2">Node Ranking</v-tab>
+      <v-tab value="edgeRanking" rounded="pill" variant="tonal" class="mr-2">Edge Ranking</v-tab>
+      <v-tab v-if="neighboursTabShown" value="edgesOfNode" rounded="pill" variant="tonal" class="mr-2">
         <v-badge :model-value="!!tabHighlights.edgesOfNode" color="error" dot offset-x="-2" offset-y="-2">
-          Neighbours
+          Neighbors of
         </v-badge>
         <v-icon size="16" class="ml-2" @click.stop="$emit('close-tab', 'edgesOfNode')">mdi-close</v-icon>
       </v-tab>
-      <v-tab v-if="enrichmentTabShown" value="enrichment">
+      <v-tab v-if="enrichmentTabShown" value="enrichment" rounded="pill" variant="tonal" class="mr-2">
         <v-badge :model-value="!!tabHighlights.enrichment" color="error" dot offset-x="-2" offset-y="-2">
           Enrichment
         </v-badge>
         <v-icon size="16" class="ml-2" @click.stop="$emit('close-tab', 'enrichment')">mdi-close</v-icon>
       </v-tab>
-      <v-tab v-if="nodeSetAnnotationTabShown" value="nodeSetAnnotation">
+      <v-tab v-if="nodeSetAnnotationTabShown" value="nodeSetAnnotation" rounded="pill" variant="tonal" class="mr-2">
         <v-badge :model-value="!!tabHighlights.nodeSetAnnotation" color="error" dot offset-x="-2" offset-y="-2">
           Node Set Annotation
         </v-badge>
         <v-icon size="16" class="ml-2" @click.stop="$emit('close-tab', 'nodeSetAnnotation')">mdi-close</v-icon>
       </v-tab>
-      <v-tab v-if="communityAnnotationAvailable" value="communityAnnotation">
+      <v-tab v-if="communityAnnotationAvailable" value="communityAnnotation" rounded="pill" variant="tonal" class="mr-2">
         <v-badge :model-value="!!tabHighlights.communityAnnotation" color="error" dot offset-x="-2" offset-y="-2">
           Community Annotation
         </v-badge>
@@ -172,3 +179,12 @@ export default {
   ],
 };
 </script>
+
+<style scoped>
+/* Chip-look for the top-level table tabs: compact, pill-shaped, spaced apart,
+   rather than a flush full-width Material tab bar. */
+.chip-tabs :deep(.v-tab) {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+</style>

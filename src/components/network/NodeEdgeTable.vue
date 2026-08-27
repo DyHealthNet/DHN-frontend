@@ -1,10 +1,8 @@
 <template>
   <v-card outlined class="mt-4">
-    <v-toolbar color="primary-darken-1" density="compact">
-      <v-toolbar-title>
-        Edges of {{ nodeLabel }}
-        <v-chip size="small" color="white" variant="outlined" class="ml-2">{{ items.length }}</v-chip>
-      </v-toolbar-title>
+    <div class="d-flex align-center pa-4 pb-2">
+      <span class="text-subtitle-1 font-weight-medium">{{ nodeLabel }}</span>
+      <v-chip size="small" variant="outlined" color="primary-darken-1" class="ml-2">{{ items.length }}</v-chip>
       <v-spacer></v-spacer>
       <v-text-field
         v-model="search"
@@ -14,16 +12,15 @@
         variant="outlined"
         hide-details
         single-line
-        class="mr-2"
         style="max-width: 220px"
       ></v-text-field>
-    </v-toolbar>
+    </div>
 
     <DownloadableDataTable
       :headers="headers"
       :items="items"
       :search="search"
-      :sort-by="[{ key: 'pValue', order: 'asc' }, { key: 'effectSize', order: 'asc' }]"
+      :sort-by="[{ key: 'pValue', order: 'asc' }, { key: 'absEffectSize', order: 'desc' }]"
       multi-sort
       items-per-page="10"
       class="node-edge-table"
@@ -36,6 +33,9 @@
       </template>
       <template v-slot:item.effectSize="{ item }">
         {{ formatNumber(item.effectSize) }}
+      </template>
+      <template v-slot:item.absEffectSize="{ item }">
+        {{ formatNumber(item.absEffectSize) }}
       </template>
     </DownloadableDataTable>
   </v-card>
@@ -75,6 +75,7 @@ export default {
         { title: 'Test', key: 'testType' },
         { title: 'P-Value', key: 'pValue', sort: numericSort },
         { title: 'Effect Size', key: 'effectSize', sort: numericSort },
+        { title: 'Abs. Effect Size', key: 'absEffectSize', sort: numericSort },
       ],
     };
   },

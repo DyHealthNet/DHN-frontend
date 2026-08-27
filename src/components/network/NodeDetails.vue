@@ -22,7 +22,6 @@
       <span class="value">{{ node.description }}</span></p>
     <p v-if="node.subtype"><span class="label">Subtype:</span> <br>
       <span class="value">{{ node.subtype }}</span></p>
-      <p title="We use Uniprot for proteins, HMDB for metabolites and SNOMED for phenotypes">
         <span v-if="validXrefs.length">
           <span class="label">Reference:</span><br>
           <v-chip

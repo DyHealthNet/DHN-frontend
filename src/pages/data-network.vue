@@ -913,6 +913,7 @@ export default {
             testType: edge.test_type,
             pValue: edge.p_value,
             effectSize: edge.effect_size,
+            absEffectSize: edge.effect_size != null ? Math.abs(edge.effect_size) : null,
           };
         });
     },
