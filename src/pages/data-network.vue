@@ -24,13 +24,35 @@
              before the user has sent anything to the graph or clicked into any node/edge. -->
         <NetworkRankingTabs
           title="Full Network Statistics"
-          subtitle="Significant edges only (p ≤ 0.05)."
+          :subtitle="fullNetworkStatsSubtitle"
           :edges="fullNetworkStatsEdges"
           :nodes="fullNetworkStatsNodes"
           :nodes-by-id="fullNetworkStatsNodesById"
           :interactive="false"
+          preranked
         >
           <template #toolbar-actions>
+            <v-tooltip location="bottom" max-width="280">
+              <template v-slot:activator="{ props }">
+                <div v-bind="props">
+                  <v-text-field
+                    class="mr-1"
+                    v-model.number="fullNetworkStatsThreshold"
+                    label="P-value threshold"
+                    type="number"
+                    min="0"
+                    max="1"
+                    step="0.001"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    single-line
+                    style="max-width: 160px"
+                  ></v-text-field>
+                </div>
+              </template>
+              <span>Only edges with p-value at or below this are counted as significant. Ranking (and each node's weighted degree) is computed over every significant edge server-side -- only the top {{ fullNetworkStatsMaxResults.toLocaleString() }} of each are actually shown, so the page stays responsive for larger cohorts.</span>
+            </v-tooltip>
             <v-tooltip location="bottom" max-width="280">
               <template v-slot:activator="{ props }">
                 <div v-bind="props">
@@ -72,7 +94,7 @@
           <v-card-text>
             <div class="ma-2">
               <v-row align="center">
-                <v-col cols="10" class="d-flex align-center">
+                <v-col class="d-flex align-center">
                   <v-text-field
                       v-model="searchText"
                       density="compact"
@@ -100,12 +122,6 @@
                     </v-btn>
                   </template></v-text-field>
                     </v-col>
-                  <v-col cols="2" class="d-flex align-center">
-                  <v-btn color="primary-darken-1" block class="mt-0 mb-0" @click="sendToNetwork" :disabled="!selectedNodes.length" elevation="1">
-                    <v-icon class="my-0 mr-2">mdi-arrow-down</v-icon>
-                    Send to Network
-                  </v-btn>
-                </v-col>
               </v-row>
 
               <!-- Dropdown List -->
@@ -177,19 +193,19 @@
                 </v-col>
               </v-row>
 
+              <v-row align="center">
+                <v-col cols="12">
+                  <v-btn color="primary-darken-1" block class="mt-0 mb-0" @click="sendToNetwork" :loading="showLoading" elevation="1">
+                    <v-icon class="my-0 mr-2">mdi-vector-line</v-icon>
+                    Send Selected Nodes
+                  </v-btn>
+                </v-col>
+              </v-row>
+
               <v-row class="align-center my-2">
                 <v-col><v-divider></v-divider></v-col>
                 <v-col cols="auto" class="text-medium-emphasis">OR</v-col>
                 <v-col><v-divider></v-divider></v-col>
-              </v-row>
-
-              <v-row align="center">
-                <v-col cols="12">
-                  <v-btn color="primary-darken-1" block class="mt-0 mb-0" @click="sendWholeNetwork" :loading="showLoading" elevation="1">
-                    <v-icon class="my-0 mr-2">mdi-web</v-icon>
-                    Send Whole Network
-                  </v-btn>
-                </v-col>
               </v-row>
 
               <v-row>
@@ -199,6 +215,15 @@
                                         expansion-panel-variant="default"
                                         @data-changed="updateWholeNetworkSettings"
                                         />
+                </v-col>
+              </v-row>
+
+              <v-row align="center">
+                <v-col cols="12">
+                  <v-btn color="primary-darken-1" block class="mt-0 mb-0" @click="sendWholeNetwork" :loading="showLoading" elevation="1">
+                    <v-icon class="my-0 mr-2">mdi-web</v-icon>
+                    Send Whole Network
+                  </v-btn>
                 </v-col>
               </v-row>
             </div>
@@ -553,6 +578,7 @@
                       :selected-node-ids="selectedNetworkNodes.map(n => n.id)"
                       :clustering-active="clusteringActive"
                       :community-label-for="communityLabelFor"
+                      :displayed-node-id="displayedElementType === 'node' ? displayedElement?.id : null"
                       :neighbor-nodes="recentNeighborNodes"
                       :edges-for-node="edgesForNode"
                       :enrichment-ran="enrichmentRan"
@@ -807,6 +833,20 @@ export default {
       // fetches) -- only matters in no-context mode, since a selected context fixes its
       // own test type server-side regardless of this value (see buildSignificantEdgesUrl).
       fullNetworkStatsTestType: 'nonparametric',
+      // User-editable p-value threshold for this panel (see the threshold text field
+      // above) -- the backend (GetCosmographView's unbounded-significance branch) ranks
+      // and computes weighted degree over every edge at or below this, then truncates the
+      // response to fullNetworkStatsMaxResults of each; the fields below reflect the true
+      // (pre-truncation) totals it reports, for fullNetworkStatsSubtitle to surface.
+      fullNetworkStatsThreshold: 0.05,
+      fullNetworkStatsTotalEdges: 0,
+      fullNetworkStatsTotalNodes: 0,
+      fullNetworkStatsEdgesTruncated: false,
+      fullNetworkStatsNodesTruncated: false,
+      fullNetworkStatsMaxResults: 10000,
+      // Debounce handle for the threshold watcher below -- a free-typed number field
+      // shouldn't refetch (a full server-side significance scan) on every keystroke.
+      fullNetworkStatsThresholdDebounce: null,
       // Which flow last populated the displayed network -- 'nodes' (node-search
       // "Send to Network") or 'whole' ("Send Whole Network"). Lets addSettings()/
       // updateWholeNetworkSettings() know which fetch to re-run when their
@@ -876,6 +916,18 @@ export default {
     // stats can be loaded before any graph has been sent).
     fullNetworkStatsNodesById() {
       return new Map(this.fullNetworkStatsNodes.map((node) => [node.id, node]));
+    },
+    // Surfaces the backend's true (pre-truncation) significant edge/node counts whenever
+    // the top max_edges/max_nodes cap actually kicked in -- see fetchFullNetworkStatistics.
+    fullNetworkStatsSubtitle() {
+      const parts = [`Significant edges only (p ≤ ${this.fullNetworkStatsThreshold}).`];
+      if (this.fullNetworkStatsEdgesTruncated) {
+        parts.push(`Showing the top ${this.fullNetworkStatsMaxResults.toLocaleString()} of ${this.fullNetworkStatsTotalEdges.toLocaleString()} significant edges, ranked by significance.`);
+      }
+      if (this.fullNetworkStatsNodesTruncated) {
+        parts.push(`Showing the top ${this.fullNetworkStatsMaxResults.toLocaleString()} of ${this.fullNetworkStatsTotalNodes.toLocaleString()} nodes, ranked by weighted degree.`);
+      }
+      return parts.join(' ');
     },
     // Edges of networkEdges restricted to graphNodes -- the edge-side analog of
     // graphNodes, for the "current view" ranking tables below the graph.
@@ -1530,14 +1582,20 @@ export default {
     buildSignificantEdgesUrl() {
       const params = new URLSearchParams();
       params.set('testType', this.fullNetworkStatsTestType);
-      params.set('threshold', String(0.05));
+      params.set('threshold', String(this.fullNetworkStatsThreshold));
       if (this.contextValue != null) params.set('c', this.contextValue);
       return `${BASE_URL}/metagraph/api/getCosmograph/?${params.toString()}`;
     },
     // Fired by the contextValue watcher (immediate, so it also covers initial
     // load / state restored via loadState()) -- independent of sendWholeNetwork,
     // so switching context updates the stats panel even before the user sends
-    // anything to the graph.
+    // anything to the graph. Threshold-only + no limit/density is the one
+    // GetCosmographView branch that ranks and truncates server-side (see
+    // _rank_and_truncate_significant_network in metagraph.py) -- points/links
+    // come back already limited to the top fullNetworkStatsMaxResults of each,
+    // with degree/weighted_degree/rank attached, so NodeRankingTable/
+    // EdgeRankingTable are told to trust them as-is (see the `preranked` prop)
+    // rather than recomputing over just this truncated slice.
     async fetchFullNetworkStatistics() {
       setLoadingState("isLoadingfullNetworkStats", true)
       try {
@@ -1559,6 +1617,9 @@ export default {
           source_table: point.source_table ?? point.type,
           subtype: point.subtype,
           x_refs: point.xrefs,
+          degree: point.degree,
+          weightedDegree: point.weighted_degree,
+          rank: point.rank,
         }));
         this.fullNetworkStatsEdges = (data.links || []).map((link) => ({
           id: link.id,
@@ -1568,11 +1629,22 @@ export default {
           p_value: link.p_value,
           effect_size: link.effect_size,
           test_type: link.test_type,
+          rank: link.rank,
         }));
+        const meta = data.meta || {};
+        this.fullNetworkStatsTotalEdges = meta.total_significant_edges ?? this.fullNetworkStatsEdges.length;
+        this.fullNetworkStatsTotalNodes = meta.total_significant_nodes ?? this.fullNetworkStatsNodes.length;
+        this.fullNetworkStatsEdgesTruncated = !!meta.edges_truncated;
+        this.fullNetworkStatsNodesTruncated = !!meta.nodes_truncated;
+        this.fullNetworkStatsMaxResults = meta.max_edges ?? this.fullNetworkStatsMaxResults;
       } catch (error) {
         console.error("Error fetching full network statistics:", error);
         this.fullNetworkStatsNodes = [];
         this.fullNetworkStatsEdges = [];
+        this.fullNetworkStatsTotalEdges = 0;
+        this.fullNetworkStatsTotalNodes = 0;
+        this.fullNetworkStatsEdgesTruncated = false;
+        this.fullNetworkStatsNodesTruncated = false;
       }
       setLoadingState("isLoadingfullNetworkStats", false)
     },
@@ -2001,7 +2073,15 @@ export default {
     // is now furthest right. Always switches the active sub-tab to the node just clicked.
     addRecentNeighborNode(nodeId) {
       this.recentNeighborNodeIds = [nodeId, ...this.recentNeighborNodeIds.filter((id) => id !== nodeId)].slice(0, 5);
-      this.neighborsSubTab = nodeId;
+      // Deferred one tick: v-tabs/v-window select by matching `value`, but when an existing tab
+      // moves position (this same assignment just reordered the v-for list) and the active
+      // value changes in that very same render, Vuetify's tab-indicator/window-transition can
+      // resolve against the pre-reorder layout and land the visible content on the wrong pill --
+      // intermittently (whichever tab happened to be at the target's old or new index). Letting
+      // the reordered list actually render first, then selecting, avoids that.
+      this.$nextTick(() => {
+        this.neighborsSubTab = nodeId;
+      });
     },
     // Every edge incident to the given node, shaped for NodeEdgeTable. Neighbor labels aren't
     // pre-populated on networkEdges entries (only the single currently-displayed edge gets
@@ -3419,6 +3499,17 @@ export default {
     // (see buildSignificantEdgesUrl).
     fullNetworkStatsTestType() {
       if (this.contextValue == null) this.fetchFullNetworkStatistics();
+    },
+    // Unlike testType above, threshold isn't overridden by a selected context (it's always
+    // applied server-side, see GetCosmographView/get_whole_network_new), so this always
+    // refetches. Debounced -- see fullNetworkStatsThresholdDebounce -- since this is a
+    // free-typed number field and each fetch is a full significance scan server-side.
+    fullNetworkStatsThreshold() {
+      if (this.fullNetworkStatsThresholdDebounce) clearTimeout(this.fullNetworkStatsThresholdDebounce);
+      this.fullNetworkStatsThresholdDebounce = setTimeout(() => {
+        this.fullNetworkStatsThresholdDebounce = null;
+        this.fetchFullNetworkStatistics();
+      }, 600);
     },
     showDropdown(newVal) {
       // Add or remove the global click listener when dropdown visibility changes

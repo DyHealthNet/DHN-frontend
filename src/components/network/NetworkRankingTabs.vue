@@ -27,6 +27,7 @@
           :edges="edges"
           :nodes-by-id="nodesById"
           :interactive="interactive"
+          :preranked="preranked"
           @select-edge="$emit('select-edge', $event)"
         />
       </v-window-item>
@@ -35,6 +36,7 @@
           :nodes="nodes"
           :edges="edges"
           :interactive="interactive"
+          :preranked="preranked"
           @select-node="$emit('select-node', $event)"
         />
       </v-window-item>
@@ -78,6 +80,16 @@ export default {
     interactive: {
       type: Boolean,
       default: true,
+    },
+    // Forwarded to both tables -- true for the "Full Network Statistics" instance, whose
+    // edges/nodes already arrive rank/degree-ranked and truncated server-side (see
+    // data-network.vue's fetchFullNetworkStatistics), so they must trust the incoming
+    // rank/degree/weightedDegree fields instead of recomputing over just that truncated
+    // slice. False (default) for the instance under the graph, which ranks client-side
+    // over its own small, already-complete current-view edges/nodes.
+    preranked: {
+      type: Boolean,
+      default: false,
     },
   },
   emits: ['select-node', 'select-edge'],

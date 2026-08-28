@@ -11,7 +11,6 @@
         single-line
         style="max-width: 180px"
       ></v-select> -->
-      <v-spacer></v-spacer>
       <v-text-field
         v-model="search"
         prepend-inner-icon="mdi-magnify"
@@ -98,6 +97,14 @@ export default {
       type: Boolean,
       default: true,
     },
+    // When true, `edges` already arrive globally ranked (a `rank` field on each) from the
+    // backend -- trust that instead of recomputing rankEdges() over just this slice, since
+    // a preranked slice can be a truncated top-N of a much larger significant-edge set (see
+    // NetworkRankingTabs.vue).
+    preranked: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['select-edge'],
   data() {
@@ -124,7 +131,7 @@ export default {
       return this.edges.filter((edge) => edge.test_type === this.testTypeFilter);
     },
     rankedEdges() {
-      return rankEdges(this.filteredEdges);
+      return this.preranked ? this.filteredEdges : rankEdges(this.filteredEdges);
     },
     // Resolves from/to node ids to display names as real item fields (node1/
     // node2) rather than only in a render slot -- v-data-table's default sort

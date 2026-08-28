@@ -41,6 +41,7 @@
           :selected-node-ids="selectedNodeIds"
           :clustering-active="clusteringActive"
           :community-label-for="communityLabelFor"
+          :displayed-node-id="displayedNodeId"
           @select-node="$emit('select-node', $event)"
           @toggle-select-node="$emit('toggle-select-node', $event)"
         />
@@ -130,6 +131,7 @@ export default {
     selectedNodeIds: { type: Array, default: () => [] },
     clusteringActive: { type: Boolean, default: false },
     communityLabelFor: { type: Function, default: null },
+    displayedNodeId: { type: String, default: null },
 
     neighborsTab: { type: String, default: null },
     neighborNodes: { type: Array, default: () => [] },

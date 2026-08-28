@@ -1,7 +1,6 @@
 <template>
   <v-card outlined class="mt-4">
     <div class="d-flex align-center px-4 py-2" style="gap: 8px;">
-      <v-spacer></v-spacer>
       <v-text-field
         v-model="search"
         prepend-inner-icon="mdi-magnify"
@@ -26,6 +25,7 @@
       :class="['node-ranking-table', { 'is-interactive': interactive }]"
       filename="node-ranking.csv"
       no-data-text="No nodes to rank."
+      :row-class="rowClass"
       @click:row="onRowClick"
     >
       <template v-if="interactive" v-slot:item.selected="{ item }">
@@ -104,6 +104,21 @@ export default {
       type: Function,
       default: null,
     },
+    // id of the node currently shown in the Details panel (clicked on the canvas, jumped to via
+    // search, etc.) -- highlights its row here so it's easy to spot again in a long table.
+    displayedNodeId: {
+      type: String,
+      default: null,
+    },
+    // When true, `nodes` already arrive globally ranked (rank/degree/weightedDegree fields
+    // on each) from the backend -- trust those instead of recomputing computeWeightedDegree()
+    // over just this slice, since a preranked slice can be a truncated top-N of a much
+    // larger significant-edge set whose degree the truncated `edges` alone would undercount
+    // (see NetworkRankingTabs.vue).
+    preranked: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['select-node', 'toggle-select-node'],
   data() {
@@ -130,7 +145,7 @@ export default {
       return headers;
     },
     rankedNodes() {
-      return computeWeightedDegree(this.nodes, this.edges);
+      return this.preranked ? this.nodes : computeWeightedDegree(this.nodes, this.edges);
     },
     // Resolves display label and group as real item fields rather than only
     // in a render slot -- v-data-table's default sort reads item[column.key]
@@ -153,6 +168,9 @@ export default {
       if (!this.interactive) return;
       this.$emit('select-node', item.id);
     },
+    rowClass(item) {
+      return item.id === this.displayedNodeId ? 'displayed-row' : '';
+    },
     // Same reasoning as NodeRankPanel's nodeSearchFilter: display_name isn't
     // a header column (the 'id' column renders it via a slot), so match it
     // here against the raw row instead.
@@ -170,6 +188,14 @@ export default {
 <style scoped>
 .node-ranking-table.is-interactive :deep(tbody tr) {
   cursor: pointer;
+}
+
+/* The row for whichever node is currently shown in the Details panel (see displayedNodeId/
+   rowClass) -- bold text plus a light tint, kept !important so it still reads clearly under
+   DownloadableDataTable's own hover tint. */
+.node-ranking-table :deep(tr.displayed-row > td) {
+  background: rgba(var(--v-theme-primary), 0.12) !important;
+  font-weight: 600;
 }
 
 /* Descriptions can run long -- truncate to one line with the full text

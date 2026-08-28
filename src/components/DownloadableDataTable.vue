@@ -30,6 +30,7 @@
       :multi-sort-meta="multiSort ? internalSortBy.map((s) => ({ field: s.key, order: s.order === 'desc' ? -1 : 1 })) : undefined"
       @sort="onSort"
       @row-click="handleRowClick"
+      :row-class="rowClass"
       :loading="loading"
       paginator
       v-model:first="first"
@@ -118,6 +119,9 @@ export default {
     // match (over non-custom header keys) must also match, if there are any. 'union': a row
     // passes if either the default match or any custom filter matches.
     filterMode: { type: String, default: 'intersection' },
+    // (item) => class name(s) -- forwarded straight to PrimeVue's DataTable row-class, e.g. to
+    // highlight whichever row matches the node currently shown in the Details panel.
+    rowClass: { type: Function, default: null },
   },
   emits: ['click:row'],
   data() {
