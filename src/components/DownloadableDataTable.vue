@@ -302,23 +302,24 @@ export default {
 </script>
 
 <style scoped>
-/* PrimeVue's Aura preset defaults to its own (light) surface colors, which otherwise stay
-   fixed regardless of the app's Vuetify theme -- darkModeSelector is disabled in main.js
-   specifically so this component drives all of PrimeVue's colors from Vuetify's own
-   reactive --v-theme-* vars instead. */
+/* PrimeVue's Aura preset (see main.js's MyPreset) already makes the table/paginator
+   backgrounds transparent so they inherit whatever Vuetify surface they're rendered
+   inside (the v-card each table sits in). darkModeSelector is still disabled there
+   though, so Aura's own text/foreground tokens stay fixed to its light scheme -- force
+   those (and the border color) from Vuetify's reactive --v-theme-* vars here instead. */
 .downloadable-data-table :deep(.p-datatable-table),
 .downloadable-data-table :deep(.p-datatable-header-cell),
 .downloadable-data-table :deep(.p-datatable-tbody > tr),
 .downloadable-data-table :deep(.p-paginator) {
-  background: rgb(var(--v-theme-surface));
+  background: transparent;
   color: rgb(var(--v-theme-on-surface));
 }
 .downloadable-data-table :deep(.p-datatable-header-cell) {
-  border-color: rgb(var(--v-theme-surface-variant)) !important;
+  border-color: rgb(var(--v-theme-data-table-line)) !important;
   color: rgb(var(--v-theme-on-surface-variant));
 }
 .downloadable-data-table :deep(.p-datatable-tbody > tr > td) {
-  border-color: rgb(var(--v-theme-surface-variant)) !important;
+  border-color: rgb(var(--v-theme-data-table-line)) !important;
 }
 .downloadable-data-table :deep(.p-datatable-tbody > tr:hover) {
   background: rgba(var(--v-theme-primary), 0.08) !important;
