@@ -1,7 +1,7 @@
 <template>
   <div class="downloadable-data-table">
-    <div v-if="multiSort" class="text-caption text-medium-emphasis mb-1">
-      Ctrl/Cmd+click a column to multi-sort by more than one column
+    <div v-if="multiSort" class="d-flex align-center justify-end mb-1">
+      <span class="text-caption text-medium-emphasis">Ctrl/Cmd+click a column to multi-sort by more than one column</span>
     </div>
     <DataTable
       ref="tableRef"
@@ -45,24 +45,15 @@
         v-for="header in headers"
         :key="header.key"
         :field="header.key"
+        :header="header.title"
         :sortable="header.sortable !== false"
         :style="header.width ? { width: header.width + 'px' } : undefined"
       >
-        <template #header>
+        <template v-if="$slots['header.' + header.key]" #header>
           <slot
-            v-if="$slots['header.' + header.key]"
             :name="'header.' + header.key"
             :column="{ title: header.title, key: header.key, sortable: header.sortable !== false }"
-            :get-sort-icon="getSortIcon"
           />
-          <div v-else class="v-data-table-header__content">
-            <span>{{ header.title }}</span>
-            <v-icon
-              v-if="header.sortable !== false"
-              class="v-data-table-header__sort-icon"
-              :icon="getSortIcon({ key: header.key })"
-            ></v-icon>
-          </div>
         </template>
         <template #body="{ data }">
           <slot v-if="$slots['item.' + header.key]" :name="'item.' + header.key" :item="data" />
@@ -248,11 +239,6 @@ export default {
     defaultCompare(a, b) {
       return String(a ?? '').localeCompare(String(b ?? ''));
     },
-    getSortIcon(column) {
-      const active = this.internalSortBy.find((s) => s.key === column.key);
-      if (!active) return '';
-      return active.order === 'desc' ? 'mdi-arrow-down' : 'mdi-arrow-up';
-    },
     onSort(event) {
       if (this.multiSort) {
         this.internalSortBy = (event.multiSortMeta ?? []).map((m) => ({
@@ -355,12 +341,6 @@ export default {
 .downloadable-data-table :deep(.p-paginator .p-paginator-first),
 .downloadable-data-table :deep(.p-paginator .p-paginator-last) {
   color: rgb(var(--v-theme-on-surface));
-}
-/* Header content/sort icon are rendered by this component's own #header template (see
-   getSortIcon), not PrimeVue's -- hide PrimeVue's own auto-appended sort icon so there's
-   only one indicator per column. */
-.downloadable-data-table :deep(.p-datatable-sort-icon) {
-  display: none;
 }
 </style>
 

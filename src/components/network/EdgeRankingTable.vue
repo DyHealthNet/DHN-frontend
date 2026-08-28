@@ -37,10 +37,9 @@
       no-data-text="No edges to rank."
       @click:row="onRowClick"
     >
-      <template v-slot:header.p_value="{ column, getSortIcon }">
+      <template v-slot:header.p_value="{ column }">
         <div class="v-data-table-header__content">
           <span>{{ column.title }}</span>
-          <v-icon v-if="column.sortable" class="v-data-table-header__sort-icon" :icon="getSortIcon(column)"></v-icon>
           <v-tooltip location="top" max-width="320">
             <template v-slot:activator="{ props }">
               <v-icon v-bind="props" size="14" class="ml-1">mdi-information-outline</v-icon>

@@ -34,10 +34,9 @@
           @click.stop="$emit('toggle-select-node', item.id)"
         ></v-checkbox-btn>
       </template>
-      <template v-slot:header.weightedDegree="{ column, getSortIcon }">
+      <template v-slot:header.weightedDegree="{ column }">
         <div class="v-data-table-header__content">
           <span>{{ column.title }}</span>
-          <v-icon v-if="column.sortable" class="v-data-table-header__sort-icon" :icon="getSortIcon(column)"></v-icon>
           <v-tooltip location="top" max-width="320">
             <template v-slot:activator="{ props }">
               <v-icon v-bind="props" size="14" class="ml-1">mdi-information-outline</v-icon>
