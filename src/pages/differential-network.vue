@@ -59,6 +59,27 @@
           </v-col>
         </v-row>
 
+        <v-row v-if="hasResult && hasExcludedVariables" class="mt-2">
+          <v-col cols="12">
+            <div class="context-log">
+              <div class="context-log-title">
+                <v-icon size="small" class="mr-1">mdi-text-box-outline</v-icon>
+                Variable exclusion log
+              </div>
+              <div v-if="excludedVariables.missingFromContext1.length">
+                {{ excludedVariables.missingFromContext1.length }} variable(s) had no usable signal in
+                "{{ contextNames.name1 }}" (present in "{{ contextNames.name2 }}") and were excluded from this
+                comparison: {{ excludedVariables.missingFromContext1.join(', ') }}
+              </div>
+              <div v-if="excludedVariables.missingFromContext2.length">
+                {{ excludedVariables.missingFromContext2.length }} variable(s) had no usable signal in
+                "{{ contextNames.name2 }}" (present in "{{ contextNames.name1 }}") and were excluded from this
+                comparison: {{ excludedVariables.missingFromContext2.join(', ') }}
+              </div>
+            </div>
+          </v-col>
+        </v-row>
+
         <v-row class="mt-6" align="stretch" v-if="hasResult">
           <v-col cols="12" md="7">
             <v-card class="graph-card" outlined>
@@ -346,6 +367,20 @@ export default {
         name1: this.selectedContexts.context1?.contextName,
         name2: this.selectedContexts.context2?.contextName,
       };
+    },
+    // Variables moDiNA flagged as unusable (no signal, or every pairwise test came back NaN) in
+    // only one of the two contexts -- present in the other, so they couldn't be reconciled into
+    // an edge on both sides and were left out of the comparison. See network/tasks.py's
+    // create_comparison_wrapper.
+    excludedVariables() {
+      return this.result?.excludedVariables || { missingFromContext1: [], missingFromContext2: [] };
+    },
+    hasExcludedVariables() {
+      return (
+        (this.excludedVariables.missingFromContext1?.length || 0) +
+          (this.excludedVariables.missingFromContext2?.length || 0) >
+        0
+      );
     },
     // id -> point lookup, so DiffEdgeDetails can show each endpoint's description without the
     // backend needing to duplicate it onto every link.
@@ -1036,6 +1071,22 @@ export default {
 .error-note {
   font-size: 0.92rem;
   color: rgba(166, 36, 36, 1);
+}
+
+.context-log {
+  padding: 10px 14px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.18);
+  border-left: 3px solid rgb(var(--v-theme-primary-darken-1));
+  border-radius: 4px;
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  font-size: 0.875rem;
+}
+
+.context-log-title {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  margin-bottom: 4px;
 }
 
 .graph-card,
