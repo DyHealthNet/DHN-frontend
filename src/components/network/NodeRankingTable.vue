@@ -185,19 +185,27 @@ export default {
 };
 </script>
 
-<style scoped>
-.node-ranking-table.is-interactive :deep(tbody tr) {
+<style>
+/* Unscoped, not :deep() -- .node-ranking-table lands on PrimeVue's own <DataTable> root,
+   which DownloadableDataTable renders as ITS child, not this component's. Vue only stamps a
+   scoped-CSS attribute onto a direct child component's root, not a grandchild's, so a
+   `<style scoped>` `:deep()` rule here can never actually match that element (silently
+   dead, not just non-specific) -- see DownloadableDataTable.vue's own .p-select-overlay
+   rules below for the same reasoning applied to its teleported dropdown. */
+.node-ranking-table.is-interactive tbody tr {
   cursor: pointer;
 }
 
 /* The row for whichever node is currently shown in the Details panel (see displayedNodeId/
    rowClass) -- bold text plus a light tint, kept !important so it still reads clearly under
    DownloadableDataTable's own hover tint. */
-.node-ranking-table :deep(tr.displayed-row > td) {
+.node-ranking-table tr.displayed-row > td {
   background: rgba(var(--v-theme-primary), 0.12) !important;
   font-weight: 600;
 }
+</style>
 
+<style scoped>
 /* Descriptions can run long -- truncate to one line with the full text
    available via the native title tooltip on hover, rather than blowing out
    row height or column width. */

@@ -86,8 +86,13 @@ export default {
 };
 </script>
 
-<style scoped>
-.node-edge-table :deep(tbody tr) {
+<style>
+/* Unscoped, not :deep() -- .node-edge-table lands on PrimeVue's own <DataTable> root, which
+   DownloadableDataTable renders as ITS child, not this component's. Vue only stamps a
+   scoped-CSS attribute onto a direct child component's root, not a grandchild's, so a
+   `<style scoped>` `:deep()` rule here can never actually match that element (silently
+   dead, not just non-specific) -- see NodeRankingTable.vue's equivalent fix. */
+.node-edge-table tbody tr {
   cursor: pointer;
 }
 </style>
