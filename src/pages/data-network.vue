@@ -47,7 +47,7 @@
                     variant="outlined"
                     hide-details
                     single-line
-                    style="max-width: 160px"
+                    style="max-width: 220px"
                   ></v-text-field>
                 </div>
               </template>

@@ -3,7 +3,7 @@
     <v-toolbar color="primary-darken-1" density="compact">
       <v-toolbar-title>
         Variable Overview
-        <v-tooltip bottom>
+        <v-tooltip class="ml-1" bottom>
           <template v-slot:activator="{ props }">
             <v-icon class="ml-1" v-bind="props">mdi-information</v-icon>
           </template>
