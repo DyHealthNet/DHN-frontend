@@ -1,18 +1,5 @@
 <template>
   <v-card outlined class="mt-4">
-    <div class="d-flex align-center px-4 py-2" style="gap: 8px;">
-      <v-text-field
-        v-model="search"
-        prepend-inner-icon="mdi-magnify"
-        label="Search node"
-        density="compact"
-        variant="outlined"
-        hide-details
-        single-line
-        style="max-width: 220px"
-      ></v-text-field>
-    </div>
-
     <DownloadableDataTable
       :headers="headers"
       :items="tableItems"
@@ -28,6 +15,18 @@
       :row-class="rowClass"
       @click:row="onRowClick"
     >
+      <template v-slot:toolbar-start>
+        <v-text-field
+          v-model="search"
+          prepend-inner-icon="mdi-magnify"
+          label="Search node"
+          density="compact"
+          variant="outlined"
+          hide-details
+          single-line
+          style="max-width: 220px"
+        ></v-text-field>
+      </template>
       <template v-if="interactive" v-slot:item.selected="{ item }">
         <v-checkbox-btn
           :model-value="selectedNodeIds.includes(item.id)"
@@ -35,15 +34,12 @@
         ></v-checkbox-btn>
       </template>
       <template v-slot:header.weightedDegree="{ column }">
-        <div class="v-data-table-header__content">
-          <span>{{ column.title }}</span>
-          <v-tooltip location="top" max-width="320">
-            <template v-slot:activator="{ props }">
-              <v-icon v-bind="props" size="14" class="ml-1">mdi-information-outline</v-icon>
-            </template>
-            <span>Sum over incident edges of -log10(p-value) * |effect size| -- the same edge weighting used for community detection.</span>
-          </v-tooltip>
-        </div>
+        <v-tooltip location="top" max-width="320">
+          <template v-slot:activator="{ props }">
+            <span v-bind="props">{{ column.title }}</span>
+          </template>
+          <span>Sum over incident edges of -log10(p-value) * |effect size| -- the same edge weighting used for community detection.</span>
+        </v-tooltip>
       </template>
       <template v-slot:item.weightedDegree="{ item }">
         {{ formatNumber(item.weightedDegree) }}
@@ -215,5 +211,10 @@ export default {
   -webkit-box-orient: vertical;
   overflow: hidden;
   max-width: 320px;
+  /* main.css resets font-weight to normal on every element directly, which otherwise
+     overrides the bold the highlighted (displayed-row) row's <td> would inherit --
+     every other column renders as a plain text node so it's untouched by that reset,
+     but this column needs its own element to line-clamp. */
+  font-weight: inherit;
 }
 </style>

@@ -1,17 +1,5 @@
 <template>
   <div>
-    <v-text-field
-      v-model="search"
-      prepend-inner-icon="mdi-magnify"
-      label="Search neighbor"
-      density="compact"
-      variant="outlined"
-      hide-details
-      single-line
-      class="mb-2"
-      style="max-width: 220px"
-    ></v-text-field>
-
     <DownloadableDataTable
       :headers="headers"
       :items="items"
@@ -24,6 +12,18 @@
       no-data-text="No edges for this node."
       @click:row="onRowClick"
     >
+      <template v-slot:toolbar-start>
+        <v-text-field
+          v-model="search"
+          prepend-inner-icon="mdi-magnify"
+          label="Search neighbor"
+          density="compact"
+          variant="outlined"
+          hide-details
+          single-line
+          style="max-width: 220px"
+        ></v-text-field>
+      </template>
       <template v-slot:item.pValue="{ item }">
         {{ formatNumber(item.pValue) }}
       </template>

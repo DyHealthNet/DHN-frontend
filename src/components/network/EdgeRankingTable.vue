@@ -1,28 +1,5 @@
 <template>
   <v-card outlined class="mt-4">
-    <div class="d-flex align-center px-4 py-2" style="gap: 8px;">
-      <!-- <v-select
-        v-model="testTypeFilter"
-        :items="testTypeOptions"
-        label="Filter test type"
-        density="compact"
-        variant="outlined"
-        hide-details
-        single-line
-        style="max-width: 180px"
-      ></v-select> -->
-      <v-text-field
-        v-model="search"
-        prepend-inner-icon="mdi-magnify"
-        label="Search node"
-        density="compact"
-        variant="outlined"
-        hide-details
-        single-line
-        style="max-width: 220px"
-      ></v-text-field>
-    </div>
-
     <DownloadableDataTable
       :headers="headers"
       :items="tableItems"
@@ -37,16 +14,35 @@
       no-data-text="No edges to rank."
       @click:row="onRowClick"
     >
+      <template v-slot:toolbar-start>
+        <!-- <v-select
+          v-model="testTypeFilter"
+          :items="testTypeOptions"
+          label="Filter test type"
+          density="compact"
+          variant="outlined"
+          hide-details
+          single-line
+          style="max-width: 180px"
+        ></v-select> -->
+        <v-text-field
+          v-model="search"
+          prepend-inner-icon="mdi-magnify"
+          label="Search node"
+          density="compact"
+          variant="outlined"
+          hide-details
+          single-line
+          style="max-width: 220px"
+        ></v-text-field>
+      </template>
       <template v-slot:header.p_value="{ column }">
-        <div class="v-data-table-header__content">
-          <span>{{ column.title }}</span>
-          <v-tooltip location="top" max-width="320">
-            <template v-slot:activator="{ props }">
-              <v-icon v-bind="props" size="14" class="ml-1">mdi-information-outline</v-icon>
-            </template>
-            <span>Ranked by p-value ascending; when p-values tie (e.g. all 0 after multiple-testing correction), broken by |effect size| descending.</span>
-          </v-tooltip>
-        </div>
+        <v-tooltip location="top" max-width="320">
+          <template v-slot:activator="{ props }">
+            <span v-bind="props">{{ column.title }}</span>
+          </template>
+          <span>Ranked by p-value ascending; when p-values tie (e.g. all 0 after multiple-testing correction), broken by |effect size| descending.</span>
+        </v-tooltip>
       </template>
       <template v-slot:item.p_value="{ item }">
         {{ formatNumber(item.p_value) }}

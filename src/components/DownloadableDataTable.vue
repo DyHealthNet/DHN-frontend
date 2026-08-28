@@ -1,7 +1,8 @@
 <template>
   <div class="downloadable-data-table">
-    <div v-if="multiSort" class="d-flex align-center justify-end mb-1">
-      <span class="text-caption text-medium-emphasis">Ctrl/Cmd+click a column to multi-sort by more than one column</span>
+    <div v-if="multiSort || $slots['toolbar-start']" class="d-flex align-center mb-1" style="gap: 8px; justify-content: space-between;">
+      <div><slot name="toolbar-start" /></div>
+      <span v-if="multiSort" class="text-caption text-medium-emphasis">Ctrl/Cmd+click a column to multi-sort by more than one column</span>
     </div>
     <DataTable
       ref="tableRef"
@@ -45,7 +46,7 @@
         v-for="header in headers"
         :key="header.key"
         :field="header.key"
-        :header="header.title"
+        :header="$slots['header.' + header.key] ? undefined : header.title"
         :sortable="header.sortable !== false"
         :style="header.width ? { width: header.width + 'px' } : undefined"
       >
@@ -315,13 +316,19 @@ export default {
    though, so Aura's own text/foreground tokens stay fixed to its light scheme -- force
    those (and the border color) from Vuetify's reactive --v-theme-* vars here instead. */
 .downloadable-data-table :deep(.p-datatable-table),
-.downloadable-data-table :deep(.p-datatable-header-cell),
 .downloadable-data-table :deep(.p-datatable-tbody > tr),
 .downloadable-data-table :deep(.p-paginator) {
   background: transparent;
   color: rgb(var(--v-theme-on-surface));
 }
+/* The header row is `position: sticky` (PrimeVue inline style), so unlike the rest of the
+   table it needs an opaque background -- otherwise scrolled-past rows show through it as they
+   pass underneath. rgb(var(--v-theme-surface)) is Vuetify's own reactive theme variable, so
+   this already resolves to the right color in both light and dark theme, same as everywhere
+   else in this file. */
+.downloadable-data-table :deep(.p-datatable-thead),
 .downloadable-data-table :deep(.p-datatable-header-cell) {
+  background: rgb(var(--v-theme-surface));
   border-color: rgb(var(--v-theme-data-table-line)) !important;
   color: rgb(var(--v-theme-on-surface-variant));
 }
