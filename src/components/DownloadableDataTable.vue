@@ -1,23 +1,7 @@
 <template>
   <div class="downloadable-data-table">
-    <div class="d-flex align-center justify-end mb-1" style="gap: 8px;">
-      <span v-if="multiSort" class="text-caption text-medium-emphasis">Ctrl/Cmd+click a column to multi-sort by more than one column</span>
-      <v-menu location="bottom end">
-        <template v-slot:activator="{ props }">
-          <v-btn
-            v-bind="props"
-            size="small"
-            variant="text"
-            prepend-icon="mdi-download"
-            :disabled="!items.length"
-          >Download</v-btn>
-        </template>
-        <v-list density="compact">
-          <v-list-item title="Download CSV" @click="download('csv')"></v-list-item>
-          <v-list-item title="Download JSON" @click="download('json')"></v-list-item>
-          <v-list-item title="Download TXT" @click="download('txt')"></v-list-item>
-        </v-list>
-      </v-menu>
+    <div v-if="multiSort" class="text-caption text-medium-emphasis mb-1">
+      Ctrl/Cmd+click a column to multi-sort by more than one column
     </div>
     <DataTable
       ref="tableRef"
@@ -36,10 +20,27 @@
       v-model:first="first"
       :rows="rows"
       :rows-per-page-options="rowsPerPageOptions"
+      paginatorTemplate="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink PaginatorEnd"
+      currentPageReportTemplate="{first} to {last} of {totalRecords}"
       density="compact"
       scrollable
       :scroll-height="lockedScrollHeight"
     >
+      <template #paginatorend>
+        <div class="downloadable-data-table__download">
+          <Button
+            type="button"
+            icon="pi pi-download"
+            class="p-button-text p-button-secondary"
+            :disabled="!items.length"
+            @click="onMenuClick"
+            aria-haspopup="true"
+            aria-controls="download_menu"
+          />
+          <Menu id="download_menu" ref="menuRef" :model="downloadItems" :popup="true" />
+        </div>
+      </template>
+
       <Column
         v-for="header in headers"
         :key="header.key"
@@ -88,10 +89,12 @@
 // custom-key-filter/filter-mode search semantics and per-header numeric sort comparators.
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
+import Menu from 'primevue/menu';
+import Button from 'primevue/button';
 
 export default {
   name: 'DownloadableDataTable',
-  components: { DataTable, Column },
+  components: { DataTable, Column, Menu, Button },
   // Extra attrs (only `class` is used) are forwarded explicitly to <DataTable> above rather
   // than via Vue's default fallthrough-to-root-element, since the root here is a wrapper div.
   inheritAttrs: false,
@@ -182,6 +185,15 @@ export default {
       }
       return options;
     },
+    // Items for the paginator's download Menu -- reuses the same download() method/formats
+    // the previous Vuetify v-menu/v-list offered, just presented as a PrimeVue Menu popup.
+    downloadItems() {
+      return [
+        { label: 'Download CSV', icon: 'pi pi-file', command: () => this.download('csv') },
+        { label: 'Download JSON', icon: 'pi pi-file', command: () => this.download('json') },
+        { label: 'Download TXT', icon: 'pi pi-file', command: () => this.download('txt') },
+      ];
+    },
     filteredItems() {
       const query = (this.search ?? '').toString().trim().toLowerCase();
       if (!query) return this.items;
@@ -256,6 +268,9 @@ export default {
     handleRowClick(event) {
       this.$emit('click:row', event.originalEvent, { item: event.data });
     },
+    onMenuClick(event) {
+      this.$refs.menuRef.toggle(event);
+    },
     csvEscape(value) {
       const str = value == null ? '' : String(value);
       return /[",\r\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
@@ -302,6 +317,12 @@ export default {
 </script>
 
 <style scoped>
+.downloadable-data-table__download {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
 /* PrimeVue's Aura preset (see main.js's MyPreset) already makes the table/paginator
    backgrounds transparent so they inherit whatever Vuetify surface they're rendered
    inside (the v-card each table sits in). darkModeSelector is still disabled there
