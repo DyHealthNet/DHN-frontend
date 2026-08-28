@@ -3,7 +3,7 @@
     <v-toolbar color="primary-darken-1" density="compact">
       <v-toolbar-title>
         Variable Overview
-        <v-tooltip class="ml-1" bottom>
+        <v-tooltip bottom>
           <template v-slot:activator="{ props }">
             <v-icon class="ml-1" v-bind="props">mdi-information</v-icon>
           </template>
@@ -21,7 +21,7 @@
           variant="outlined"
           hide-details
           single-line
-          class="mr-2"
+          class="mr-1"
           style="max-width: 220px"
       ></v-text-field>
     </v-toolbar>

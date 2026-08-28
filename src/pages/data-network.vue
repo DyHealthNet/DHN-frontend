@@ -42,16 +42,16 @@
                     type="number"
                     min="0"
                     max="1"
+                    width="180px"
                     step="0.001"
                     density="compact"
                     variant="outlined"
                     hide-details
                     single-line
-                    style="max-width: 220px"
                   ></v-text-field>
                 </div>
               </template>
-              <span>Only edges with p-value at or below this are counted as significant. Ranking (and each node's weighted degree) is computed over every significant edge server-side -- only the top {{ fullNetworkStatsMaxResults.toLocaleString() }} of each are actually shown, so the page stays responsive for larger cohorts.</span>
+              <span>Significance Threshold. Only edges with p-value at or below this are counted as significant. Ranking (and each node's weighted degree) is computed over every significant edge.</span>
             </v-tooltip>
             <v-tooltip location="bottom" max-width="280">
               <template v-slot:activator="{ props }">
@@ -70,7 +70,7 @@
                   ></v-select>
                 </div>
               </template>
-              <span>{{ contextValue != null ? "The selected context's own test type is used while a context is active." : 'Which edge table (parametric/nonparametric) this panel reads from.' }}</span>
+              <span>{{ contextValue != null ? "The selected context's own test type is used while a context is active." : 'Which test type was used for calculating the networ.' }}</span>
             </v-tooltip>
           </template>
         </NetworkRankingTabs>
