@@ -56,15 +56,14 @@
       </v-window-item>
 
       <v-window-item value="edgesOfNode">
-        <NodeEdgeTable
-          v-if="nodeEdgeTableVisible"
-          :node-label="nodeLabel"
-          :items="nodeEdgeTableItems"
+        <NodeNeighborsPanel
+          :tab="neighborsTab"
+          @update:tab="$emit('update:neighborsTab', $event)"
+          :nodes="neighborNodes"
+          :edges-for-node="edgesForNode"
           @select-neighbor="$emit('select-neighbor', $event)"
+          @close-tab="$emit('close-tab', $event)"
         />
-        <p v-else class="text-caption text-medium-emphasis pa-4">
-          Click a node in the visualization to see its edges here.
-        </p>
       </v-window-item>
 
       <v-window-item value="enrichment">
@@ -113,14 +112,14 @@
 // state, this only renders it and reports selection/tab changes back.
 import NodeRankingTable from './NodeRankingTable.vue';
 import EdgeRankingTable from './EdgeRankingTable.vue';
-import NodeEdgeTable from './NodeEdgeTable.vue';
+import NodeNeighborsPanel from './NodeNeighborsPanel.vue';
 import EnrichmentResultsPanel from './EnrichmentResultsPanel.vue';
 import NodeSetAnnotationResultsPanel from './NodeSetAnnotationResultsPanel.vue';
 import CommunityAnnotationPanel from './CommunityAnnotationPanel.vue';
 
 export default {
   name: 'NetworkTablesPanel',
-  components: { NodeRankingTable, EdgeRankingTable, NodeEdgeTable, EnrichmentResultsPanel, NodeSetAnnotationResultsPanel, CommunityAnnotationPanel },
+  components: { NodeRankingTable, EdgeRankingTable, NodeNeighborsPanel, EnrichmentResultsPanel, NodeSetAnnotationResultsPanel, CommunityAnnotationPanel },
   props: {
     activeTab: { type: String, default: 'nodeRanking' },
 
@@ -132,9 +131,9 @@ export default {
     clusteringActive: { type: Boolean, default: false },
     communityLabelFor: { type: Function, default: null },
 
-    nodeEdgeTableVisible: { type: Boolean, default: false },
-    nodeLabel: { type: String, default: '' },
-    nodeEdgeTableItems: { type: Array, default: () => [] },
+    neighborsTab: { type: String, default: null },
+    neighborNodes: { type: Array, default: () => [] },
+    edgesForNode: { type: Function, default: () => [] },
 
     enrichmentTab: { type: String, default: 'enrichment' },
     enrichmentRan: { type: Boolean, default: false },
@@ -167,6 +166,7 @@ export default {
     'update:activeTab',
     'update:enrichmentTab',
     'update:nodeSetAnnotationTab',
+    'update:neighborsTab',
     'select-node',
     'select-edge',
     'select-neighbor',

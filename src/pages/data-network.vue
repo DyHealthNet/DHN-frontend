@@ -546,15 +546,15 @@
                       v-model:active-tab="tablesActiveTab"
                       v-model:enrichment-tab="enrichmentTab"
                       v-model:node-set-annotation-tab="nodeSetAnnotationTab"
+                      v-model:neighbors-tab="neighborsSubTab"
                       :graph-nodes="graphNodes"
                       :graph-edges="graphEdges"
                       :nodes-by-id="nodesById"
                       :selected-node-ids="selectedNetworkNodes.map(n => n.id)"
                       :clustering-active="clusteringActive"
                       :community-label-for="communityLabelFor"
-                      :node-edge-table-visible="nodeEdgeTableVisible"
-                      :node-label="displayedElement?.display_name"
-                      :node-edge-table-items="nodeEdgeTableItems"
+                      :neighbor-nodes="recentNeighborNodes"
+                      :edges-for-node="edgesForNode"
                       :enrichment-ran="enrichmentRan"
                       :enrichment-results="enrichmentResults"
                       :enrichment-loading="enrichmentLoading"
@@ -689,6 +689,12 @@ export default {
       includedNodeTypes: new Set(), // stores type currently present in network for Legend
       searchedNodeId: null, // Details-panel "search node in network" field
 
+      // "Neighbors of" tab: the up-to-5 most-recently-clicked nodes, newest first, each its
+      // own closable sub-tab (see displayNode/addRecentNeighborNode/closeTablesSubTab). Not
+      // persisted across reloads, same as tablesActiveTab/displayedElement.
+      recentNeighborNodeIds: [],
+      neighborsSubTab: null,
+
       selectedNetworkNodes: [],
       selectAll: false,
       clearNetworkWarn: false,
@@ -741,9 +747,11 @@ export default {
       // after a run, distinct from selectedMetabolitesWithoutChebi (known before running).
       reactomeUnmappedMetabolites: [],
 
-      // Gemini community labeling
+      // Gemini community labeling. No separate "ran" flag -- a successful call always
+      // returns a label, so geminiLabel != null is already "has a result" (see
+      // NodeSetAnnotationResultsPanel.vue), and a failed call surfaces via the page's own
+      // error snackbar rather than an empty tab.
       geminiLoading: false,
-      geminiRan: false,
       geminiLabel: null,
 
       // Community Annotation (g:Profiler + Reactome + Gemini for every community at the
@@ -876,34 +884,13 @@ export default {
       const connectedIds = new Set(this.graphNodes.map((node) => node.id));
       return this.networkEdges.filter((edge) => connectedIds.has(edge.from) && connectedIds.has(edge.to));
     },
-    // Gating the per-node edge table purely on displayedElementType (rather than a
-    // separate open/close flag) means it disappears automatically whenever selection
-    // moves to an edge or is cleared -- see handleBackgroundClick/displayEdge/clearNetwork.
-    nodeEdgeTableVisible() {
-      return this.displayedElementType === 'node';
-    },
-    // Every edge incident to the currently displayed node, shaped for NodeEdgeTable.
-    // Neighbor labels aren't pre-populated on networkEdges entries (only the single
-    // currently-displayed edge gets that via displayEdge), so resolve them here the
-    // same way displayEdge does.
-    nodeEdgeTableItems() {
-      if (!this.nodeEdgeTableVisible || !this.displayedElement) return [];
-      const nodeId = this.displayedElement.id;
-      return this.networkEdges
-        .filter((edge) => edge.from === nodeId || edge.to === nodeId)
-        .map((edge) => {
-          const neighborId = edge.from === nodeId ? edge.to : edge.from;
-          const neighbor = this.networkNodes.find((n) => n.id === neighborId);
-          return {
-            edge,
-            neighborId,
-            neighborLabel: neighbor?.display_name ?? neighborId,
-            testType: edge.test_type,
-            pValue: edge.p_value,
-            effectSize: edge.effect_size,
-            absEffectSize: edge.effect_size != null ? Math.abs(edge.effect_size) : null,
-          };
-        });
+    // Resolves recentNeighborNodeIds against the current networkNodes for the "Neighbors of"
+    // sub-tabs -- filters out any id that no longer exists (e.g. after narrowing to a
+    // subnetwork) rather than rendering a tab for a node that's gone.
+    recentNeighborNodes() {
+      return this.recentNeighborNodeIds
+        .map((id) => this.networkNodes.find((n) => n.id === id))
+        .filter(Boolean);
     },
     // Legend entries: whatever groups are actually present in the current network --
     // node_group/source_table has no fixed set of values (see colorForGroup()).
@@ -2006,7 +1993,35 @@ export default {
       this.displayedElementType = "node";
       this.isDetailsNodeSelected = this.isNodeInNetworkSelected(node);
       this.openDetailsPanel();
+      this.addRecentNeighborNode(node.id);
       this.notifyTablesContentProduced('edgesOfNode');
+    },
+    // Bumps a node to the front of the "Neighbors of" MRU list (moving it there if already
+    // present, rather than duplicating it), capped at 5 -- the 6th push evicts whichever node
+    // is now furthest right. Always switches the active sub-tab to the node just clicked.
+    addRecentNeighborNode(nodeId) {
+      this.recentNeighborNodeIds = [nodeId, ...this.recentNeighborNodeIds.filter((id) => id !== nodeId)].slice(0, 5);
+      this.neighborsSubTab = nodeId;
+    },
+    // Every edge incident to the given node, shaped for NodeEdgeTable. Neighbor labels aren't
+    // pre-populated on networkEdges entries (only the single currently-displayed edge gets
+    // that via displayEdge), so resolve them here the same way displayEdge does.
+    edgesForNode(nodeId) {
+      return this.networkEdges
+        .filter((edge) => edge.from === nodeId || edge.to === nodeId)
+        .map((edge) => {
+          const neighborId = edge.from === nodeId ? edge.to : edge.from;
+          const neighbor = this.networkNodes.find((n) => n.id === neighborId);
+          return {
+            edge,
+            neighborId,
+            neighborLabel: neighbor?.display_name ?? neighborId,
+            testType: edge.test_type,
+            pValue: edge.p_value,
+            effectSize: edge.effect_size,
+            absEffectSize: edge.effect_size != null ? Math.abs(edge.effect_size) : null,
+          };
+        });
     },
     displayEdge(edge) {
       const nodeID0 = edge.to;
@@ -2053,6 +2068,14 @@ export default {
         if (this.enrichmentTab === 'reactomeEnrichment') this.enrichmentTab = 'enrichment';
       } else if (tabKey === 'gemini') {
         this.geminiSubTabDismissed = true;
+      } else if (tabKey.startsWith('neighbor:')) {
+        // Unlike gProfiler/Reactome/Gemini above, closing a neighbor tab has no separate
+        // results to keep around -- just drop that node from the MRU list entirely.
+        const nodeId = tabKey.slice('neighbor:'.length);
+        this.recentNeighborNodeIds = this.recentNeighborNodeIds.filter((id) => id !== nodeId);
+        if (this.neighborsSubTab === nodeId) {
+          this.neighborsSubTab = this.recentNeighborNodeIds[0] ?? null;
+        }
       }
     },
     isNodeInNetworkSelected(node) {
@@ -2265,7 +2288,6 @@ export default {
     async runGeminiLabel() {
       if (this.selectedNetworkNodes.length === 0) return;
       this.geminiLoading = true;
-      this.geminiRan = false;
       this.geminiLabel = null;
       this.geminiSubTabDismissed = false;
       this.notifyTablesContentProduced('nodeSetAnnotation');
@@ -2288,7 +2310,6 @@ export default {
         this.infoType = "error";
         this.showInfo = true;
       }
-      this.geminiRan = true;
       this.geminiLoading = false;
     },
     // Kicks off the Community Annotation batch job (g:Profiler + Reactome enrichment, then a
@@ -3049,6 +3070,8 @@ export default {
       this.displayedElementType = null;
       this.isDetailsNodeSelected = false;
       this.selectedNetworkNodes = [];
+      this.recentNeighborNodeIds = [];
+      this.neighborsSubTab = null;
       if(full){
         await this.initializeCosmograph();
         this.applyDesign(saveState);
@@ -3454,7 +3477,6 @@ export default {
         this.reactomeEnrichmentRan = false;
         this.reactomeUnmappedMetabolites = [];
         this.geminiLabel = null;
-        this.geminiRan = false;
       },
     },
     },

@@ -20,6 +20,7 @@
       </v-menu>
     </div>
     <DataTable
+      ref="tableRef"
       :value="sortedItems"
       :class="$attrs.class"
       custom-sort
@@ -36,6 +37,7 @@
       :rows-per-page-options="rowsPerPageOptions"
       density="compact"
       scrollable
+      :scroll-height="lockedScrollHeight"
     >
       <Column
         v-for="header in headers"
@@ -127,6 +129,14 @@ export default {
       // was last on, so the visible "Rank" column can start well past 1 even though rankEdges/
       // computeWeightedDegree always number the underlying data starting at 1.
       first: 0,
+      // Height (in px, as a CSS string) the table's body locks to the first time it renders
+      // with actual rows -- at that point it's showing the caller's default itemsPerPage, so
+      // that natural height becomes the cap. Bumping "rows per page" up after that scrolls
+      // the extra rows inside this same height instead of growing the table (and the page
+      // around it) taller. null until measured, which lets the table size itself naturally
+      // for that first real render.
+      lockedScrollHeight: null,
+      heightLocked: false,
     };
   },
   watch: {
@@ -135,6 +145,22 @@ export default {
     },
     search() {
       this.first = 0;
+    },
+    // Fires on every render where rows are actually on screen; only the first one (per
+    // heightLocked) does anything -- see lockedScrollHeight above.
+    sortedItems: {
+      immediate: true,
+      handler(rows) {
+        if (this.heightLocked || !rows.length) return;
+        this.$nextTick(() => {
+          if (this.heightLocked) return;
+          const container = this.$refs.tableRef?.$el?.querySelector('.p-datatable-table-container');
+          const height = container?.getBoundingClientRect().height;
+          if (!height) return;
+          this.lockedScrollHeight = `${Math.ceil(height)}px`;
+          this.heightLocked = true;
+        });
+      },
     },
   },
   computed: {

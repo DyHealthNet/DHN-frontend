@@ -1,0 +1,44 @@
+<template>
+  <div class="node-neighbors-panel">
+    <v-tabs v-if="nodes.length" :model-value="tab" color="primary-darken-1" @update:model-value="$emit('update:tab', $event)">
+      <ClosableTab v-for="node in nodes" :key="node.id" :value="node.id" @close="$emit('close-tab', `neighbor:${node.id}`)">
+        {{ node.display_name }}
+      </ClosableTab>
+    </v-tabs>
+    <p v-if="!nodes.length" class="text-caption text-medium-emphasis pa-4">
+      Click a node in the visualization to see its edges here.
+    </p>
+    <v-window v-else :model-value="tab">
+      <v-window-item v-for="node in nodes" :key="node.id" :value="node.id">
+        <NodeEdgeTable
+          :node-label="node.display_name"
+          :items="edgesForNode(node.id)"
+          @select-neighbor="$emit('select-neighbor', $event)"
+        />
+      </v-window-item>
+    </v-window>
+  </div>
+</template>
+
+<script>
+// The "Neighbors of" tab: instead of just the single currently-displayed node, shows the up to
+// 5 most-recently-clicked nodes as separate closable sub-tabs, newest first -- data-network.vue
+// owns the MRU list (recentNeighborNodeIds/addRecentNeighborNode) and evicts whichever node is
+// furthest right once a 6th is clicked. Closing a sub-tab here removes that node from the list
+// entirely (there's no separate result to keep around for it, unlike gProfiler/Reactome/Gemini's
+// dismiss-only sub-tabs, which keep their fetched data even while hidden). Purely
+// presentational/controlled: data-network.vue owns the node list and the edgesForNode lookup.
+import ClosableTab from './ClosableTab.vue';
+import NodeEdgeTable from './NodeEdgeTable.vue';
+
+export default {
+  name: 'NodeNeighborsPanel',
+  components: { ClosableTab, NodeEdgeTable },
+  props: {
+    tab: { type: String, default: null },
+    nodes: { type: Array, default: () => [] }, // [{id, display_name, ...}], newest first
+    edgesForNode: { type: Function, default: () => [] },
+  },
+  emits: ['update:tab', 'close-tab', 'select-neighbor'],
+};
+</script>
