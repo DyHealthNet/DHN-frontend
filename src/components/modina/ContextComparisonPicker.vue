@@ -7,9 +7,10 @@
           <template v-slot:activator="{ props }">
             <v-icon v-bind="props">mdi-information</v-icon>
           </template>
-          <span>Pick two finished contexts that share the same variable subset (layers) and were scored with the
-            same test type and correction method. Only compatible contexts
-            are selectable as the second context.</span>
+          <span>Pick two finished contexts that share the same originally selected variable subset (layers) and
+            were scored with the same test type and correction method. Only compatible contexts are selectable as
+            the second context. Variables moDiNA found unusable in only one of the two contexts don't block the
+            comparison -- they're excluded from the result and reported after it runs.</span>
         </v-tooltip>
       </v-toolbar-title>
       <v-spacer></v-spacer>
@@ -147,7 +148,11 @@ export default {
       set(value) {
         const context = this.finishedContexts.find((c) => c.contextValue === value) || null;
         let context2 = this.modelValue.context2;
-        if (context2 && (!context || !this.sameLayers(context, context2) || !this.sameSettings(context, context2))) {
+        // Drop the current context2 if it's no longer compatible with the newly picked
+        // context1, instead of silently keeping a selection the second dropdown wouldn't
+        // itself have offered (compatibleContexts applies the same two checks below).
+        if (context2 && (!context || !this.sameVariableSelection(context, context2) || !this.sameSettings(context, context2))) {
+          context2 = null;
         }
         this.$emit('update:modelValue', { context1: context, context2 });
       },
@@ -169,20 +174,38 @@ export default {
       return this.finishedContexts.filter(
         (c) =>
           c.contextValue !== this.firstContext.contextValue &&
-          this.sameLayers(c, this.firstContext) &&
+          this.sameVariableSelection(c, this.firstContext) &&
           this.sameSettings(c, this.firstContext)
       );
     },
   },
   methods: {
-    sameLayers(a, b) {
-      const layersA = [...(a.content?.layers || [])].sort();
-      const layersB = [...(b.content?.layers || [])].sort();
-      return JSON.stringify(layersA) === JSON.stringify(layersB);
+    // content.layers was never actually populated by the backend -- Context.params has no
+    // top-level 'layers' key (see restrict_variables()'s docstring in
+    // network/contexts/contexts.py), only variables/variablesLayers/variablesSubLayers, which
+    // together are the complete, self-sufficient description of a context's variable selection.
+    // 'content' is just context.params verbatim, so all three are already available here without
+    // an extra fetch. This mirrors what the backend itself now resolves and compares before
+    // allowing a comparison (network/views/modina.py's data1.columns.equals(data2.columns), fed
+    // by _resolve_context_data) -- doing it here too lets compatibleContexts filter out a genuine
+    // selection mismatch before the user even tries to run the comparison, instead of only
+    // finding out from the 400 response.
+    sameVariableSelection(a, b) {
+      const normalize = (context) => {
+        const subLayers = context.content?.variablesSubLayers || {};
+        return JSON.stringify({
+          variables: [...(context.content?.variables || [])].sort(),
+          variablesLayers: [...(context.content?.variablesLayers || [])].sort(),
+          variablesSubLayers: Object.keys(subLayers)
+            .sort()
+            .map((layer) => [layer, [...subLayers[layer]].sort()]),
+        });
+      };
+      return normalize(a) === normalize(b);
     },
     // testType/correction are fixed per-context (chosen when its association scores were
     // computed) -- the comparison reuses those stored scores rather than recomputing them, so
-    // both contexts must already agree on both, same as sameLayers() above.
+    // both contexts must already agree on both, same as sameVariableSelection() above.
     sameSettings(a, b) {
       return a.content?.testType === b.content?.testType && a.content?.correction === b.content?.correction;
     },
