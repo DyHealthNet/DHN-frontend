@@ -1,20 +1,16 @@
 <template>
-  <v-card outlined class="mt-4">
-    <div class="d-flex align-center pa-4 pb-2">
-      <span class="node-title">{{ nodeLabel }}</span>
-      <v-chip size="small" variant="outlined" color="primary-darken-1" class="ml-2">{{ items.length }}</v-chip>
-      <v-spacer></v-spacer>
-      <v-text-field
-        v-model="search"
-        prepend-inner-icon="mdi-magnify"
-        label="Search neighbor"
-        density="compact"
-        variant="outlined"
-        hide-details
-        single-line
-        style="max-width: 220px"
-      ></v-text-field>
-    </div>
+  <div>
+    <v-text-field
+      v-model="search"
+      prepend-inner-icon="mdi-magnify"
+      label="Search neighbor"
+      density="compact"
+      variant="outlined"
+      hide-details
+      single-line
+      class="mb-2"
+      style="max-width: 220px"
+    ></v-text-field>
 
     <DownloadableDataTable
       :headers="headers"
@@ -38,10 +34,13 @@
         {{ formatNumber(item.absEffectSize) }}
       </template>
     </DownloadableDataTable>
-  </v-card>
+  </div>
 </template>
 
 <script>
+// No node title/count header here -- the enclosing NodeNeighborsPanel already shows both in the
+// tab label ("P12345 (12)") for whichever node this table belongs to, and wraps everything in
+// its own v-card/padding, so this only needs the search field and the table itself.
 import DownloadableDataTable from '@/components/DownloadableDataTable.vue';
 
 // v-data-table's default sort coerces values to strings before comparing, which sorts floats
@@ -57,10 +56,6 @@ export default {
   name: 'NodeEdgeTable',
   components: { DownloadableDataTable },
   props: {
-    nodeLabel: {
-      type: String,
-      default: '',
-    },
     items: {
       type: Array,
       default: () => [],
@@ -94,12 +89,5 @@ export default {
 <style scoped>
 .node-edge-table :deep(tbody tr) {
   cursor: pointer;
-}
-.node-title {
-  font-size: 20px;
-  color: rgb(var(--v-theme-primary-darken-1));
-  display: flex;
-  justify-content: center;
-  align-items: center;
 }
 </style>

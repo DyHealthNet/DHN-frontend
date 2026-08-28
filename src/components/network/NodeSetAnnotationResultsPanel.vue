@@ -1,5 +1,5 @@
 <template>
-  <div class="node-set-annotation-results-panel">
+  <v-card outlined class="mt-4 node-set-annotation-results-panel">
     <v-tabs :model-value="tab" color="primary-darken-1" @update:model-value="$emit('update:tab', $event)">
       <ClosableTab v-if="(geminiLabel != null || geminiLoading) && !geminiSubTabDismissed" value="gemini" @close="$emit('close-tab', 'gemini')">
         Gemini
@@ -24,7 +24,7 @@
         </v-window-item>
       </v-window>
     </div>
-  </div>
+  </v-card>
 </template>
 
 <script>
