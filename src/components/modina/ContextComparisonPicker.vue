@@ -12,10 +12,6 @@
             are selectable as the second context.</span>
         </v-tooltip>
       </v-toolbar-title>
-      <v-spacer></v-spacer>
-      <v-btn icon variant="text" @click="fetchContexts" :loading="isLoading">
-        <v-icon>mdi-refresh</v-icon>
-      </v-btn>
     </v-toolbar>
 
     <v-card-text>

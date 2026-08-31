@@ -616,7 +616,7 @@
                 :color="infoType"
             >
               <v-icon class="my-0 mr-2">
-                mdi-information-outline
+                {{ infoType === 'success' ? 'mdi-check-circle' : infoType === 'error' ? 'mdi-alert-circle' : 'mdi-information-outline' }}
               </v-icon>
               {{ infoText }}
 
@@ -2235,6 +2235,9 @@ export default {
         this.enrichmentResults = (data.result || [])
           .sort((a, b) => a.p_value - b.p_value)
           .slice(0, 20);
+        this.infoText = "Protein enrichment (g:Profiler) finished.";
+        this.infoType = "success";
+        this.showInfo = true;
       } catch (error) {
         console.error("Error running protein enrichment:", error);
         this.infoText = "Could not fetch protein enrichment results from g:Profiler. Please try again.";
@@ -2353,6 +2356,9 @@ export default {
             .sort((a, b) => a.entities.pValue - b.entities.pValue)
             .slice(0, 20);
         }
+        this.infoText = "Reactome enrichment finished.";
+        this.infoType = "success";
+        this.showInfo = true;
       } catch (error) {
         console.error("Error running Reactome enrichment:", error);
         this.infoText = "Could not fetch enrichment results from Reactome. Please try again.";
@@ -2384,6 +2390,9 @@ export default {
         });
         if (!response.ok) throw new Error("Gemini labeling response was not ok");
         this.geminiLabel = await response.json();
+        this.infoText = "Node set annotation finished.";
+        this.infoType = "success";
+        this.showInfo = true;
       } catch (error) {
         console.error("Error running Gemini labeling:", error);
         this.infoText = "Could not fetch a label from Gemini. Please try again.";
@@ -2461,16 +2470,20 @@ export default {
           this.communityAnnotationStartedAt = null;
           this.saveState();
           if (data.reactomeFailed && data.gprofilerFailed) {
-            this.infoText = "Reactome and g:Profiler were not reachable, so neither was used for community annotation. Results below are based on node names only.";
+            this.infoText = "Community annotation finished. Reactome and g:Profiler were not reachable, so neither was used. Results below are based on node names only.";
             this.infoType = "info";
             this.showInfo = true;
           } else if (data.reactomeFailed) {
-            this.infoText = "Reactome was not reachable, so it was not used for community annotation. Results below are based on g:Profiler only.";
+            this.infoText = "Community annotation finished. Reactome was not reachable, so it was not used. Results below are based on g:Profiler only.";
             this.infoType = "info";
             this.showInfo = true;
           } else if (data.gprofilerFailed) {
-            this.infoText = "g:Profiler was not reachable, so it was not used for community annotation. Results below are based on Reactome only.";
+            this.infoText = "Community annotation finished. g:Profiler was not reachable, so it was not used. Results below are based on Reactome only.";
             this.infoType = "info";
+            this.showInfo = true;
+          } else {
+            this.infoText = "Community annotation finished.";
+            this.infoType = "success";
             this.showInfo = true;
           }
           return;
