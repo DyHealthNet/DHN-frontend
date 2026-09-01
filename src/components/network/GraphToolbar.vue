@@ -43,7 +43,7 @@
     </v-tooltip>
     <v-tooltip text="Download image" location="bottom">
       <template v-slot:activator="{ props }">
-        <v-btn icon variant="text" v-bind="props" @click="$emit('save-image')">
+        <v-btn icon variant="text" v-bind="props" class="mr-3" @click="$emit('save-image')">
           <v-icon>mdi-camera</v-icon>
         </v-btn>
       </template>

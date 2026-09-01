@@ -691,7 +691,7 @@
 import AdvancedSettings from "@/components/AdvancedSettings.vue";
 import FilterToolbar from "@/components/FilterToolbar.vue";
 import {BASE_URL, isLoading, setIsLoading, setLoadingState, loadingStates} from "@/components/constants.js";
-import {darkenHexColor, interpolateHexColor, normalizeInRange, computeEdgeScore, assignGroupColors, getNodeIcon, loadNetworkState, saveNetworkState, capitalizeFirstLetter, drawLegendPanel} from "../components/network/networkData.js";
+import {darkenHexColor, interpolateHexColor, normalizeInRange, computeEdgeScore, computePercentileRanks, assignGroupColors, getNodeIcon, loadNetworkState, saveNetworkState, capitalizeFirstLetter, drawLegendPanel} from "../components/network/networkData.js";
 import {interpolateRainbow} from 'd3-scale-chromatic';
 import NodeDetails from '@/components/network/NodeDetails.vue';
 import EdgeDetails from '@/components/network/EdgeDetails.vue';
@@ -3247,15 +3247,9 @@ export default {
         this.edgeScorePercentiles = [];
         return;
       }
-      const ranked = this.networkEdges
-        .map((edge, index) => ({ index, score: computeEdgeScore(edge, this.edgeStyleMode) }))
-        .filter(({ score }) => score != null)
-        .sort((a, b) => a.score - b.score);
-      const percentiles = new Array(this.networkEdges.length).fill(null);
-      ranked.forEach(({ index }, rank) => {
-        percentiles[index] = ranked.length > 1 ? rank / (ranked.length - 1) : 1;
-      });
-      this.edgeScorePercentiles = percentiles;
+      this.edgeScorePercentiles = computePercentileRanks(
+        this.networkEdges.map((edge) => computeEdgeScore(edge, this.edgeStyleMode))
+      );
     },
     // linkWidthBy names 'renderWidth' purely so Cosmograph invokes this per edge
     // (see pointSizeBy's own comment for why) -- the actual width always comes

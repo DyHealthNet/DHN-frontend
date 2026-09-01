@@ -33,6 +33,26 @@ export function normalizeInRange(value, min, max) {
   return max > min ? (value - min) / (max - min) : 0.5;
 }
 
+// Percentile rank (0-1) of each entry in `scores` among the array itself --
+// nulls pass through as null (excluded from ranking). Rank-based rather than
+// min-max so a skewed distribution (e.g. most scores clustered near one end)
+// still spreads across the full visual range instead of bunching at one end,
+// and so a single Infinity/extreme outlier can't poison everyone else's value
+// the way min-max division would. Shared by data-network.vue's edge-style
+// dropdown and differential-network.vue's edge-weight coloring, so both pages'
+// edges use the same visual scheme for a magnitude-based score.
+export function computePercentileRanks(scores) {
+  const ranked = scores
+    .map((score, index) => ({ index, score }))
+    .filter(({ score }) => score != null)
+    .sort((a, b) => a.score - b.score);
+  const result = new Array(scores.length).fill(null);
+  ranked.forEach(({ index }, rank) => {
+    result[index] = ranked.length > 1 ? rank / (ranked.length - 1) : 1;
+  });
+  return result;
+}
+
 // Significance score for one edge under `mode` -- null for an 'external' edge
 // (no p_value/effect_size) or 'unweighted' mode, in which case the caller
 // falls back to its own flat width/color. Shared by data-network.vue's

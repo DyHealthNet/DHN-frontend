@@ -193,7 +193,7 @@ import DiffNodeDetails from '@/components/modina/DiffNodeDetails.vue';
 import DiffEdgeDetails from '@/components/modina/DiffEdgeDetails.vue';
 import GraphToolbar from '@/components/network/GraphToolbar.vue';
 import NetworkLegend from '@/components/network/NetworkLegend.vue';
-import { assignGroupColors, getNodeIcon, saveNetworkState, loadNetworkState, clearNetworkState, capitalizeFirstLetter, drawLegendPanel } from '@/components/network/networkData.js';
+import { assignGroupColors, getNodeIcon, saveNetworkState, loadNetworkState, clearNetworkState, capitalizeFirstLetter, drawLegendPanel, interpolateHexColor, computePercentileRanks } from '@/components/network/networkData.js';
 
 // Distinct key (not a numeric contextValue) so this doesn't collide with data-network.vue's own
 // per-context / "staticNetwork" localStorage entries, which share the same helper functions.
@@ -340,6 +340,16 @@ export default {
       if (this.topN == null || this.topN >= this.totalNodeCount) return links;
       const ids = new Set(this.graphPoints.map((p) => p.id));
       return links.filter((l) => ids.has(l.source) && ids.has(l.target));
+    },
+    // Percentile rank (0-1) of each graphLinks entry's |weight|, parallel to
+    // graphLinks -- same grey scale + percentile-ranking approach as the main
+    // network page's edge-style dropdown (see data-network.vue's
+    // computePercentileRanks/computeLinkColor), so a magnitude-based edge score
+    // reads consistently across both pages. A plain computed (not a manually
+    // refreshed cache like the network page's) since graphLinks is itself
+    // already reactive to Top-N/hideUnconnected here.
+    edgeWeightPercentiles() {
+      return computePercentileRanks(this.graphLinks.map((l) => l.weight));
     },
     topNLabel() {
       if (this.topN == null || this.topN >= this.totalNodeCount) return 'all';
@@ -584,7 +594,7 @@ export default {
         backgroundColor: this.labelColor('background'),
         hoveredPointRingColor: this.labelColor('primary-darken-1'),
         unknownColor: this.labelColor('text'),
-        linkColorByFn: () => this.labelColor('text'),
+        linkColorByFn: (value, index) => this.computeLinkColor(index),
         onPointClick: (index) => this.selectPointFromGraph(index),
         onLinkClick: (linkIndex) => this.selectLinkFromGraph(linkIndex),
         onBackgroundClick: () => this.clearSelection(),
@@ -669,7 +679,7 @@ export default {
         backgroundColor: this.labelColor('background'),
         hoveredPointRingColor: this.labelColor('primary-darken-1'),
         unknownColor: this.labelColor('text'),
-        linkColorByFn: () => this.labelColor('text'),
+        linkColorByFn: (value, index) => this.computeLinkColor(index),
         // New function reference each call: Cosmograph's config-change detection uses reference
         // equality, and selectedPointIndex can change without points/links changing, so a stable
         // reference here would never actually get re-invoked.
@@ -752,6 +762,17 @@ export default {
     // pointSizeBy is ignored; the point is looked up by index instead.
     computePointSize(index) {
       return index === this.selectedPointIndex ? 24 : 8;
+    },
+
+    // Same grey scale the main network page's edge-style dropdown uses for a
+    // magnitude-based score (see data-network.vue's computeLinkColor) -- edge
+    // weight here is exactly that kind of score (not a bounded, sign-meaningful
+    // quantity like effect size), so it gets the same treatment: percentile
+    // rank (edgeWeightPercentiles), not the raw value, mapped chart-grid -> chart.
+    computeLinkColor(index) {
+      const percentile = this.edgeWeightPercentiles[index];
+      if (percentile == null) return this.labelColor('text');
+      return interpolateHexColor(this.labelColor('chart-grid'), this.labelColor('chart'), percentile);
     },
 
     // Pans (not zooms) the camera to center on a point, at whatever zoom level is already
