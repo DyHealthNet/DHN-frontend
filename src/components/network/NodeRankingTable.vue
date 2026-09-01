@@ -47,6 +47,10 @@
       <template v-slot:item.description="{ item }">
         <span class="description-cell" :title="item.description">{{ item.description || '-' }}</span>
       </template>
+      <template v-slot:item.group="{ item }">
+        <v-chip v-if="item.groupColor" size="small" :style="chipStyle(item.groupColor)">{{ item.group }}</v-chip>
+        <span v-else>{{ item.group }}</span>
+      </template>
     </DownloadableDataTable>
   </v-card>
 </template>
@@ -54,6 +58,16 @@
 <script>
 import DownloadableDataTable from '@/components/DownloadableDataTable.vue';
 import { computeWeightedDegree } from './networkRanking.js';
+import { assignGroupColors, capitalizeFirstLetter, getReadableTextColor } from './networkData.js';
+
+// Same key derivation as data-network.vue's legendKeyFor (non-clustering branch): strip
+// any "cohort_"-style prefix off source_table, taking the trailing segment. Kept in sync
+// by hand rather than imported, since legendKeyFor also branches on clusteringActive --
+// this table's Group column always means node type, never community (see the separate
+// Community column), so only that one branch applies here.
+function groupKeyFor(node) {
+  return node.source_table ? node.source_table.split('_').pop() : node.subtype || undefined;
+}
 
 // v-data-table's default sort coerces values to strings before comparing,
 // which breaks numeric ordering -- force pure numeric compare.
@@ -142,19 +156,37 @@ export default {
     rankedNodes() {
       return this.preranked ? this.nodes : computeWeightedDegree(this.nodes, this.edges);
     },
+    // One color per group key actually present in this table, assigned via the same
+    // function (and the same "sorted keys -> palette index" rule) the network legend
+    // uses -- so a group's chip here matches its legend/graph color whenever this
+    // table's nodes are the same set the legend was built from (true for the
+    // interactive "under the graph" instance; the read-only "Full Network Statistics"
+    // instance has its own independent node set, so its colors are only guaranteed
+    // internally consistent, not necessarily identical to the graph's).
+    groupColorMap() {
+      const keys = [...new Set(this.rankedNodes.map(groupKeyFor).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+      return assignGroupColors(keys);
+    },
     // Resolves display label and group as real item fields rather than only
     // in a render slot -- v-data-table's default sort reads item[column.key]
     // directly, so a slot-only value never sorts.
     tableItems() {
-      return this.rankedNodes.map((node) => ({
-        ...node,
-        label: node.display_name || node.id,
-        group: node.source_table || node.subtype || '-',
-        community: this.clusteringActive && this.communityLabelFor ? this.communityLabelFor(node) : null,
-      }));
+      return this.rankedNodes.map((node) => {
+        const groupKey = groupKeyFor(node);
+        return {
+          ...node,
+          label: node.display_name || node.id,
+          group: groupKey ? capitalizeFirstLetter(groupKey) : '-',
+          groupColor: groupKey ? this.groupColorMap[groupKey] : null,
+          community: this.clusteringActive && this.communityLabelFor ? this.communityLabelFor(node) : null,
+        };
+      });
     },
   },
   methods: {
+    chipStyle(color) {
+      return { backgroundColor: color, color: getReadableTextColor(color) };
+    },
     formatNumber(value) {
       if (typeof value !== 'number') return value ?? '-';
       return value.toPrecision(4);

@@ -73,13 +73,6 @@
       >Run Clustering</v-btn>
 
       <template v-if="clusteringActive">
-        <v-btn
-          class="mt-2"
-          variant="outlined"
-          block
-          @click="$emit('reset-clustering-colors'); communityDialogOpen = false;"
-        >Reset to Node Type Colors</v-btn>
-
         <p v-if="currentModularity != null" class="text-caption text-medium-emphasis mt-2">
           Modularity: {{ currentModularity.toFixed(3) }} · Conductance: {{ currentConductance.toFixed(3) }}
         </p>
@@ -303,7 +296,6 @@ export default {
     'update:selectedAlgorithm',
     'update:leidenResolution',
     'run-clustering',
-    'reset-clustering-colors',
     'run-community-annotation',
     'run-gprofiler-enrichment',
     'run-reactome-enrichment',

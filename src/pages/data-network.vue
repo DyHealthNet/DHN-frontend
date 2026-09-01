@@ -314,7 +314,7 @@
                     ></v-autocomplete>
                     <v-divider class="my-4"></v-divider>
                   <template v-if="displayedElementType === 'node'">
-                    <NodeDetails :getIcon="getIcon" :node="displayedElement" />
+                    <NodeDetails :getIcon="getIcon" :getGroupColor="colorForNodeGroup" :node="displayedElement" />
                     <v-switch
                       v-model="isDetailsNodeSelected"
                       :label="isDetailsNodeSelected ? 'Selected' : 'Not Selected'"
@@ -430,7 +430,6 @@
                       :enrichment-loading="enrichmentLoading"
                       :reactome-enrichment-loading="reactomeEnrichmentLoading"
                       @run-clustering="runLeidenClustering"
-                      @reset-clustering-colors="resetClusteringColors"
                       @run-community-annotation="tablesActiveTab = 'communityAnnotation'; runCommunityAnnotation();"
                       @run-gprofiler-enrichment="runProteinEnrichment(); tablesActiveTab = 'enrichment'; enrichmentTab = 'enrichment';"
                       @run-reactome-enrichment="runReactomeEnrichment(); tablesActiveTab = 'enrichment'; enrichmentTab = 'reactomeEnrichment';"
@@ -454,8 +453,11 @@
                 <v-row>
                     <v-col>
                       <div ref="network" id="network" style="height: 550px;"></div>
-                      <!-- Legend -->
+                      <!-- Legend: hidden in 'rank' mode -- weighted_degree is a
+                           continuous gradient, not the discrete groups this legend
+                           shows swatches for. -->
                       <NetworkLegend
+                        v-if="nodeColorMode !== 'rank'"
                         class="legend"
                         :items="legendItems"
                         :title="legendTitle"
@@ -527,6 +529,28 @@
                         </template>
                       </v-tooltip>
                     </v-btn-toggle>
+                    <v-select
+                      :model-value="nodeColorMode"
+                      @update:model-value="onNodeColorModeChange"
+                      :items="nodeColorModeItems"
+                      label="Color nodes by"
+                      density="compact"
+                      variant="outlined"
+                      hide-details
+                      class="mr-3"
+                      style="max-width: 200px"
+                    ></v-select>
+                    <v-select
+                      :model-value="edgeStyleMode"
+                      @update:model-value="onEdgeStyleModeChange"
+                      :items="edgeStyleModeItems"
+                      label="Style edges by"
+                      density="compact"
+                      variant="outlined"
+                      hide-details
+                      class="mr-3"
+                      style="max-width: 200px"
+                    ></v-select>
                 </template>
                 <template #append>
                   <v-btn
@@ -638,7 +662,7 @@
 import AdvancedSettings from "@/components/AdvancedSettings.vue";
 import FilterToolbar from "@/components/FilterToolbar.vue";
 import {BASE_URL, isLoading, setIsLoading, setLoadingState, loadingStates} from "@/components/constants.js";
-import {darkenHexColor, assignGroupColors, getNodeIcon, loadNetworkState, saveNetworkState, capitalizeFirstLetter, drawLegendPanel} from "../components/network/networkData.js";
+import {darkenHexColor, interpolateHexColor, normalizeInRange, computeEdgeScore, assignGroupColors, getNodeIcon, loadNetworkState, saveNetworkState, capitalizeFirstLetter, drawLegendPanel} from "../components/network/networkData.js";
 import {interpolateRainbow} from 'd3-scale-chromatic';
 import NodeDetails from '@/components/network/NodeDetails.vue';
 import EdgeDetails from '@/components/network/EdgeDetails.vue';
@@ -714,6 +738,26 @@ export default {
       isDetailsNodeSelected: false,
       includedNodeTypes: new Set(), // stores type currently present in network for Legend
       searchedNodeId: null, // Details-panel "search node in network" field
+
+      // Node coloring mode: 'group' (node_group/source_table), 'rank' (weighted
+      // degree gradient), or 'community' (requires clusteringActive). See
+      // colorKeyFor/buildPointColorMap. Switching modes runs a full
+      // initializeCosmograph() rebuild (like hideUnconnected) since colorKey is
+      // baked into each point's row, not recomputed per-render.
+      nodeColorMode: 'group',
+      // Cached once per initializeCosmograph() rebuild while nodeColorMode is
+      // 'rank', so every node's color is normalized against the same min/max
+      // instead of recomputing it per node.
+      weightedDegreeRange: { min: 0, max: 0 },
+      // Cached once per render pass while edgeStyleMode isn't 'unweighted', so
+      // every edge's color normalizes against the same min/max. See
+      // refreshEdgeScoreRange/edgeScore/computeLinkColor.
+      edgeScoreRange: { min: 0, max: 0 },
+      // Edge styling mode: 'unweighted' (today's flat width/internal-external
+      // color), or sized+colored by a significance score -- 'combined'
+      // (-log10(p) * |effect size|), 'pvalue' (-log10(p) only), or 'effect'
+      // (|effect size| only). See edgeScore/computeLinkWidth/computeLinkColor.
+      edgeStyleMode: 'unweighted',
 
       // "Neighbors of" tab: the up-to-5 most-recently-clicked nodes, newest first, each its
       // own closable sub-tab (see displayNode/addRecentNeighborNode/closeTablesSubTab). Not
@@ -954,12 +998,36 @@ export default {
     // Render-ready form of legendGroups for NetworkLegend (shared with
     // differential-network.vue) and for the exported-PNG legend panel.
     legendItems() {
+      // Rank mode has no discrete legend (see the on-screen NetworkLegend's own
+      // v-if) -- also skipped here so the exported-PNG legend panel stays empty.
+      if (this.nodeColorMode === 'rank') return [];
       return this.legendGroups.map((key) => ({
         key,
         label: this.legendLabel(key),
         color: this.colorForLegendKey(key),
         active: this.isGroupFullySelected(key),
       }));
+    },
+    // Rank coloring needs weighted_degree on the currently-displayed nodes --
+    // only present on a 'whole' network fetch (see sendToNetwork/sendWholeNetwork),
+    // not a node-search-built one.
+    hasWeightedDegreeData() {
+      return this.graphNodes.some((node) => node.weighted_degree != null);
+    },
+    nodeColorModeItems() {
+      return [
+        { title: 'Group', value: 'group' },
+        { title: 'Rank (weighted degree)', value: 'rank', disabled: !this.hasWeightedDegreeData },
+        { title: 'Community', value: 'community', disabled: !this.clusteringActive },
+      ];
+    },
+    edgeStyleModeItems() {
+      return [
+        { title: 'Unweighted', value: 'unweighted' },
+        { title: '-log(p) × |effect size|', value: 'combined' },
+        { title: '-log(p) only', value: 'pvalue' },
+        { title: 'Effect size only', value: 'effect' },
+      ];
     },
     hasSelectedProtein() {
       return this.selectedNetworkNodes.some((node) => node.source_table === 'protein');
@@ -1014,7 +1082,7 @@ export default {
     // currently selected in the dropdown. Persisted/restored via saveState()/
     // loadState() so it's still correct after a localStorage reload.
     legendTitle() {
-      if (!this.clusteringActive || !this.clusteringAlgorithm) return '';
+      if (this.nodeColorMode !== 'community' || !this.clusteringAlgorithm) return '';
       const label = this.communityAlgorithms.find((algo) => algo.value === this.clusteringAlgorithm)?.label ?? this.clusteringAlgorithm;
       return `Communities (${label})`;
     },
@@ -1370,7 +1438,7 @@ export default {
     // click-to-select, and point coloring all agree on what's currently
     // grouping the network, regardless of mode.
     legendKeyFor(node) {
-      if (this.clusteringActive) {
+      if (this.nodeColorMode === 'community') {
         const community = node[this.communityField];
         return community !== undefined && community !== null ? String(community) : 'Unassigned';
       }
@@ -1378,18 +1446,36 @@ export default {
     },
     // colorKey additionally darkens "external" nodes within their group -- a
     // distinction that only exists for node-search-built networks (whole-network
-    // nodes are never external), so it's skipped while clustering.
+    // nodes are never external), so it's skipped while clustering. Rank mode
+    // bypasses legendKeyFor entirely -- there's no discrete legend/grouping key
+    // for a continuous gradient, only a per-node color.
     colorKeyFor(node) {
+      if (this.nodeColorMode === 'rank') return this.rankColorFor(node);
       const key = this.legendKeyFor(node);
       if (!key) return undefined;
-      if (this.clusteringActive) return key;
+      if (this.nodeColorMode === 'community') return key;
       return node.set === 'external' ? `${key}_external` : key;
+    },
+    // Continuous gradient color for a node's weighted_degree, normalized against
+    // weightedDegreeRange (cached once per initializeCosmograph() call so every
+    // node in this render compares against the same min/max). Interpolates
+    // between the theme's own primary/primary-darken-1 blues (same pairing
+    // already used for e.g. hoveredPointRingColor) rather than a generic
+    // palette, so it stays within the DyHealthNet color scheme. Falls back to
+    // the theme's text color when weighted_degree isn't available (e.g. a
+    // node-search-built network, which doesn't carry it).
+    rankColorFor(node) {
+      const value = node.weighted_degree;
+      if (value == null || Number.isNaN(value)) return this.labelColor('text');
+      const { min, max } = this.weightedDegreeRange;
+      const normalized = normalizeInRange(value, min, max);
+      return interpolateHexColor(this.labelColor('primary'), this.labelColor('primary-darken-1'), normalized);
     },
     // Community ids read as plain numbers/strings from the backend aren't
     // meaningful on their own -- label them explicitly instead of running them
     // through capitalizeFirstLetter (which is for node-type group names).
     legendLabel(key) {
-      return this.clusteringActive ? `Community ${key}` : capitalizeFirstLetter(key);
+      return this.nodeColorMode === 'community' ? `Community ${key}` : capitalizeFirstLetter(key);
     },
     labelColor(colorName) {
       // chartjs does not support theme colors so we just directly call the theme color
@@ -1460,9 +1546,10 @@ export default {
     },
     async sendToNetwork() {
       console.log("this.selectedNetworkNodes", this.selectedNetworkNodes)
-      // Community coloring only applies to a 'whole' network fetch -- a fresh
-      // node-search network has no community data on its nodes.
+      // Community/rank coloring only apply to a 'whole' network fetch -- a fresh
+      // node-search network has no community data or weighted_degree on its nodes.
       this.clusteringActive = false;
+      this.nodeColorMode = 'group';
       // Send selectedNodes to networkNodes and reset selectedNodes
       this.networkNodes= [];
       // filter selected Nodes for presence in searchText (if user deletes them)
@@ -1507,8 +1594,10 @@ export default {
     async sendWholeNetwork() {
       setIsLoading(true);
       // A fresh whole-network fetch has no community data on its nodes yet --
-      // re-run "Run Leiden Clustering" afterward if you want it recolored.
+      // re-run "Run Leiden Clustering" afterward if you want it recolored. Rank
+      // mode stays valid (weighted_degree comes back with the new fetch too).
       this.clusteringActive = false;
+      if (this.nodeColorMode === 'community') this.nodeColorMode = 'group';
       try {
         const csrfToken = getCookie('csrftoken');
         const response = await fetch(this.buildWholeNetworkUrl(), {
@@ -1536,6 +1625,8 @@ export default {
           subtype: point.subtype,
           x_refs: point.xrefs,
           set: "CHRIS", //TODO change to internal/cohort or smth when backend became more modular
+          degree: point.degree,
+          weighted_degree: point.weighted_degree,
         }));
         this.allInternalEdges = (data.links || []).map((link) => ({
           id: link.id,
@@ -1707,6 +1798,8 @@ export default {
             subtype: point.subtype,
             x_refs: point.xrefs,
             set: "CHRIS",
+            degree: point.degree,
+            weighted_degree: point.weighted_degree,
           };
           // Carry the requested resolution's community_rX field onto the node
           // (just one now -- see buildLeidenUrl) so coloring/legend/community
@@ -1734,6 +1827,7 @@ export default {
         // so resetting it here would point communityField at a resolution
         // that was never fetched.
         this.clusteringActive = true;
+        this.nodeColorMode = 'community';
         this.notifyTablesContentProduced('communityAnnotation');
         this.isReadOnly = true;
         this.closeDropdown();
@@ -1748,24 +1842,27 @@ export default {
       }
       this.isClusteringLoading = false;
     },
-    // Back to node-type-group coloring, keeping the same nodes/edges displayed.
-    async resetClusteringColors() {
-      this.clusteringActive = false;
-      this.clusteringAlgorithm = null;
-      await this.initializeCosmograph();
-      this.applyDesign();
-    },
 
     //Network Visualization
     async initializeCosmograph() {
       const container = this.$refs.network;
       if (!container) return;
 
-      await this.destroyCosmograph();
-
       this.includedNodeTypes = new Set(
         this.graphNodes.map((node) => this.legendKeyFor(node)).filter((key) => key !== undefined)
       );
+
+      // Cached once here (rather than per-node) so colorKeyFor/rankColorFor
+      // normalize every node in this render against the same min/max.
+      if (this.nodeColorMode === 'rank') {
+        const weightedDegrees = this.graphNodes
+          .map((node) => node.weighted_degree)
+          .filter((value) => value != null && !Number.isNaN(value));
+        this.weightedDegreeRange = weightedDegrees.length
+          ? { min: Math.min(...weightedDegrees), max: Math.max(...weightedDegrees) }
+          : { min: 0, max: 0 };
+      }
+      this.refreshEdgeScoreRange();
 
       // Explicit sequential index lets us reliably map Cosmograph's click/color
       // callback indices back to our own node/edge objects (pointIndexBy pins it).
@@ -1860,8 +1957,8 @@ export default {
         // linkColorBy/linkWidthBy have no built-in 'map' strategy, but `value` here
         // is already the row's raw column value (edge.set / edge.renderWidth) --
         // no per-edge lookup needed, these are O(1) and can't throw.
-        linkColorByFn: (value) => (value === "external" ? "black" : this.labelColor("text")),
-        linkWidthByFn: (value) => value,
+        linkColorByFn: (value, index) => this.computeLinkColor(index),
+        linkWidthByFn: (value, index) => this.computeLinkWidth(index),
         onPointClick: (index) => this.handlePointClick(index),
         onLinkClick: (linkIndex) => this.handleLinkClick(linkIndex),
         onBackgroundClick: () => this.handleBackgroundClick(),
@@ -1884,23 +1981,56 @@ export default {
           }
         },
       };
-      this.cosmographInstance = new Cosmograph(container, this._cosmoConfig);
-      // The constructor already fired its own setConfig()/data-upload cycle (every
-      // design/theme option above is already part of the config it was constructed
-      // with) -- wait for that to land before touching the instance again.
-      // Cosmograph's setConfig() never waits for a prior in-flight config update
-      // before starting a new one, so calling it again here (applyDesign() used to)
-      // before the first upload finished raced two concurrent uploads of the same
-      // points/links data into the shared, page-wide DuckDB-WASM worker (whose WASM
-      // heap only ever grows, never shrinks) -- that's what was driving
-      // "InternalError: out of memory" after just a couple of graph rebuilds.
-      await this.cosmographInstance.dataUploaded();
+      // Reuse the live instance via setConfig() instead of tearing it down and
+      // building a new one on every data change (every "Send Whole Network",
+      // node selection, clustering run, etc. used to go through a full
+      // destroy()+new Cosmograph() cycle here). destroy() never frees the
+      // underlying DuckDB-WASM worker's memory anyway -- Cosmograph's own
+      // duckdb-wasm.js keeps a page-wide singleton DB instance whose WASM heap
+      // only ever grows, never shrinks -- so the old full rebuild bought nothing
+      // but extra churn (WebGL context teardown/recreation, DOM rebuild, a fresh
+      // DuckDB table upload) on top of that same never-shrinking heap. Mirrors
+      // differential-network.vue's updateGraphDataViaConfig()/renderGraph() split.
+      //
+      // Chained onto _configUpdateChain (shared with applyDesign() below) so an
+      // update here can never overlap a concurrent setConfig() call -- Cosmograph's
+      // setConfig() doesn't serialize against a prior in-flight call on its own,
+      // and racing two uploads into the same DuckDB-WASM worker is exactly what
+      // caused the "InternalError: out of memory" this chaining originally fixed.
+      this._configUpdateChain = (this._configUpdateChain || Promise.resolve()).then(async () => {
+        // Checked here, not before the chain is queued: an earlier queued update
+        // (still pending when this one was scheduled) may itself create the
+        // instance by the time this link actually runs, so reading
+        // this.cosmographInstance only now reflects the state this update will
+        // really see.
+        if (this.cosmographInstance) {
+          await this.cosmographInstance.setConfig(this._cosmoConfig);
+        } else {
+          this.cosmographInstance = new Cosmograph(container, this._cosmoConfig);
+        }
+        // The constructor (or setConfig()) already fired its own data-upload cycle
+        // (every design/theme option above is already part of the config passed
+        // in) -- wait for that to land before touching the instance again.
+        await this.cosmographInstance.dataUploaded();
+      });
+      try {
+        await this._configUpdateChain;
+      } catch (e) {
+        // setConfig() on a reused instance failed (e.g. a schema it couldn't
+        // reconcile in place) -- fall back to a full rebuild rather than leaving
+        // the graph in whatever state the failed update left it in.
+        console.warn('Cosmograph setConfig-based update failed, falling back to a full rebuild', e);
+        this._configUpdateChain = null;
+        await this.destroyCosmograph();
+        this.cosmographInstance = new Cosmograph(container, this._cosmoConfig);
+        await this.cosmographInstance.dataUploaded();
+      }
       // Physics-off case: onSimulationEnd never fires (no simulation runs), so fit here too.
       this.cosmographInstance?.fitView(0);
       this.reapplySelection();
       // The native dblclick.zoom interceptor is attached once, on the persistent
-      // container (see mounted()) -- not here on the canvas, which gets destroyed
-      // and recreated on every rebuild.
+      // container (see mounted()) -- not here on the canvas, which is reused
+      // across data updates now rather than destroyed and recreated.
     },
     async destroyCosmograph() {
       if (this._clickTimer) {
@@ -2981,11 +3111,47 @@ export default {
         this.indexToNodeId[index] === this.displayedElement.id;
       return isDisplayed ? 26 : 11;
     },
+    // Cached once per render pass (initializeCosmograph()/applyDesign()) so every
+    // edge's color in a scored edgeStyleMode compares against the same min/max.
+    refreshEdgeScoreRange() {
+      if (this.edgeStyleMode === 'unweighted') return;
+      const scores = this.networkEdges
+        .map((edge) => computeEdgeScore(edge, this.edgeStyleMode))
+        .filter((score) => score != null);
+      this.edgeScoreRange = scores.length
+        ? { min: Math.min(...scores), max: Math.max(...scores) }
+        : { min: 0, max: 0 };
+    },
+    // linkWidthBy names 'renderWidth' purely so Cosmograph invokes this per edge
+    // (see pointSizeBy's own comment for why) -- the actual width always comes
+    // from here, indexing back into networkEdges the same way computePointSize
+    // does for points.
+    computeLinkWidth(index) {
+      const edge = this.networkEdges[index];
+      if (!edge) return 2;
+      const score = computeEdgeScore(edge, this.edgeStyleMode);
+      if (score == null) return edge.set === 'external' ? 6 : (edge.width ?? 2);
+      return Math.min(Math.max(score, 0.5), 10);
+    },
+    computeLinkColor(index) {
+      const edge = this.networkEdges[index];
+      if (!edge) return this.labelColor('text');
+      const score = computeEdgeScore(edge, this.edgeStyleMode);
+      if (score == null) return edge.set === 'external' ? 'black' : this.labelColor('text');
+      const { min, max } = this.edgeScoreRange;
+      const normalized = normalizeInRange(score, min, max);
+      return interpolateHexColor(this.labelColor('primary'), this.labelColor('primary-darken-1'), normalized);
+    },
     // Recolors/reweights nodes+edges based on current selection/external/theme
     // state without rebuilding the whole graph (kept lightweight so pan/zoom/
     // camera state isn't reset on every click or theme toggle).
     async applyDesign(saveState = true) {
       if (!this.cosmographInstance) return;
+
+      // Refreshed here (not just initializeCosmograph()) so switching
+      // edgeStyleMode via the toolbar dropdown -- which only calls applyDesign(),
+      // not a full rebuild -- normalizes against the newly-selected mode's scores.
+      this.refreshEdgeScoreRange();
 
       // Instant, synchronous -- safe to run every time regardless of any
       // in-flight setConfig() below.
@@ -3003,8 +3169,8 @@ export default {
         // (reference equality) actually re-invokes it -- displayedElement (which it
         // reads via computePointSize) can change without pointsForCosmo changing.
         pointSizeByFn: (value, index) => this.computePointSize(index),
-        linkColorByFn: (value) => (value === "external" ? "black" : this.labelColor("text")),
-        linkWidthByFn: (value) => value,
+        linkColorByFn: (value, index) => this.computeLinkColor(index),
+        linkWidthByFn: (value, index) => this.computeLinkWidth(index),
       };
       // applyDesign() runs unawaited from every click handler, so rapid clicks
       // (e.g. a node then immediately the background) can have two setConfig()
@@ -3027,12 +3193,23 @@ export default {
     // Builds the colorKey -> color lookup consumed by Cosmograph's 'map'
     // point-color strategy. Node-type mode: one entry per known group plus a
     // darkened '<group>_external' variant, so a single static object handles
-    // both dimensions instead of a per-point function. Clustering mode has no
+    // both dimensions instead of a per-point function. Community mode has no
     // external variant (whole-network nodes are never external) and delegates
     // to buildCommunityColorMap() instead -- see there for why it can't reuse
-    // colorForGroup's hash.
+    // colorForGroup's hash. Rank mode's colorKey is already the final hex color
+    // (see colorKeyFor/rankColorFor), so its map is just an identity lookup --
+    // still required since Cosmograph's 'map' strategy always looks the
+    // colorKey up rather than rendering it directly.
     buildPointColorMap() {
-      if (this.clusteringActive) return this.buildCommunityColorMap();
+      if (this.nodeColorMode === 'community') return this.buildCommunityColorMap();
+      if (this.nodeColorMode === 'rank') {
+        const colorMap = {};
+        for (const node of this.graphNodes) {
+          const color = this.rankColorFor(node);
+          colorMap[color] = color;
+        }
+        return colorMap;
+      }
       const colorMap = {};
       const groupColors = assignGroupColors(this.legendGroups);
       for (const key of this.includedNodeTypes) {
@@ -3049,6 +3226,20 @@ export default {
     // assignGroupColors.
     colorForGroup(key) {
       return assignGroupColors(this.legendGroups)[key];
+    },
+    // Node-type color for a single node -- used by the Details panel's Group chip.
+    // Unlike colorForGroup/legendGroups (which switch to community ids while
+    // clustering is active, since the legend itself switches to showing
+    // communities then), this always keys off source_table, so the Group chip
+    // keeps showing -- and coloring -- the node's actual type regardless of
+    // clustering mode, matching NodeRankingTable's own Group column.
+    colorForNodeGroup(node) {
+      const key = node?.source_table ? node.source_table.split('_').pop() : undefined;
+      if (!key) return undefined;
+      const keys = this.sortLegendKeys(
+        [...new Set(this.graphNodes.map((n) => (n.source_table ? n.source_table.split('_').pop() : undefined)).filter(Boolean))]
+      );
+      return assignGroupColors(keys)[key];
     },
     // Shared comparator for legend/community keys: numeric keys sort by value
     // (so "2" comes before "14"), non-numeric keys (e.g. 'Unassigned') sort last
@@ -3086,7 +3277,7 @@ export default {
     // Legend dot / exported-PNG legend color -- single-key lookup wrapper around
     // whichever map (node-type or community) is currently in play.
     colorForLegendKey(key) {
-      if (this.clusteringActive) return this.buildCommunityColorMap()[key] ?? this.labelColor('text');
+      if (this.nodeColorMode === 'community') return this.buildCommunityColorMap()[key] ?? this.labelColor('text');
       return this.colorForGroup(key);
     },
     updatePhysics() {
@@ -3109,6 +3300,21 @@ export default {
     async onHideUnconnectedChange(value) {
       this.hideUnconnected = value;
       await this.initializeCosmograph();
+      this.applyDesign();
+    },
+    // colorKey is baked into each point's row at upload time (see
+    // initializeCosmograph()'s pointsForCosmo), not recomputed per-render like
+    // pointSizeByFn/linkColorByFn -- so switching modes needs the same full
+    // rebuild as onHideUnconnectedChange rather than a lighter applyDesign()-only patch.
+    async onNodeColorModeChange(value) {
+      this.nodeColorMode = value;
+      await this.initializeCosmograph();
+      this.applyDesign();
+    },
+    // Unlike node coloring, linkWidthByFn/linkColorByFn already read live
+    // edgeStyleMode state per edge on every call, so no data rebuild is needed.
+    onEdgeStyleModeChange(value) {
+      this.edgeStyleMode = value;
       this.applyDesign();
     },
     // Toolbar mode toggle: only one of rect/polygon selection can be active at a
@@ -3152,6 +3358,8 @@ export default {
     async clearNetwork(full = true, saveState=true){
       this.clearNetworkWarn = false;
       this.clusteringActive = false;
+      this.nodeColorMode = 'group';
+      this.edgeStyleMode = 'unweighted';
       this.lastNetworkMode = null;
       this.networkNodes = [];
       this.networkEdges = []; // do i also need allInternalEdges??
@@ -3329,11 +3537,16 @@ export default {
           testType: context.content.testType ?? 'parametric',
           correction: context.content.correction ?? 'bh',
         };
+        this.wholeNetworkTests = {
+          testType: context.content.testType ?? 'parametric',
+          correction: context.content.correction ?? 'bh',
+        };
         this.disableSelections = true;
         this.clearNetwork(true,false);
       }
       else{
         this.selectedTests = { testType: 'parametric', correction: this.staticCorrection };
+        this.wholeNetworkTests = { testType: 'parametric', correction: this.staticCorrection };
         this.disableSelections = false;
         this.clearNetwork(true, false);
       }
@@ -3406,6 +3619,8 @@ export default {
         wholeNetworkTests: this.wholeNetworkTests,
         density: this.density,
         lastNetworkMode: this.lastNetworkMode,
+        nodeColorMode: this.nodeColorMode,
+        edgeStyleMode: this.edgeStyleMode,
         // Community detection -- persisted so the legend still shows "Communities
         // (Infomap)" etc. (and the modularity/conductance readout still works)
         // after a localStorage reload, instead of silently reverting to node-type
@@ -3470,6 +3685,12 @@ export default {
         // data that isn't actually there.
         this.clusteringActive = user_settings.clusteringActive ?? false;
         this.clusteringAlgorithm = user_settings.clusteringAlgorithm ?? null;
+        // Guard against a stale 'community' mode with no actual community data
+        // (older saved states won't have nodeColorMode at all either).
+        this.nodeColorMode = (user_settings.nodeColorMode === 'community' && !this.clusteringActive)
+          ? 'group'
+          : (user_settings.nodeColorMode ?? 'group');
+        this.edgeStyleMode = user_settings.edgeStyleMode ?? 'unweighted';
         this.selectedAlgorithm = user_settings.selectedAlgorithm ?? 'leiden';
         this.leidenResolution = user_settings.leidenResolution ?? 1.0;
         this.leidenMeta = user_settings.leidenMeta ?? {};

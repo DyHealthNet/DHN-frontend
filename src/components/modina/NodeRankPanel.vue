@@ -37,7 +37,10 @@
         <span :class="{ 'font-weight-bold': isSelected(item) }">{{ item.display_name || item.id }}</span>
       </template>
       <template v-slot:item.group="{ item }">
-        {{ item.group || '-' }}
+        <v-chip v-if="item.group && groupColorMap[item.group]" size="small" :style="chipStyle(groupColorMap[item.group])">
+          {{ capitalizeFirstLetter(item.group) }}
+        </v-chip>
+        <span v-else>{{ item.group || '-' }}</span>
       </template>
       <template v-slot:header.rank="{ column }">
         <v-tooltip location="top" max-width="320">
@@ -79,6 +82,7 @@
 <script>
 import { NODE_METRIC_INFO, RANKING_ALGORITHM_INFO, metricLabel, metricDescription } from './metricInfo.js';
 import DownloadableDataTable from '@/components/DownloadableDataTable.vue';
+import { assignGroupColors, capitalizeFirstLetter, getReadableTextColor } from '@/components/network/networkData.js';
 
 // Rank columns: lower number = better, so a missing rank (no surviving edges for PageRank+) is
 // worse than every real rank -- sorts as if it were the largest number, regardless of which
@@ -135,6 +139,15 @@ export default {
     };
   },
   computed: {
+    // One color per group actually present among `items` (the full, untrimmed
+    // result.points), via the same assignGroupColors function the graph's own
+    // legend uses. Matches the legend's colors exactly whenever the two sets of
+    // groups agree -- true unless Top-N trimming drops every point of a group
+    // from the graph while it's still shown here.
+    groupColorMap() {
+      const keys = [...new Set(this.items.map((item) => item.group).filter(Boolean))].sort();
+      return assignGroupColors(keys);
+    },
     headers() {
       // Explicit numeric `sort` on every numeric column: v-data-table's default comparator
       // coerces values to strings before comparing, which breaks once a column mixes real
@@ -182,6 +195,10 @@ export default {
     },
   },
   methods: {
+    capitalizeFirstLetter,
+    chipStyle(color) {
+      return { backgroundColor: color, color: getReadableTextColor(color) };
+    },
     isSelected(item) {
       return item.id === this.selectedNode;
     },

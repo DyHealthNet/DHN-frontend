@@ -10,6 +10,45 @@ export function darkenHexColor(hex, amount) {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
+// Linearly interpolates between two '#rrggbb' colors at `t` (0-1) -- used for
+// continuous gradients (e.g. rank/weighted-degree node coloring) that should
+// stay within the app's own theme colors instead of an unrelated generic scale.
+export function interpolateHexColor(hexA, hexB, t) {
+  const clampedT = Math.max(0, Math.min(1, t));
+  const parse = (hex) => {
+    const clean = hex.replace('#', '');
+    return [0, 2, 4].map((start) => parseInt(clean.substring(start, start + 2), 16));
+  };
+  const [r1, g1, b1] = parse(hexA);
+  const [r2, g2, b2] = parse(hexB);
+  const mix = (a, b) => Math.round(a + (b - a) * clampedT);
+  const toHex = (channel) => channel.toString(16).padStart(2, '0');
+  return `#${toHex(mix(r1, r2))}${toHex(mix(g1, g2))}${toHex(mix(b1, b2))}`;
+}
+
+// Normalizes `value` into [0, 1] against [min, max] for a color gradient --
+// 0.5 (mid-gradient) when the range is degenerate (min === max, e.g. every
+// displayed node/edge has the same value).
+export function normalizeInRange(value, min, max) {
+  return max > min ? (value - min) / (max - min) : 0.5;
+}
+
+// Significance score for one edge under `mode` -- null for an 'external' edge
+// (no p_value/effect_size) or 'unweighted' mode, in which case the caller
+// falls back to its own flat width/color. Shared by data-network.vue's
+// edge-style dropdown (see edgeStyleMode/computeLinkWidth/computeLinkColor).
+export function computeEdgeScore(edge, mode) {
+  if (edge.set === 'external' || edge.p_value == null || edge.effect_size == null) return null;
+  const negLogP = -Math.log10(edge.p_value);
+  const absEffect = Math.abs(edge.effect_size);
+  switch (mode) {
+    case 'combined': return negLogP * absEffect;
+    case 'pvalue': return negLogP;
+    case 'effect': return absEffect;
+    default: return null;
+  }
+}
+
 function hslToHex(h, s, l) {
   s /= 100;
   l /= 100;
@@ -126,6 +165,15 @@ export function capitalizeFirstLetter(str) {
 // Round color dot used next to each legend label, on both pages' on-screen legends.
 export function getShapeStyle(color) {
   return { borderRadius: "50%", backgroundColor: color, width: "13px", height: "13px" };
+}
+
+// Picks black or white text so it stays legible against a `color` background --
+// used for the node-group chips in tables, which (unlike the legend's dot-plus-label
+// layout) put text directly on top of the group color. Reuses the same luminance
+// floor as generateGroupColor's own brightness search, so any color that path
+// generates always resolves to dark text here.
+export function getReadableTextColor(color) {
+  return relativeLuminance(color) >= MIN_RELATIVE_LUMINANCE ? '#111111' : '#ffffff';
 }
 
 // Bottom-left rounded panel with a color swatch + label per row, drawn onto an

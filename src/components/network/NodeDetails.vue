@@ -20,6 +20,8 @@
       <span class="display-name">{{ node.display_name }}</span></p>
     <p><span class="label">Description:</span> <br>
       <span class="value">{{ node.description }}</span></p>
+    <p v-if="node.type"><span class="label">Group:</span> <br>
+      <v-chip size="small" :style="groupChipStyle">{{ node.type }}</v-chip></p>
     <p v-if="node.subtype"><span class="label">Subtype:</span> <br>
       <span class="value">{{ node.subtype }}</span></p>
         <span v-if="validXrefs.length">
@@ -56,12 +58,22 @@
 </template>
 
 <script>
+import { getReadableTextColor } from './networkData.js';
+
 export default {
   props: {
     node: Object,
     getIcon: Function,
+    // (node) => hex color | undefined -- same group color the legend/graph and
+    // NodeRankingTable's Group column use, passed in rather than recomputed here
+    // so this panel never drifts out of sync with them.
+    getGroupColor: Function,
   },
   computed: {
+    groupChipStyle() {
+      const color = this.getGroupColor ? this.getGroupColor(this.node) : null;
+      return color ? { backgroundColor: color, color: getReadableTextColor(color) } : {};
+    },
     // xrefs are usually a bare accession (e.g. "P02768", "HMDB0001539",
     // multiple values ";"-separated) routed to the database matching the
     // node's own type. A few datasets still carry the legacy "db.accession"
