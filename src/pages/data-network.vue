@@ -453,9 +453,8 @@
                 <v-row>
                     <v-col>
                       <div ref="network" id="network" style="height: 550px;"></div>
-                      <!-- Legend: hidden in 'rank' mode -- weighted_degree is a
-                           continuous gradient, not the discrete groups this legend
-                           shows swatches for. -->
+                      <!-- Legend: 'rank' mode has no discrete groups to swatch --
+                           a gradient bar instead, in the same bottom-left spot. -->
                       <NetworkLegend
                         v-if="nodeColorMode !== 'rank'"
                         class="legend"
@@ -463,6 +462,22 @@
                         :title="legendTitle"
                         selectable
                         @select="selectNodesByGroup"
+                      />
+                      <GradientLegend
+                        v-else
+                        class="legend"
+                        title="Node color: weighted degree"
+                        :gradient-css="nodeRankGradientCss"
+                        :labels="nodeRankLegendLabels"
+                      />
+                      <!-- Edge legend: bottom-right so it doesn't collide with the
+                           node legend above when both are showing at once. -->
+                      <GradientLegend
+                        v-if="edgeStyleMode !== 'unweighted'"
+                        class="edge-legend"
+                        :title="edgeStyleLegendTitle"
+                        :gradient-css="edgeStyleGradientCss"
+                        :labels="edgeStyleLegendLabels"
                       />
                   </v-col>
                 </v-row>
@@ -667,6 +682,7 @@ import {interpolateRainbow} from 'd3-scale-chromatic';
 import NodeDetails from '@/components/network/NodeDetails.vue';
 import EdgeDetails from '@/components/network/EdgeDetails.vue';
 import NetworkLegend from '@/components/network/NetworkLegend.vue';
+import GradientLegend from '@/components/network/GradientLegend.vue';
 import {Cosmograph} from "@cosmograph/cosmograph";
 import {getCookie} from "@/components/authentication/auth.js";
 import StatisticalTestLine from "@/components/StatisticalTestLine.vue";
@@ -684,7 +700,7 @@ import {useTheme} from 'vuetify';
 export default {
   components: {
     StatisticalTestLine, FilterToolbar, AdvancedSettings, NodeDetails, NetworkEdgeLine,
-    WholeNetworkSettings, EdgeDetails, GraphToolbar, NetworkLegend, AnalysisPanel, ConnectNodesPanel,
+    WholeNetworkSettings, EdgeDetails, GraphToolbar, NetworkLegend, GradientLegend, AnalysisPanel, ConnectNodesPanel,
     NetworkRankingTabs, NetworkTablesPanel},
   data() {
     return {
@@ -1032,6 +1048,43 @@ export default {
         { title: '-log(p) only', value: 'pvalue' },
         { title: 'Effect size only', value: 'effect' },
       ];
+    },
+    // Same grey-to-blue scale rankColorFor() itself paints nodes with (see
+    // there) -- kept as a CSS gradient string here rather than duplicating the
+    // interpolateHexColor calls, since the legend only needs the two endpoints.
+    nodeRankGradientCss() {
+      return `linear-gradient(to right, ${this.labelColor('chart-grid')}, ${this.labelColor('primary-darken-1')})`;
+    },
+    // min is always pinned to 0 (see weightedDegreeRange); only the endpoints
+    // are labeled -- the bar's own CSS gradient is a plain linear blend, not
+    // rankColorFor's log1p curve, so a labeled midpoint would misstate where a
+    // given weighted_degree actually falls.
+    nodeRankLegendLabels() {
+      const max = this.weightedDegreeRange.max;
+      return ['0', max > 0 ? max.toFixed(max < 10 ? 1 : 0) : '0'];
+    },
+    edgeStyleLegendTitle() {
+      if (this.edgeStyleMode === 'effect') return 'Edge color: effect size';
+      if (this.edgeStyleMode === 'combined') return 'Edge color: -log(p) × |effect size| (rank)';
+      if (this.edgeStyleMode === 'pvalue') return 'Edge color: -log(p) (rank)';
+      return '';
+    },
+    // Same colors computeLinkColor() itself paints edges with. 'effect' has a
+    // real, fixed -1..1 domain (its sign is directly meaningful) so its legend
+    // gets real numeric endpoints; 'combined'/'pvalue' are percentile ranks
+    // among whatever's currently displayed, not a fixed value scale, so their
+    // legend only labels relative position -- numeric ticks there would imply
+    // a fixed scale that doesn't exist and would be actively misleading.
+    edgeStyleGradientCss() {
+      if (this.edgeStyleMode === 'effect') {
+        return `linear-gradient(to right, ${this.labelColor('primary-darken-1')}, ${this.labelColor('background')}, ${this.labelColor('warning')})`;
+      }
+      return `linear-gradient(to right, ${this.labelColor('chart-grid')}, ${this.labelColor('chart')})`;
+    },
+    edgeStyleLegendLabels() {
+      if (this.edgeStyleMode === 'effect') return ['-1', '0', '+1'];
+      if (this.edgeStyleMode === 'combined' || this.edgeStyleMode === 'pvalue') return ['Least significant', 'Most significant'];
+      return [];
     },
     hasSelectedProtein() {
       return this.selectedNetworkNodes.some((node) => node.source_table === 'protein');
@@ -1462,20 +1515,21 @@ export default {
     },
     // Continuous gradient color for a node's weighted_degree, normalized against
     // weightedDegreeRange (cached once per initializeCosmograph() call so every
-    // node in this render compares against the same min/max). White (no/zero
-    // weighted_degree, e.g. an isolated node or a node-search-built network
-    // that doesn't carry the field at all) up to the theme's primary-darken-1
-    // blue at the top of the range -- a missing value reading as the *least*
-    // prominent color makes more sense here than the old text-color fallback,
-    // which stood out more than any actual node. log1p'd before normalizing:
-    // weighted_degree is highly right-skewed (a handful of hub nodes vastly
-    // outweigh everyone else), so a plain linear scale crushed almost every
-    // node into near-identical colors at the low end.
+    // node in this render compares against the same min/max). Light grey
+    // (no/zero weighted_degree, e.g. an isolated node or a node-search-built
+    // network that doesn't carry the field at all) up to the theme's
+    // primary-darken-1 blue at the top of the range -- pure white blended into
+    // the light theme's near-white background too much to read as a color at
+    // all, so the low end uses the same visible-but-muted chart-grid grey the
+    // edge scale's low end uses (see computeLinkColor). log1p'd before
+    // normalizing: weighted_degree is highly right-skewed (a handful of hub
+    // nodes vastly outweigh everyone else), so a plain linear scale crushed
+    // almost every node into near-identical colors at the low end.
     rankColorFor(node) {
       const value = (node.weighted_degree != null && !Number.isNaN(node.weighted_degree)) ? node.weighted_degree : 0;
       const { min, max } = this.weightedDegreeRange;
       const normalized = normalizeInRange(Math.log1p(value), Math.log1p(min), Math.log1p(max));
-      return interpolateHexColor('#FFFFFF', this.labelColor('primary-darken-1'), normalized);
+      return interpolateHexColor(this.labelColor('chart-grid'), this.labelColor('primary-darken-1'), normalized);
     },
     // Community ids read as plain numbers/strings from the backend aren't
     // meaningful on their own -- label them explicitly instead of running them
@@ -3973,6 +4027,13 @@ export default {
   max-height: 400px;  /* Leaves room within the 550px network div for top/bottom offsets */
   overflow-y: auto;   /* Scroll instead of overflowing the graph when there are many communities */
   padding-right: 8px; /* Keep the scrollbar clear of the legend text */
+}
+.edge-legend {
+  position: absolute;  /* Same convention as .legend, opposite corner so the two
+                           don't overlap when both a node and edge gradient show at once. */
+  bottom: 60px;
+  right: 40px;
+  z-index: 10;
 }
 .scrollable-panels {
   max-height: 625px;  /* You can adjust the height as needed */
