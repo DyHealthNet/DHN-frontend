@@ -491,9 +491,12 @@ export default {
     nodeStcLegendLabels() {
       return ['0', '1'];
     },
-    // Same colors computeLinkColor() itself paints edges with.
+    // Same colors computeLinkColor() itself paints edges with -- light grey to
+    // black, same as the main network page's |Effect size| edge scale (chart
+    // alone topped out at a medium grey, not dark enough to read as the "high"
+    // end of the range).
     edgeDiffLPGradientCss() {
-      return `linear-gradient(to right, ${this.labelColor('chart-grid')}, ${this.labelColor('chart')})`;
+      return `linear-gradient(to right, ${this.labelColor('chart-grid')}, #000000)`;
     },
     // Real numeric endpoints (unlike the main network page's percentile-ranked
     // 'combined'/'pvalue' edge legends) -- diff-L-P's own range is meaningful
@@ -917,8 +920,9 @@ export default {
       return index === this.selectedPointIndex ? 24 : 8;
     },
 
-    // 'diffLP': same grey scale the main network page's edge-style dropdown uses,
-    // but value-based (min-max over weightRange) rather than percentile-ranked --
+    // 'diffLP': same light-grey-to-black scale the main network page's
+    // |Effect size| edge mode uses (chart alone topped out too light), but
+    // value-based (min-max over weightRange) rather than percentile-ranked --
     // diff-L-P is already a bounded, reasonably-scaled value (see weightRange's
     // own comment), unlike the main page's raw p_value/effect_size, which can't
     // safely use a plain min-max scale. 'uniform' keeps the original flat look.
@@ -929,7 +933,7 @@ export default {
     computeLinkColor(value) {
       if (this.edgeStyleMode !== 'diffLP') return this.labelColor('text');
       if (value == null) return this.labelColor('text');
-      return interpolateHexColor(this.labelColor('chart-grid'), this.labelColor('chart'), value);
+      return interpolateHexColor(this.labelColor('chart-grid'), '#000000', value);
     },
 
     // Pans (not zooms) the camera to center on a point, at whatever zoom level is already
