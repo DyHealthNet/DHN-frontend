@@ -248,7 +248,7 @@ import DiffEdgeDetails from '@/components/modina/DiffEdgeDetails.vue';
 import GraphToolbar from '@/components/network/GraphToolbar.vue';
 import NetworkLegend from '@/components/network/NetworkLegend.vue';
 import GradientLegend from '@/components/network/GradientLegend.vue';
-import { assignGroupColors, getNodeIcon, saveNetworkState, loadNetworkState, clearNetworkState, capitalizeFirstLetter, drawLegendPanel, interpolateHexColor, computePercentileRanks } from '@/components/network/networkData.js';
+import { assignGroupColors, getNodeIcon, saveNetworkState, loadNetworkState, clearNetworkState, capitalizeFirstLetter, drawLegendPanel, interpolateHexColor, normalizeInRange } from '@/components/network/networkData.js';
 import { NODE_METRIC_INFO, EDGE_METRIC_INFO, metricDescription } from '@/components/modina/metricInfo.js';
 
 // Distinct key (not a numeric contextValue) so this doesn't collide with data-network.vue's own
@@ -322,7 +322,7 @@ export default {
       nodeColorMode: 'group',
       // Edge color mode: 'uniform' (flat, today's original look) or 'diffLP'
       // (percentile-ranked grey scale by edge.weight -- see computeLinkColor/
-      // edgeWeightPercentiles). Mirrors data-network.vue's edgeStyleMode.
+      // linksForCosmo). Mirrors data-network.vue's edgeStyleMode.
       edgeStyleMode: 'diffLP',
       // Static (data-shape) half of the Cosmograph config, passed to prepareCosmographData().
       // The other half -- theming, sizing, click handlers -- is built fresh in renderGraph()/
@@ -356,9 +356,13 @@ export default {
           linkWidthBy: 'weight',
           // linkColorByFn only fires when linkColorBy names an actual column (per Cosmograph's
           // own docs) -- without it, edges silently fell back to Cosmograph's default (dim grey)
-          // color regardless of linkColorByFn being set. Reuses 'weight' (already needed for
-          // linkWidthBy); the column's value itself is ignored, same trick as pointSizeBy/'id'.
-          linkColorBy: 'weight',
+          // color regardless of linkColorByFn being set. Names 'colorValue' (precomputed onto
+          // each link row by linksForCosmo, not 'weight' directly) so linkColorByFn's `value`
+          // argument already carries the right normalized value for THAT row wherever
+          // Cosmograph's internal prepareCosmographData() pipeline (a DuckDB join, no row-order
+          // guarantee) actually places it -- an index-based external lookup here previously
+          // read the wrong edge's value whenever that join reordered rows.
+          linkColorBy: 'colorValue',
         },
       },
     };
@@ -409,22 +413,38 @@ export default {
       const ids = new Set(this.graphPoints.map((p) => p.id));
       return links.filter((l) => ids.has(l.source) && ids.has(l.target));
     },
-    // Percentile rank (0-1) of each graphLinks entry's |weight|, parallel to
-    // graphLinks -- same grey scale + percentile-ranking approach as the main
-    // network page's edge-style dropdown (see data-network.vue's
-    // computePercentileRanks/computeLinkColor), so a magnitude-based edge score
-    // reads consistently across both pages. A plain computed (not a manually
-    // refreshed cache like the network page's) since graphLinks is itself
-    // already reactive to Top-N/hideUnconnected here.
-    edgeWeightPercentiles() {
-      return computePercentileRanks(this.graphLinks.map((l) => l.weight));
-    },
     // graphPoints with a colorKey added -- what's actually passed to
     // prepareCosmographData() as the points data (pointColorBy: 'colorKey'
     // names this column). Recomputed whenever graphPoints or nodeColorMode
-    // change, same reactivity graphLinks/edgeWeightPercentiles already rely on.
+    // change, same reactivity graphLinks/linksForCosmo already rely on.
     pointsForCosmo() {
       return this.graphPoints.map((point) => ({ ...point, colorKey: this.colorKeyForNode(point) }));
+    },
+    // Raw min/max of diff-L-P (edge.weight) across the currently-displayed
+    // edges. Unlike the main network page's raw p_value/effect_size (read
+    // straight from Postgres, where a literal p_value=0 makes -log10(p)
+    // Infinity), moDiNA's log-P transform (statistics_utils.py) already floors
+    // zero p-values with a data-derived epsilon before diff-L-P is ever
+    // computed -- so it's already a bounded, reasonably-scaled value, and can
+    // be shown as a direct min-max color scale instead of needing a percentile
+    // rank to avoid outliers dominating.
+    weightRange() {
+      const values = this.graphLinks.map((l) => l.weight).filter((v) => v != null && !Number.isNaN(v));
+      return values.length ? { min: Math.min(...values), max: Math.max(...values) } : { min: 0, max: 0 };
+    },
+    // graphLinks with a colorValue added (edge.weight normalized against
+    // weightRange). Precomputed onto each row (not looked up externally by
+    // index) because this is what's actually passed to prepareCosmographData()
+    // -- its DuckDB-based pipeline joins links against points to resolve
+    // source/target indices, with no guarantee that join preserves this
+    // array's row order, so a value baked onto the row travels with it through
+    // any reordering while an index-based lookup after the fact would not.
+    linksForCosmo() {
+      const { min, max } = this.weightRange;
+      return this.graphLinks.map((link) => ({
+        ...link,
+        colorValue: link.weight == null ? null : normalizeInRange(link.weight, min, max),
+      }));
     },
     topNLabel() {
       if (this.topN == null || this.topN >= this.totalNodeCount) return 'all';
@@ -475,11 +495,13 @@ export default {
     edgeDiffLPGradientCss() {
       return `linear-gradient(to right, ${this.labelColor('chart-grid')}, ${this.labelColor('chart')})`;
     },
-    // Percentile rank among whatever's currently displayed, not a fixed value
-    // scale -- numeric ticks here would imply a scale that doesn't exist, same
-    // reasoning as the main network page's 'combined'/'pvalue' edge legends.
+    // Real numeric endpoints (unlike the main network page's percentile-ranked
+    // 'combined'/'pvalue' edge legends) -- diff-L-P's own range is meaningful
+    // and reasonably bounded (see weightRange), not a rank among whatever's
+    // currently displayed.
     edgeDiffLPLegendLabels() {
-      return ['Low', 'High'];
+      const { min, max } = this.weightRange;
+      return [min.toFixed(2), max.toFixed(2)];
     },
     contextNames() {
       return {
@@ -685,7 +707,7 @@ export default {
       const prepared = await prepareCosmographData(
         this.dataConfig,
         this.pointsForCosmo,
-        this.graphLinks
+        this.linksForCosmo
       );
       if (!prepared) {
         this.errorMessage = 'Failed to prepare graph data for Cosmograph.';
@@ -725,7 +747,7 @@ export default {
         backgroundColor: this.labelColor('background'),
         hoveredPointRingColor: this.labelColor('primary-darken-1'),
         unknownColor: this.labelColor('text'),
-        linkColorByFn: (value, index) => this.computeLinkColor(index),
+        linkColorByFn: (value) => this.computeLinkColor(value),
         onPointClick: (index) => this.selectPointFromGraph(index),
         onLinkClick: (linkIndex) => this.selectLinkFromGraph(linkIndex),
         onBackgroundClick: () => this.clearSelection(),
@@ -810,7 +832,7 @@ export default {
         backgroundColor: this.labelColor('background'),
         hoveredPointRingColor: this.labelColor('primary-darken-1'),
         unknownColor: this.labelColor('text'),
-        linkColorByFn: (value, index) => this.computeLinkColor(index),
+        linkColorByFn: (value) => this.computeLinkColor(value),
         // New function reference each call: Cosmograph's config-change detection uses reference
         // equality, and selectedPointIndex can change without points/links changing, so a stable
         // reference here would never actually get re-invoked.
@@ -847,7 +869,7 @@ export default {
       const prepared = await prepareCosmographData(
         this.dataConfig,
         this.pointsForCosmo,
-        this.graphLinks
+        this.linksForCosmo
       );
       if (!prepared) {
         this.errorMessage = 'Failed to prepare graph data for Cosmograph.';
@@ -895,17 +917,19 @@ export default {
       return index === this.selectedPointIndex ? 24 : 8;
     },
 
-    // 'diffLP': same grey scale the main network page's edge-style dropdown uses
-    // for a magnitude-based score (see data-network.vue's computeLinkColor) --
-    // edge weight here is exactly that kind of score (not a bounded, sign-
-    // meaningful quantity like effect size), so it gets the same treatment:
-    // percentile rank (edgeWeightPercentiles), not the raw value, mapped
-    // chart-grid -> chart. 'uniform' keeps the original flat look.
-    computeLinkColor(index) {
+    // 'diffLP': same grey scale the main network page's edge-style dropdown uses,
+    // but value-based (min-max over weightRange) rather than percentile-ranked --
+    // diff-L-P is already a bounded, reasonably-scaled value (see weightRange's
+    // own comment), unlike the main page's raw p_value/effect_size, which can't
+    // safely use a plain min-max scale. 'uniform' keeps the original flat look.
+    // `value` is this row's own colorValue (see linksForCosmo) -- read directly
+    // off the row rather than looked up by index, since prepareCosmographData()'s
+    // DuckDB join gives no guarantee Cosmograph's internal row order matches
+    // linksForCosmo's.
+    computeLinkColor(value) {
       if (this.edgeStyleMode !== 'diffLP') return this.labelColor('text');
-      const percentile = this.edgeWeightPercentiles[index];
-      if (percentile == null) return this.labelColor('text');
-      return interpolateHexColor(this.labelColor('chart-grid'), this.labelColor('chart'), percentile);
+      if (value == null) return this.labelColor('text');
+      return interpolateHexColor(this.labelColor('chart-grid'), this.labelColor('chart'), value);
     },
 
     // Pans (not zooms) the camera to center on a point, at whatever zoom level is already
