@@ -751,6 +751,7 @@ export default {
         hoveredPointRingColor: this.labelColor('primary-darken-1'),
         unknownColor: this.labelColor('text'),
         linkColorByFn: (value) => this.computeLinkColor(value),
+        linkWidthByFn: (value) => this.computeLinkWidth(value),
         onPointClick: (index) => this.selectPointFromGraph(index),
         onLinkClick: (linkIndex) => this.selectLinkFromGraph(linkIndex),
         onBackgroundClick: () => this.clearSelection(),
@@ -836,6 +837,7 @@ export default {
         hoveredPointRingColor: this.labelColor('primary-darken-1'),
         unknownColor: this.labelColor('text'),
         linkColorByFn: (value) => this.computeLinkColor(value),
+        linkWidthByFn: (value) => this.computeLinkWidth(value),
         // New function reference each call: Cosmograph's config-change detection uses reference
         // equality, and selectedPointIndex can change without points/links changing, so a stable
         // reference here would never actually get re-invoked.
@@ -934,6 +936,16 @@ export default {
       if (this.edgeStyleMode !== 'diffLP') return this.labelColor('text');
       if (value == null) return this.labelColor('text');
       return interpolateHexColor(this.labelColor('chart-grid'), '#000000', value);
+    },
+
+    // 'uniform' also flattens width (not just color) to a fixed 2px, matching
+    // the main network page's own flat/default edge width. 'diffLP' keeps the
+    // original behavior: `value` (this row's raw 'weight', per linkWidthBy)
+    // used directly as the pixel width, unchanged from before edge styling was
+    // selectable at all.
+    computeLinkWidth(value) {
+      if (this.edgeStyleMode === 'uniform' || value == null) return 2;
+      return value;
     },
 
     // Pans (not zooms) the camera to center on a point, at whatever zoom level is already
