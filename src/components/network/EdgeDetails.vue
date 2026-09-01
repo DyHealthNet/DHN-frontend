@@ -26,51 +26,24 @@
       </tbody>
     </v-table>
   <p><span class="label-subtitle" >Connected Nodes:</span></p>
-    <v-table dense v-if="edge">
-      <thead>
-      </thead>
-      <tbody>
-        <!-- Row for Display Name -->
-        <tr>
-          <td><span class="label">Display Name</span></td>
-          <td>{{ edge.node0_label }}</td>
-          <td>{{ edge.node1_label }}</td>
-        </tr>
-        <!-- Row for ID -->
-        <tr>
-          <td><span class="label">ID</span></td>
-          <td>{{ edge.to }}</td>
-          <td>{{ edge.from }}</td>
-        </tr>
-        <!-- Row for Description -->
-        <tr>
-          <td><span class="label">Description</span></td>
-          <td>{{ edge.node0_descr }}</td>
-          <td>{{ edge.node1_descr }}</td>
-        </tr>
-        <!-- Row for Group chips -->
-        <tr>
-          <td><span class="label">Group</span></td>
-          <td>
-            <v-chip v-if="edge.node0_color" size="small" :style="chipStyle(edge.node0_color)">{{ edge.node0_type }}</v-chip>
-            <span v-else>{{ edge.node0_type || '-' }}</span>
-          </td>
-          <td>
-            <v-chip v-if="edge.node1_color" size="small" :style="chipStyle(edge.node1_color)">{{ edge.node1_type }}</v-chip>
-            <span v-else>{{ edge.node1_type || '-' }}</span>
-          </td>
-        </tr>
-      </tbody>
-    </v-table>
+    <EdgeNodesTable v-if="edge" :nodes="edgeNodes" />
 </template>
 
 <script>
-import { getReadableTextColor } from './networkData.js';
+import EdgeNodesTable from './EdgeNodesTable.vue';
 
 export default {
+  components: { EdgeNodesTable },
   props: {
     edge: Object,
-    selectedTests: Object,
+  },
+  computed: {
+    edgeNodes() {
+      return [
+        { id: this.edge.to, label: this.edge.node0_label, description: this.edge.node0_descr, groupLabel: this.edge.node0_type, groupColor: this.edge.node0_color },
+        { id: this.edge.from, label: this.edge.node1_label, description: this.edge.node1_descr, groupLabel: this.edge.node1_type, groupColor: this.edge.node1_color },
+      ];
+    },
   },
   methods: {
     /**
@@ -79,9 +52,6 @@ export default {
     formatValue(value) {
       if (typeof value === 'number') return value.toPrecision(6); // Format numbers
       return value; // Default case
-    },
-    chipStyle(color) {
-      return { backgroundColor: color, color: getReadableTextColor(color) };
     },
   },
 };

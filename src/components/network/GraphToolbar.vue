@@ -4,31 +4,36 @@
       <slot name="title"></slot>
     </v-toolbar-title>
     <slot name="prepend"></slot>
-    <v-switch
+    <v-tooltip
       v-if="showHideUnconnected"
-      :model-value="hideUnconnected"
-      @update:model-value="$emit('update:hideUnconnected', $event)"
-      color="white"
-      hide-details
-      density="compact"
-      class="mr-3"
+      :text="hideUnconnected ? 'Show unconnected' : 'Hide unconnected'"
+      location="bottom"
     >
-      <template #label>
-        <span class="text-caption">{{ hideUnconnected ? 'Show unconnected' : 'Hide unconnected' }}</span>
+      <template v-slot:activator="{ props }">
+        <v-btn
+          icon
+          variant="text"
+          v-bind="props"
+          class="mr-1"
+          @click="$emit('update:hideUnconnected', !hideUnconnected)"
+        >
+          <v-icon>{{ hideUnconnected ? 'mdi-eye-off' : 'mdi-eye' }}</v-icon>
+        </v-btn>
       </template>
-    </v-switch>
-    <v-switch
-      :model-value="physicsOn"
-      @update:model-value="$emit('update:physicsOn', $event)"
-      color="white"
-      hide-details
-      density="compact"
-      class="mr-3"
-    >
-      <template #label>
-        <span class="text-caption">{{ physicsOn ? 'Disable Physics' : 'Enable Physics' }}</span>
+    </v-tooltip>
+    <v-tooltip :text="physicsOn ? 'Disable Physics' : 'Enable Physics'" location="bottom">
+      <template v-slot:activator="{ props }">
+        <v-btn
+          icon
+          variant="text"
+          v-bind="props"
+          class="mr-3"
+          @click="$emit('update:physicsOn', !physicsOn)"
+        >
+          <v-icon>{{ physicsOn ? 'mdi-pause' : 'mdi-play' }}</v-icon>
+        </v-btn>
       </template>
-    </v-switch>
+    </v-tooltip>
     <v-tooltip text="Reset view" location="bottom">
       <template v-slot:activator="{ props }">
         <v-btn icon variant="text" v-bind="props" @click="$emit('fit-view')">

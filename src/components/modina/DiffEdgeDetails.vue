@@ -5,41 +5,7 @@
     <p class="display-name text-center">{{ sourceLabel }} &nbsp;↔&nbsp; {{ targetLabel }}</p>
 
     <p class="label-subtitle mt-4">Nodes</p>
-    <v-table density="compact">
-      <tbody>
-        <tr>
-          <td><span class="label">Display Name</span></td>
-          <td class="value">{{ sourceLabel }}</td>
-          <td class="value">{{ targetLabel }}</td>
-        </tr>
-        <tr>
-          <td><span class="label">ID</span></td>
-          <td class="value">{{ edge.source }}</td>
-          <td class="value">{{ edge.target }}</td>
-        </tr>
-        <tr>
-          <td><span class="label">Description</span></td>
-          <td class="value">{{ sourceDescription || '-' }}</td>
-          <td class="value">{{ targetDescription || '-' }}</td>
-        </tr>
-        <tr v-if="sourceType || targetType">
-          <td><span class="label">Data Type</span></td>
-          <td class="value">{{ sourceType || '-' }}</td>
-          <td class="value">{{ targetType || '-' }}</td>
-        </tr>
-        <tr v-if="getGroupColor">
-          <td><span class="label">Group</span></td>
-          <td>
-            <v-chip v-if="sourceColor" size="small" :style="chipStyle(sourceColor)">{{ capitalizeFirstLetter(sourceGroup) }}</v-chip>
-            <span v-else>{{ sourceGroup ? capitalizeFirstLetter(sourceGroup) : '-' }}</span>
-          </td>
-          <td>
-            <v-chip v-if="targetColor" size="small" :style="chipStyle(targetColor)">{{ capitalizeFirstLetter(targetGroup) }}</v-chip>
-            <span v-else>{{ targetGroup ? capitalizeFirstLetter(targetGroup) : '-' }}</span>
-          </td>
-        </tr>
-      </tbody>
-    </v-table>
+    <EdgeNodesTable :nodes="edgeNodes" />
 
     <p class="label-subtitle mt-4">Ranking</p>
     <v-table density="compact">
@@ -112,12 +78,13 @@
 import OverviewBox from '@/components/plots/OverviewBox.vue';
 import OverviewHeatmap from '@/components/plots/OverviewHeatmap.vue';
 import OverviewLine from '@/components/plots/OverviewLine.vue';
+import EdgeNodesTable from '@/components/network/EdgeNodesTable.vue';
 import { EDGE_METRIC_INFO, metricLabel } from './metricInfo.js';
-import { capitalizeFirstLetter, getReadableTextColor } from '@/components/network/networkData.js';
+import { capitalizeFirstLetter } from '@/components/network/networkData.js';
 
 export default {
   name: 'DiffEdgeDetails',
-  components: { OverviewBox, OverviewHeatmap, OverviewLine },
+  components: { OverviewBox, OverviewHeatmap, OverviewLine, EdgeNodesTable },
   props: {
     edge: {
       type: Object,
@@ -206,6 +173,26 @@ export default {
     targetType() {
       return this.pointsById[this.edge?.target]?.type;
     },
+    edgeNodes() {
+      return [
+        {
+          id: this.edge?.source,
+          label: this.sourceLabel,
+          description: this.sourceDescription,
+          dataType: this.sourceType,
+          groupLabel: this.sourceGroup ? capitalizeFirstLetter(this.sourceGroup) : '',
+          groupColor: this.sourceColor,
+        },
+        {
+          id: this.edge?.target,
+          label: this.targetLabel,
+          description: this.targetDescription,
+          dataType: this.targetType,
+          groupLabel: this.targetGroup ? capitalizeFirstLetter(this.targetGroup) : '',
+          groupColor: this.targetColor,
+        },
+      ];
+    },
     // Picks the plot whose backend endpoint actually matches both endpoints' data types --
     // continuous x continuous only exists as an overlaid aggregated trend line (no raw
     // scatter, to avoid exposing per-participant values), categorical x categorical as a
@@ -256,13 +243,9 @@ export default {
     },
   },
   methods: {
-    capitalizeFirstLetter,
     formatNumber(value) {
       if (typeof value !== 'number') return value ?? '-';
       return value.toPrecision(6);
-    },
-    chipStyle(color) {
-      return { backgroundColor: color, color: getReadableTextColor(color) };
     },
   },
 };

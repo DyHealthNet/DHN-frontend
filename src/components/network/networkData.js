@@ -167,6 +167,69 @@ export function capitalizeFirstLetter(str) {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
 
+// Resolves a node's raw '|'/';'-separated xrefs string into clickable {label, url}
+// entries, routed to the database matching `groupHint` (the node's GROUP -- e.g.
+// "protein"/"metabolite"/"phenotype", case-insensitive substring match -- NOT its
+// data_type). Shared by NodeDetails.vue (main network page) and DiffNodeDetails.vue
+// (moDiNA page), which key their own "group" field differently (derived from
+// source_table vs. node_group directly) but resolve xrefs the same way. A few
+// datasets still carry the legacy "db.accession" form ('|'-separated, vs. the more
+// common bare-accession ';'-separated form) -- that's only kept if the embedded db
+// matches groupHint's own target too. Anything that doesn't resolve to a
+// valid-looking id for the target database is dropped instead of falling back to
+// a dead "#" link.
+export function resolveXrefs(xrefsString, groupHint) {
+  if (!xrefsString || !xrefsString.length) return [];
+  const targetDb = targetDbForGroup(groupHint);
+  return xrefsString
+    .split(/[;|]/)
+    .map((xref) => xref.trim())
+    .filter(Boolean)
+    .map((xref) => resolveOneXref(xref, targetDb))
+    .filter(Boolean);
+}
+
+function targetDbForGroup(group) {
+  const g = (group || "").toLowerCase();
+  if (g.includes("protein")) return "uniprot";
+  if (g.includes("metabolite")) return "hmdb";
+  if (g.includes("phenotype")) return "snomedct";
+  return null;
+}
+
+function resolveOneXref(xref, targetDb) {
+  let db = targetDb;
+  let id = xref;
+  if (xref.includes(".")) {
+    const [prefix, ...rest] = xref.split(".");
+    db = prefix.toLowerCase();
+    id = rest.join(".");
+    if (targetDb && db !== targetDb) return null;
+  }
+  if (!db || !id) return null;
+  const url = buildXrefUrl(db, id);
+  return url ? { label: xref, url } : null;
+}
+
+function buildXrefUrl(db, id) {
+  switch (db) {
+    case "uniprot":
+      return /^[A-Z0-9]{6,10}(-\d+)?$/i.test(id)
+        ? `https://www.uniprot.org/uniprotkb/${id}`
+        : null;
+    case "hmdb":
+      return /^HMDB\d{5,7}$/i.test(id)
+        ? `https://hmdb.ca/metabolites/${id}`
+        : null;
+    case "snomedct":
+      return /^\d{6,18}$/.test(id)
+        ? `https://browser.ihtsdotools.org/?perspective=full&conceptId1=${id}`
+        : null;
+    default:
+      return null; // only Uniprot/HMDB/SNOMED CT are linked out to
+  }
+}
+
 // Round color dot used next to each legend label, on both pages' on-screen legends.
 export function getShapeStyle(color) {
   return { borderRadius: "50%", backgroundColor: color, width: "13px", height: "13px" };

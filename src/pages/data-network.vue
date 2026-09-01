@@ -331,7 +331,7 @@
                     >View edges in Tables</v-btn>
                   </template>
                   <template v-else-if="displayedElementType === 'edge'">
-                    <EdgeDetails :edge="displayedElement" :selectedTests="selectedTests"/>
+                    <EdgeDetails :edge="displayedElement"/>
                   </template>
                   <p v-else>No element selected. You can inspect a node or an edge by clicking on it.</p>
                 </v-expansion-panel-text>
@@ -1107,7 +1107,11 @@ export default {
     edgeStyleLegendLabels() {
       if (this.edgeStyleMode === 'effect') return ['-1', '0', '+1'];
       if (this.edgeStyleMode === 'effectAbs') return ['0', '1'];
-      if (this.edgeStyleMode === 'combined' || this.edgeStyleMode === 'pvalue') return ['Least significant', 'Most significant'];
+      // 'pvalue' is purely -log(p), so "significance" is exact; 'combined' folds
+      // in |effect size| too, so calling it "significance" would overstate what
+      // the rank actually reflects -- "Low"/"High" stays accurate for both.
+      if (this.edgeStyleMode === 'pvalue') return ['Least significant', 'Most significant'];
+      if (this.edgeStyleMode === 'combined') return ['Low', 'High'];
       return [];
     },
     hasSelectedProtein() {
@@ -4073,7 +4077,8 @@ export default {
 .edge-legend {
   position: absolute;  /* Same convention as .legend, opposite corner so the two
                            don't overlap when both a node and edge gradient show at once. */
-  bottom: 60px;
+  bottom: 100px;  /* Cleared above Cosmograph's own bottom-right attribution link,
+                      which .legend's bottom-left corner never had to share with. */
   right: 40px;
   z-index: 10;
 }

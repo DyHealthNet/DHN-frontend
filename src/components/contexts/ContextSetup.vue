@@ -1312,7 +1312,10 @@ export default {
       const currentDate = new Date().toLocaleDateString().replace(/\//g, '-');
       const safeContextName = (this.contextName || 'Context').trim().replace(/[^a-z0-9]+/gi, '_');
       const filename = `${safeContextName}_${suffix}_${currentDate}.csv`;
-      const blob = new Blob([variables.join('\n')], {type: 'text/csv;charset=utf-8;'});
+      // quote values containing a comma/quote/newline so a "," in a variable name
+      // isn't read by spreadsheet apps as a column delimiter
+      const csvEscape = (value) => (/[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
+      const blob = new Blob([variables.map(csvEscape).join('\n')], {type: 'text/csv;charset=utf-8;'});
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;

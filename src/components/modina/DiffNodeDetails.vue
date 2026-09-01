@@ -1,32 +1,16 @@
 <template>
   <div ref="rootEl">
   <div v-if="node">
-    <v-icon
-      v-if="getIcon"
-      class="me-6"
-      size="50"
-      color="transparent"
-      style="position: absolute; right: 0;"
-    >
-      <v-img
-        :src="getIcon(node.group)"
-        alt="icon"
-        max-width="40"
-        max-height="40"
-        class="me-0 rounded-circle"
-      ></v-img>
-    </v-icon>
-    <p><span class="label-title">Node</span></p>
-    <p><span class="label">Name:</span><br>
-      <span class="display-name">{{ node.display_name || node.id }}</span></p>
-    <p v-if="node.type"><span class="label">Type:</span><br>
-      <span class="value">{{ node.type }}</span></p>
-    <p v-if="node.group"><span class="label">Group:</span><br>
-      <v-chip size="small" :style="groupChipStyle">{{ capitalizeFirstLetter(node.group) }}</v-chip></p>
-    <p v-if="node.description"><span class="label">Description:</span><br>
-      <span class="value">{{ node.description }}</span></p>
-    <p><span class="label">ID:</span><br>
-      <span class="value">{{ node.id }}</span></p>
+    <NodeIdentityCard
+      :display-name="node.display_name || node.id"
+      :node-id="node.id"
+      :description="node.description"
+      :group-label="node.group ? capitalizeFirstLetter(node.group) : ''"
+      :group-color="groupColor"
+      :data-type="node.type"
+      :xrefs="validXrefs"
+      :icon-url="getIcon ? getIcon(node.group) : ''"
+    />
 
     <p class="label-subtitle mt-4">Ranking</p>
     <v-table density="compact">
@@ -100,12 +84,13 @@
 <script>
 import OverviewBar from '@/components/plots/OverviewBar.vue';
 import OverviewDensity from '@/components/plots/OverviewDensity.vue';
+import NodeIdentityCard from '@/components/network/NodeIdentityCard.vue';
 import { NODE_METRIC_INFO, RANKING_ALGORITHM_INFO, metricLabel } from './metricInfo.js';
-import { capitalizeFirstLetter, getReadableTextColor } from '@/components/network/networkData.js';
+import { capitalizeFirstLetter, resolveXrefs } from '@/components/network/networkData.js';
 
 export default {
   name: 'DiffNodeDetails',
-  components: { OverviewBar, OverviewDensity },
+  components: { OverviewBar, OverviewDensity, NodeIdentityCard },
   props: {
     node: {
       type: Object,
@@ -164,9 +149,13 @@ export default {
     this.resizeObserver?.disconnect();
   },
   computed: {
-    groupChipStyle() {
-      const color = this.getGroupColor ? this.getGroupColor(this.node) : null;
-      return color ? { backgroundColor: color, color: getReadableTextColor(color) } : {};
+    groupColor() {
+      return this.getGroupColor ? this.getGroupColor(this.node) : null;
+    },
+    // node.type here is data_type (continuous/categorical), not group -- unlike
+    // the main network page, resolveXrefs needs the actual group (node.group).
+    validXrefs() {
+      return resolveXrefs(this.node?.xrefs, this.node?.group);
     },
     hasEdgeStats() {
       if (!this.node) return false;
@@ -205,17 +194,6 @@ export default {
 .label-subtitle {
   font-size: 16px;
   color: rgb(var(--v-theme-primary-darken-1));
-}
-.label-title {
-  font-size: 24px;
-  color: rgb(var(--v-theme-primary-darken-1));
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-.display-name {
-  font-size: 18px;
-  color: rgb(var(--v-theme-darken-1));
 }
 .value {
   padding-left: 0px;
