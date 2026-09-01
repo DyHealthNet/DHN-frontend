@@ -61,6 +61,17 @@
       <template v-slot:item.score="{ item }">
         {{ formatNumber(item.score) }}
       </template>
+      <template v-slot:header.nodeMetricValue="{ column }">
+        <v-tooltip location="top" max-width="320">
+          <template v-slot:activator="{ props }">
+            <span v-bind="props">{{ column.title }}</span>
+          </template>
+          <span>{{ nodeMetric ? nodeMetricDescription : 'Node metric value. Run a comparison to see which metric produced it.' }}</span>
+        </v-tooltip>
+      </template>
+      <template v-slot:item.nodeMetricValue="{ item }">
+        {{ formatNumber(item.nodeMetricValue) }}
+      </template>
       <template v-slot:header.nodeMetricRank="{ column }">
         <v-tooltip location="top" max-width="320">
           <template v-slot:activator="{ props }">
@@ -159,6 +170,7 @@ export default {
         { title: 'Group', key: 'group', width: 130 },
         { title: 'Type', key: 'type', width: 130 },
         { title: 'Score', key: 'score', sort: scoreSort },
+        { title: this.nodeMetricLabel, key: 'nodeMetricValue', width: 110, sort: scoreSort },
         { title: `${this.nodeMetricLabel} Rank`, key: 'nodeMetricRank', width: 130, sort: rankSort },
       ];
     },
