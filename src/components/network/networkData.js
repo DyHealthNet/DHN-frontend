@@ -44,7 +44,12 @@ export function computeEdgeScore(edge, mode) {
   switch (mode) {
     case 'combined': return negLogP * absEffect;
     case 'pvalue': return negLogP;
-    case 'effect': return absEffect;
+    // 'effect' (diverging, signed) and 'effectAbs' (sequential, magnitude-only)
+    // share the same width ranking -- only their color mapping differs, see
+    // data-network.vue's computeLinkColor.
+    case 'effect':
+    case 'effectAbs':
+      return absEffect;
     default: return null;
   }
 }

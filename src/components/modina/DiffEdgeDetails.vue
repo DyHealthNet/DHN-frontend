@@ -8,6 +8,11 @@
     <v-table density="compact">
       <tbody>
         <tr>
+          <td><span class="label">Display Name</span></td>
+          <td class="value">{{ sourceLabel }}</td>
+          <td class="value">{{ targetLabel }}</td>
+        </tr>
+        <tr>
           <td><span class="label">ID</span></td>
           <td class="value">{{ edge.source }}</td>
           <td class="value">{{ edge.target }}</td>
@@ -16,6 +21,11 @@
           <td><span class="label">Description</span></td>
           <td class="value">{{ sourceDescription || '-' }}</td>
           <td class="value">{{ targetDescription || '-' }}</td>
+        </tr>
+        <tr v-if="sourceType || targetType">
+          <td><span class="label">Data Type</span></td>
+          <td class="value">{{ sourceType || '-' }}</td>
+          <td class="value">{{ targetType || '-' }}</td>
         </tr>
         <tr v-if="getGroupColor">
           <td><span class="label">Group</span></td>

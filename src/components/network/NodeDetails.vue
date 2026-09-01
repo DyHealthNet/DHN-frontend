@@ -24,6 +24,8 @@
       <v-chip size="small" :style="groupChipStyle">{{ node.type }}</v-chip></p>
     <p v-if="node.subtype"><span class="label">Subtype:</span> <br>
       <span class="value">{{ node.subtype }}</span></p>
+    <p v-if="node.data_type"><span class="label">Data Type:</span> <br>
+      <span class="value">{{ node.data_type }}</span></p>
         <span v-if="validXrefs.length">
           <span class="label">Reference:</span><br>
           <v-chip
@@ -32,8 +34,8 @@
             :class="{'me-2': index < validXrefs.length - 1}"
             class="custom-chip"
             color="node-logo-background"
-            outlined
-            small
+            variant="outlined"
+            size="small"
           >
             <a :href="xref.url" target="_blank" class="custom-link">
               {{ xref.label }}

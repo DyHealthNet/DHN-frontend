@@ -553,8 +553,17 @@
                       variant="outlined"
                       hide-details
                       class="toolbar-select mr-3"
-                      style="max-width: 170px"
-                    ></v-select>
+                      style="max-width: 140px"
+                    >
+                      <template #item="{ item, props }">
+                        <v-tooltip v-if="item.raw.tooltip" :text="item.raw.tooltip" location="end">
+                          <template #activator="{ props: tooltipProps }">
+                            <v-list-item v-bind="{ ...props, ...tooltipProps }"></v-list-item>
+                          </template>
+                        </v-tooltip>
+                        <v-list-item v-else v-bind="props"></v-list-item>
+                      </template>
+                    </v-select>
                     <v-select
                       :model-value="edgeStyleMode"
                       @update:model-value="onEdgeStyleModeChange"
@@ -564,7 +573,7 @@
                       variant="outlined"
                       hide-details
                       class="toolbar-select mr-3"
-                      style="max-width: 170px"
+                      style="max-width: 140px"
                     ></v-select>
                 </template>
                 <template #append>
@@ -1035,18 +1044,28 @@ export default {
       return this.graphNodes.some((node) => node.weighted_degree != null);
     },
     nodeColorModeItems() {
-      return [
+      const items = [
         { title: 'Group', value: 'group' },
-        { title: 'Rank (weighted degree)', value: 'rank', disabled: !this.hasWeightedDegreeData },
-        { title: 'Community', value: 'community', disabled: !this.clusteringActive },
+        {
+          title: 'Rank',
+          value: 'rank',
+          disabled: !this.hasWeightedDegreeData,
+          tooltip: 'Weighted degree: sum of -log10(p) × |effect size| over each node\'s edges',
+        },
       ];
+      // Not just disabled -- omitted entirely until community detection has
+      // actually been run on the current network (clusteringActive), rather
+      // than showing a mode the dropdown can't yet produce anything for.
+      if (this.clusteringActive) items.push({ title: 'Community', value: 'community' });
+      return items;
     },
     edgeStyleModeItems() {
       return [
         { title: 'Unweighted', value: 'unweighted' },
         { title: '-log(p) × |effect size|', value: 'combined' },
-        { title: '-log(p) only', value: 'pvalue' },
-        { title: 'Effect size only', value: 'effect' },
+        { title: '-log(p)', value: 'pvalue' },
+        { title: 'Effect size', value: 'effect' },
+        { title: '|Effect size|', value: 'effectAbs' },
       ];
     },
     // Same grey-to-blue scale rankColorFor() itself paints nodes with (see
@@ -1065,13 +1084,14 @@ export default {
     },
     edgeStyleLegendTitle() {
       if (this.edgeStyleMode === 'effect') return 'Edge color: effect size';
+      if (this.edgeStyleMode === 'effectAbs') return 'Edge color: |effect size|';
       if (this.edgeStyleMode === 'combined') return 'Edge color: -log(p) × |effect size| (rank)';
       if (this.edgeStyleMode === 'pvalue') return 'Edge color: -log(p) (rank)';
       return '';
     },
-    // Same colors computeLinkColor() itself paints edges with. 'effect' has a
-    // real, fixed -1..1 domain (its sign is directly meaningful) so its legend
-    // gets real numeric endpoints; 'combined'/'pvalue' are percentile ranks
+    // Same colors computeLinkColor() itself paints edges with. 'effect'/'effectAbs'
+    // have a real, fixed domain (sign/magnitude directly meaningful) so their
+    // legends get real numeric endpoints; 'combined'/'pvalue' are percentile ranks
     // among whatever's currently displayed, not a fixed value scale, so their
     // legend only labels relative position -- numeric ticks there would imply
     // a fixed scale that doesn't exist and would be actively misleading.
@@ -1079,10 +1099,14 @@ export default {
       if (this.edgeStyleMode === 'effect') {
         return `linear-gradient(to right, ${this.labelColor('primary-darken-1')}, ${this.labelColor('background')}, ${this.labelColor('warning')})`;
       }
+      if (this.edgeStyleMode === 'effectAbs') {
+        return `linear-gradient(to right, ${this.labelColor('chart-grid')}, #000000)`;
+      }
       return `linear-gradient(to right, ${this.labelColor('chart-grid')}, ${this.labelColor('chart')})`;
     },
     edgeStyleLegendLabels() {
       if (this.edgeStyleMode === 'effect') return ['-1', '0', '+1'];
+      if (this.edgeStyleMode === 'effectAbs') return ['0', '1'];
       if (this.edgeStyleMode === 'combined' || this.edgeStyleMode === 'pvalue') return ['Least significant', 'Most significant'];
       return [];
     },
@@ -1683,6 +1707,7 @@ export default {
           description: point.description ?? "",
           source_table: point.source_table ?? point.type,
           subtype: point.subtype,
+          data_type: point.data_type,
           x_refs: point.xrefs,
           set: "CHRIS", //TODO change to internal/cohort or smth when backend became more modular
           degree: point.degree,
@@ -1856,6 +1881,7 @@ export default {
             description: point.description ?? "",
             source_table: point.source_table ?? point.type,
             subtype: point.subtype,
+            data_type: point.data_type,
             x_refs: point.xrefs,
             set: "CHRIS",
             degree: point.degree,
@@ -3248,6 +3274,13 @@ export default {
         const endColor = (edge.effect_size ?? 0) < 0 ? this.labelColor('primary-darken-1') : this.labelColor('warning');
         return interpolateHexColor(this.labelColor('background'), endColor, magnitude);
       }
+      // Magnitude only (sign discarded) -- same fixed [0, 1] domain reasoning as
+      // 'effect' above, just sequential (light grey to black) instead of diverging,
+      // for when only "how strong" matters, not direction.
+      if (this.edgeStyleMode === 'effectAbs') {
+        const magnitude = Math.min(Math.abs(edge.effect_size ?? 0), 1);
+        return interpolateHexColor(this.labelColor('chart-grid'), '#000000', magnitude);
+      }
       // Grey scale (the theme's own chart tokens, already grey in both light/dark
       // mode) -- edges previously reused the node blue, which read as confusingly
       // similar to node coloring.
@@ -3966,14 +3999,23 @@ export default {
    overflow:hidden -- the default compact v-select field height (40px) plus
    its outlined-variant floating label leaves too little clearance and pokes
    into the network view sitting directly above with no gap. Shrinking the
-   field via this CSS var (read by Vuetify's own field height calc) keeps it
+   field via this CSS var (read by Vuetify's own field height calc), plus the
+   outlined variant's own reserved label-notch padding below it, keeps it
    comfortably inside the toolbar instead. */
 .toolbar-select :deep(.v-field) {
-  --v-input-control-height: 32px;
-  font-size: 0.8rem;
+  --v-input-control-height: 26px;
+  --v-field-padding-bottom: 2px;
+  font-size: 0.72rem;
+}
+.toolbar-select :deep(.v-field__input) {
+  min-height: 26px;
+  padding-top: 0;
 }
 .toolbar-select :deep(.v-label) {
-  font-size: 0.8rem;
+  font-size: 0.72rem;
+}
+.toolbar-select :deep(.v-select__selection-text) {
+  font-size: 0.72rem;
 }
 
 .network-page {

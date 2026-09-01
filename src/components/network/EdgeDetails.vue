@@ -13,6 +13,7 @@
           <th>Test</th>
           <th>P-Value</th>
           <th>Effect Size</th>
+          <th>Data Type</th>
         </tr>
       </thead>
       <tbody>
@@ -20,6 +21,7 @@
           <td>{{ edge.test_type }}</td>
           <td>{{ formatValue(edge.p_value) }}</td>
           <td>{{ formatValue(edge.effect_size) }}</td>
+          <td>{{ edge.type }}</td>
         </tr>
       </tbody>
     </v-table>
