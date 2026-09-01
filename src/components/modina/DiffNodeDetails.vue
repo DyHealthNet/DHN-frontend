@@ -22,7 +22,7 @@
     <p v-if="node.type"><span class="label">Type:</span><br>
       <span class="value">{{ node.type }}</span></p>
     <p v-if="node.group"><span class="label">Group:</span><br>
-      <span class="value">{{ node.group }}</span></p>
+      <v-chip size="small" :style="groupChipStyle">{{ capitalizeFirstLetter(node.group) }}</v-chip></p>
     <p v-if="node.description"><span class="label">Description:</span><br>
       <span class="value">{{ node.description }}</span></p>
     <p><span class="label">ID:</span><br>
@@ -101,6 +101,7 @@
 import OverviewBar from '@/components/plots/OverviewBar.vue';
 import OverviewDensity from '@/components/plots/OverviewDensity.vue';
 import { NODE_METRIC_INFO, RANKING_ALGORITHM_INFO, metricLabel } from './metricInfo.js';
+import { capitalizeFirstLetter, getReadableTextColor } from '@/components/network/networkData.js';
 
 export default {
   name: 'DiffNodeDetails',
@@ -136,6 +137,14 @@ export default {
       type: Function,
       default: null,
     },
+    // (node) => hex color | undefined -- same group color NodeRankPanel's Group
+    // column chips use (differential-network.vue's colorForNodeGroup), passed in
+    // rather than recomputed here since a single node can't derive the full
+    // group set needed for assignGroupColors' index-based palette on its own.
+    getGroupColor: {
+      type: Function,
+      default: null,
+    },
   },
   data() {
     return {
@@ -155,6 +164,10 @@ export default {
     this.resizeObserver?.disconnect();
   },
   computed: {
+    groupChipStyle() {
+      const color = this.getGroupColor ? this.getGroupColor(this.node) : null;
+      return color ? { backgroundColor: color, color: getReadableTextColor(color) } : {};
+    },
     hasEdgeStats() {
       if (!this.node) return false;
       return ['edgeMin', 'edgeMax', 'edgeMedian', 'edgeMean', 'edgeSd', 'edgePercentileMean'].some(
@@ -169,6 +182,7 @@ export default {
     },
   },
   methods: {
+    capitalizeFirstLetter,
     // toPrecision(6) alone would round a value like 0.9999997 to a flat "1.00000", hiding just
     // how extreme it is -- pad significant digits instead once the value is close to 0 or 1.
     formatNumber(value) {

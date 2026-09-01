@@ -46,30 +46,16 @@
           <td>{{ edge.node0_descr }}</td>
           <td>{{ edge.node1_descr }}</td>
         </tr>
-        <!-- Row for Icons -->
+        <!-- Row for Group chips -->
         <tr>
-          <td><span class="label">Type</span></td>
+          <td><span class="label">Group</span></td>
           <td>
-            <v-icon size="50" color="transparent">
-              <v-img
-                :src="getIcon(edge.node0_type)"
-                alt="Node 0 Icon"
-                max-width="40"
-                max-height="40"
-                class="rounded-circle"
-              />
-            </v-icon>
+            <v-chip v-if="edge.node0_color" size="small" :style="chipStyle(edge.node0_color)">{{ edge.node0_type }}</v-chip>
+            <span v-else>{{ edge.node0_type || '-' }}</span>
           </td>
           <td>
-            <v-icon size="50" color="transparent">
-              <v-img
-                :src="getIcon(edge.node1_type)"
-                alt="Node 1 Icon"
-                max-width="40"
-                max-height="40"
-                class="rounded-circle"
-              />
-            </v-icon>
+            <v-chip v-if="edge.node1_color" size="small" :style="chipStyle(edge.node1_color)">{{ edge.node1_type }}</v-chip>
+            <span v-else>{{ edge.node1_type || '-' }}</span>
           </td>
         </tr>
       </tbody>
@@ -77,10 +63,11 @@
 </template>
 
 <script>
+import { getReadableTextColor } from './networkData.js';
+
 export default {
   props: {
     edge: Object,
-    getIcon: Function,
     selectedTests: Object,
   },
   methods: {
@@ -90,6 +77,9 @@ export default {
     formatValue(value) {
       if (typeof value === 'number') return value.toPrecision(6); // Format numbers
       return value; // Default case
+    },
+    chipStyle(color) {
+      return { backgroundColor: color, color: getReadableTextColor(color) };
     },
   },
 };

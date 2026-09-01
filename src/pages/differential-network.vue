@@ -135,6 +135,7 @@
                   :context1="selectedContexts.context1"
                   :context2="selectedContexts.context2"
                   :get-icon="getNodeIcon"
+                  :get-group-color="colorForNodeGroup"
                   :node-metric="result?.nodeMetric"
                   :ranking-algorithm="result?.rankingAlgorithm"
                 />
@@ -143,7 +144,7 @@
                   :edge="selectedLink"
                   :context-names="contextNames"
                   :points-by-id="pointsById"
-                  :get-icon="getNodeIcon"
+                  :get-group-color="colorForNodeGroup"
                   :context1="selectedContexts.context1"
                   :context2="selectedContexts.context2"
                   :edge-metric="result?.edgeMetric"
@@ -514,6 +515,18 @@ export default {
         colorMap[group] = color;
       }
       return colorMap;
+    },
+    // Group color for the Details panel's chip. Deliberately not colorForLegendKey-via-
+    // legendGroups (built from graphPoints, the Top-N-trimmed subset) -- a node picked from the
+    // node rank table (NodeRankPanel, which lists all of result.points) can be one Top-N trimmed
+    // out of the graph, where legendGroups wouldn't have a color for it. Built the same way
+    // NodeRankPanel computes its own chip colors (over the full result.points, same sort), so the
+    // two always agree.
+    colorForNodeGroup(node) {
+      const key = node?.group;
+      if (!key) return undefined;
+      const keys = [...new Set((this.result?.points || []).map((p) => p.group).filter(Boolean))].sort();
+      return assignGroupColors(keys)[key];
     },
 
     // Full rebuild -- only called when a genuinely new comparison result comes in. Click/

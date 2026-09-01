@@ -17,17 +17,15 @@
           <td class="value">{{ sourceDescription || '-' }}</td>
           <td class="value">{{ targetDescription || '-' }}</td>
         </tr>
-        <tr v-if="getIcon">
-          <td><span class="label">Type</span></td>
+        <tr v-if="getGroupColor">
+          <td><span class="label">Group</span></td>
           <td>
-            <v-icon size="50" color="transparent">
-              <v-img :src="getIcon(sourceGroup)" alt="Node 1 icon" max-width="40" max-height="40" class="rounded-circle" />
-            </v-icon>
+            <v-chip v-if="sourceColor" size="small" :style="chipStyle(sourceColor)">{{ capitalizeFirstLetter(sourceGroup) }}</v-chip>
+            <span v-else>{{ sourceGroup ? capitalizeFirstLetter(sourceGroup) : '-' }}</span>
           </td>
           <td>
-            <v-icon size="50" color="transparent">
-              <v-img :src="getIcon(targetGroup)" alt="Node 2 icon" max-width="40" max-height="40" class="rounded-circle" />
-            </v-icon>
+            <v-chip v-if="targetColor" size="small" :style="chipStyle(targetColor)">{{ capitalizeFirstLetter(targetGroup) }}</v-chip>
+            <span v-else>{{ targetGroup ? capitalizeFirstLetter(targetGroup) : '-' }}</span>
           </td>
         </tr>
       </tbody>
@@ -105,6 +103,7 @@ import OverviewBox from '@/components/plots/OverviewBox.vue';
 import OverviewHeatmap from '@/components/plots/OverviewHeatmap.vue';
 import OverviewLine from '@/components/plots/OverviewLine.vue';
 import { EDGE_METRIC_INFO, metricLabel } from './metricInfo.js';
+import { capitalizeFirstLetter, getReadableTextColor } from '@/components/network/networkData.js';
 
 export default {
   name: 'DiffEdgeDetails',
@@ -129,9 +128,9 @@ export default {
       type: Object,
       default: () => ({}),
     },
-    // Same group -> icon lookup the main network page's NodeDetails/EdgeDetails use
-    // (data-network.vue's getIcon, now shared via networkData.js's getNodeIcon).
-    getIcon: {
+    // (node) => hex color | undefined -- same group color DiffNodeDetails' Group chip
+    // and NodeRankPanel's Group column use (differential-network.vue's colorForNodeGroup).
+    getGroupColor: {
       type: Function,
       default: null,
     },
@@ -184,6 +183,12 @@ export default {
     },
     targetGroup() {
       return this.pointsById[this.edge?.target]?.group;
+    },
+    sourceColor() {
+      return this.getGroupColor ? this.getGroupColor(this.pointsById[this.edge?.source]) : null;
+    },
+    targetColor() {
+      return this.getGroupColor ? this.getGroupColor(this.pointsById[this.edge?.target]) : null;
     },
     sourceType() {
       return this.pointsById[this.edge?.source]?.type;
@@ -241,9 +246,13 @@ export default {
     },
   },
   methods: {
+    capitalizeFirstLetter,
     formatNumber(value) {
       if (typeof value !== 'number') return value ?? '-';
       return value.toPrecision(6);
+    },
+    chipStyle(color) {
+      return { backgroundColor: color, color: getReadableTextColor(color) };
     },
   },
 };

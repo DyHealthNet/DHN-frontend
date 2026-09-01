@@ -331,7 +331,7 @@
                     >View edges in Tables</v-btn>
                   </template>
                   <template v-else-if="displayedElementType === 'edge'">
-                    <EdgeDetails :getIcon="getIcon" :edge="displayedElement" :selectedTests="selectedTests"/>
+                    <EdgeDetails :edge="displayedElement" :selectedTests="selectedTests"/>
                   </template>
                   <p v-else>No element selected. You can inspect a node or an edge by clicking on it.</p>
                 </v-expansion-panel-text>
@@ -1872,27 +1872,40 @@ export default {
       // graphNodes (not networkNodes) so hideUnconnected actually drops points --
       // every networkEdge already connects two graphNodes members either way (see
       // graphNodes' comment), so linksForCosmo below doesn't need the same filter.
+      // Only the columns Cosmograph's config below actually reads (id/idx/colorKey/
+      // display_name) -- NOT a full `...node` spread. Every other field (weighted_degree,
+      // description, x_refs, community_rX, ...) is only ever read back client-side from
+      // this.graphNodes/rankColorFor/etc., never from Cosmograph's own copy (nothing in
+      // this file calls getPointsData()/getLinksData()), so uploading it just bloats the
+      // DuckDB table for nothing -- and, worse, DuckDB's SUMMARIZE (which Cosmograph runs
+      // automatically after every upload, over every column, for its internal stats) choked
+      // with "Out of Range Error: STDDEV_SAMP is out of range" on an unclamped raw numeric
+      // column doing exactly that.
       const pointsForCosmo = this.graphNodes.map((node, i) => ({
-        ...node,
+        id: node.id,
         idx: i,
         colorKey: this.colorKeyFor(node),
+        display_name: node.display_name,
       }));
       const nodeIdToIdx = new Map(pointsForCosmo.map((p) => [p.id, p.idx]));
-      // linkSourceIndexBy/linkTargetIndexBy are validated as required alongside
-      // linkSourceBy/linkTargetBy in this Cosmograph version, so every link
-      // needs its endpoints' numeric point indices, not just their ids.
-      // renderWidth bakes in the external-vs-internal width so linkWidthByFn can
-      // be a trivial identity passthrough instead of a per-edge lookup.
+      // Same column-trimming reasoning as pointsForCosmo above. linkSourceIndexBy/
+      // linkTargetIndexBy are validated as required alongside linkSourceBy/linkTargetBy in
+      // this Cosmograph version, so every link needs its endpoints' numeric point indices,
+      // not just their ids. renderWidth bakes in the external-vs-internal width so
+      // linkWidthByFn can be a trivial index-based lookup instead of reading a raw column.
       const linksForCosmo = this.networkEdges.map((edge) => ({
-        ...edge,
         source: edge.from,
         target: edge.to,
         sourceIndex: nodeIdToIdx.get(edge.from),
         targetIndex: nodeIdToIdx.get(edge.to),
+        set: edge.set,
         renderWidth: edge.set === "external" ? 6 : (edge.width ?? 2),
       }));
       this.indexToNodeId = pointsForCosmo.map((p) => p.id);
-      this.indexToEdgeId = linksForCosmo.map((l) => l.id);
+      // edge.id isn't a column Cosmograph needs (see linksForCosmo above), so this reads
+      // it from networkEdges directly rather than from the trimmed upload objects -- same
+      // order, since linksForCosmo was just mapped from it one line up.
+      this.indexToEdgeId = this.networkEdges.map((e) => e.id);
 
       // Cosmograph's setConfig() merges the object it's given onto its DEFAULT
       // config, not onto the currently-active config -- so every setConfig call
@@ -2021,9 +2034,19 @@ export default {
         // the graph in whatever state the failed update left it in.
         console.warn('Cosmograph setConfig-based update failed, falling back to a full rebuild', e);
         this._configUpdateChain = null;
-        await this.destroyCosmograph();
-        this.cosmographInstance = new Cosmograph(container, this._cosmoConfig);
-        await this.cosmographInstance.dataUploaded();
+        try {
+          await this.destroyCosmograph();
+          this.cosmographInstance = new Cosmograph(container, this._cosmoConfig);
+          await this.cosmographInstance.dataUploaded();
+        } catch (e2) {
+          // The rebuild hit the same failure (e.g. bad data, not a stale-instance
+          // issue) -- surface it instead of leaving an unhandled rejection and a
+          // half-built graph with no explanation.
+          console.error('Cosmograph rebuild also failed', e2);
+          this.infoText = 'Could not render the network graph. Please try again.';
+          this.infoType = 'error';
+          this.showInfo = true;
+        }
       }
       // Physics-off case: onSimulationEnd never fires (no simulation runs), so fit here too.
       this.cosmographInstance?.fitView(0);
@@ -2244,6 +2267,8 @@ export default {
       edge.node1_label = node1.display_name;
       edge.node0_type = this.getPrettyType(node0.source_table);
       edge.node1_type = this.getPrettyType(node1.source_table);
+      edge.node0_color = this.colorForNodeGroup(node0);
+      edge.node1_color = this.colorForNodeGroup(node1);
       this.displayedElement = edge;
       this.displayedElementType = "edge";
       this.openDetailsPanel();
