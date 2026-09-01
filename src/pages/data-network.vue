@@ -577,12 +577,17 @@
                     ></v-select>
                 </template>
                 <template #append>
-                  <v-btn
-                    icon
-                    @click="clearNetworkWarn=true;"
-                  >
-                    <v-icon class="m-3">mdi-trash-can-outline</v-icon>
-                  </v-btn>
+                  <v-tooltip text="Clear network" location="bottom">
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        icon
+                        v-bind="props"
+                        @click="clearNetworkWarn=true;"
+                      >
+                        <v-icon class="m-3">mdi-trash-can-outline</v-icon>
+                      </v-btn>
+                    </template>
+                  </v-tooltip>
                   <v-dialog width="auto" v-model="clearNetworkWarn">
                     <v-card color="primary" rounded="lg">
                       <v-card-title class="headline text-white" >
@@ -1346,6 +1351,7 @@ export default {
             display_name: details.display_name,
             description: details.description,
             source_table: details.source_table,
+            data_type: details.data_type,
             x_refs: details.x_refs,
           }));
 
@@ -2358,6 +2364,8 @@ export default {
       edge.node1_label = node1.display_name;
       edge.node0_type = this.getPrettyType(node0.source_table);
       edge.node1_type = this.getPrettyType(node1.source_table);
+      edge.node0_data_type = node0.data_type;
+      edge.node1_data_type = node1.data_type;
       edge.node0_color = this.colorForNodeGroup(node0);
       edge.node1_color = this.colorForNodeGroup(node1);
       this.displayedElement = edge;

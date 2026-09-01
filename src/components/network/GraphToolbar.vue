@@ -14,10 +14,10 @@
           icon
           variant="text"
           v-bind="props"
-          class="mr-1"
+          class="mr-3"
           @click="$emit('update:hideUnconnected', !hideUnconnected)"
         >
-          <v-icon>{{ hideUnconnected ? 'mdi-eye-off' : 'mdi-eye' }}</v-icon>
+          <v-icon>{{ hideUnconnected ? 'mdi-eye' : 'mdi-eye-off' }}</v-icon>
         </v-btn>
       </template>
     </v-tooltip>
@@ -36,14 +36,18 @@
     </v-tooltip>
     <v-tooltip text="Reset view" location="bottom">
       <template v-slot:activator="{ props }">
-        <v-btn icon variant="text" v-bind="props" @click="$emit('fit-view')">
+        <v-btn icon variant="text" v-bind="props" class="mr-3" @click="$emit('fit-view')">
           <v-icon>mdi-fit-to-page-outline</v-icon>
         </v-btn>
       </template>
     </v-tooltip>
-    <v-btn icon variant="text" @click="$emit('save-image')">
-      <v-icon>mdi-camera</v-icon>
-    </v-btn>
+    <v-tooltip text="Download image" location="bottom">
+      <template v-slot:activator="{ props }">
+        <v-btn icon variant="text" v-bind="props" @click="$emit('save-image')">
+          <v-icon>mdi-camera</v-icon>
+        </v-btn>
+      </template>
+    </v-tooltip>
     <slot name="append"></slot>
   </v-toolbar>
 </template>

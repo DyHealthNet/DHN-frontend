@@ -13,7 +13,6 @@
           <th>Test</th>
           <th>P-Value</th>
           <th>Effect Size</th>
-          <th>Data Type</th>
         </tr>
       </thead>
       <tbody>
@@ -21,7 +20,6 @@
           <td>{{ edge.test_type }}</td>
           <td>{{ formatValue(edge.p_value) }}</td>
           <td>{{ formatValue(edge.effect_size) }}</td>
-          <td>{{ edge.type }}</td>
         </tr>
       </tbody>
     </v-table>
@@ -40,8 +38,8 @@ export default {
   computed: {
     edgeNodes() {
       return [
-        { id: this.edge.to, label: this.edge.node0_label, description: this.edge.node0_descr, groupLabel: this.edge.node0_type, groupColor: this.edge.node0_color },
-        { id: this.edge.from, label: this.edge.node1_label, description: this.edge.node1_descr, groupLabel: this.edge.node1_type, groupColor: this.edge.node1_color },
+        { id: this.edge.to, label: this.edge.node0_label, description: this.edge.node0_descr, dataType: this.edge.node0_data_type, groupLabel: this.edge.node0_type, groupColor: this.edge.node0_color },
+        { id: this.edge.from, label: this.edge.node1_label, description: this.edge.node1_descr, dataType: this.edge.node1_data_type, groupLabel: this.edge.node1_type, groupColor: this.edge.node1_color },
       ];
     },
   },
