@@ -95,6 +95,46 @@
               >
                 <template #title>Differential Network</template>
                 <template #prepend>
+                  <v-select
+                    :model-value="nodeColorMode"
+                    @update:model-value="onNodeColorModeChange"
+                    :items="nodeColorModeItems"
+                    label="Node color"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    class="toolbar-select mr-3"
+                    style="max-width: 140px"
+                  >
+                    <template #item="{ item, props }">
+                      <v-tooltip v-if="item.raw.tooltip" :text="item.raw.tooltip" location="end">
+                        <template #activator="{ props: tooltipProps }">
+                          <v-list-item v-bind="{ ...props, ...tooltipProps }"></v-list-item>
+                        </template>
+                      </v-tooltip>
+                      <v-list-item v-else v-bind="props"></v-list-item>
+                    </template>
+                  </v-select>
+                  <v-select
+                    :model-value="edgeStyleMode"
+                    @update:model-value="onEdgeStyleModeChange"
+                    :items="edgeStyleModeItems"
+                    label="Edge color"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    class="toolbar-select mr-3"
+                    style="max-width: 140px"
+                  >
+                    <template #item="{ item, props }">
+                      <v-tooltip v-if="item.raw.tooltip" :text="item.raw.tooltip" location="end">
+                        <template #activator="{ props: tooltipProps }">
+                          <v-list-item v-bind="{ ...props, ...tooltipProps }"></v-list-item>
+                        </template>
+                      </v-tooltip>
+                      <v-list-item v-else v-bind="props"></v-list-item>
+                    </template>
+                  </v-select>
                   <v-spacer />
                   <div class="topn-control mr-4" v-if="totalNodeCount > 1">
                     <span class="topn-caption">Top Nodes</span>
@@ -117,7 +157,21 @@
               <v-card-text>
                 <div class="graph-stage">
                   <div ref="containerRef" class="graph-container"></div>
-                  <NetworkLegend class="legend" :items="legendItems" />
+                  <NetworkLegend v-if="nodeColorMode !== 'stc'" class="legend" :items="legendItems" />
+                  <GradientLegend
+                    v-else
+                    class="legend"
+                    title="Node color: STC"
+                    :gradient-css="nodeStcGradientCss"
+                    :labels="nodeStcLegendLabels"
+                  />
+                  <GradientLegend
+                    v-if="edgeStyleMode === 'diffLP'"
+                    class="edge-legend"
+                    title="Edge color: diff-L-P"
+                    :gradient-css="edgeDiffLPGradientCss"
+                    :labels="edgeDiffLPLegendLabels"
+                  />
                 </div>
               </v-card-text>
             </v-card>
@@ -193,7 +247,9 @@ import DiffNodeDetails from '@/components/modina/DiffNodeDetails.vue';
 import DiffEdgeDetails from '@/components/modina/DiffEdgeDetails.vue';
 import GraphToolbar from '@/components/network/GraphToolbar.vue';
 import NetworkLegend from '@/components/network/NetworkLegend.vue';
+import GradientLegend from '@/components/network/GradientLegend.vue';
 import { assignGroupColors, getNodeIcon, saveNetworkState, loadNetworkState, clearNetworkState, capitalizeFirstLetter, drawLegendPanel, interpolateHexColor, computePercentileRanks } from '@/components/network/networkData.js';
+import { NODE_METRIC_INFO, EDGE_METRIC_INFO, metricDescription } from '@/components/modina/metricInfo.js';
 
 // Distinct key (not a numeric contextValue) so this doesn't collide with data-network.vue's own
 // per-context / "staticNetwork" localStorage entries, which share the same helper functions.
@@ -210,6 +266,7 @@ export default {
     DiffEdgeDetails,
     GraphToolbar,
     NetworkLegend,
+    GradientLegend,
   },
   data() {
     return {
@@ -259,15 +316,26 @@ export default {
       _configUpdateChain: null,
       physics_on: true,
       imageUrl: null,
+      // Node color mode: 'group' (data layer -- protein/metabolite/phenotype) or
+      // 'stc' (continuous gradient by node.nodeMetricValue). See colorKeyForNode/
+      // buildPointColorMap -- mirrors data-network.vue's nodeColorMode.
+      nodeColorMode: 'group',
+      // Edge color mode: 'uniform' (flat, today's original look) or 'diffLP'
+      // (percentile-ranked grey scale by edge.weight -- see computeLinkColor/
+      // edgeWeightPercentiles). Mirrors data-network.vue's edgeStyleMode.
+      edgeStyleMode: 'diffLP',
       // Static (data-shape) half of the Cosmograph config, passed to prepareCosmographData().
       // The other half -- theming, sizing, click handlers -- is built fresh in renderGraph()/
       // applyDesign() (see there for why), mirroring data-network.vue's split.
       dataConfig: {
         points: {
           pointIdBy: 'id',
-          // pointColorByMap is filled in per-run in renderGraph() -- groups aren't known until
-          // the result comes back (see buildPointColorMap).
-          pointColorBy: 'group',
+          // pointColorByMap is filled in per-run in renderGraph() -- groups/STC values
+          // aren't known until the result comes back (see buildPointColorMap). colorKey
+          // (not 'group' directly) so switching nodeColorMode can point the same column
+          // at either the group key or a precomputed STC gradient color -- see
+          // colorKeyForNode, same trick data-network.vue's own colorKeyFor uses.
+          pointColorBy: 'colorKey',
           pointColorStrategy: 'map',
           // Declared here (not just in the constructor config below) so prepareCosmographData
           // keeps 'id' available for pointSizeByFn to key off of -- see computePointSize, which
@@ -351,6 +419,13 @@ export default {
     edgeWeightPercentiles() {
       return computePercentileRanks(this.graphLinks.map((l) => l.weight));
     },
+    // graphPoints with a colorKey added -- what's actually passed to
+    // prepareCosmographData() as the points data (pointColorBy: 'colorKey'
+    // names this column). Recomputed whenever graphPoints or nodeColorMode
+    // change, same reactivity graphLinks/edgeWeightPercentiles already rely on.
+    pointsForCosmo() {
+      return this.graphPoints.map((point) => ({ ...point, colorKey: this.colorKeyForNode(point) }));
+    },
     topNLabel() {
       if (this.topN == null || this.topN >= this.totalNodeCount) return 'all';
       return `${this.topN}/${this.totalNodeCount}`;
@@ -373,6 +448,38 @@ export default {
         label: capitalizeFirstLetter(group),
         color,
       }));
+    },
+    nodeColorModeItems() {
+      return [
+        { title: 'Group', value: 'group' },
+        { title: 'STC', value: 'stc', tooltip: metricDescription(NODE_METRIC_INFO, 'STC') },
+      ];
+    },
+    edgeStyleModeItems() {
+      return [
+        { title: 'Uniform', value: 'uniform' },
+        { title: 'diff-L-P', value: 'diffLP', tooltip: metricDescription(EDGE_METRIC_INFO, 'diff-L-P') },
+      ];
+    },
+    // Same grey-to-blue scale colorKeyForNode() itself paints nodes with.
+    nodeStcGradientCss() {
+      return `linear-gradient(to right, ${this.labelColor('chart-grid')}, ${this.labelColor('primary-darken-1')})`;
+    },
+    // Fixed [0, 1] domain (STC = 1 - p-value) -- real numeric endpoints, unlike
+    // the edge legend below, since this isn't a percentile rank of whatever's
+    // currently displayed.
+    nodeStcLegendLabels() {
+      return ['0', '1'];
+    },
+    // Same colors computeLinkColor() itself paints edges with.
+    edgeDiffLPGradientCss() {
+      return `linear-gradient(to right, ${this.labelColor('chart-grid')}, ${this.labelColor('chart')})`;
+    },
+    // Percentile rank among whatever's currently displayed, not a fixed value
+    // scale -- numeric ticks here would imply a scale that doesn't exist, same
+    // reasoning as the main network page's 'combined'/'pvalue' edge legends.
+    edgeDiffLPLegendLabels() {
+      return ['Low', 'High'];
     },
     contextNames() {
       return {
@@ -515,11 +622,35 @@ export default {
       }
     },
 
-    // group -> hex lookup for Cosmograph's 'map' point-color strategy, mirroring how
+    // The colorKey Cosmograph's 'map' strategy actually looks up -- either the raw
+    // group (mirroring data-network.vue's node_group coloring) or, in 'stc' mode, the
+    // point's own precomputed gradient color (mirroring data-network.vue's 'rank'
+    // mode, see its colorKeyFor/rankColorFor). STC (1 - p-value of a direct
+    // two-context test) is naturally bounded to [0, 1], so this uses that fixed
+    // domain directly rather than a per-render min/max like weighted_degree needs.
+    // Missing/NaN values fall back to 0 (the chart-grid end) rather than a more
+    // prominent fallback color -- same reasoning as rankColorFor's own fallback.
+    colorKeyForNode(point) {
+      if (this.nodeColorMode !== 'stc') return point.group || 'unknown';
+      const raw = point.nodeMetricValue;
+      const value = (raw != null && !Number.isNaN(raw)) ? raw : 0;
+      const clamped = Math.min(Math.max(value, 0), 1);
+      return interpolateHexColor(this.labelColor('chart-grid'), this.labelColor('primary-darken-1'), clamped);
+    },
+    // colorKey -> hex lookup for Cosmograph's 'map' point-color strategy, mirroring how
     // data-network.vue colors by node_group: groups are fully data-driven (whatever layers the
     // two contexts share), not a fixed set, so each color is generated from the group name
-    // itself rather than kept in a hardcoded table.
+    // itself rather than kept in a hardcoded table. 'stc' mode's colorKey is already the
+    // final hex color (see colorKeyForNode), so its map is just an identity lookup.
     buildPointColorMap() {
+      if (this.nodeColorMode === 'stc') {
+        const colorMap = {};
+        for (const point of this.graphPoints) {
+          const color = this.colorKeyForNode(point);
+          colorMap[color] = color;
+        }
+        return colorMap;
+      }
       const colorMap = {};
       for (const { group, color } of this.legendGroups) {
         colorMap[group] = color;
@@ -553,7 +684,7 @@ export default {
 
       const prepared = await prepareCosmographData(
         this.dataConfig,
-        this.graphPoints,
+        this.pointsForCosmo,
         this.graphLinks
       );
       if (!prepared) {
@@ -715,7 +846,7 @@ export default {
 
       const prepared = await prepareCosmographData(
         this.dataConfig,
-        this.graphPoints,
+        this.pointsForCosmo,
         this.graphLinks
       );
       if (!prepared) {
@@ -764,12 +895,14 @@ export default {
       return index === this.selectedPointIndex ? 24 : 8;
     },
 
-    // Same grey scale the main network page's edge-style dropdown uses for a
-    // magnitude-based score (see data-network.vue's computeLinkColor) -- edge
-    // weight here is exactly that kind of score (not a bounded, sign-meaningful
-    // quantity like effect size), so it gets the same treatment: percentile
-    // rank (edgeWeightPercentiles), not the raw value, mapped chart-grid -> chart.
+    // 'diffLP': same grey scale the main network page's edge-style dropdown uses
+    // for a magnitude-based score (see data-network.vue's computeLinkColor) --
+    // edge weight here is exactly that kind of score (not a bounded, sign-
+    // meaningful quantity like effect size), so it gets the same treatment:
+    // percentile rank (edgeWeightPercentiles), not the raw value, mapped
+    // chart-grid -> chart. 'uniform' keeps the original flat look.
     computeLinkColor(index) {
+      if (this.edgeStyleMode !== 'diffLP') return this.labelColor('text');
       const percentile = this.edgeWeightPercentiles[index];
       if (percentile == null) return this.labelColor('text');
       return interpolateHexColor(this.labelColor('chart-grid'), this.labelColor('chart'), percentile);
@@ -842,6 +975,20 @@ export default {
     onHideUnconnectedChange(value) {
       this.hideUnconnected = value;
       this.renderGraph();
+    },
+    // colorKey is baked into each point's row at upload time (see pointsForCosmo),
+    // not recomputed per-render -- needs the same full rebuild as
+    // onHideUnconnectedChange, mirroring data-network.vue's own onNodeColorModeChange.
+    onNodeColorModeChange(value) {
+      this.nodeColorMode = value;
+      this.renderGraph();
+    },
+    // Unlike node coloring, linkColorByFn already reads live edgeStyleMode state
+    // per edge on every call, so no data rebuild is needed -- just refresh the
+    // live config, mirroring data-network.vue's own onEdgeStyleModeChange.
+    onEdgeStyleModeChange(value) {
+      this.edgeStyleMode = value;
+      this.applyDesign();
     },
 
     async saveNetworkImage() {
@@ -1156,6 +1303,33 @@ export default {
   left: 20px;
   background: transparent;
   z-index: 10;
+}
+.edge-legend {
+  position: absolute;  /* Same convention as .legend, opposite corner so the two
+                           don't overlap when both a node and edge gradient show at once. */
+  bottom: 20px;
+  right: 20px;
+  z-index: 10;
+}
+
+/* Same reasoning as data-network.vue's own .toolbar-select: GraphToolbar's
+   content box is a fixed height with overflow:hidden, and the default compact
+   outlined field is just tall enough to poke into the graph view sitting
+   directly above with no gap. */
+.toolbar-select :deep(.v-field) {
+  --v-input-control-height: 26px;
+  --v-field-padding-bottom: 2px;
+  font-size: 0.72rem;
+}
+.toolbar-select :deep(.v-field__input) {
+  min-height: 26px;
+  padding-top: 0;
+}
+.toolbar-select :deep(.v-label) {
+  font-size: 0.72rem;
+}
+.toolbar-select :deep(.v-select__selection-text) {
+  font-size: 0.72rem;
 }
 
 .topn-control {

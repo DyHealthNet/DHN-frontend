@@ -1066,7 +1066,7 @@ export default {
     },
     edgeStyleModeItems() {
       return [
-        { title: 'Unweighted', value: 'unweighted' },
+        { title: 'Uniform', value: 'unweighted' },
         { title: '-log(p) × |effect size|', value: 'combined' },
         { title: '-log(p)', value: 'pvalue' },
         { title: 'Effect size', value: 'effect' },
