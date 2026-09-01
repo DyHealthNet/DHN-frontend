@@ -533,23 +533,23 @@
                       :model-value="nodeColorMode"
                       @update:model-value="onNodeColorModeChange"
                       :items="nodeColorModeItems"
-                      label="Color nodes by"
+                      label="Node color"
                       density="compact"
                       variant="outlined"
                       hide-details
-                      class="mr-3"
-                      style="max-width: 200px"
+                      class="toolbar-select mr-3"
+                      style="max-width: 170px"
                     ></v-select>
                     <v-select
                       :model-value="edgeStyleMode"
                       @update:model-value="onEdgeStyleModeChange"
                       :items="edgeStyleModeItems"
-                      label="Style edges by"
+                      label="Edge color"
                       density="compact"
                       variant="outlined"
                       hide-details
-                      class="mr-3"
-                      style="max-width: 200px"
+                      class="toolbar-select mr-3"
+                      style="max-width: 170px"
                     ></v-select>
                 </template>
                 <template #append>
@@ -749,14 +749,18 @@ export default {
       // 'rank', so every node's color is normalized against the same min/max
       // instead of recomputing it per node.
       weightedDegreeRange: { min: 0, max: 0 },
-      // Cached once per render pass while edgeStyleMode isn't 'unweighted', so
-      // every edge's color normalizes against the same min/max. See
-      // refreshEdgeScoreRange/edgeScore/computeLinkColor.
-      edgeScoreRange: { min: 0, max: 0 },
+      // Cached once per render pass while edgeStyleMode isn't 'unweighted' --
+      // each edge's percentile rank (0-1) by |score| among currently-displayed
+      // edges, parallel to networkEdges (null where there's no score). Rank-based
+      // rather than min-max so a skewed distribution (e.g. most surviving edges'
+      // p-values underflowing to the same near-zero value) still spreads across
+      // the full width/color range. See refreshEdgeScoreRange/computeLinkColor.
+      edgeScorePercentiles: [],
       // Edge styling mode: 'unweighted' (today's flat width/internal-external
       // color), or sized+colored by a significance score -- 'combined'
       // (-log10(p) * |effect size|), 'pvalue' (-log10(p) only), or 'effect'
-      // (|effect size| only). See edgeScore/computeLinkWidth/computeLinkColor.
+      // (|effect size| only, diverging cold/warm by sign). See
+      // computeEdgeScore/computeLinkWidth/computeLinkColor.
       edgeStyleMode: 'unweighted',
 
       // "Neighbors of" tab: the up-to-5 most-recently-clicked nodes, newest first, each its
@@ -1458,18 +1462,20 @@ export default {
     },
     // Continuous gradient color for a node's weighted_degree, normalized against
     // weightedDegreeRange (cached once per initializeCosmograph() call so every
-    // node in this render compares against the same min/max). Interpolates
-    // between the theme's own primary/primary-darken-1 blues (same pairing
-    // already used for e.g. hoveredPointRingColor) rather than a generic
-    // palette, so it stays within the DyHealthNet color scheme. Falls back to
-    // the theme's text color when weighted_degree isn't available (e.g. a
-    // node-search-built network, which doesn't carry it).
+    // node in this render compares against the same min/max). White (no/zero
+    // weighted_degree, e.g. an isolated node or a node-search-built network
+    // that doesn't carry the field at all) up to the theme's primary-darken-1
+    // blue at the top of the range -- a missing value reading as the *least*
+    // prominent color makes more sense here than the old text-color fallback,
+    // which stood out more than any actual node. log1p'd before normalizing:
+    // weighted_degree is highly right-skewed (a handful of hub nodes vastly
+    // outweigh everyone else), so a plain linear scale crushed almost every
+    // node into near-identical colors at the low end.
     rankColorFor(node) {
-      const value = node.weighted_degree;
-      if (value == null || Number.isNaN(value)) return this.labelColor('text');
+      const value = (node.weighted_degree != null && !Number.isNaN(node.weighted_degree)) ? node.weighted_degree : 0;
       const { min, max } = this.weightedDegreeRange;
-      const normalized = normalizeInRange(value, min, max);
-      return interpolateHexColor(this.labelColor('primary'), this.labelColor('primary-darken-1'), normalized);
+      const normalized = normalizeInRange(Math.log1p(value), Math.log1p(min), Math.log1p(max));
+      return interpolateHexColor('#FFFFFF', this.labelColor('primary-darken-1'), normalized);
     },
     // Community ids read as plain numbers/strings from the backend aren't
     // meaningful on their own -- label them explicitly instead of running them
@@ -1853,14 +1859,15 @@ export default {
       );
 
       // Cached once here (rather than per-node) so colorKeyFor/rankColorFor
-      // normalize every node in this render against the same min/max.
+      // normalize every node in this render against the same min/max. min is
+      // always 0 (not the smallest *observed* value) so the gradient's white
+      // end consistently means "no weighted degree" -- matching how rankColorFor
+      // itself treats a node with no weighted_degree at all as 0.
       if (this.nodeColorMode === 'rank') {
         const weightedDegrees = this.graphNodes
           .map((node) => node.weighted_degree)
           .filter((value) => value != null && !Number.isNaN(value));
-        this.weightedDegreeRange = weightedDegrees.length
-          ? { min: Math.min(...weightedDegrees), max: Math.max(...weightedDegrees) }
-          : { min: 0, max: 0 };
+        this.weightedDegreeRange = { min: 0, max: weightedDegrees.length ? Math.max(...weightedDegrees) : 0 };
       }
       this.refreshEdgeScoreRange();
 
@@ -3136,36 +3143,61 @@ export default {
         this.indexToNodeId[index] === this.displayedElement.id;
       return isDisplayed ? 26 : 11;
     },
-    // Cached once per render pass (initializeCosmograph()/applyDesign()) so every
-    // edge's color in a scored edgeStyleMode compares against the same min/max.
+    // Cached once per render pass (initializeCosmograph()/applyDesign()).
+    // Percentile rank (not min-max) by |score| among currently-displayed edges:
+    // most surviving edges' p-values commonly underflow to (near) the same
+    // tiny value, which under a min-max scale bunches almost everyone at one
+    // end -- ranking spreads them across the full width/color range instead.
+    // Also sidesteps p_value === 0 producing -log10(0) === Infinity, which
+    // would otherwise poison a min-max range for every other edge.
     refreshEdgeScoreRange() {
-      if (this.edgeStyleMode === 'unweighted') return;
-      const scores = this.networkEdges
-        .map((edge) => computeEdgeScore(edge, this.edgeStyleMode))
-        .filter((score) => score != null);
-      this.edgeScoreRange = scores.length
-        ? { min: Math.min(...scores), max: Math.max(...scores) }
-        : { min: 0, max: 0 };
+      if (this.edgeStyleMode === 'unweighted') {
+        this.edgeScorePercentiles = [];
+        return;
+      }
+      const ranked = this.networkEdges
+        .map((edge, index) => ({ index, score: computeEdgeScore(edge, this.edgeStyleMode) }))
+        .filter(({ score }) => score != null)
+        .sort((a, b) => a.score - b.score);
+      const percentiles = new Array(this.networkEdges.length).fill(null);
+      ranked.forEach(({ index }, rank) => {
+        percentiles[index] = ranked.length > 1 ? rank / (ranked.length - 1) : 1;
+      });
+      this.edgeScorePercentiles = percentiles;
     },
     // linkWidthBy names 'renderWidth' purely so Cosmograph invokes this per edge
     // (see pointSizeBy's own comment for why) -- the actual width always comes
     // from here, indexing back into networkEdges the same way computePointSize
-    // does for points.
+    // does for points. Spans a fixed [1, 8]px by percentile rank regardless of
+    // mode, rather than clamping the raw score directly as pixels -- effect
+    // size (always in [-1, 1]) previously rendered as a near-invisible sliver
+    // even at its theoretical max.
     computeLinkWidth(index) {
       const edge = this.networkEdges[index];
       if (!edge) return 2;
-      const score = computeEdgeScore(edge, this.edgeStyleMode);
-      if (score == null) return edge.set === 'external' ? 6 : (edge.width ?? 2);
-      return Math.min(Math.max(score, 0.5), 10);
+      const percentile = this.edgeScorePercentiles[index];
+      if (percentile == null) return edge.set === 'external' ? 6 : (edge.width ?? 2);
+      return 1 + percentile * 7;
     },
     computeLinkColor(index) {
       const edge = this.networkEdges[index];
       if (!edge) return this.labelColor('text');
-      const score = computeEdgeScore(edge, this.edgeStyleMode);
-      if (score == null) return edge.set === 'external' ? 'black' : this.labelColor('text');
-      const { min, max } = this.edgeScoreRange;
-      const normalized = normalizeInRange(score, min, max);
-      return interpolateHexColor(this.labelColor('primary'), this.labelColor('primary-darken-1'), normalized);
+      const percentile = this.edgeScorePercentiles[index];
+      if (percentile == null) return edge.set === 'external' ? 'black' : this.labelColor('text');
+      // Effect size is bounded and its sign is directly meaningful (unlike an
+      // unbounded p-value) -- a diverging scale on the actual signed value, not
+      // percentile rank, so 0 always lands exactly on "least visible" (blended
+      // into the background) regardless of what else is currently displayed.
+      // Cold (primary blue) for negative, warm (amber) for positive.
+      if (this.edgeStyleMode === 'effect') {
+        const magnitude = Math.min(Math.abs(edge.effect_size ?? 0), 1);
+        const endColor = (edge.effect_size ?? 0) < 0 ? this.labelColor('primary-darken-1') : this.labelColor('warning');
+        return interpolateHexColor(this.labelColor('background'), endColor, magnitude);
+      }
+      // Grey scale (the theme's own chart tokens, already grey in both light/dark
+      // mode) -- edges previously reused the node blue, which read as confusingly
+      // similar to node coloring.
+      return interpolateHexColor(this.labelColor('chart-grid'), this.labelColor('chart'), percentile);
     },
     // Recolors/reweights nodes+edges based on current selection/external/theme
     // state without rebuilding the whole graph (kept lightweight so pan/zoom/
@@ -3874,6 +3906,20 @@ export default {
    plain white specifically for whichever label is currently hovered. */
 :deep(.cosmo-hovered-label) {
   color: #fff !important;
+}
+
+/* GraphToolbar's content box is a fixed ~48px (density="compact") with
+   overflow:hidden -- the default compact v-select field height (40px) plus
+   its outlined-variant floating label leaves too little clearance and pokes
+   into the network view sitting directly above with no gap. Shrinking the
+   field via this CSS var (read by Vuetify's own field height calc) keeps it
+   comfortably inside the toolbar instead. */
+.toolbar-select :deep(.v-field) {
+  --v-input-control-height: 32px;
+  font-size: 0.8rem;
+}
+.toolbar-select :deep(.v-label) {
+  font-size: 0.8rem;
 }
 
 .network-page {
