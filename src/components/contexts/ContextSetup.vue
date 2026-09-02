@@ -1173,14 +1173,17 @@ export default {
       // (titleMissing), this is the safety net for any other path that could call sendContext().
       if (this.titleMissing) {
         this.showTaskBanner("Please enter a context name", "error");
+        this.$emit('calculation-end');
         return;
       }
       if (this.selectedVariables.length === 0) {
         this.showTaskBanner("Please select at least one variable", "error");
+        this.$emit('calculation-end');
         return;
       }
       if (this.innerRows.length === 0) {
         this.showTaskBanner("Please define at least one rule", "error");
+        this.$emit('calculation-end');
         return;
       }
       const params = this.createParams();
@@ -1199,11 +1202,16 @@ export default {
           .then(data => {
             if (data.status==="error") {
               // something went wrong - surface the backend's specific reason (e.g. too few
-              // variables remain after filtering) rather than a generic message
+              // variables remain after filtering) rather than a generic message. The task
+              // never actually started server-side, so signal calculation-end right away
+              // instead of leaving the Submit button stuck disabled ("calculation in
+              // progress") until a page reload - getProgressStatus() is never reached to do
+              // it for us in this branch.
               this.showTaskBanner(
                 data.message || "An error occurred while starting the context calculation",
                 "error"
               );
+              this.$emit('calculation-end');
               return;
             }
             this.taskMessage = data.message;
@@ -1217,6 +1225,8 @@ export default {
           })
           .catch((error) => {
             console.error('Error:', error);
+            this.showTaskBanner("An error occurred while starting the context calculation", "error");
+            this.$emit('calculation-end');
           });
 
     },
