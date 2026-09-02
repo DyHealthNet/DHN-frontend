@@ -319,8 +319,15 @@ export default {
       imageUrl: null,
       // Node color mode: 'group' (data layer -- protein/metabolite/phenotype) or
       // 'stc' (continuous gradient by node.nodeMetricValue). See colorKeyForNode/
-      // buildPointColorMap -- mirrors data-network.vue's nodeColorMode.
+      // computePointColor -- mirrors data-network.vue's nodeColorMode, including
+      // its live pointColorByFn (a light applyDesign() refresh on mode switch,
+      // no data reupload/full rebuild needed).
       nodeColorMode: 'group',
+      // Cached once per refreshNodeColorState() call (a full render, or a
+      // node-color-mode switch) -- 'group' mode's key -> hex lookup, read by
+      // computePointColor. 'stc' mode doesn't use this (its key from
+      // colorKeyForNode is already the final hex color).
+      pointColorMapCache: {},
       // Edge color mode: 'uniform' (flat, today's original look) or 'diffLP'
       // (percentile-ranked grey scale by edge.weight -- see computeLinkColor/
       // linksForCosmo). Mirrors data-network.vue's edgeStyleMode.
@@ -331,13 +338,15 @@ export default {
       dataConfig: {
         points: {
           pointIdBy: 'id',
-          // pointColorByMap is filled in per-run in renderGraph() -- groups/STC values
-          // aren't known until the result comes back (see buildPointColorMap). colorKey
-          // (not 'group' directly) so switching nodeColorMode can point the same column
-          // at either the group key or a precomputed STC gradient color -- see
-          // colorKeyForNode, same trick data-network.vue's own colorKeyFor uses.
-          pointColorBy: 'colorKey',
-          pointColorStrategy: 'map',
+          // pointColorBy just needs to name an existing column so Cosmograph
+          // actually invokes pointColorByFn per point -- 'id' (not 'colorKey')
+          // since color is looked up live via pointsById (see computePointColor),
+          // not baked into each row: unlike edges (see linksForCosmo's own
+          // comment), the color itself doesn't need to survive
+          // prepareCosmographData()'s DuckDB join, only the row's own stable id
+          // does, and 'id' already travels with the row regardless of any
+          // reordering that join might do.
+          pointColorBy: 'id',
           // Declared here (not just in the constructor config below) so prepareCosmographData
           // keeps 'id' available for pointSizeByFn to key off of -- see computePointSize, which
           // ignores the column's actual value and only uses the point's index.
@@ -413,13 +422,6 @@ export default {
       if (this.topN == null || this.topN >= this.totalNodeCount) return links;
       const ids = new Set(this.graphPoints.map((p) => p.id));
       return links.filter((l) => ids.has(l.source) && ids.has(l.target));
-    },
-    // graphPoints with a colorKey added -- what's actually passed to
-    // prepareCosmographData() as the points data (pointColorBy: 'colorKey'
-    // names this column). Recomputed whenever graphPoints or nodeColorMode
-    // change, same reactivity graphLinks/linksForCosmo already rely on.
-    pointsForCosmo() {
-      return this.graphPoints.map((point) => ({ ...point, colorKey: this.colorKeyForNode(point) }));
     },
     // Raw min/max of diff-L-P (edge.weight) across the currently-displayed
     // edges. Unlike the main network page's raw p_value/effect_size (read
@@ -648,7 +650,7 @@ export default {
       }
     },
 
-    // The colorKey Cosmograph's 'map' strategy actually looks up -- either the raw
+    // The key computePointColor() resolves to a final color -- either the raw
     // group (mirroring data-network.vue's node_group coloring) or, in 'stc' mode, the
     // point's own precomputed gradient color (mirroring data-network.vue's 'rank'
     // mode, see its colorKeyFor/rankColorFor). STC (1 - p-value of a direct
@@ -663,25 +665,38 @@ export default {
       const clamped = Math.min(Math.max(value, 0), 1);
       return interpolateHexColor(this.labelColor('chart-grid'), this.labelColor('primary-darken-1'), clamped);
     },
-    // colorKey -> hex lookup for Cosmograph's 'map' point-color strategy, mirroring how
+    // Refreshes pointColorMapCache for the current nodeColorMode -- called both
+    // on a full render (renderGraph/updateGraphDataViaConfig) and on a bare
+    // mode switch (onNodeColorModeChange), mirroring data-network.vue's own
+    // refreshNodeColorState.
+    refreshNodeColorState() {
+      this.pointColorMapCache = this.nodeColorMode === 'stc' ? {} : this.buildPointColorMap();
+    },
+    // colorKey -> hex lookup computePointColor() consumes for 'group' mode, mirroring how
     // data-network.vue colors by node_group: groups are fully data-driven (whatever layers the
     // two contexts share), not a fixed set, so each color is generated from the group name
-    // itself rather than kept in a hardcoded table. 'stc' mode's colorKey is already the
-    // final hex color (see colorKeyForNode), so its map is just an identity lookup.
+    // itself rather than kept in a hardcoded table. Only called for 'group' mode (see
+    // refreshNodeColorState) -- 'stc' mode's colorKey is already the final hex color
+    // (see colorKeyForNode), no lookup map needed.
     buildPointColorMap() {
-      if (this.nodeColorMode === 'stc') {
-        const colorMap = {};
-        for (const point of this.graphPoints) {
-          const color = this.colorKeyForNode(point);
-          colorMap[color] = color;
-        }
-        return colorMap;
-      }
       const colorMap = {};
       for (const { group, color } of this.legendGroups) {
         colorMap[group] = color;
       }
       return colorMap;
+    },
+    // pointColorBy: 'id' (see dataConfig) means `value` here is this point's own
+    // id -- safe to look up via pointsById regardless of any row reordering
+    // prepareCosmographData()'s DuckDB pipeline might do, unlike an index-based
+    // lookup. Color itself is computed live (not baked into the row), so
+    // switching nodeColorMode doesn't need a data reupload -- see
+    // onNodeColorModeChange.
+    computePointColor(value) {
+      const point = this.pointsById[value];
+      if (!point) return this.labelColor('text');
+      const key = this.colorKeyForNode(point);
+      if (this.nodeColorMode === 'stc') return key;
+      return this.pointColorMapCache[key] ?? this.labelColor('text');
     },
     // Group color for the Details panel's chip. Deliberately not colorForLegendKey-via-
     // legendGroups (built from graphPoints, the Top-N-trimmed subset) -- a node picked from the
@@ -706,11 +721,11 @@ export default {
         return;
       }
 
-      this.dataConfig.points.pointColorByMap = this.buildPointColorMap();
+      this.refreshNodeColorState();
 
       const prepared = await prepareCosmographData(
         this.dataConfig,
-        this.pointsForCosmo,
+        this.graphPoints,
         this.linksForCosmo
       );
       if (!prepared) {
@@ -751,6 +766,7 @@ export default {
         backgroundColor: this.labelColor('background'),
         hoveredPointRingColor: this.labelColor('primary-darken-1'),
         unknownColor: this.labelColor('text'),
+        pointColorByFn: (value) => this.computePointColor(value),
         linkColorByFn: (value) => this.computeLinkColor(value),
         linkWidthByFn: (value) => this.computeLinkWidth(value),
         onPointClick: (index) => this.selectPointFromGraph(index),
@@ -837,6 +853,7 @@ export default {
         backgroundColor: this.labelColor('background'),
         hoveredPointRingColor: this.labelColor('primary-darken-1'),
         unknownColor: this.labelColor('text'),
+        pointColorByFn: (value) => this.computePointColor(value),
         linkColorByFn: (value) => this.computeLinkColor(value),
         linkWidthByFn: (value) => this.computeLinkWidth(value),
         // New function reference each call: Cosmograph's config-change detection uses reference
@@ -870,11 +887,11 @@ export default {
         return;
       }
 
-      this.dataConfig.points.pointColorByMap = this.buildPointColorMap();
+      this.refreshNodeColorState();
 
       const prepared = await prepareCosmographData(
         this.dataConfig,
-        this.pointsForCosmo,
+        this.graphPoints,
         this.linksForCosmo
       );
       if (!prepared) {
@@ -1019,12 +1036,15 @@ export default {
       this.hideUnconnected = value;
       this.renderGraph();
     },
-    // colorKey is baked into each point's row at upload time (see pointsForCosmo),
-    // not recomputed per-render -- needs the same full rebuild as
-    // onHideUnconnectedChange, mirroring data-network.vue's own onNodeColorModeChange.
+    // Node color is computed live per point (pointColorByFn/computePointColor),
+    // not baked into each row, so switching modes just needs fresh state
+    // (refreshNodeColorState) and a light applyDesign() refresh -- same
+    // reasoning as onEdgeStyleModeChange below, and mirrors data-network.vue's
+    // own onNodeColorModeChange.
     onNodeColorModeChange(value) {
       this.nodeColorMode = value;
-      this.renderGraph();
+      this.refreshNodeColorState();
+      this.applyDesign();
     },
     // Unlike node coloring, linkColorByFn already reads live edgeStyleMode state
     // per edge on every call, so no data rebuild is needed -- just refresh the
