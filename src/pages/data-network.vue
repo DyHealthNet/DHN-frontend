@@ -501,6 +501,7 @@
                 @fit-view="resetView"
               >
                 <template #prepend>
+                    <v-spacer />
                     <v-btn-toggle
                       v-model="selectionMode"
                       class="mr-3"
@@ -551,7 +552,6 @@
                         </template>
                       </v-tooltip>
                     </v-btn-toggle>
-                    <v-spacer />
                     <v-select
                       :model-value="nodeColorMode"
                       @update:model-value="onNodeColorModeChange"
@@ -778,11 +778,17 @@ export default {
       searchedNodeId: null, // Details-panel "search node in network" field
 
       // Node coloring mode: 'group' (node_group/source_table), 'rank' (weighted
-      // degree gradient), or 'community' (requires clusteringActive). See
-      // colorKeyFor/buildPointColorMap. Switching modes runs a full
-      // initializeCosmograph() rebuild (like hideUnconnected) since colorKey is
-      // baked into each point's row, not recomputed per-render.
+      // degree gradient), 'degree' (plain degree gradient), or 'community'
+      // (requires clusteringActive). See colorKeyFor/computePointColor.
+      // pointColorByFn recomputes color live per point/per render (same as
+      // edge coloring), so switching modes is a light applyDesign() refresh,
+      // not a full initializeCosmograph() rebuild.
       nodeColorMode: 'group',
+      // Cached once per refreshNodeColorState() call (initializeCosmograph(),
+      // or a node-color-mode switch) -- group/community's colorKey -> hex
+      // lookup, read by computePointColor. Rank/Degree modes don't use this
+      // (their colorKey is already the final hex color).
+      pointColorMapCache: {},
       // Cached once per initializeCosmograph() rebuild while nodeColorMode is
       // 'rank', so every node's color is normalized against the same min/max
       // instead of recomputing it per node.
@@ -1977,11 +1983,12 @@ export default {
       this.isClusteringLoading = false;
     },
 
-    //Network Visualization
-    async initializeCosmograph() {
-      const container = this.$refs.network;
-      if (!container) return;
-
+    // Recomputes state computePointColor()/the legend need for the current
+    // nodeColorMode -- called both when the graph is freshly built
+    // (initializeCosmograph) and when just the coloring changes
+    // (onNodeColorModeChange), since colors are now computed live per point
+    // rather than baked into each point's row at upload time.
+    refreshNodeColorState() {
       this.includedNodeTypes = new Set(
         this.graphNodes.map((node) => this.legendKeyFor(node)).filter((key) => key !== undefined)
       );
@@ -2004,17 +2011,32 @@ export default {
           .filter((value) => value != null && !Number.isNaN(value));
         this.degreeRange = { min: 0, max: degrees.length ? Math.max(...degrees) : 0 };
       }
+      // Rank/Degree modes compute each node's final color directly (see
+      // colorKeyFor/computePointColor) -- no key -> color map needed, so skip
+      // building one.
+      this.pointColorMapCache = (this.nodeColorMode === 'rank' || this.nodeColorMode === 'degree')
+        ? {}
+        : this.buildPointColorMap();
+    },
+
+    //Network Visualization
+    async initializeCosmograph() {
+      const container = this.$refs.network;
+      if (!container) return;
+
+      this.refreshNodeColorState();
       this.refreshEdgeScoreRange();
 
       // Explicit sequential index lets us reliably map Cosmograph's click/color
-      // callback indices back to our own node/edge objects (pointIndexBy pins it).
-      // colorKey drives Cosmograph's own 'map' point-color strategy (see
-      // buildPointColorMap) -- undefined for an unrecognized group falls back to
-      // `unknownColor` natively instead of us having to guard against it.
+      // callback indices back to our own node/edge objects (pointIndexBy pins it),
+      // and is what computePointColor/computePointSize look the node up by --
+      // point color/size are computed live per point/per render (pointColorByFn/
+      // pointSizeByFn), not baked into this row, so switching nodeColorMode or
+      // the displayed/selected node doesn't need a re-upload.
       // graphNodes (not networkNodes) so hideUnconnected actually drops points --
       // every networkEdge already connects two graphNodes members either way (see
       // graphNodes' comment), so linksForCosmo below doesn't need the same filter.
-      // Only the columns Cosmograph's config below actually reads (id/idx/colorKey/
+      // Only the columns Cosmograph's config below actually reads (id/idx/
       // display_name) -- NOT a full `...node` spread. Every other field (weighted_degree,
       // description, x_refs, community_rX, ...) is only ever read back client-side from
       // this.graphNodes/rankColorFor/etc., never from Cosmograph's own copy (nothing in
@@ -2026,7 +2048,6 @@ export default {
       const pointsForCosmo = this.graphNodes.map((node, i) => ({
         id: node.id,
         idx: i,
-        colorKey: this.colorKeyFor(node),
         display_name: node.display_name,
       }));
       const nodeIdToIdx = new Map(pointsForCosmo.map((p) => [p.id, p.idx]));
@@ -2059,12 +2080,15 @@ export default {
         links: linksForCosmo,
         pointIdBy: 'id',
         pointIndexBy: 'idx',
-        // Cosmograph's own 'map' color strategy: a static colorKey -> hex lookup it
-        // evaluates natively (falls back to unknownColor for unmapped colorKeys),
-        // instead of a per-point JS callback that has to guard against bad data itself.
-        pointColorBy: 'colorKey',
-        pointColorStrategy: 'map',
-        pointColorByMap: this.buildPointColorMap(),
+        // pointColorBy just needs to name an existing column so Cosmograph
+        // actually invokes pointColorByFn per point -- the column's own value
+        // is unused, computePointColor looks the point up by index instead
+        // (same trick as pointSizeBy/'id' below). Live per-point/per-render
+        // color (not Cosmograph's static 'map' strategy this used to use)
+        // means switching nodeColorMode is a light applyDesign() refresh, not
+        // a full rebuild -- same reasoning as the edge coloring already uses.
+        pointColorBy: 'id',
+        pointColorByFn: (value, index) => this.computePointColor(index),
         unknownColor: this.labelColor("text"),
         // Without an explicit pointDefaultSize, Cosmograph falls back to
         // sizing points by degree whenever links are present -- pin a fixed
@@ -3280,6 +3304,19 @@ export default {
         this.indexToNodeId[index] === this.displayedElement.id;
       return isDisplayed ? 26 : 11;
     },
+    // Looks the node up by index (same trick as computePointSize) and derives
+    // its color live -- colorKeyFor already returns the final hex color for
+    // Rank/Degree modes, or a key needing pointColorMapCache's lookup for
+    // Group/Community (mirroring the native 'map' strategy's own unmapped-key
+    // fallback, since a JS callback doesn't get that for free).
+    computePointColor(index) {
+      const node = this.graphNodes[index];
+      if (!node) return this.labelColor('text');
+      const key = this.colorKeyFor(node);
+      if (key === undefined) return this.labelColor('text');
+      if (this.nodeColorMode === 'rank' || this.nodeColorMode === 'degree') return key;
+      return this.pointColorMapCache[key] ?? this.labelColor('text');
+    },
     // Cached once per render pass (initializeCosmograph()/applyDesign()).
     // Percentile rank (not min-max) by |score| among currently-displayed edges:
     // most surviving edges' p-values commonly underflow to (near) the same
@@ -3358,11 +3395,13 @@ export default {
         ...this._cosmoConfig,
         backgroundColor: this.labelColor("background"),
         hoveredPointRingColor: this.labelColor("primary-darken-1"),
-        // The map's colors are static hex, so only the fallback needs refreshing on theme change.
+        // pointColorMapCache's own colors are static hex, so only the fallback needs refreshing on theme change.
         unknownColor: this.labelColor("text"),
         // New function reference each call so Cosmograph's config-change detection
         // (reference equality) actually re-invokes it -- displayedElement (which it
-        // reads via computePointSize) can change without pointsForCosmo changing.
+        // reads via computePointSize) can change without pointsForCosmo changing,
+        // and nodeColorMode can change without graphNodes changing.
+        pointColorByFn: (value, index) => this.computePointColor(index),
         pointSizeByFn: (value, index) => this.computePointSize(index),
         linkColorByFn: (value, index) => this.computeLinkColor(index),
         linkWidthByFn: (value, index) => this.computeLinkWidth(index),
@@ -3385,26 +3424,18 @@ export default {
         this.saveState();
       }
     },
-    // Builds the colorKey -> color lookup consumed by Cosmograph's 'map'
-    // point-color strategy. Node-type mode: one entry per known group plus a
+    // Builds the colorKey -> color lookup computePointColor() consumes for
+    // Group/Community modes. Node-type mode: one entry per known group plus a
     // darkened '<group>_external' variant, so a single static object handles
     // both dimensions instead of a per-point function. Community mode has no
     // external variant (whole-network nodes are never external) and delegates
     // to buildCommunityColorMap() instead -- see there for why it can't reuse
-    // colorForGroup's hash. Rank/Degree modes' colorKey is already the final
-    // hex color (see colorKeyFor/rankColorFor/degreeColorFor), so their map is
-    // just an identity lookup -- still required since Cosmograph's 'map'
-    // strategy always looks the colorKey up rather than rendering it directly.
+    // colorForGroup's hash. Only called for those two modes (see
+    // refreshNodeColorState) -- Rank/Degree modes' colorKey is already the
+    // final hex color (see colorKeyFor/rankColorFor/degreeColorFor), no lookup
+    // map needed.
     buildPointColorMap() {
       if (this.nodeColorMode === 'community') return this.buildCommunityColorMap();
-      if (this.nodeColorMode === 'rank' || this.nodeColorMode === 'degree') {
-        const colorMap = {};
-        for (const node of this.graphNodes) {
-          const color = this.nodeColorMode === 'rank' ? this.rankColorFor(node) : this.degreeColorFor(node);
-          colorMap[color] = color;
-        }
-        return colorMap;
-      }
       const colorMap = {};
       const groupColors = assignGroupColors(this.legendGroups);
       for (const key of this.includedNodeTypes) {
@@ -3497,13 +3528,13 @@ export default {
       await this.initializeCosmograph();
       this.applyDesign();
     },
-    // colorKey is baked into each point's row at upload time (see
-    // initializeCosmograph()'s pointsForCosmo), not recomputed per-render like
-    // pointSizeByFn/linkColorByFn -- so switching modes needs the same full
-    // rebuild as onHideUnconnectedChange rather than a lighter applyDesign()-only patch.
-    async onNodeColorModeChange(value) {
+    // Unlike hideUnconnected (which changes which points are even uploaded),
+    // node color is now computed live per point (pointColorByFn), so switching
+    // modes just needs fresh state (refreshNodeColorState) and a lightweight
+    // applyDesign() refresh -- same reasoning as onEdgeStyleModeChange below.
+    onNodeColorModeChange(value) {
       this.nodeColorMode = value;
-      await this.initializeCosmograph();
+      this.refreshNodeColorState();
       this.applyDesign();
     },
     // Unlike node coloring, linkWidthByFn/linkColorByFn already read live

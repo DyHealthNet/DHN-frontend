@@ -92,6 +92,7 @@
                 @update:hide-unconnected="onHideUnconnectedChange"
                 @save-image="saveNetworkImage"
                 @fit-view="resetView"
+                title-tooltip="Differential Network"
               >
                 <template #title>Differential Network</template>
                 <template #prepend>
