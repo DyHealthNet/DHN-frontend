@@ -13,7 +13,7 @@ import * as directives from 'vuetify/directives'
 // PrimeVue (used by DownloadableDataTable.vue)
 import PrimeVue from 'primevue/config'
 import Aura from '@primevue/themes/aura'
-import { definePreset } from '@primeuix/themes'
+import { definePreset } from '@primevue/themes'
 import 'primeicons/primeicons.css'
 
 // Components
