@@ -3168,10 +3168,11 @@ export default {
         const magnitude = Math.min(Math.abs(edge.effect_size ?? 0), 1);
         return interpolateHexColor(this.labelColor('chart-grid'), '#000000', magnitude);
       }
-      // Grey scale (the theme's own chart tokens, already grey in both light/dark
-      // mode) -- edges previously reused the node blue, which read as confusingly
-      // similar to node coloring.
-      return interpolateHexColor(this.labelColor('chart-grid'), this.labelColor('chart'), percentile);
+      // Grey scale, same light-grey-to-black endpoints as 'effectAbs' (just driven
+      // by percentile rank instead of the raw score, since -log10(p) is unbounded --
+      // see computeEdgeScore) -- edges previously reused the node blue, which read
+      // as confusingly similar to node coloring.
+      return interpolateHexColor(this.labelColor('chart-grid'), '#000000', percentile);
     },
     // Recolors/reweights nodes+edges based on current selection/external/theme
     // state without rebuilding the whole graph (kept lightweight so pan/zoom/
