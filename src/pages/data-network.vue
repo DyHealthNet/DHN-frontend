@@ -212,6 +212,7 @@
                 <v-col>
                   <WholeNetworkSettings :selected-tests="wholeNetworkTests"
                                         :density="density"
+                                        :disable-selections="disableSelections"
                                         expansion-panel-variant="default"
                                         @data-changed="updateWholeNetworkSettings"
                                         />
@@ -446,6 +447,11 @@
 
               <v-window v-model="visualizationTab">
                 <v-window-item value="visualization">
+
+              <!-- Community detection can take a while -- surfaced here (not just the Analysis
+                   panel's own button spinner) so it's visible even while that accordion panel is
+                   collapsed or the user is looking at the graph. -->
+              <v-progress-linear v-if="isClusteringLoading" indeterminate color="primary" height="4" />
 
               <!-- Card Content -->
               <v-card-text ref="wholeNetwork">
