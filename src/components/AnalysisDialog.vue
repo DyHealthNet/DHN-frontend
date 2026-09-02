@@ -8,8 +8,14 @@
       <v-card-title class="d-flex align-center">
         {{ title }}
         <v-spacer></v-spacer>
-        <v-icon size="20" @click="$emit('update:modelValue', false)">mdi-close</v-icon>
-      </v-card-title>
+        <v-btn
+          icon="mdi-close"
+          variant="text"
+          size="small"
+          aria-label="Close dialog"
+          @click="$emit('update:modelValue', false)"
+        />
+      </v-card-title
       <v-card-text>
         <slot></slot>
       </v-card-text>
