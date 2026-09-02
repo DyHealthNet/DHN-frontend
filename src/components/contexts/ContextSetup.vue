@@ -841,9 +841,10 @@ export default {
           .then(data => {
             if (data.status==="error") {
               // something went wrong
-              this.taskStarted = true;
-              this.taskInfo = "An error occurred during context association calculations.";
-              this.taskType = "error";
+              this.showTaskBanner(
+                data.result || "An error occurred during context association calculations.",
+                "error"
+              );
               this.$emit('calculation-end');
               //this.status = "error";
               this.clearContext(false);
@@ -1149,27 +1150,37 @@ export default {
       };
     },
 
+    // Always use this (rather than assigning taskStarted/taskInfo/taskType directly) to
+    // show a banner. The v-snackbar's auto-dismiss timer only restarts when its v-model
+    // transitions false -> true; setting taskStarted to true while it's already true (e.g.
+    // a "started successfully" banner immediately followed by an async error banner) is a
+    // no-op assignment that never fires that transition, so the new message silently
+    // inherits whatever little time was left on the previous banner's countdown. Forcing a
+    // brief false step in between guarantees every banner gets its own full display time.
+    showTaskBanner(message, type) {
+      this.taskStarted = false;
+      this.taskInfo = message;
+      this.taskType = type;
+      this.$nextTick(() => {
+        this.taskStarted = true;
+      });
+    },
+
     async sendContext() {
       this.$emit('calculation-start')
       console.log("sendContext()");
       // check for validity - also enforced proactively by the Submit button's :disabled
       // (titleMissing), this is the safety net for any other path that could call sendContext().
       if (this.titleMissing) {
-        this.taskStarted = true;
-        this.taskInfo = "Please enter a context name";
-        this.taskType = "error";
+        this.showTaskBanner("Please enter a context name", "error");
         return;
       }
       if (this.selectedVariables.length === 0) {
-        this.taskStarted = true;
-        this.taskInfo = "Please select at least one variable";
-        this.taskType = "error";
+        this.showTaskBanner("Please select at least one variable", "error");
         return;
       }
       if (this.innerRows.length === 0) {
-        this.taskStarted = true;
-        this.taskInfo = "Please define at least one rule";
-        this.taskType = "error";
+        this.showTaskBanner("Please define at least one rule", "error");
         return;
       }
       const params = this.createParams();
@@ -1187,18 +1198,18 @@ export default {
           .then(response => response.json())
           .then(data => {
             if (data.status==="error") {
-              // something went wrong
-              this.taskStarted = true;
-              this.taskInfo = "An error occurred while starting the context calculation";
-              this.taskType = "error";
+              // something went wrong - surface the backend's specific reason (e.g. too few
+              // variables remain after filtering) rather than a generic message
+              this.showTaskBanner(
+                data.message || "An error occurred while starting the context calculation",
+                "error"
+              );
               return;
             }
             this.taskMessage = data.message;
-            this.taskStarted = true;
-            this.taskInfo = "Context calculation started successfully";
+            this.showTaskBanner("Context calculation started successfully", data.status);
             // should not be needed unless database get cleaned and restarted
             clearNetworkState(this.value);
-            this.taskType = data.status;
             this.sendDisabled = true;
             this.disableSelections = true;
             //contextState.indicatorSeen = true;
@@ -1270,17 +1281,13 @@ export default {
         })
             .then(response => response.json())
             .then(data => {
-              this.taskStarted = true;
-              this.taskInfo = data.message;
-              this.taskType = "success";
+              this.showTaskBanner(data.message, "success");
               this.sendDisabled = false;
               clearNetworkState(this.value);
             })
             .catch((error) => {
               console.error('Error:', error);
-              this.taskStarted = true;
-              this.taskInfo = "An error occurred while deleting the context";
-              this.taskType = "error";
+              this.showTaskBanner("An error occurred while deleting the context", "error");
             });
       }
     },
