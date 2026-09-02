@@ -612,6 +612,18 @@
                     ></v-select>
                 </template>
                 <template #append>
+                  <v-tooltip :text="undoStack.length ? 'Undo last action' : 'Nothing to undo'" location="bottom">
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        icon
+                        v-bind="props"
+                        :disabled="!undoStack.length"
+                        @click="undo"
+                      >
+                        <v-icon class="m-3">mdi-undo</v-icon>
+                      </v-btn>
+                    </template>
+                  </v-tooltip>
                   <v-tooltip text="Clear network" location="bottom">
                     <template v-slot:activator="{ props }">
                       <v-btn
@@ -784,6 +796,11 @@ export default {
       displayedEdges:  null,
       allInternalEdges: [],
       allExternalEdges: [],
+      // Undo stack for network-changing actions -- full (nodes, allInternalEdges,
+      // settings) snapshots, capped at 3 entries (see pushUndoSnapshot()) rather
+      // than a diff/patch system, since a snapshot restore can't be corrupted by
+      // an edge case in some per-action inverse logic.
+      undoStack: [],
 
       physics_on: true,
       // Graph-only: hides nodes with no edges in the currently displayed
@@ -1709,6 +1726,7 @@ export default {
       this.activeIndex = -1;
     },
     async sendToNetwork() {
+      this.pushUndoSnapshot();
       console.log("this.selectedNetworkNodes", this.selectedNetworkNodes)
       // Community/rank coloring only apply to a 'whole' network fetch -- a fresh
       // node-search network has no community data or weighted_degree on its nodes.
@@ -1769,6 +1787,11 @@ export default {
 
         if (!response.ok) throw new Error("Network response was not ok");
         const data = await response.json();
+
+        // Snapshotted only once the fetch has actually succeeded, so a failed
+        // request (network error, backend error) doesn't waste one of the 3
+        // undo slots on an action that never changed anything.
+        this.pushUndoSnapshot();
 
         // Whole-network mode replaces the node-search selection entirely.
         this.searchText = "";
@@ -1941,6 +1964,7 @@ export default {
           throw new Error(errorText || "Network response was not ok");
         }
         const data = await response.json();
+        this.pushUndoSnapshot();
         this.leidenMeta = data.meta ?? {};
         // Backend is authoritative on what actually ran (data.meta.algorithm),
         // rather than trusting the request's own selectedAlgorithm.
@@ -2893,6 +2917,7 @@ export default {
           this.showInfo = true;
         }
 
+        this.pushUndoSnapshot();
         this.setNetworkNodes(data);
       } catch (error) {
         console.error("Error fetching edges:", error);
@@ -2936,6 +2961,7 @@ export default {
           throw new Error("Network response was not ok");
         }
         const data = await response.json();
+        this.pushUndoSnapshot();
         const nodeSet = new Set(nodes);
         if (minSpanTree){
           const edgeIdsToRemove = new Set(
@@ -3345,6 +3371,7 @@ export default {
       this.applyDesign();
     },
     async clearNetwork(full = true, saveState=true){
+      this.pushUndoSnapshot();
       this.clearNetworkWarn = false;
       this.clusteringActive = false;
       this.nodeColorMode = 'group';
@@ -3370,6 +3397,7 @@ export default {
       }
     },
     async clearUnselectedNodes(){
+      this.pushUndoSnapshot();
       this.clearNetworkWarn = false;
       // Pruning down to the selection changes the graph out from under
       // lastNetworkMode -- see setNetworkNodes() for why this must be reset.
@@ -3527,11 +3555,11 @@ export default {
     },
 
     // Page/ State Reload
-    saveState() {
-      //console.log("saveState")
-      const nodes = this.networkNodes;
-      const edges = this.networkEdges;
-      const user_settings = {
+    // Fields that describe "how the network is being viewed" as opposed to the
+    // network data itself -- shared by saveState() (localStorage persistence),
+    // pushUndoSnapshot() and undo() so the field list only lives in one place.
+    buildUserSettings() {
+      return {
         selectedNodes: this.selectedNodes,
         selectedNetworkNodes: this.selectedNetworkNodes,
         selectedTests: this.selectedTests,
@@ -3563,10 +3591,48 @@ export default {
         // Annotation above.
         scoreClusteringRunId: this.scoreClusteringRunId,
         scoreClusteringStartedAt: this.scoreClusteringStartedAt,
-      }
+      };
+    },
+    restoreUserSettings(user_settings) {
+      this.selectedNodes = user_settings.selectedNodes;
+      this.selectAll = user_settings.selectAll;
+      this.updateSearchText();
 
-      const exportData = { nodes: nodes, edges: edges ,
-        vis_options: {simulation: {enabled: this.physics_on}}, user_settings: { ...user_settings }};
+      this.selectedNetworkNodes = user_settings.selectedNetworkNodes;
+      const loaded = user_settings.selectedTests;
+      this.selectedTests = (loaded?.testType !== undefined)
+        ? loaded
+        : { testType: 'parametric', correction: loaded?.correction ?? 'bh' };
+      this.signThresh = parseFloat(user_settings.signThresh);
+      this.fixThreshold = user_settings.fixThreshold;
+      this.topNodesNumber = parseInt(user_settings.topNodesNumber);
+      this.topPerNodeCount = user_settings.topPerNodeCount;
+      this.wholeNetworkTests = user_settings.wholeNetworkTests ?? { testType: 'parametric', correction: 'bh' };
+      this.density = user_settings.density !== undefined ? parseFloat(user_settings.density) : 0.01;
+      this.lastNetworkMode = user_settings.lastNetworkMode ?? null;
+      // Community detection -- older saved states won't have these fields, so
+      // fall back to "no clustering" rather than showing a legend title for
+      // data that isn't actually there.
+      this.clusteringActive = user_settings.clusteringActive ?? false;
+      this.clusteringAlgorithm = user_settings.clusteringAlgorithm ?? null;
+      // Guard against a stale 'community' mode with no actual community data
+      // (older saved states won't have nodeColorMode at all either).
+      this.nodeColorMode = (user_settings.nodeColorMode === 'community' && !this.clusteringActive)
+        ? 'group'
+        : (user_settings.nodeColorMode ?? 'group');
+      this.edgeStyleMode = user_settings.edgeStyleMode ?? 'unweighted';
+      this.selectedAlgorithm = user_settings.selectedAlgorithm ?? 'leiden';
+      this.leidenResolution = user_settings.leidenResolution ?? 1.0;
+      this.leidenMeta = user_settings.leidenMeta ?? {};
+      this.communityAnnotationRunId = user_settings.communityAnnotationRunId ?? null;
+      this.communityAnnotationStartedAt = user_settings.communityAnnotationStartedAt ?? null;
+      this.scoreClusteringRunId = user_settings.scoreClusteringRunId ?? null;
+      this.scoreClusteringStartedAt = user_settings.scoreClusteringStartedAt ?? null;
+    },
+    saveState() {
+      //console.log("saveState")
+      const exportData = { nodes: this.networkNodes, edges: this.networkEdges,
+        vis_options: {simulation: {enabled: this.physics_on}}, user_settings: this.buildUserSettings() };
       console.log("Save State exportData", exportData)
       saveNetworkState(this.contextValue, exportData);
     },
@@ -3588,45 +3654,45 @@ export default {
         // so localStorage state saved before this change still loads correctly.
         this.physics_on = vis_options?.simulation?.enabled ?? vis_options?.physics?.enabled ?? true;
 
-        this.selectedNodes = user_settings.selectedNodes;
-        this.selectAll = user_settings.selectAll;
-        this.updateSearchText();
-
-        this.selectedNetworkNodes = user_settings.selectedNetworkNodes;
-        const loaded = user_settings.selectedTests;
-        this.selectedTests = (loaded?.testType !== undefined)
-          ? loaded
-          : { testType: 'parametric', correction: loaded?.correction ?? 'bh' };
-        this.signThresh = parseFloat(user_settings.signThresh);
-        this.fixThreshold = user_settings.fixThreshold;
-        this.topNodesNumber = parseInt(user_settings.topNodesNumber);
-        this.topPerNodeCount = user_settings.topPerNodeCount;
-        this.wholeNetworkTests = user_settings.wholeNetworkTests ?? { testType: 'parametric', correction: 'bh' };
-        this.density = user_settings.density !== undefined ? parseFloat(user_settings.density) : 0.01;
-        this.lastNetworkMode = user_settings.lastNetworkMode ?? null;
-        // Community detection -- older saved states won't have these fields, so
-        // fall back to "no clustering" rather than showing a legend title for
-        // data that isn't actually there.
-        this.clusteringActive = user_settings.clusteringActive ?? false;
-        this.clusteringAlgorithm = user_settings.clusteringAlgorithm ?? null;
-        // Guard against a stale 'community' mode with no actual community data
-        // (older saved states won't have nodeColorMode at all either).
-        this.nodeColorMode = (user_settings.nodeColorMode === 'community' && !this.clusteringActive)
-          ? 'group'
-          : (user_settings.nodeColorMode ?? 'group');
-        this.edgeStyleMode = user_settings.edgeStyleMode ?? 'unweighted';
-        this.selectedAlgorithm = user_settings.selectedAlgorithm ?? 'leiden';
-        this.leidenResolution = user_settings.leidenResolution ?? 1.0;
-        this.leidenMeta = user_settings.leidenMeta ?? {};
-        this.communityAnnotationRunId = user_settings.communityAnnotationRunId ?? null;
-        this.communityAnnotationStartedAt = user_settings.communityAnnotationStartedAt ?? null;
-        this.scoreClusteringRunId = user_settings.scoreClusteringRunId ?? null;
-        this.scoreClusteringStartedAt = user_settings.scoreClusteringStartedAt ?? null;
+        this.restoreUserSettings(user_settings);
         await this.initializeCosmograph(); // Reapply the state to the new network
         this.applyDesign(false);
         this.resumeCommunityAnnotationIfNeeded();
         this.resumeScoreClusteringIfNeeded();
       }
+    },
+    // Undo: called at the start of every network-changing action (see the call
+    // sites in sendToNetwork/sendWholeNetwork/runLeidenClustering/clearNetwork/
+    // clearUnselectedNodes/fetchNodesAndEdges/fetchNodeGroupEdges), right before
+    // that action actually mutates networkNodes/allInternalEdges. Deliberately a
+    // full clone rather than a diff of what changed -- a diff can only express
+    // "what this one action changed", which falls apart once several actions
+    // have layered on top of each other (e.g. clearing a network built up via
+    // several individual "Connect Node" clicks: undoing just the last connect
+    // wouldn't bring back the nodes added by the connects before it). A full
+    // snapshot is always correct to restore regardless of how the state was
+    // built up, at the cost of the clone itself -- capped at 3 entries to keep
+    // that cost bounded even for large networks.
+    pushUndoSnapshot() {
+      this.undoStack.push({
+        nodes: structuredClone(this.networkNodes),
+        // allInternalEdges is the source networkEdges is filtered from
+        // (see filterForNetworkEdges()); allExternalEdges is always empty
+        // (the platform doesn't support external nodes), so it's not snapshotted.
+        internalEdges: structuredClone(this.allInternalEdges),
+        settings: structuredClone(this.buildUserSettings()),
+      });
+      if (this.undoStack.length > 3) this.undoStack.shift();
+    },
+    async undo() {
+      const snapshot = this.undoStack.pop();
+      if (!snapshot) return;
+      this.networkNodes = snapshot.nodes;
+      this.allInternalEdges = snapshot.internalEdges;
+      this.filterForNetworkEdges();
+      this.restoreUserSettings(snapshot.settings);
+      await this.initializeCosmograph();
+      this.applyDesign();
     },
   },
   watch: {

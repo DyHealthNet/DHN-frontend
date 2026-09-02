@@ -32,6 +32,7 @@
 import {authState, checkLogin, getCookie} from '@/components/authentication/auth.js';
 import router from "@/router.js"; // If you're using a reactive auth state
 import {BASE_URL} from "../components/constants.js";
+import {clearAllNetworkState} from "@/components/network/networkData.js";
 
 
 export default {
@@ -57,6 +58,7 @@ export default {
               console.log("Logged out successfully");
               // add checkLogin? (not necessary as logout was successfull and will be checked before accessing restricted site)
               authState.isLoggedIn = false; // Update auth state if you use it
+              clearAllNetworkState(); // Prevent a different user on this browser from seeing this user's cached network state
           } else {
           console.error("Logout failed:", response.statusText);
         }

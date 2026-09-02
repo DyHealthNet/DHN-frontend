@@ -382,6 +382,15 @@ export function clearNetworkState(contextValue) {
   }
 }
 
+// Clears all saved network/context state from localStorage, regardless of
+// slot index. Must run on logout so a different user logging in on the same
+// browser never sees the previous user's cached network state.
+export function clearAllNetworkState() {
+  Object.keys(localStorage)
+    .filter((key) => key === 'staticNetwork' || key.startsWith('context_'))
+    .forEach((key) => localStorage.removeItem(key));
+}
+
 
 export const nodeData = [
   { id: 1, label: 'EGFR', group: 'Protein' },
