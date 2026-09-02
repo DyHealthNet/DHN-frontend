@@ -91,10 +91,52 @@
                 :hide-unconnected="hideUnconnected"
                 @update:hide-unconnected="onHideUnconnectedChange"
                 @save-image="saveNetworkImage"
+                @fit-view="resetView"
+                title-tooltip="Differential Network"
               >
                 <template #title>Differential Network</template>
                 <template #prepend>
                   <v-spacer />
+                  <v-select
+                    :model-value="nodeColorMode"
+                    @update:model-value="onNodeColorModeChange"
+                    :items="nodeColorModeItems"
+                    label="Node color"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    class="toolbar-select mr-3"
+                    style="max-width: 140px"
+                  >
+                    <template #item="{ item, props }">
+                      <v-tooltip v-if="item.raw.tooltip" :text="item.raw.tooltip" location="end">
+                        <template #activator="{ props: tooltipProps }">
+                          <v-list-item v-bind="{ ...props, ...tooltipProps }"></v-list-item>
+                        </template>
+                      </v-tooltip>
+                      <v-list-item v-else v-bind="props"></v-list-item>
+                    </template>
+                  </v-select>
+                  <v-select
+                    :model-value="edgeStyleMode"
+                    @update:model-value="onEdgeStyleModeChange"
+                    :items="edgeStyleModeItems"
+                    label="Edge color"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    class="toolbar-select mr-3"
+                    style="max-width: 140px"
+                  >
+                    <template #item="{ item, props }">
+                      <v-tooltip v-if="item.raw.tooltip" :text="item.raw.tooltip" location="end">
+                        <template #activator="{ props: tooltipProps }">
+                          <v-list-item v-bind="{ ...props, ...tooltipProps }"></v-list-item>
+                        </template>
+                      </v-tooltip>
+                      <v-list-item v-else v-bind="props"></v-list-item>
+                    </template>
+                  </v-select>
                   <div class="topn-control mr-4" v-if="totalNodeCount > 1">
                     <span class="topn-caption">Top Nodes</span>
                     <v-slider
@@ -115,8 +157,42 @@
               <a ref="downloadLink" style="display: none" :href="imageUrl" :download="downloadFileName"></a>
               <v-card-text>
                 <div class="graph-stage">
-                  <div ref="containerRef" class="graph-container"></div>
-                  <NetworkLegend class="legend" :items="legendItems" />
+                  <div ref="containerRef" class="graph-container">
+                    <CosmographGraph
+                      ref="graph"
+                      :nodes="graphPoints"
+                      :edges="edgesForGraph"
+                      :physics-on="physics_on"
+                      :point-color-fn="computePointColor"
+                      :point-size-fn="computePointSize"
+                      :link-color-fn="computeLinkColor"
+                      :link-width-fn="computeLinkWidth"
+                      :background-color="labelColor('background')"
+                      :hovered-point-ring-color="labelColor('primary-darken-1')"
+                      :unknown-color="labelColor('text')"
+                      :point-default-size="8"
+                      @point-click="selectPointFromGraph"
+                      @link-click="selectLinkFromGraph"
+                      @background-click="clearSelection"
+                      @simulation-end="onSimulationEnd"
+                      @error="onGraphError"
+                    />
+                  </div>
+                  <NetworkLegend v-if="nodeColorMode !== 'stc'" class="legend" :items="legendItems" />
+                  <GradientLegend
+                    v-else
+                    class="legend"
+                    title="Node color: STC"
+                    :gradient-css="nodeStcGradientCss"
+                    :labels="nodeStcLegendLabels"
+                  />
+                  <GradientLegend
+                    v-if="edgeStyleMode === 'diffLP'"
+                    class="edge-legend"
+                    title="Edge color: diff-L-P"
+                    :gradient-css="edgeDiffLPGradientCss"
+                    :labels="edgeDiffLPLegendLabels"
+                  />
                 </div>
               </v-card-text>
             </v-card>
@@ -134,6 +210,7 @@
                   :context1="selectedContexts.context1"
                   :context2="selectedContexts.context2"
                   :get-icon="getNodeIcon"
+                  :get-group-color="colorForNodeGroup"
                   :node-metric="result?.nodeMetric"
                   :ranking-algorithm="result?.rankingAlgorithm"
                 />
@@ -142,7 +219,7 @@
                   :edge="selectedLink"
                   :context-names="contextNames"
                   :points-by-id="pointsById"
-                  :get-icon="getNodeIcon"
+                  :get-group-color="colorForNodeGroup"
                   :context1="selectedContexts.context1"
                   :context2="selectedContexts.context2"
                   :edge-metric="result?.edgeMetric"
@@ -180,7 +257,6 @@
 </template>
 
 <script>
-import { Cosmograph, prepareCosmographData } from '@cosmograph/cosmograph';
 import { BASE_URL } from '@/components/constants.js';
 import { getCookie } from '@/components/authentication/auth.js';
 import ContextComparisonPicker from '@/components/modina/ContextComparisonPicker.vue';
@@ -191,7 +267,10 @@ import DiffNodeDetails from '@/components/modina/DiffNodeDetails.vue';
 import DiffEdgeDetails from '@/components/modina/DiffEdgeDetails.vue';
 import GraphToolbar from '@/components/network/GraphToolbar.vue';
 import NetworkLegend from '@/components/network/NetworkLegend.vue';
-import { assignGroupColors, getNodeIcon, saveNetworkState, loadNetworkState, clearNetworkState, capitalizeFirstLetter, drawLegendPanel } from '@/components/network/networkData.js';
+import GradientLegend from '@/components/network/GradientLegend.vue';
+import CosmographGraph from '@/components/network/CosmographGraph.vue';
+import { assignGroupColors, getNodeIcon, saveNetworkState, loadNetworkState, clearNetworkState, capitalizeFirstLetter, drawLegendPanel, interpolateHexColor, normalizeInRange } from '@/components/network/networkData.js';
+import { NODE_METRIC_INFO, EDGE_METRIC_INFO, metricDescription } from '@/components/modina/metricInfo.js';
 
 // Distinct key (not a numeric contextValue) so this doesn't collide with data-network.vue's own
 // per-context / "staticNetwork" localStorage entries, which share the same helper functions.
@@ -208,6 +287,8 @@ export default {
     DiffEdgeDetails,
     GraphToolbar,
     NetworkLegend,
+    GradientLegend,
+    CosmographGraph,
   },
   data() {
     return {
@@ -230,9 +311,12 @@ export default {
 
       result: null,
 
-      cosmographInstance: null,
-      selectedPointIndex: null,
-      selectedLinkIndex: null,
+      // Selection is tracked by stable id (not a Cosmograph row index) -- ids
+      // survive CosmographGraph's own data refreshes (Top-N changes, etc.)
+      // without needing a separate "what did we last render" mirror the way
+      // Cosmograph's raw indices would.
+      selectedPointId: null,
+      selectedLinkId: null,
       // Graph-only cutoff (rank tables always show every node/edge) -- keeps the top N
       // best-ranked nodes and the edges between them, mirroring moDiNA_interface's Top-N slider.
       // null (or >= totalNodeCount) means "all". Set to min(100, totalNodeCount) whenever a new
@@ -242,55 +326,23 @@ export default {
       // is independent of edge membership, so the Top-N slider alone can't isolate "connected"
       // nodes -- this gives a way to declutter the view without changing the rank-based ordering.
       hideUnconnected: false,
-      // Mirrors exactly what's currently fed into cosmographInstance as of the last renderGraph()
-      // call, in Cosmograph's own row order -- NOT necessarily the same order as graphPoints/
-      // graphLinks. Cosmograph's click callbacks hand back indices into this order, so this -- not
-      // graphPoints/graphLinks -- is what index-based resolution (selectedPoint/selectedLink,
-      // reapplySelection, centering) must read from.
-      _renderedPoints: [],
-      _renderedLinks: [],
-      // Chains every setConfig() call made on a live instance (Top-N data swaps via
-      // updateGraphDataViaConfig(), theme/selection refreshes via applyDesign()) onto whatever
-      // came before it, so none ever overlap. Cosmograph's setConfig() doesn't serialize itself
-      // against a prior in-flight call outside of its own data-upload promise -- data-network.vue's
-      // own history ties exactly that race to an "InternalError: out of memory" crash.
-      _configUpdateChain: null,
       physics_on: true,
       imageUrl: null,
-      // Static (data-shape) half of the Cosmograph config, passed to prepareCosmographData().
-      // The other half -- theming, sizing, click handlers -- is built fresh in renderGraph()/
-      // applyDesign() (see there for why), mirroring data-network.vue's split.
-      dataConfig: {
-        points: {
-          pointIdBy: 'id',
-          // pointColorByMap is filled in per-run in renderGraph() -- groups aren't known until
-          // the result comes back (see buildPointColorMap).
-          pointColorBy: 'group',
-          pointColorStrategy: 'map',
-          // Declared here (not just in the constructor config below) so prepareCosmographData
-          // keeps 'id' available for pointSizeByFn to key off of -- see computePointSize, which
-          // ignores the column's actual value and only uses the point's index.
-          pointSizeBy: 'id',
-          pointDefaultSize: 8,
-          // display_name is the human-readable variable name (e.g. "Body Mass Index"),
-          // sourced from Postgres on the backend (see network/tasks.py's
-          // _shape_modina_result) -- falls back to the raw id if a point is missing one.
-          pointLabelBy: 'display_name',
-          pointLabelFn: (value, index) => value ?? this._renderedPoints?.[index]?.id,
-          showLabels: true,
-          showHoveredPointLabel: true,
-        },
-        links: {
-          linkSourceBy: 'source',
-          linkTargetsBy: ['target'],
-          linkWidthBy: 'weight',
-          // linkColorByFn only fires when linkColorBy names an actual column (per Cosmograph's
-          // own docs) -- without it, edges silently fell back to Cosmograph's default (dim grey)
-          // color regardless of linkColorByFn being set. Reuses 'weight' (already needed for
-          // linkWidthBy); the column's value itself is ignored, same trick as pointSizeBy/'id'.
-          linkColorBy: 'weight',
-        },
-      },
+      // Node color mode: 'group' (data layer -- protein/metabolite/phenotype) or
+      // 'stc' (continuous gradient by node.nodeMetricValue). See colorKeyForNode/
+      // computePointColor -- mirrors data-network.vue's nodeColorMode, including
+      // its live pointColorByFn (a light applyDesign() refresh on mode switch,
+      // no data reupload/full rebuild needed).
+      nodeColorMode: 'group',
+      // Cached once per refreshNodeColorState() call (a full render, or a
+      // node-color-mode switch) -- 'group' mode's key -> hex lookup, read by
+      // computePointColor. 'stc' mode doesn't use this (its key from
+      // colorKeyForNode is already the final hex color).
+      pointColorMapCache: {},
+      // Edge color mode: 'uniform' (flat, today's original look) or 'diffLP'
+      // (min-max scaled grey scale by edge.weight -- see computeLinkColor).
+      // Mirrors data-network.vue's edgeStyleMode.
+      edgeStyleMode: 'diffLP',
     };
   },
   computed: {
@@ -339,6 +391,34 @@ export default {
       const ids = new Set(this.graphPoints.map((p) => p.id));
       return links.filter((l) => ids.has(l.source) && ids.has(l.target));
     },
+    // Raw min/max of diff-L-P (edge.weight) across the currently-displayed
+    // edges. Unlike the main network page's raw p_value/effect_size (read
+    // straight from Postgres, where a literal p_value=0 makes -log10(p)
+    // Infinity), moDiNA's log-P transform (statistics_utils.py) already floors
+    // zero p-values with a data-derived epsilon before diff-L-P is ever
+    // computed -- so it's already a bounded, reasonably-scaled value, and can
+    // be shown as a direct min-max color scale instead of needing a percentile
+    // rank to avoid outliers dominating.
+    weightRange() {
+      const values = this.graphLinks.map((l) => l.weight).filter((v) => v != null && !Number.isNaN(v));
+      return values.length ? { min: Math.min(...values), max: Math.max(...values) } : { min: 0, max: 0 };
+    },
+    // graphLinks with a stable `id` added -- CosmographGraph needs one per
+    // edge (mirrors data-network.vue's edgesForGraph), and edges have no
+    // natural id of their own, only a source/target pair. computeLinkColor/
+    // computeLinkWidth now read edge.weight directly (CosmographGraph hands
+    // the edge object straight to them, order-safe by construction), so
+    // unlike before this no longer needs a precomputed colorValue.
+    edgesForGraph() {
+      return this.graphLinks.map((link) => ({ ...link, id: `${link.source}_${link.target}` }));
+    },
+    // Same id scheme as edgesForGraph, for resolving a selected link back to
+    // its full object (selectedLink) and for centering on it by endpoint id.
+    linksById() {
+      const map = {};
+      for (const link of this.graphLinks) map[`${link.source}_${link.target}`] = link;
+      return map;
+    },
     topNLabel() {
       if (this.topN == null || this.topN >= this.totalNodeCount) return 'all';
       return `${this.topN}/${this.totalNodeCount}`;
@@ -361,6 +441,43 @@ export default {
         label: capitalizeFirstLetter(group),
         color,
       }));
+    },
+    nodeColorModeItems() {
+      return [
+        { title: 'Group', value: 'group' },
+        { title: 'STC', value: 'stc', tooltip: metricDescription(NODE_METRIC_INFO, 'STC') },
+      ];
+    },
+    edgeStyleModeItems() {
+      return [
+        { title: 'Uniform', value: 'uniform' },
+        { title: 'diff-L-P', value: 'diffLP', tooltip: metricDescription(EDGE_METRIC_INFO, 'diff-L-P') },
+      ];
+    },
+    // Same grey-to-blue scale colorKeyForNode() itself paints nodes with.
+    nodeStcGradientCss() {
+      return `linear-gradient(to right, ${this.labelColor('chart-grid')}, ${this.labelColor('primary-darken-1')})`;
+    },
+    // Fixed [0, 1] domain (STC = 1 - p-value) -- real numeric endpoints, unlike
+    // the edge legend below, since this isn't a percentile rank of whatever's
+    // currently displayed.
+    nodeStcLegendLabels() {
+      return ['0', '1'];
+    },
+    // Same colors computeLinkColor() itself paints edges with -- light grey to
+    // black, same as the main network page's |Effect size| edge scale (chart
+    // alone topped out at a medium grey, not dark enough to read as the "high"
+    // end of the range).
+    edgeDiffLPGradientCss() {
+      return `linear-gradient(to right, ${this.labelColor('chart-grid')}, #000000)`;
+    },
+    // Real numeric endpoints (unlike the main network page's percentile-ranked
+    // 'combined'/'pvalue' edge legends) -- diff-L-P's own range is meaningful
+    // and reasonably bounded (see weightRange), not a rank among whatever's
+    // currently displayed.
+    edgeDiffLPLegendLabels() {
+      const { min, max } = this.weightRange;
+      return [min.toFixed(2), max.toFixed(2)];
     },
     contextNames() {
       return {
@@ -397,16 +514,11 @@ export default {
       const name2 = this.selectedContexts.context2?.contextName?.replace(/\s+/g, '-') || 'context2';
       return `differential-network-${name1}-vs-${name2}-${currentDate}.png`;
     },
-    // Indices here (selectedPointIndex/selectedLinkIndex) come from Cosmograph click callbacks,
-    // which index into whatever was actually rendered -- _renderedPoints/_renderedLinks (see
-    // their declaration for why that's not always the same order as graphPoints/graphLinks).
     selectedPoint() {
-      if (this.selectedPointIndex == null) return null;
-      return this._renderedPoints[this.selectedPointIndex] || null;
+      return this.selectedPointId != null ? this.pointsById[this.selectedPointId] || null : null;
     },
     selectedLink() {
-      if (this.selectedLinkIndex == null) return null;
-      return this._renderedLinks[this.selectedLinkIndex] || null;
+      return this.selectedLinkId != null ? this.linksById[this.selectedLinkId] || null : null;
     },
   },
   methods: {
@@ -431,8 +543,6 @@ export default {
       this.errorMessage = '';
       this.result = null;
       this.topN = null;
-      this._renderedPoints = [];
-      this._renderedLinks = [];
       this.clearSelection();
       this.statusText = 'Starting differential network computation...';
 
@@ -485,7 +595,7 @@ export default {
             this.isRunning = false;
             this.saveState();
             await this.$nextTick();
-            await this.renderGraph();
+            await this.initializeCosmograph();
             return;
           } else if (data.status === 'FAILURE' || data.status === 'error') {
             throw new Error(data.result || data.message || 'Computation failed.');
@@ -503,10 +613,34 @@ export default {
       }
     },
 
-    // group -> hex lookup for Cosmograph's 'map' point-color strategy, mirroring how
+    // The key computePointColor() resolves to a final color -- either the raw
+    // group (mirroring data-network.vue's node_group coloring) or, in 'stc' mode, the
+    // point's own precomputed gradient color (mirroring data-network.vue's 'rank'
+    // mode, see its colorKeyFor/rankColorFor). STC (1 - p-value of a direct
+    // two-context test) is naturally bounded to [0, 1], so this uses that fixed
+    // domain directly rather than a per-render min/max like weighted_degree needs.
+    // Missing/NaN values fall back to 0 (the chart-grid end) rather than a more
+    // prominent fallback color -- same reasoning as rankColorFor's own fallback.
+    colorKeyForNode(point) {
+      if (this.nodeColorMode !== 'stc') return point.group || 'unknown';
+      const raw = point.nodeMetricValue;
+      const value = (raw != null && !Number.isNaN(raw)) ? raw : 0;
+      const clamped = Math.min(Math.max(value, 0), 1);
+      return interpolateHexColor(this.labelColor('chart-grid'), this.labelColor('primary-darken-1'), clamped);
+    },
+    // Refreshes pointColorMapCache for the current nodeColorMode -- called both
+    // on a full render (initializeCosmograph) and on a bare mode switch
+    // (onNodeColorModeChange), mirroring data-network.vue's own
+    // refreshNodeColorState.
+    refreshNodeColorState() {
+      this.pointColorMapCache = this.nodeColorMode === 'stc' ? {} : this.buildPointColorMap();
+    },
+    // colorKey -> hex lookup computePointColor() consumes for 'group' mode, mirroring how
     // data-network.vue colors by node_group: groups are fully data-driven (whatever layers the
     // two contexts share), not a fixed set, so each color is generated from the group name
-    // itself rather than kept in a hardcoded table.
+    // itself rather than kept in a hardcoded table. Only called for 'group' mode (see
+    // refreshNodeColorState) -- 'stc' mode's colorKey is already the final hex color
+    // (see colorKeyForNode), no lookup map needed.
     buildPointColorMap() {
       const colorMap = {};
       for (const { group, color } of this.legendGroups) {
@@ -514,247 +648,111 @@ export default {
       }
       return colorMap;
     },
+    // CosmographGraph hands the point object directly (order-safe by
+    // construction), so no id lookup is needed here any more. Color itself is
+    // computed live (not baked into the row), so switching nodeColorMode
+    // doesn't need a data reupload -- see onNodeColorModeChange.
+    computePointColor(point) {
+      if (!point) return this.labelColor('text');
+      const key = this.colorKeyForNode(point);
+      if (this.nodeColorMode === 'stc') return key;
+      return this.pointColorMapCache[key] ?? this.labelColor('text');
+    },
+    // Group color for the Details panel's chip. Deliberately not colorForLegendKey-via-
+    // legendGroups (built from graphPoints, the Top-N-trimmed subset) -- a node picked from the
+    // node rank table (NodeRankPanel, which lists all of result.points) can be one Top-N trimmed
+    // out of the graph, where legendGroups wouldn't have a color for it. Built the same way
+    // NodeRankPanel computes its own chip colors (over the full result.points, same sort), so the
+    // two always agree.
+    colorForNodeGroup(node) {
+      const key = node?.group;
+      if (!key) return undefined;
+      const keys = [...new Set((this.result?.points || []).map((p) => p.group).filter(Boolean))].sort();
+      return assignGroupColors(keys)[key];
+    },
 
-    // Full rebuild -- only called when a genuinely new comparison result comes in. Click/
-    // selection/theme changes go through applyDesign() instead (see there), which reuses this
-    // same instance via setConfig() rather than tearing it down, exactly like data-network.vue's
-    // initializeCosmograph()/applyDesign() split.
-    async renderGraph() {
-      if (!this.$refs.containerRef || !this.result) {
-        console.warn('[modina] renderGraph: aborting, containerRef =', !!this.$refs.containerRef, 'result =', !!this.result);
-        return;
-      }
-
-      this.dataConfig.points.pointColorByMap = this.buildPointColorMap();
-
-      const prepared = await prepareCosmographData(
-        this.dataConfig,
-        this.graphPoints,
-        this.graphLinks
-      );
-      if (!prepared) {
-        this.errorMessage = 'Failed to prepare graph data for Cosmograph.';
-        return;
-      }
-      const { points, links, cosmographConfig } = prepared;
-
-      await this.safeDestroy(this.cosmographInstance);
-      this.cosmographInstance = null;
-      // A fresh instance means any previously-chained setConfig() calls are meaningless (they'd
-      // target an instance that no longer exists) -- start the chain over.
-      this._configUpdateChain = null;
-
-      // Cosmograph's setConfig() (used by applyDesign()) merges onto this object, not onto
-      // whatever's currently active -- so it's kept on the instance and always passed in full,
-      // same constraint as data-network.vue's _cosmoConfig (see its comment for why).
-      this._cosmoConfig = {
-        ...cosmographConfig,
-        points,
-        links,
-        enableSimulation: this.physics_on,
-        // Points that survive a Top-N change keep their existing position instead of the whole
-        // layout jumping when Cosmograph rebuilds its simulation engine on a points change (see
-        // updateGraphDataViaConfig()'s comment on why that rebuild happens at all) -- doesn't make
-        // the rebuild itself any cheaper, just less jarring to watch.
-        preservePointPositionsOnDataUpdate: true,
-        // Non-selected elements stay clearly present but visually deprioritized once something's
-        // selected, rather than Cosmograph's own near-invisible defaults -- same values as the
-        // network page.
-        pointGreyoutOpacity: 0.55,
-        linkGreyoutOpacity: 0.35,
-        // The clicked/displayed node renders much bigger than the rest -- see computePointSize().
-        pointSizeByFn: (value, index) => this.computePointSize(index),
-        selectPointOnClick: false,
-        resetSelectionOnEmptyCanvasClick: false,
-        renderHoveredPointRing: true,
-        backgroundColor: this.labelColor('background'),
-        hoveredPointRingColor: this.labelColor('primary-darken-1'),
-        unknownColor: this.labelColor('text'),
-        linkColorByFn: () => this.labelColor('text'),
-        onPointClick: (index) => this.selectPointFromGraph(index),
-        onLinkClick: (linkIndex) => this.selectLinkFromGraph(linkIndex),
-        onBackgroundClick: () => this.clearSelection(),
-        // Physics keeps spreading points; re-fit once it settles so nothing drifts out of view --
-        // but skip it while a node/edge is selected, so this doesn't undo the centering a click
-        // just asked for (same guard as the network page).
-        onSimulationEnd: () => {
-          if (this.selectedPointIndex == null && this.selectedLinkIndex == null) {
-            this.cosmographInstance?.fitView();
-          }
-        },
-      };
-
-      this.cosmographInstance = new Cosmograph(this.$refs.containerRef, this._cosmoConfig);
-      await this.cosmographInstance.dataUploaded?.();
-      // dataUploaded() only waits for the raw upload into DuckDB, not Cosmograph's subsequent
-      // internal rebuild step (which is what actually updates stats.pointsCount/linksCount --
-      // getPointsData()/getLinksData(), used by verifyGraphIntegrity() below, are gated on those
-      // stats being non-zero). getConfig() awaits the config manager's full update chain (upload
-      // + rebuild + stats), so it's the one to wait on before trusting post-render reads.
-      await this.cosmographInstance.getConfig();
-      // Built directly from graphPoints/graphLinks, in that exact order -- the mirror starts out
-      // exactly in sync with what Cosmograph now holds.
-      this._renderedPoints = this.graphPoints;
-      this._renderedLinks = this.graphLinks;
-      this.cosmographInstance?.fitView(0);
+    // Rebuilds node/edge color state and hands the current graphPoints/
+    // edgesForGraph to CosmographGraph, which uploads them (reusing the live
+    // instance via setConfig() where it can, falling back to a full rebuild
+    // only if that fails -- see its own comments). Called both for a
+    // genuinely new comparison result and for a Top-N/hideUnconnected change;
+    // CosmographGraph's own index-safe, hand-built upload (no more
+    // prepareCosmographData()/DuckDB-join reordering risk) means there's no
+    // longer a reason to pick between a "full rebuild" and a "light data
+    // swap" path the way renderGraph()/updateGraphDataViaConfig() used to --
+    // and the same order-safety removes the need for a post-render
+    // verifyGraphIntegrity() check, which existed only to catch that exact
+    // reordering class of bug.
+    async initializeCosmograph() {
+      if (!this.result) return;
+      this.refreshNodeColorState();
+      await this.$refs.graph?.refreshData();
       this.reapplySelection();
-      this.verifyGraphIntegrity();
     },
 
-    // Post-render safety net: confirms that every point/link graphPoints/graphLinks say should
-    // be showing is actually present in Cosmograph's own live data (fetched straight from its
-    // internal DuckDB tables via getPointsData()/getLinksData()), rather than trusting that a
-    // successful, non-throwing render call means the data really landed. This is what caught the
-    // incremental addPoints()/addLinks() path silently dropping specific links with no error --
-    // it doesn't prevent a silent drop, but it turns it into a loud, logged fact instead of an
-    // invisible one, and it's the tool to lean on if the render path ever changes again (e.g. a
-    // setConfig()-based swap) since it verifies every render, not just the one case caught by hand.
-    async verifyGraphIntegrity() {
-      if (!this.cosmographInstance) return;
-      try {
-        const [pointsTable, linksTable] = await Promise.all([
-          this.cosmographInstance.getPointsData(),
-          this.cosmographInstance.getLinksData(),
-        ]);
-        const actualPoints = pointsTable ? this.cosmographInstance.convertCosmographDataToObject(pointsTable) : [];
-        const actualLinks = linksTable ? this.cosmographInstance.convertCosmographDataToObject(linksTable) : [];
-
-        const actualPointIds = new Set(actualPoints.map((p) => p.id));
-        const missingPoints = this.graphPoints.filter((p) => !actualPointIds.has(p.id));
-
-        const linkKey = (l) => `${l.source}|${l.target}`;
-        const actualLinkKeys = new Set(actualLinks.map(linkKey));
-        const missingLinks = this.graphLinks.filter((l) => !actualLinkKeys.has(linkKey(l)));
-
-        if (missingPoints.length || missingLinks.length) {
-          console.error(
-            '[modina] Graph integrity check FAILED: expected', this.graphPoints.length, 'points /',
-            this.graphLinks.length, 'links, but Cosmograph is only showing', actualPoints.length, 'points /',
-            actualLinks.length, 'links.',
-            'Missing points:', missingPoints.map((p) => p.id),
-            'Missing links:', missingLinks.map((l) => `${l.source}-${l.target}`)
-          );
-        } else {
-          console.log(
-            '[modina] Graph integrity check passed:', actualPoints.length, 'points /', actualLinks.length, 'links.'
-          );
-        }
-      } catch (error) {
-        console.error('[modina] Graph integrity check itself failed to run:', error);
-      }
-    },
-
-    // Cheap refresh of an already-built instance via setConfig() -- theme toggles and click/
-    // selection changes go through here instead of renderGraph(), so pan/zoom/physics state isn't
-    // reset every time something's clicked (same split as the network page's applyDesign()).
+    // Cheap refresh of an already-built instance -- theme toggles and click/selection changes go
+    // through here instead of initializeCosmograph(), so pan/zoom/physics state isn't reset every
+    // time something's clicked (same split as the network page's applyDesign()).
     async applyDesign() {
-      if (!this.cosmographInstance) return;
+      if (!this.$refs.graph) return;
       this.reapplySelection();
-      this._cosmoConfig = {
-        ...this._cosmoConfig,
-        backgroundColor: this.labelColor('background'),
-        hoveredPointRingColor: this.labelColor('primary-darken-1'),
-        unknownColor: this.labelColor('text'),
-        linkColorByFn: () => this.labelColor('text'),
-        // New function reference each call: Cosmograph's config-change detection uses reference
-        // equality, and selectedPointIndex can change without points/links changing, so a stable
-        // reference here would never actually get re-invoked.
-        pointSizeByFn: (value, index) => this.computePointSize(index),
-      };
-      // Chained onto the same _configUpdateChain as updateGraphDataViaConfig() -- see there for
-      // why an unserialized setConfig() call is dangerous, not just wasteful.
-      this._configUpdateChain = (this._configUpdateChain || Promise.resolve())
-        .then(() => this.cosmographInstance?.setConfig(this._cosmoConfig))
-        .catch((error) => console.warn('[modina] applyDesign setConfig failed:', error));
-      await this._configUpdateChain;
+      await this.$refs.graph.refreshDesign();
     },
 
-    // Top-N changes (slider drag, or jumping to an off-screen node/edge via ensureTopNIncludes)
-    // update the live instance's points/links through setConfig() rather than renderGraph()'s
-    // destroy+recreate, so dragging the slider doesn't reinitialize Cosmograph's whole DuckDB-WASM
-    // connection every time (renderGraph()'s constructor call does this every single time, tied to
-    // the "InternalError: out of memory" history documented in data-network.vue). setConfig()'s own
-    // internal handling of a points/links change is a genuine full-table replace (confirmed via its
-    // source: it uploads with an explicit non-append flag, unlike the addPoints()/addLinks() API
-    // this replaced, which appends and was found to silently drop specific links) plus real
-    // post-upload validation -- so this should carry the same reliability as renderGraph() without
-    // the reinit cost. Falls back to a full rebuild if it ever throws, and always runs
-    // verifyGraphIntegrity() afterward regardless, since a non-throwing call isn't itself proof
-    // the data actually landed.
-    async updateGraphDataViaConfig() {
-      if (!this.cosmographInstance) {
-        await this.renderGraph();
-        return;
-      }
-
-      this.dataConfig.points.pointColorByMap = this.buildPointColorMap();
-
-      const prepared = await prepareCosmographData(
-        this.dataConfig,
-        this.graphPoints,
-        this.graphLinks
-      );
-      if (!prepared) {
-        this.errorMessage = 'Failed to prepare graph data for Cosmograph.';
-        return;
-      }
-      const { points, links, cosmographConfig } = prepared;
-
-      this._cosmoConfig = {
-        ...this._cosmoConfig,
-        ...cosmographConfig,
-        points,
-        links,
-      };
-
-      // Chained onto the same _configUpdateChain applyDesign() uses -- setConfig() doesn't
-      // serialize against a prior in-flight call on its own (outside its internal data-upload
-      // promise), so a Top-N change and a theme/selection refresh landing close together could
-      // otherwise race into the same underlying DuckDB-WASM worker.
-      const applyUpdate = async () => {
-        await this.cosmographInstance.setConfig(this._cosmoConfig);
-        // getConfig() awaits the full config-update chain (upload + rebuild + stats), same
-        // reasoning as renderGraph()'s wait -- see its comment.
-        await this.cosmographInstance.getConfig();
-      };
-      this._configUpdateChain = (this._configUpdateChain || Promise.resolve()).then(applyUpdate);
-
-      try {
-        await this._configUpdateChain;
-      } catch (error) {
-        console.error('[modina] setConfig-based graph update failed, falling back to a full rebuild:', error);
-        this._configUpdateChain = null;
-        await this.renderGraph();
-        return;
-      }
-
-      this._renderedPoints = this.graphPoints;
-      this._renderedLinks = this.graphLinks;
-      this.reapplySelection();
-      this.verifyGraphIntegrity();
+    // The selected node renders much bigger than the rest -- CosmographGraph
+    // hands the point object directly, so this compares by id instead of the
+    // Cosmograph row index the old pointSizeBy/index lookup used.
+    computePointSize(point) {
+      return point && this.selectedPointId != null && point.id === this.selectedPointId ? 24 : 8;
     },
 
-    // The selected node renders much bigger than the rest -- the value column named by
-    // pointSizeBy is ignored; the point is looked up by index instead.
-    computePointSize(index) {
-      return index === this.selectedPointIndex ? 24 : 8;
+    // 'diffLP': same light-grey-to-black scale the main network page's
+    // |Effect size| edge mode uses (chart alone topped out too light), but
+    // value-based (min-max over weightRange) rather than percentile-ranked --
+    // diff-L-P is already a bounded, reasonably-scaled value (see weightRange's
+    // own comment), unlike the main page's raw p_value/effect_size, which can't
+    // safely use a plain min-max scale. 'uniform' keeps the original flat look.
+    // CosmographGraph hands the edge object directly (order-safe by
+    // construction), so this reads edge.weight straight off it.
+    computeLinkColor(edge) {
+      if (this.edgeStyleMode !== 'diffLP' || edge.weight == null) return this.labelColor('text');
+      const { min, max } = this.weightRange;
+      return interpolateHexColor(this.labelColor('chart-grid'), '#000000', normalizeInRange(edge.weight, min, max));
+    },
+
+    // 'uniform' also flattens width (not just color) to a fixed 2px, matching
+    // the main network page's own flat/default edge width. 'diffLP' maps
+    // edge.weight into a fixed [1, 8]px range via weightRange -- using the raw
+    // value directly as pixels (the original behavior) let a large diff-L-P
+    // render as an extremely thick line, unbounded by anything on screen.
+    computeLinkWidth(edge) {
+      if (this.edgeStyleMode === 'uniform' || edge.weight == null) return 2;
+      const { min, max } = this.weightRange;
+      return 1 + normalizeInRange(edge.weight, min, max) * 7;
     },
 
     // Pans (not zooms) the camera to center on a point, at whatever zoom level is already
     // active -- a single deterministic code path regardless of how far the camera currently is
     // from the target, unlike zoomToPoint()'s two different transition strategies.
     centerOnPoint(index) {
-      const position = this.cosmographInstance?.getPointPositionByIndex(index);
-      if (!position) return;
-      const currentZoom = this.cosmographInstance.getZoomLevel();
-      this.cosmographInstance.setZoomTransformByPointPositions(new Float32Array(position), 700, currentZoom);
+      this.$refs.graph?.panToIndices([index]);
     },
 
     // Fits both endpoints of the selected edge into view (a small zoom/pan, not just a pan --
-    // fitViewByIndices() is Cosmograph's own "frame these points" method), so an edge click
-    // centers the same way a node click does.
-    centerOnEdge(sourceIndex, targetIndex) {
-      this.cosmographInstance?.fitViewByIndices([sourceIndex, targetIndex], 700);
+    // fitToIndices() is CosmographGraph's own "frame these points" method, distinct from
+    // centerOnPoint()'s pan-only move), so an edge click centers the same way a node click does.
+    centerOnEdge(edge) {
+      const index0 = this.$refs.graph?.getPointIndex(edge.source) ?? -1;
+      const index1 = this.$refs.graph?.getPointIndex(edge.target) ?? -1;
+      if (index0 === -1 || index1 === -1) return;
+      this.$refs.graph.fitToIndices([index0, index1], 700);
+    },
+
+    // Re-centers and zooms to fit the whole graph -- the toolbar's manual "Reset view"
+    // button, same fitView() Cosmograph already calls on its own once the simulation
+    // settles with nothing selected.
+    resetView() {
+      this.$refs.graph?.resetView();
     },
 
     // Highlights the selected node plus all of its direct neighbors (or an edge's two endpoints),
@@ -762,44 +760,49 @@ export default {
     // network page's reapplySelection(), just without its multi-select-bucket branch (moDiNA only
     // ever has a single selected node or edge, no batch selection).
     reapplySelection() {
-      if (!this.cosmographInstance) return;
+      if (!this.$refs.graph) return;
       let selectedIndices = [];
-      if (this.selectedPointIndex != null) {
+      if (this.selectedPointId != null) {
+        const pointIndex = this.$refs.graph.getPointIndex(this.selectedPointId);
+        if (pointIndex !== -1) {
+          selectedIndices = [pointIndex, ...this.$refs.graph.getConnectedPointIndices(pointIndex)];
+        }
+      } else if (this.selectedLink) {
         selectedIndices = [
-          this.selectedPointIndex,
-          ...(this.cosmographInstance.getConnectedPointIndices(this.selectedPointIndex) || []),
-        ];
-      } else if (this.selectedLinkIndex != null && this.selectedLink) {
-        const sourceIdx = this._renderedPoints.findIndex((p) => p.id === this.selectedLink.source);
-        const targetIdx = this._renderedPoints.findIndex((p) => p.id === this.selectedLink.target);
-        selectedIndices = [sourceIdx, targetIdx].filter((i) => i >= 0);
+          this.$refs.graph.getPointIndex(this.selectedLink.source),
+          this.$refs.graph.getPointIndex(this.selectedLink.target),
+        ].filter((i) => i !== -1);
       }
-      if (selectedIndices.length) {
-        this.cosmographInstance.selectPoints(selectedIndices);
-      } else {
-        this.cosmographInstance.unselectAllPoints();
-      }
-    },
-
-    updatePhysics() {
-      if (!this.cosmographInstance) return;
-      if (this.physics_on) {
-        this.cosmographInstance.unpause();
-      } else {
-        this.cosmographInstance.pause();
-      }
+      this.$refs.graph.selectIndices(selectedIndices);
     },
 
     // GraphToolbar's switches are v-model'd through props/events rather than a
     // direct v-model on physics_on/hideUnconnected (the toolbar no longer owns
-    // that state) -- these mirror what the old inline @change handlers did.
+    // that state). CosmographGraph watches its own physicsOn prop, so no
+    // explicit pause()/unpause() call is needed here.
     onPhysicsChange(value) {
       this.physics_on = value;
-      this.updatePhysics();
     },
     onHideUnconnectedChange(value) {
       this.hideUnconnected = value;
-      this.renderGraph();
+      this.initializeCosmograph();
+    },
+    // Node color is computed live per point (pointColorByFn/computePointColor),
+    // not baked into each row, so switching modes just needs fresh state
+    // (refreshNodeColorState) and a light applyDesign() refresh -- same
+    // reasoning as onEdgeStyleModeChange below, and mirrors data-network.vue's
+    // own onNodeColorModeChange.
+    onNodeColorModeChange(value) {
+      this.nodeColorMode = value;
+      this.refreshNodeColorState();
+      this.applyDesign();
+    },
+    // Unlike node coloring, linkColorByFn already reads live edgeStyleMode state
+    // per edge on every call, so no data rebuild is needed -- just refresh the
+    // live config, mirroring data-network.vue's own onEdgeStyleModeChange.
+    onEdgeStyleModeChange(value) {
+      this.edgeStyleMode = value;
+      this.applyDesign();
     },
 
     async saveNetworkImage() {
@@ -812,73 +815,14 @@ export default {
     },
 
     // containerRef also holds Cosmograph's polygonal/rectangular area-select overlay canvases,
-    // which sit before the real WebGL graph canvas in DOM order -- a plain querySelector('canvas')
-    // grabs one of those (empty except mid-lasso-select) instead. _cosmosElement is Cosmograph's
-    // own inner wrapper that holds only the graph canvas; it's what captureScreenshot() itself
-    // reads from internally, so this targets the same element.
     async captureImage() {
-      const canvas = this.cosmographInstance?._cosmosElement?.querySelector('canvas');
-      if (!canvas) {
-        console.error('Canvas or context is undefined');
-        return;
-      }
-
-      const offscreenCanvas = document.createElement('canvas');
-      const offscreenCtx = offscreenCanvas.getContext('2d');
-      offscreenCanvas.width = canvas.width;
-      offscreenCanvas.height = canvas.height;
-      offscreenCtx.drawImage(canvas, 0, 0);
-
-      this.drawNodeLabels(offscreenCtx, canvas);
-
-      drawLegendPanel(offscreenCtx, offscreenCanvas, this.legendItems, {
-        textColor: this.labelColor('text'),
-        panelColor: this.labelColor('surface-bright'),
-        borderColor: this.labelColor('surface-variant'),
+      this.imageUrl = await this.$refs.graph?.captureImage((ctx, canvas) => {
+        drawLegendPanel(ctx, canvas, this.legendItems, {
+          textColor: this.labelColor('text'),
+          panelColor: this.labelColor('surface-bright'),
+          borderColor: this.labelColor('surface-variant'),
+        });
       });
-
-      this.imageUrl = offscreenCanvas.toDataURL();
-    },
-
-    // Node labels are rendered as absolutely-positioned DOM elements overlaid on the canvas (see
-    // Cosmograph's Labels module), not drawn into the WebGL buffer -- so they never show up in a
-    // canvas-only capture, even Cosmograph's own captureScreenshot(). Read each rendered label's
-    // text and screen position directly off the DOM and draw it onto the capture ourselves,
-    // instead of pulling in a whole-DOM screenshot library just for this.
-    drawNodeLabels(ctx, canvas) {
-      const labelsContainer = this.cosmographInstance?._labels?.labelsContainer;
-      if (!labelsContainer) return;
-
-      const canvasRect = canvas.getBoundingClientRect();
-      if (!canvasRect.width || !canvasRect.height) return;
-      const scaleX = canvas.width / canvasRect.width;
-      const scaleY = canvas.height / canvasRect.height;
-
-      const labelEls = Array.from(labelsContainer.querySelectorAll('*'))
-        .filter((el) => el.children.length === 0 && el.textContent?.trim());
-
-      // save/restore so textAlign/textBaseline/font/fillStyle don't leak into whatever the
-      // caller draws next (the legend panel assumes its own defaults, not these).
-      ctx.save();
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      labelEls.forEach((el) => {
-        const style = window.getComputedStyle(el);
-        const opacity = parseFloat(style.opacity);
-        // Cosmograph doesn't remove decluttered/off-screen labels from the DOM -- it fades them
-        // to opacity 0.1 via a "hidden" class (see cosmographLabelHidden in its CSS) while keeping
-        // shown labels at full opacity. Mirror that distinction instead of drawing every label
-        // Cosmograph has ever created, which would make the export far busier than the live view.
-        if (style.visibility === 'hidden' || style.display === 'none' || !(opacity > 0.5)) return;
-        const rect = el.getBoundingClientRect();
-        if (!rect.width || !rect.height) return;
-        const x = (rect.left - canvasRect.left + rect.width / 2) * scaleX;
-        const y = (rect.top - canvasRect.top + rect.height / 2) * scaleY;
-        ctx.font = `${parseFloat(style.fontSize) * scaleY}px ${style.fontFamily}`;
-        ctx.fillStyle = style.color;
-        ctx.fillText(el.textContent.trim(), x, y);
-      });
-      ctx.restore();
     },
 
     // Same pattern as data-network.vue's labelColor(): chartjs/Cosmograph don't understand CSS
@@ -888,35 +832,36 @@ export default {
       return this.$vuetify.theme.themes[themeName]?.colors[colorName];
     },
 
-    async safeDestroy(instance) {
-      if (!instance || typeof instance.destroy !== 'function') return;
-      try {
-        const res = instance.destroy();
-        if (res && typeof res.then === 'function') await res;
-      } catch (error) {
-        console.warn('Error destroying Cosmograph instance:', error);
-      }
+    // Selects a node by its own object (not a Cosmograph index) -- the shared
+    // entry point for both a canvas click (selectPointFromGraph, which
+    // resolves the index to a point first) and a table row click
+    // (selectNodeById), so centering/highlighting behave identically either way.
+    selectPoint(point) {
+      if (!point) return;
+      this.selectedPointId = point.id;
+      this.selectedLinkId = null;
+      this.applyDesign();
+      const index = this.$refs.graph?.getPointIndex(point.id) ?? -1;
+      if (index !== -1) this.centerOnPoint(index);
     },
-
     selectPointFromGraph(index) {
       if (index == null) return;
-      this.selectedPointIndex = index;
-      this.selectedLinkIndex = null;
-      this.applyDesign();
-      this.centerOnPoint(index);
+      const id = this.$refs.graph?.getPointId(index);
+      this.selectPoint(id != null ? this.pointsById[id] : null);
     },
 
-    selectLinkFromGraph(linkIndex) {
-      if (linkIndex == null || !this._renderedLinks.length) return;
-      this.selectedLinkIndex = linkIndex;
-      this.selectedPointIndex = null;
+    // Same shared-entry-point pattern as selectPoint() above, for edges.
+    selectLink(link) {
+      if (!link) return;
+      this.selectedLinkId = `${link.source}_${link.target}`;
+      this.selectedPointId = null;
       this.applyDesign();
-      const link = this._renderedLinks[linkIndex];
-      if (link) {
-        const sourceIdx = this._renderedPoints.findIndex((p) => p.id === link.source);
-        const targetIdx = this._renderedPoints.findIndex((p) => p.id === link.target);
-        if (sourceIdx >= 0 && targetIdx >= 0) this.centerOnEdge(sourceIdx, targetIdx);
-      }
+      this.centerOnEdge(link);
+    },
+    selectLinkFromGraph(linkIndex) {
+      if (linkIndex == null) return;
+      const id = this.$refs.graph?.getLinkId(linkIndex);
+      this.selectLink(id != null ? this.linksById[id] : null);
     },
 
     // Rows clicked in NodeRankPanel/EdgeRankPanel come from the full (untrimmed) result, so the
@@ -925,20 +870,19 @@ export default {
     async selectNodeById(item) {
       if (!this.result?.points) return;
       await this.ensureTopNIncludes(item.id);
-      const index = this._renderedPoints.findIndex((p) => p.id === item.id);
-      if (index >= 0) this.selectPointFromGraph(index);
+      this.selectPoint(this.pointsById[item.id]);
     },
 
     async selectEdgeByLabels(item) {
       if (!this.result?.links) return;
       await this.ensureTopNIncludes(item.label1);
       await this.ensureTopNIncludes(item.label2);
-      const index = this._renderedLinks.findIndex(
+      const link = this.graphLinks.find(
         (l) =>
           (l.source === item.label1 && l.target === item.label2) ||
           (l.source === item.label2 && l.target === item.label1)
       );
-      if (index >= 0) this.selectLinkFromGraph(index);
+      this.selectLink(link);
     },
 
     // If the given node id is currently outside the Top-N cutoff, raises Top-N just enough to
@@ -949,23 +893,33 @@ export default {
       const idx = (this.result?.points || []).findIndex((p) => p.id === id);
       if (idx >= 0 && idx + 1 > this.topN) {
         this.topN = idx + 1;
-        await this.updateGraphDataViaConfig();
+        await this.initializeCosmograph();
       }
     },
 
-    // See updateGraphDataViaConfig() for why this goes through setConfig() on the live instance
-    // rather than renderGraph()'s destroy+recreate.
     async onTopNChange(value) {
       const next = Number(value);
       if (!Number.isFinite(next) || next === this.topN) return;
       this.topN = next;
-      await this.updateGraphDataViaConfig();
+      await this.initializeCosmograph();
     },
 
     clearSelection() {
-      this.selectedPointIndex = null;
-      this.selectedLinkIndex = null;
+      this.selectedPointId = null;
+      this.selectedLinkId = null;
       this.applyDesign();
+    },
+
+    // CosmographGraph's simulation-end emit -- skip the auto re-fit while a
+    // node/edge is selected, so this doesn't undo the centering a click just
+    // asked for (same guard the network page uses).
+    onSimulationEnd() {
+      if (this.selectedPointId == null && this.selectedLinkId == null) {
+        this.$refs.graph?.resetView();
+      }
+    },
+    onGraphError(message) {
+      this.errorMessage = message;
     },
 
     // Persists the last finished comparison (contexts, settings, result) so it's still there if
@@ -1000,7 +954,7 @@ export default {
         this.result = savedState.result;
         this.topN = this.result?.points ? Math.min(100, this.result.points.length) : null;
         await this.$nextTick();
-        await this.renderGraph();
+        await this.initializeCosmograph();
       } catch (error) {
         // A saved result from an older, incompatible response shape (this endpoint's contract
         // changed repeatedly during development) can crash the Cosmograph rebuild -- same failure
@@ -1021,9 +975,8 @@ export default {
     this.loadState();
   },
   beforeUnmount() {
-    if (this.cosmographInstance && typeof this.cosmographInstance.destroy === 'function') {
-      this.cosmographInstance.destroy();
-    }
+    // CosmographGraph tears down its own Cosmograph instance in its own
+    // beforeUnmount hook -- no explicit destroy() call needed here.
     if (this.pollTimer) clearTimeout(this.pollTimer);
   },
 };
@@ -1114,6 +1067,33 @@ export default {
   left: 20px;
   background: transparent;
   z-index: 10;
+}
+.edge-legend {
+  position: absolute;  /* Same convention as .legend, opposite corner so the two
+                           don't overlap when both a node and edge gradient show at once. */
+  bottom: 20px;
+  right: 20px;
+  z-index: 10;
+}
+
+/* Same reasoning as data-network.vue's own .toolbar-select: GraphToolbar's
+   content box is a fixed height with overflow:hidden, and the default compact
+   outlined field is just tall enough to poke into the graph view sitting
+   directly above with no gap. */
+.toolbar-select :deep(.v-field) {
+  --v-input-control-height: 26px;
+  --v-field-padding-bottom: 2px;
+  font-size: 0.72rem;
+}
+.toolbar-select :deep(.v-field__input) {
+  min-height: 26px;
+  padding-top: 0;
+}
+.toolbar-select :deep(.v-label) {
+  font-size: 0.72rem;
+}
+.toolbar-select :deep(.v-select__selection-text) {
+  font-size: 0.72rem;
 }
 
 .topn-control {

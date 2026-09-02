@@ -10,6 +10,70 @@ export function darkenHexColor(hex, amount) {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
+// Linearly interpolates between two '#rrggbb' colors at `t` (0-1) -- used for
+// continuous gradients (e.g. rank/weighted-degree node coloring) that should
+// stay within the app's own theme colors instead of an unrelated generic scale.
+export function interpolateHexColor(hexA, hexB, t) {
+  const clampedT = Math.max(0, Math.min(1, t));
+  const parse = (hex) => {
+    const clean = hex.replace('#', '');
+    return [0, 2, 4].map((start) => parseInt(clean.substring(start, start + 2), 16));
+  };
+  const [r1, g1, b1] = parse(hexA);
+  const [r2, g2, b2] = parse(hexB);
+  const mix = (a, b) => Math.round(a + (b - a) * clampedT);
+  const toHex = (channel) => channel.toString(16).padStart(2, '0');
+  return `#${toHex(mix(r1, r2))}${toHex(mix(g1, g2))}${toHex(mix(b1, b2))}`;
+}
+
+// Normalizes `value` into [0, 1] against [min, max] for a color gradient --
+// 0.5 (mid-gradient) when the range is degenerate (min === max, e.g. every
+// displayed node/edge has the same value).
+export function normalizeInRange(value, min, max) {
+  return max > min ? (value - min) / (max - min) : 0.5;
+}
+
+// Percentile rank (0-1) of each entry in `scores` among the array itself --
+// nulls pass through as null (excluded from ranking). Rank-based rather than
+// min-max so a skewed distribution (e.g. most scores clustered near one end)
+// still spreads across the full visual range instead of bunching at one end,
+// and so a single Infinity/extreme outlier can't poison everyone else's value
+// the way min-max division would. Shared by data-network.vue's edge-style
+// dropdown and differential-network.vue's edge-weight coloring, so both pages'
+// edges use the same visual scheme for a magnitude-based score.
+export function computePercentileRanks(scores) {
+  const ranked = scores
+    .map((score, index) => ({ index, score }))
+    .filter(({ score }) => score != null)
+    .sort((a, b) => a.score - b.score);
+  const result = new Array(scores.length).fill(null);
+  ranked.forEach(({ index }, rank) => {
+    result[index] = ranked.length > 1 ? rank / (ranked.length - 1) : 1;
+  });
+  return result;
+}
+
+// Significance score for one edge under `mode` -- null for an 'external' edge
+// (no p_value/effect_size) or 'unweighted' mode, in which case the caller
+// falls back to its own flat width/color. Shared by data-network.vue's
+// edge-style dropdown (see edgeStyleMode/computeLinkWidth/computeLinkColor).
+export function computeEdgeScore(edge, mode) {
+  if (edge.set === 'external' || edge.p_value == null || edge.effect_size == null) return null;
+  const negLogP = -Math.log10(edge.p_value);
+  const absEffect = Math.abs(edge.effect_size);
+  switch (mode) {
+    case 'combined': return negLogP * absEffect;
+    case 'pvalue': return negLogP;
+    // 'effect' (diverging, signed) and 'effectAbs' (sequential, magnitude-only)
+    // share the same width ranking -- only their color mapping differs, see
+    // data-network.vue's computeLinkColor.
+    case 'effect':
+    case 'effectAbs':
+      return absEffect;
+    default: return null;
+  }
+}
+
 function hslToHex(h, s, l) {
   s /= 100;
   l /= 100;
@@ -123,9 +187,81 @@ export function capitalizeFirstLetter(str) {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
 
+// Resolves a node's raw '|'/';'-separated xrefs string into clickable {label, url}
+// entries, routed to the database matching `groupHint` (the node's GROUP -- e.g.
+// "protein"/"metabolite"/"phenotype", case-insensitive substring match -- NOT its
+// data_type). Shared by NodeDetails.vue (main network page) and DiffNodeDetails.vue
+// (moDiNA page), which key their own "group" field differently (derived from
+// source_table vs. node_group directly) but resolve xrefs the same way. A few
+// datasets still carry the legacy "db.accession" form ('|'-separated, vs. the more
+// common bare-accession ';'-separated form) -- that's only kept if the embedded db
+// matches groupHint's own target too. Anything that doesn't resolve to a
+// valid-looking id for the target database is dropped instead of falling back to
+// a dead "#" link.
+export function resolveXrefs(xrefsString, groupHint) {
+  if (!xrefsString || !xrefsString.length) return [];
+  const targetDb = targetDbForGroup(groupHint);
+  return xrefsString
+    .split(/[;|]/)
+    .map((xref) => xref.trim())
+    .filter(Boolean)
+    .map((xref) => resolveOneXref(xref, targetDb))
+    .filter(Boolean);
+}
+
+function targetDbForGroup(group) {
+  const g = (group || "").toLowerCase();
+  if (g.includes("protein")) return "uniprot";
+  if (g.includes("metabolite")) return "hmdb";
+  if (g.includes("phenotype")) return "snomedct";
+  return null;
+}
+
+function resolveOneXref(xref, targetDb) {
+  let db = targetDb;
+  let id = xref;
+  if (xref.includes(".")) {
+    const [prefix, ...rest] = xref.split(".");
+    db = prefix.toLowerCase();
+    id = rest.join(".");
+    if (targetDb && db !== targetDb) return null;
+  }
+  if (!db || !id) return null;
+  const url = buildXrefUrl(db, id);
+  return url ? { label: xref, url } : null;
+}
+
+function buildXrefUrl(db, id) {
+  switch (db) {
+    case "uniprot":
+      return /^[A-Z0-9]{6,10}(-\d+)?$/i.test(id)
+        ? `https://www.uniprot.org/uniprotkb/${id}`
+        : null;
+    case "hmdb":
+      return /^HMDB\d{5,7}$/i.test(id)
+        ? `https://hmdb.ca/metabolites/${id}`
+        : null;
+    case "snomedct":
+      return /^\d{6,18}$/.test(id)
+        ? `https://browser.ihtsdotools.org/?perspective=full&conceptId1=${id}`
+        : null;
+    default:
+      return null; // only Uniprot/HMDB/SNOMED CT are linked out to
+  }
+}
+
 // Round color dot used next to each legend label, on both pages' on-screen legends.
 export function getShapeStyle(color) {
   return { borderRadius: "50%", backgroundColor: color, width: "13px", height: "13px" };
+}
+
+// Picks black or white text so it stays legible against a `color` background --
+// used for the node-group chips in tables, which (unlike the legend's dot-plus-label
+// layout) put text directly on top of the group color. Reuses the same luminance
+// floor as generateGroupColor's own brightness search, so any color that path
+// generates always resolves to dark text here.
+export function getReadableTextColor(color) {
+  return relativeLuminance(color) >= MIN_RELATIVE_LUMINANCE ? '#111111' : '#ffffff';
 }
 
 // Bottom-left rounded panel with a color swatch + label per row, drawn onto an

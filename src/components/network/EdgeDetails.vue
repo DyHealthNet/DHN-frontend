@@ -24,64 +24,24 @@
       </tbody>
     </v-table>
   <p><span class="label-subtitle" >Connected Nodes:</span></p>
-    <v-table dense v-if="edge">
-      <thead>
-      </thead>
-      <tbody>
-        <!-- Row for Display Name -->
-        <tr>
-          <td><span class="label">Display Name</span></td>
-          <td>{{ edge.node0_label }}</td>
-          <td>{{ edge.node1_label }}</td>
-        </tr>
-        <!-- Row for ID -->
-        <tr>
-          <td><span class="label">ID</span></td>
-          <td>{{ edge.to }}</td>
-          <td>{{ edge.from }}</td>
-        </tr>
-        <!-- Row for Description -->
-        <tr>
-          <td><span class="label">Description</span></td>
-          <td>{{ edge.node0_descr }}</td>
-          <td>{{ edge.node1_descr }}</td>
-        </tr>
-        <!-- Row for Icons -->
-        <tr>
-          <td><span class="label">Type</span></td>
-          <td>
-            <v-icon size="50" color="transparent">
-              <v-img
-                :src="getIcon(edge.node0_type)"
-                alt="Node 0 Icon"
-                max-width="40"
-                max-height="40"
-                class="rounded-circle"
-              />
-            </v-icon>
-          </td>
-          <td>
-            <v-icon size="50" color="transparent">
-              <v-img
-                :src="getIcon(edge.node1_type)"
-                alt="Node 1 Icon"
-                max-width="40"
-                max-height="40"
-                class="rounded-circle"
-              />
-            </v-icon>
-          </td>
-        </tr>
-      </tbody>
-    </v-table>
+    <EdgeNodesTable v-if="edge" :nodes="edgeNodes" />
 </template>
 
 <script>
+import EdgeNodesTable from './EdgeNodesTable.vue';
+
 export default {
+  components: { EdgeNodesTable },
   props: {
     edge: Object,
-    getIcon: Function,
-    selectedTests: Object,
+  },
+  computed: {
+    edgeNodes() {
+      return [
+        { id: this.edge.to, label: this.edge.node0_label, description: this.edge.node0_descr, dataType: this.edge.node0_data_type, groupLabel: this.edge.node0_type, groupColor: this.edge.node0_color },
+        { id: this.edge.from, label: this.edge.node1_label, description: this.edge.node1_descr, dataType: this.edge.node1_data_type, groupLabel: this.edge.node1_type, groupColor: this.edge.node1_color },
+      ];
+    },
   },
   methods: {
     /**

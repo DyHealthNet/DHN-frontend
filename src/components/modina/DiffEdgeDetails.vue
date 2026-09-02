@@ -5,33 +5,7 @@
     <p class="display-name text-center">{{ sourceLabel }} &nbsp;↔&nbsp; {{ targetLabel }}</p>
 
     <p class="label-subtitle mt-4">Nodes</p>
-    <v-table density="compact">
-      <tbody>
-        <tr>
-          <td><span class="label">ID</span></td>
-          <td class="value">{{ edge.source }}</td>
-          <td class="value">{{ edge.target }}</td>
-        </tr>
-        <tr>
-          <td><span class="label">Description</span></td>
-          <td class="value">{{ sourceDescription || '-' }}</td>
-          <td class="value">{{ targetDescription || '-' }}</td>
-        </tr>
-        <tr v-if="getIcon">
-          <td><span class="label">Type</span></td>
-          <td>
-            <v-icon size="50" color="transparent">
-              <v-img :src="getIcon(sourceGroup)" alt="Node 1 icon" max-width="40" max-height="40" class="rounded-circle" />
-            </v-icon>
-          </td>
-          <td>
-            <v-icon size="50" color="transparent">
-              <v-img :src="getIcon(targetGroup)" alt="Node 2 icon" max-width="40" max-height="40" class="rounded-circle" />
-            </v-icon>
-          </td>
-        </tr>
-      </tbody>
-    </v-table>
+    <EdgeNodesTable :nodes="edgeNodes" />
 
     <p class="label-subtitle mt-4">Ranking</p>
     <v-table density="compact">
@@ -104,11 +78,13 @@
 import OverviewBox from '@/components/plots/OverviewBox.vue';
 import OverviewHeatmap from '@/components/plots/OverviewHeatmap.vue';
 import OverviewLine from '@/components/plots/OverviewLine.vue';
+import EdgeNodesTable from '@/components/network/EdgeNodesTable.vue';
 import { EDGE_METRIC_INFO, metricLabel } from './metricInfo.js';
+import { capitalizeFirstLetter } from '@/components/network/networkData.js';
 
 export default {
   name: 'DiffEdgeDetails',
-  components: { OverviewBox, OverviewHeatmap, OverviewLine },
+  components: { OverviewBox, OverviewHeatmap, OverviewLine, EdgeNodesTable },
   props: {
     edge: {
       type: Object,
@@ -129,9 +105,9 @@ export default {
       type: Object,
       default: () => ({}),
     },
-    // Same group -> icon lookup the main network page's NodeDetails/EdgeDetails use
-    // (data-network.vue's getIcon, now shared via networkData.js's getNodeIcon).
-    getIcon: {
+    // (node) => hex color | undefined -- same group color DiffNodeDetails' Group chip
+    // and NodeRankPanel's Group column use (differential-network.vue's colorForNodeGroup).
+    getGroupColor: {
       type: Function,
       default: null,
     },
@@ -185,11 +161,37 @@ export default {
     targetGroup() {
       return this.pointsById[this.edge?.target]?.group;
     },
+    sourceColor() {
+      return this.getGroupColor ? this.getGroupColor(this.pointsById[this.edge?.source]) : null;
+    },
+    targetColor() {
+      return this.getGroupColor ? this.getGroupColor(this.pointsById[this.edge?.target]) : null;
+    },
     sourceType() {
       return this.pointsById[this.edge?.source]?.type;
     },
     targetType() {
       return this.pointsById[this.edge?.target]?.type;
+    },
+    edgeNodes() {
+      return [
+        {
+          id: this.edge?.source,
+          label: this.sourceLabel,
+          description: this.sourceDescription,
+          dataType: this.sourceType,
+          groupLabel: this.sourceGroup ? capitalizeFirstLetter(this.sourceGroup) : '',
+          groupColor: this.sourceColor,
+        },
+        {
+          id: this.edge?.target,
+          label: this.targetLabel,
+          description: this.targetDescription,
+          dataType: this.targetType,
+          groupLabel: this.targetGroup ? capitalizeFirstLetter(this.targetGroup) : '',
+          groupColor: this.targetColor,
+        },
+      ];
     },
     // Picks the plot whose backend endpoint actually matches both endpoints' data types --
     // continuous x continuous only exists as an overlaid aggregated trend line (no raw

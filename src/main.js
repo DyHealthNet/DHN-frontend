@@ -13,6 +13,7 @@ import * as directives from 'vuetify/directives'
 // PrimeVue (used by DownloadableDataTable.vue)
 import PrimeVue from 'primevue/config'
 import Aura from '@primevue/themes/aura'
+import { definePreset } from '@primevue/themes'
 import 'primeicons/primeicons.css'
 
 // Components
@@ -27,6 +28,7 @@ const dyHealthNetTheme = {
     "surface-light": "#F5F5F5",
     "surface-variant": "#E0E0E0",
     "on-surface-variant": "#4D4D4D",
+    "data-table-line": "#E2E8F0",
     "darken-1": "#333333",
     "white-surface": "#FAFAFA",
 
@@ -65,6 +67,7 @@ const dyHealthNetThemeDark = {
     "surface-light": "#474747",
     "surface-variant": "#555555",
     "on-surface-variant": "#D1D1D1",
+    "data-table-line": "#52525b",
     "darken-1": "#FFFFFF",
     "white-surface": "#FAFAFA",
 
@@ -105,14 +108,74 @@ const vuetify = createVuetify({
   directives,
 })
 
+/**
+ * PrimeVue theme preset based on Aura. Overrides input, select, paginator and
+ * datatable surfaces to be transparent so PrimeVue widgets (e.g. the tables in
+ * DownloadableDataTable.vue) inherit the surrounding Vuetify surface (the
+ * v-card they're rendered inside) instead of painting their own background.
+ */
+const MyPreset = definePreset(Aura, {
+  components: {
+    inputtext: {
+      colorScheme: {
+        light: { root: { background: 'transparent' } },
+        dark: { root: { background: 'transparent' } },
+      },
+    },
+    select: {
+      colorScheme: {
+        light: { root: { background: 'transparent' } },
+        dark: { root: { background: 'transparent' } },
+      },
+    },
+    paginator: {
+      colorScheme: {
+        light: { root: { background: 'transparent' } },
+        dark: { root: { background: 'transparent' } },
+      },
+    },
+    datatable: {
+      colorScheme: {
+        light: {
+          root: {
+            root: { background: 'transparent' },
+            header: { background: 'transparent', cell: { background: 'transparent' } },
+            body: { background: 'transparent' },
+            footer: {
+              background: 'transparent',
+              border: { color: dyHealthNetTheme.colors.surface },
+              cell: { background: 'transparent' },
+            },
+            row: { background: 'transparent' },
+          },
+        },
+        dark: {
+          root: {
+            root: { background: 'transparent' },
+            header: { background: 'transparent', cell: { background: 'transparent' } },
+            body: { background: 'transparent' },
+            footer: {
+              background: 'transparent',
+              border: { color: dyHealthNetThemeDark.colors.surface },
+              cell: { background: 'transparent' },
+            },
+            row: { background: 'transparent' },
+          },
+        },
+      },
+    },
+  },
+})
+
 createApp(App)
   .use(vuetify)
   .use(router)
   .use(PrimeVue, {
     theme: {
-      preset: Aura,
-      // Color comes from Vuetify's own --v-theme-* CSS vars (see DownloadableDataTable.vue),
-      // not PrimeVue's dark-mode class -- disable its own dark-mode token swapping.
+      preset: MyPreset,
+      // Text/foreground colors still come from Vuetify's own --v-theme-* CSS vars
+      // (see DownloadableDataTable.vue), not PrimeVue's dark-mode class -- disable
+      // its own dark-mode token swapping.
       options: { darkModeSelector: false },
     },
   })

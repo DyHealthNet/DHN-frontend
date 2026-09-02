@@ -1,43 +1,45 @@
 <template>
-  <div>
-    <div class="d-flex align-center px-4 py-2" style="gap: 8px;">
-      <v-spacer></v-spacer>
-      <v-text-field
-        v-model="search"
-        prepend-inner-icon="mdi-magnify"
-        label="Search node"
-        density="compact"
-        variant="outlined"
-        hide-details
-        single-line
-        style="max-width: 220px"
-      ></v-text-field>
-    </div>
-
+  <v-card outlined class="mt-4">
     <DownloadableDataTable
       :headers="headers"
       :items="tableItems"
       :search="search"
       :custom-key-filter="{ label: nodeSearchFilter }"
       filter-mode="union"
-      :sort-by="[{ key: 'rank', order: 'asc' }]"
+      :sort-by="[{ key: 'rank', order: 'asc' }, { key: 'degree', order: 'desc' }]"
+      multi-sort
       items-per-page="10"
       :class="['node-ranking-table', { 'is-interactive': interactive }]"
       filename="node-ranking.csv"
       no-data-text="No nodes to rank."
+      :row-class="rowClass"
       @click:row="onRowClick"
     >
-      <template v-slot:header.weightedDegree="{ column, getSortIcon }">
-        <div class="v-data-table-header__content">
-          <span>{{ column.title }}</span>
-          <v-icon v-if="column.sortable" class="v-data-table-header__sort-icon" :icon="getSortIcon(column)"></v-icon>
-          <v-tooltip location="top" max-width="320">
-            <template v-slot:activator="{ props }">
-              <v-icon v-bind="props" size="14" class="ml-1">mdi-information-outline</v-icon>
-            </template>
-            <span>Sum over incident edges of -log10(p-value) * |effect size| -- the same edge weighting used for community detection.</span>
-          </v-tooltip>
-        </div>
+      <template v-slot:toolbar-start>
+        <v-text-field
+          v-model="search"
+          prepend-inner-icon="mdi-magnify"
+          label="Search node"
+          density="compact"
+          variant="outlined"
+          hide-details
+          single-line
+          style="max-width: 220px"
+        ></v-text-field>
+      </template>
+      <template v-if="interactive" v-slot:item.selected="{ item }">
+        <v-checkbox-btn
+          :model-value="selectedNodeIds.includes(item.id)"
+          @click.stop="$emit('toggle-select-node', item.id)"
+        ></v-checkbox-btn>
+      </template>
+      <template v-slot:header.weightedDegree="{ column }">
+        <v-tooltip location="top" max-width="320">
+          <template v-slot:activator="{ props }">
+            <span v-bind="props">{{ column.title }}</span>
+          </template>
+          <span>Sum over incident edges of -log10(p-value) * |effect size| -- the same edge weighting used for community detection.</span>
+        </v-tooltip>
       </template>
       <template v-slot:item.weightedDegree="{ item }">
         {{ formatNumber(item.weightedDegree) }}
@@ -45,13 +47,27 @@
       <template v-slot:item.description="{ item }">
         <span class="description-cell" :title="item.description">{{ item.description || '-' }}</span>
       </template>
+      <template v-slot:item.group="{ item }">
+        <v-chip v-if="item.groupColor" size="small" :style="chipStyle(item.groupColor)">{{ item.group }}</v-chip>
+        <span v-else>{{ item.group }}</span>
+      </template>
     </DownloadableDataTable>
-  </div>
+  </v-card>
 </template>
 
 <script>
 import DownloadableDataTable from '@/components/DownloadableDataTable.vue';
 import { computeWeightedDegree } from './networkRanking.js';
+import { assignGroupColors, capitalizeFirstLetter, getReadableTextColor } from './networkData.js';
+
+// Same key derivation as data-network.vue's legendKeyFor (non-clustering branch): strip
+// any "cohort_"-style prefix off source_table, taking the trailing segment. Kept in sync
+// by hand rather than imported, since legendKeyFor also branches on clusteringActive --
+// this table's Group column always means node type, never community (see the separate
+// Community column), so only that one branch applies here.
+function groupKeyFor(node) {
+  return node.source_table ? node.source_table.split('_').pop() : node.subtype || undefined;
+}
 
 // v-data-table's default sort coerces values to strings before comparing,
 // which breaks numeric ordering -- force pure numeric compare.
@@ -81,37 +97,96 @@ export default {
       type: Boolean,
       default: true,
     },
+    // Ids of nodes currently in the multi-node Selection list -- drives the checkbox column's
+    // checked state. Membership only, no need for full node objects here.
+    selectedNodeIds: {
+      type: Array,
+      default: () => [],
+    },
+    clusteringActive: {
+      type: Boolean,
+      default: false,
+    },
+    // (node) => label, e.g. "Community 3" -- only called while clusteringActive. Passed in
+    // rather than duplicated here so the label always matches the legend/coloring logic.
+    communityLabelFor: {
+      type: Function,
+      default: null,
+    },
+    // id of the node currently shown in the Details panel (clicked on the canvas, jumped to via
+    // search, etc.) -- highlights its row here so it's easy to spot again in a long table.
+    displayedNodeId: {
+      type: String,
+      default: null,
+    },
+    // When true, `nodes` already arrive globally ranked (rank/degree/weightedDegree fields
+    // on each) from the backend -- trust those instead of recomputing computeWeightedDegree()
+    // over just this slice, since a preranked slice can be a truncated top-N of a much
+    // larger significant-edge set whose degree the truncated `edges` alone would undercount
+    // (see NetworkRankingTabs.vue).
+    preranked: {
+      type: Boolean,
+      default: false,
+    },
   },
-  emits: ['select-node'],
+  emits: ['select-node', 'toggle-select-node'],
   data() {
     return {
       search: '',
-      headers: [
-        { title: 'Rank', key: 'rank', width: 90, sort: numericSort },
-        { title: 'Node', key: 'label' },
-        { title: 'Group', key: 'group', width: 130 },
-        { title: 'Degree', key: 'degree', width: 100, sort: numericSort },
-        { title: 'Weighted Degree', key: 'weightedDegree', sort: numericSort },
-        { title: 'Description', key: 'description' },
-      ],
     };
   },
   computed: {
+    headers() {
+      const headers = [
+        { title: 'Rank', key: 'rank', width: 90, sort: numericSort },
+        { title: 'Node', key: 'label' },
+        { title: 'Description', key: 'description' },
+        { title: 'Group', key: 'group', width: 130 },
+        { title: 'Degree', key: 'degree', width: 100, sort: numericSort },
+        { title: 'Weighted Degree', key: 'weightedDegree', sort: numericSort },
+      ];
+      if (this.clusteringActive) {
+        headers.splice(4, 0, { title: 'Community', key: 'community', width: 130 });
+      }
+      if (this.interactive) {
+        headers.splice(1, 0, { title: 'Select', key: 'selected', width: 70, sortable: false });
+      }
+      return headers;
+    },
     rankedNodes() {
-      return computeWeightedDegree(this.nodes, this.edges);
+      return this.preranked ? this.nodes : computeWeightedDegree(this.nodes, this.edges);
+    },
+    // One color per group key actually present in this table, assigned via the same
+    // function (and the same "sorted keys -> palette index" rule) the network legend
+    // uses -- so a group's chip here matches its legend/graph color whenever this
+    // table's nodes are the same set the legend was built from (true for the
+    // interactive "under the graph" instance; the read-only "Full Network Statistics"
+    // instance has its own independent node set, so its colors are only guaranteed
+    // internally consistent, not necessarily identical to the graph's).
+    groupColorMap() {
+      const keys = [...new Set(this.rankedNodes.map(groupKeyFor).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+      return assignGroupColors(keys);
     },
     // Resolves display label and group as real item fields rather than only
     // in a render slot -- v-data-table's default sort reads item[column.key]
     // directly, so a slot-only value never sorts.
     tableItems() {
-      return this.rankedNodes.map((node) => ({
-        ...node,
-        label: node.display_name || node.id,
-        group: node.source_table || node.subtype || '-',
-      }));
+      return this.rankedNodes.map((node) => {
+        const groupKey = groupKeyFor(node);
+        return {
+          ...node,
+          label: node.display_name || node.id,
+          group: groupKey ? capitalizeFirstLetter(groupKey) : '-',
+          groupColor: groupKey ? this.groupColorMap[groupKey] : null,
+          community: this.clusteringActive && this.communityLabelFor ? this.communityLabelFor(node) : null,
+        };
+      });
     },
   },
   methods: {
+    chipStyle(color) {
+      return { backgroundColor: color, color: getReadableTextColor(color) };
+    },
     formatNumber(value) {
       if (typeof value !== 'number') return value ?? '-';
       return value.toPrecision(4);
@@ -119,6 +194,9 @@ export default {
     onRowClick(_, { item }) {
       if (!this.interactive) return;
       this.$emit('select-node', item.id);
+    },
+    rowClass(item) {
+      return item.id === this.displayedNodeId ? 'displayed-row' : '';
     },
     // Same reasoning as NodeRankPanel's nodeSearchFilter: display_name isn't
     // a header column (the 'id' column renders it via a slot), so match it
@@ -134,11 +212,27 @@ export default {
 };
 </script>
 
-<style scoped>
-.node-ranking-table.is-interactive :deep(tbody tr) {
+<style>
+/* Unscoped, not :deep() -- .node-ranking-table lands on PrimeVue's own <DataTable> root,
+   which DownloadableDataTable renders as ITS child, not this component's. Vue only stamps a
+   scoped-CSS attribute onto a direct child component's root, not a grandchild's, so a
+   `<style scoped>` `:deep()` rule here can never actually match that element (silently
+   dead, not just non-specific) -- see DownloadableDataTable.vue's own .p-select-overlay
+   rules below for the same reasoning applied to its teleported dropdown. */
+.node-ranking-table.is-interactive tbody tr {
   cursor: pointer;
 }
 
+/* The row for whichever node is currently shown in the Details panel (see displayedNodeId/
+   rowClass) -- bold text plus a light tint, kept !important so it still reads clearly under
+   DownloadableDataTable's own hover tint. */
+.node-ranking-table tr.displayed-row > td {
+  background: rgba(var(--v-theme-primary), 0.12) !important;
+  font-weight: 600;
+}
+</style>
+
+<style scoped>
 /* Descriptions can run long -- truncate to one line with the full text
    available via the native title tooltip on hover, rather than blowing out
    row height or column width. */
@@ -149,5 +243,10 @@ export default {
   -webkit-box-orient: vertical;
   overflow: hidden;
   max-width: 320px;
+  /* main.css resets font-weight to normal on every element directly, which otherwise
+     overrides the bold the highlighted (displayed-row) row's <td> would inherit --
+     every other column renders as a plain text node so it's untouched by that reset,
+     but this column needs its own element to line-clamp. */
+  font-weight: inherit;
 }
 </style>

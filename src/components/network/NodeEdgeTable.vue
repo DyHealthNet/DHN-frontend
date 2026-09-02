@@ -1,29 +1,10 @@
 <template>
-  <v-card outlined class="mt-4">
-    <v-toolbar color="primary-darken-1" density="compact">
-      <v-toolbar-title>
-        Edges of {{ nodeLabel }}
-        <v-chip size="small" color="white" variant="outlined" class="ml-2">{{ items.length }}</v-chip>
-      </v-toolbar-title>
-      <v-spacer></v-spacer>
-      <v-text-field
-        v-model="search"
-        prepend-inner-icon="mdi-magnify"
-        label="Search neighbor"
-        density="compact"
-        variant="outlined"
-        hide-details
-        single-line
-        class="mr-2"
-        style="max-width: 220px"
-      ></v-text-field>
-    </v-toolbar>
-
+  <div>
     <DownloadableDataTable
       :headers="headers"
       :items="items"
       :search="search"
-      :sort-by="[{ key: 'pValue', order: 'asc' }, { key: 'effectSize', order: 'asc' }]"
+      :sort-by="[{ key: 'pValue', order: 'asc' }, { key: 'absEffectSize', order: 'desc' }]"
       multi-sort
       items-per-page="10"
       class="node-edge-table"
@@ -31,17 +12,35 @@
       no-data-text="No edges for this node."
       @click:row="onRowClick"
     >
+      <template v-slot:toolbar-start>
+        <v-text-field
+          v-model="search"
+          prepend-inner-icon="mdi-magnify"
+          label="Search neighbor"
+          density="compact"
+          variant="outlined"
+          hide-details
+          single-line
+          style="max-width: 220px"
+        ></v-text-field>
+      </template>
       <template v-slot:item.pValue="{ item }">
         {{ formatNumber(item.pValue) }}
       </template>
       <template v-slot:item.effectSize="{ item }">
         {{ formatNumber(item.effectSize) }}
       </template>
+      <template v-slot:item.absEffectSize="{ item }">
+        {{ formatNumber(item.absEffectSize) }}
+      </template>
     </DownloadableDataTable>
-  </v-card>
+  </div>
 </template>
 
 <script>
+// No node title/count header here -- the enclosing NodeNeighborsPanel already shows both in the
+// tab label ("P12345 (12)") for whichever node this table belongs to, and wraps everything in
+// its own v-card/padding, so this only needs the search field and the table itself.
 import DownloadableDataTable from '@/components/DownloadableDataTable.vue';
 
 // v-data-table's default sort coerces values to strings before comparing, which sorts floats
@@ -57,10 +56,6 @@ export default {
   name: 'NodeEdgeTable',
   components: { DownloadableDataTable },
   props: {
-    nodeLabel: {
-      type: String,
-      default: '',
-    },
     items: {
       type: Array,
       default: () => [],
@@ -75,6 +70,7 @@ export default {
         { title: 'Test', key: 'testType' },
         { title: 'P-Value', key: 'pValue', sort: numericSort },
         { title: 'Effect Size', key: 'effectSize', sort: numericSort },
+        { title: 'Abs. Effect Size', key: 'absEffectSize', sort: numericSort },
       ],
     };
   },
@@ -90,8 +86,13 @@ export default {
 };
 </script>
 
-<style scoped>
-.node-edge-table :deep(tbody tr) {
+<style>
+/* Unscoped, not :deep() -- .node-edge-table lands on PrimeVue's own <DataTable> root, which
+   DownloadableDataTable renders as ITS child, not this component's. Vue only stamps a
+   scoped-CSS attribute onto a direct child component's root, not a grandchild's, so a
+   `<style scoped>` `:deep()` rule here can never actually match that element (silently
+   dead, not just non-specific) -- see NodeRankingTable.vue's equivalent fix. */
+.node-edge-table tbody tr {
   cursor: pointer;
 }
 </style>

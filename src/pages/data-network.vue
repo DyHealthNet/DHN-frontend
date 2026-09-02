@@ -24,17 +24,40 @@
              before the user has sent anything to the graph or clicked into any node/edge. -->
         <NetworkRankingTabs
           title="Full Network Statistics"
-          subtitle="Significant edges only (p ≤ 0.05)."
+          :subtitle="fullNetworkStatsSubtitle"
           :edges="fullNetworkStatsEdges"
           :nodes="fullNetworkStatsNodes"
           :nodes-by-id="fullNetworkStatsNodesById"
           :interactive="false"
+          preranked
         >
           <template #toolbar-actions>
             <v-tooltip location="bottom" max-width="280">
               <template v-slot:activator="{ props }">
                 <div v-bind="props">
+                  <v-text-field
+                    class="mr-1"
+                    v-model.number="fullNetworkStatsThreshold"
+                    label="P-value threshold"
+                    type="number"
+                    min="0"
+                    max="1"
+                    width="180px"
+                    step="0.001"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    single-line
+                  ></v-text-field>
+                </div>
+              </template>
+              <span>Significance Threshold. Only edges with p-value at or below this are counted as significant. Ranking (and each node's weighted degree) is computed over every significant edge.</span>
+            </v-tooltip>
+            <v-tooltip location="bottom" max-width="280">
+              <template v-slot:activator="{ props }">
+                <div v-bind="props">
                   <v-select
+                    class="mr-1"
                     v-model="fullNetworkStatsTestType"
                     :items="[{ title: 'Nonparametric', value: 'nonparametric' }, { title: 'Parametric', value: 'parametric' }]"
                     label="Test type"
@@ -47,7 +70,7 @@
                   ></v-select>
                 </div>
               </template>
-              <span>{{ contextValue != null ? "The selected context's own test type is used while a context is active." : 'Which edge table (parametric/nonparametric) this panel reads from.' }}</span>
+              <span>{{ contextValue != null ? "The selected context's own test type is used while a context is active." : 'Which test type was used for calculating the networ.' }}</span>
             </v-tooltip>
           </template>
         </NetworkRankingTabs>
@@ -71,7 +94,7 @@
           <v-card-text>
             <div class="ma-2">
               <v-row align="center">
-                <v-col cols="10" class="d-flex align-center">
+                <v-col class="d-flex align-center">
                   <v-text-field
                       v-model="searchText"
                       density="compact"
@@ -99,12 +122,6 @@
                     </v-btn>
                   </template></v-text-field>
                     </v-col>
-                  <v-col cols="2" class="d-flex align-center">
-                  <v-btn color="primary-darken-1" block class="mt-0 mb-0" @click="sendToNetwork" :disabled="!selectedNodes.length" elevation="1">
-                    <v-icon class="my-0 mr-2">mdi-arrow-down</v-icon>
-                    Send to Network
-                  </v-btn>
-                </v-col>
               </v-row>
 
               <!-- Dropdown List -->
@@ -176,10 +193,30 @@
                 </v-col>
               </v-row>
 
+              <v-row align="center">
+                <v-col cols="12">
+                  <v-btn color="primary-darken-1" block class="mt-0 mb-0" @click="sendToNetwork" :loading="showLoading" elevation="1">
+                    <v-icon class="my-0 mr-2">mdi-vector-line</v-icon>
+                    Send Selected Nodes
+                  </v-btn>
+                </v-col>
+              </v-row>
+
               <v-row class="align-center my-2">
                 <v-col><v-divider></v-divider></v-col>
                 <v-col cols="auto" class="text-medium-emphasis">OR</v-col>
                 <v-col><v-divider></v-divider></v-col>
+              </v-row>
+
+              <v-row>
+                <v-col>
+                  <WholeNetworkSettings :selected-tests="wholeNetworkTests"
+                                        :density="density"
+                                        :disable-selections="disableSelections"
+                                        expansion-panel-variant="default"
+                                        @data-changed="updateWholeNetworkSettings"
+                                        />
+                </v-col>
               </v-row>
 
               <v-row align="center">
@@ -188,16 +225,6 @@
                     <v-icon class="my-0 mr-2">mdi-web</v-icon>
                     Send Whole Network
                   </v-btn>
-                </v-col>
-              </v-row>
-
-              <v-row>
-                <v-col>
-                  <WholeNetworkSettings :selected-tests="wholeNetworkTests"
-                                        :density="density"
-                                        expansion-panel-variant="default"
-                                        @data-changed="updateWholeNetworkSettings"
-                                        />
                 </v-col>
               </v-row>
             </div>
@@ -218,6 +245,15 @@
                 </span>
               </v-tooltip>
             </v-toolbar-title>
+            <v-spacer></v-spacer>
+            <v-tabs v-model="visualizationTab" :color="toolbarIconColor" align-tabs="end">
+              <v-tab value="visualization">Network</v-tab>
+              <v-tab value="tables">
+                <v-badge :model-value="tablesTabHighlighted" color="error" dot offset-x="-4" offset-y="-4">
+                  Tables
+                </v-badge>
+              </v-tab>
+            </v-tabs>
           </v-toolbar>
 
           <v-row no-gutters>
@@ -230,7 +266,7 @@
                 ></v-progress-circular>
             </v-overlay>
             <v-col cols="4">
-              <v-expansion-panels multiple class="scrollable-panels">
+              <v-expansion-panels v-model="openPanels" multiple class="scrollable-panels">
                 <!-- Network Overview -->
                 <v-expansion-panel>
                   <v-expansion-panel-title>
@@ -279,7 +315,7 @@
                     ></v-autocomplete>
                     <v-divider class="my-4"></v-divider>
                   <template v-if="displayedElementType === 'node'">
-                    <NodeDetails :getIcon="getIcon" :node="displayedElement" />
+                    <NodeDetails :getIcon="getIcon" :getGroupColor="colorForNodeGroup" :node="displayedElement" />
                     <v-switch
                       v-model="isDetailsNodeSelected"
                       :label="isDetailsNodeSelected ? 'Selected' : 'Not Selected'"
@@ -287,9 +323,16 @@
                       color="primary"
                       class="ml-2"
                     />
+                    <v-btn
+                      variant="tonal"
+                      color="primary"
+                      prepend-icon="mdi-vector-line"
+                      class="ml-2"
+                      @click="visualizationTab = 'tables'; tablesActiveTab = 'edgesOfNode';"
+                    >View edges in Tables</v-btn>
                   </template>
                   <template v-else-if="displayedElementType === 'edge'">
-                    <EdgeDetails :getIcon="getIcon" :edge="displayedElement" :selectedTests="selectedTests"/>
+                    <EdgeDetails :edge="displayedElement"/>
                   </template>
                   <p v-else>No element selected. You can inspect a node or an edge by clicking on it.</p>
                 </v-expansion-panel-text>
@@ -317,22 +360,24 @@
                     <span v-if="selectedNetworkNodes.length === 0">
                           No node selected. Double click on a node to add it to this panel or select it via the Details panel.
                     </span>
-                    <v-table dense v-else="selectedNetworkNodes.length === 0">
-                      <thead>
-                        <tr>
-                          <th>Name</th>
-                          <th>Type</th>
-                          <th>Description</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr v-for="(node, index) in selectedNetworkNodes" :key="node.id">
-                          <td>{{ node.display_name }}</td>
-                          <td>{{ this.getPrettyType(node.source_table) }}</td>
-                          <td>{{ node.description }}</td>
-                        </tr>
-                      </tbody>
-                    </v-table>
+                    <div v-else class="selected-nodes-scroll">
+                      <v-table dense>
+                        <thead>
+                          <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="(node, index) in selectedNetworkNodes" :key="node.id">
+                            <td>{{ node.display_name }}</td>
+                            <td>{{ this.getPrettyType(node.source_table) }}</td>
+                            <td>{{ node.description }}</td>
+                          </tr>
+                        </tbody>
+                      </v-table>
+                    </div>
                   </v-expansion-panel-text>
                 </v-expansion-panel>
 
@@ -343,71 +388,12 @@
                     Connect Nodes
                   </v-expansion-panel-title>
                     <v-expansion-panel-text>
-                  <!-- Individual Node Section -->
-                  <v-responsive class="pa-0">
-                    <v-row>
-                    </v-row>
-                    <v-divider class="my-4"></v-divider>
-                    <v-row>
-                      <v-col cols="12">
-                        <p>
-                          Individual Node
-                        </p>
-                      </v-col>
-                      <v-col cols="12">
-                        <!-- TODO Add a settings toggle to set the significance threshold and possibly the multiple testing
-                        correction if changeable and if we don't want the user to only be able to set it
-                        in Advanced Settings -->
-                        <v-btn
-                          :disabled="selectedNetworkNodes.length !== 1"
-                          color="primary-darken-1"
-                          block
-                          :class="{'grey lighten-2': selectedNetworkNodes.length !== 1}"
-                          @click="connectIndividualNode()"
-                        >Significance Filtering</v-btn>
-                      </v-col>
-                      <!-- TODO Add a settings toggle to set the amount of Nodes to be retrieved per type like Manuel did-->
-                      <v-col cols="12">
-                        <v-btn
-                          :disabled="selectedNetworkNodes.length !== 1"
-                          color="primary-darken-1"
-                          block
-                          :class="{'grey lighten-2': selectedNetworkNodes.length !== 1}"
-                          @click="connectIndividualNode(true)"
-                        >Node Count</v-btn>
-                      </v-col>
-                    </v-row>
-                    <v-divider class="my-4"></v-divider>
-                    <!-- Set of Nodes Section -->
-                    <v-row>
-                      <v-col cols="12">
-                        <p>
-                          Set of Nodes
-                        </p>
-                      </v-col>
-                      <v-col cols="12">
-                        <v-btn
-                          class="mt-2"
-                          :disabled="selectedNetworkNodes.length <= 1"
-                          color="primary-darken-1"
-                          block
-                          :class="{'grey lighten-2': selectedNetworkNodes.length <= 1}"
-                          @click="connectGroupNodes(false)"
-                        >Significance Filtering</v-btn>
-                        </v-col>
-                      <v-col cols="12">
-                        <v-btn
-                          class="mt-2"
-                          :disabled="selectedNetworkNodes.length <= 1"
-                          color="primary-darken-1"
-                          block
-                          :class="{'grey lighten-2': selectedNetworkNodes.length <= 1}"
-                          @click="connectGroupNodes(true)"
-                        >Minimum Spanning Tree</v-btn>
-                        </v-col>
-                        </v-row>
-                      </v-responsive>
-                      </v-expansion-panel-text>
+                      <ConnectNodesPanel
+                        :selected-node-count="selectedNetworkNodes.length"
+                        @connect-individual-node="connectIndividualNode"
+                        @connect-group-nodes="connectGroupNodes"
+                      />
+                    </v-expansion-panel-text>
                 </v-expansion-panel>
 
                 <!-- Analysis -->
@@ -417,142 +403,21 @@
                     Analysis</v-expansion-panel-title>
                   <v-expansion-panel-text>
                     <v-divider class="my-4"></v-divider>
-                    <p>Community Detection</p>
-                    <template v-if="lastNetworkMode === 'whole'">
-                      <v-select
-                        v-model="selectedAlgorithm"
-                        :items="communityAlgorithms"
-                        item-title="label"
-                        item-value="value"
-                        label="Algorithm"
-                        density="compact"
-                        variant="outlined"
-                        class="mt-2"
-                        :disabled="isClusteringLoading"
-                      ></v-select>
-                      <p class="text-caption text-medium-emphasis mt-n2 mb-2">
-                        {{ algorithmDescription }}
-                      </p>
-                      <v-btn
-                        color="primary-darken-1"
-                        block
-                        class="mt-2"
-                        :loading="isClusteringLoading"
-                        :disabled="isClusteringLoading"
-                        @click="runLeidenClustering"
-                      >{{ clusteringActive ? `Re-run ${selectedAlgorithmLabel} Clustering` : `Run ${selectedAlgorithmLabel} Clustering` }}</v-btn>
-
-                      <template v-if="clusteringActive">
-                        <v-btn
-                          class="mt-2"
-                          variant="outlined"
-                          block
-                          @click="resetClusteringColors"
-                        >Reset to Node Type Colors</v-btn>
-
-                        <div class="mt-4">
-                          <template v-if="algorithmUsesResolution">
-                            <label class="text-caption">Leiden resolution: {{ leidenResolutions[resolutionIndex] }}</label>
-                            <v-slider
-                              v-model="resolutionIndex"
-                              :min="0"
-                              :max="leidenResolutions.length - 1"
-                              :step="1"
-                              show-ticks="always"
-                              thumb-label="always"
-                              density="compact"
-                              color="primary"
-                            >
-                              <template #thumb-label>{{ leidenResolutions[resolutionIndex] }}</template>
-                            </v-slider>
-                            <p class="text-caption text-medium-emphasis">
-                              {{ includedNodeTypes.size }} communities at this resolution. Higher values produce more communities.
-                            </p>
-                          </template>
-                          <p v-if="currentModularity != null" class="text-caption text-medium-emphasis">
-                            Modularity: {{ currentModularity.toFixed(3) }} · Conductance: {{ currentConductance.toFixed(3) }}
-                          </p>
-
-                          <v-btn
-                            class="mt-2"
-                            color="primary"
-                            variant="outlined"
-                            :disabled="legendGroups.length === 0"
-                            @click="resultsPanelOpen = true; resultsPanelTab = 'communityAnnotation'; lastTriggeredSection = 'enrichment'; if (communityAnnotationStatus === 'idle') runCommunityAnnotation();"
-                          >Community Annotation</v-btn>
-
-                          <!-- <v-divider class="my-4"></v-divider>
-                          <p class="text-caption text-medium-emphasis mb-2">
-                            Scores the current clustering's biological coherence via DIGEST, against
-                            random background partitions of the same size. Only one node type can be
-                            scored per run.
-                          </p>
-                          <v-select
-                            v-model="scoreClusteringNodeGroup"
-                            :items="scoreClusteringNodeGroups"
-                            label="Node type to score"
-                            density="compact"
-                            variant="outlined"
-                            :disabled="scoreClusteringStatus === 'running'"
-                          ></v-select>
-                          <v-select
-                            v-model="scoreClusteringType"
-                            :items="scoreClusteringTypeOptions"
-                            item-title="title"
-                            item-value="value"
-                            label="Category"
-                            density="compact"
-                            variant="outlined"
-                            :disabled="scoreClusteringStatus === 'running'"
-                          ></v-select>
-                          <v-select
-                            v-model="scoreClusteringTarId"
-                            :items="scoreClusteringTarIdOptions"
-                            item-title="title"
-                            item-value="value"
-                            label="Identifier scheme"
-                            density="compact"
-                            variant="outlined"
-                            :disabled="scoreClusteringStatus === 'running'"
-                          ></v-select>
-                          <v-btn
-                            block
-                            color="primary"
-                            variant="outlined"
-                            :loading="scoreClusteringStatus === 'running'"
-                            :disabled="scoreClusteringStatus === 'running' || !scoreClusteringNodeGroup || !scoreClusteringTarId"
-                            @click="runScoreClustering"
-                          >{{ scoreClusteringStatus === 'success' ? 'Re-score Clustering' : 'Score Clustering' }}</v-btn>
-
-                          <div v-if="scoreClusteringStatus === 'success' && scoreClusteringResult" class="mt-3">
-                            <v-table density="compact">
-                              <thead>
-                                <tr><th>Metric</th><th>Value</th><th>p-value</th></tr>
-                              </thead>
-                              <tbody>
-                                <tr v-for="metric in ['DI-based', 'SS-based', 'DBI-based']" :key="metric">
-                                  <td>{{ metric }}</td>
-                                  <td>{{ formatScoreValue(scoreClusteringResult.input_values?.values?.[metric]) }}</td>
-                                  <td>{{ formatScoreValue(scoreClusteringResult.p_values?.values?.[metric]) }}</td>
-                                </tr>
-                              </tbody>
-                            </v-table>
-                            <p class="text-caption text-medium-emphasis mt-2">
-                              DBI-based is better when lower; DI-based and SS-based are better when
-                              higher. Scored {{ scoreClusteringResult.coverage?.scoredNodeCount }} of
-                              {{ scoreClusteringResult.coverage?.inputNodeCount }} clustered nodes
-                              ({{ scoreClusteringResult.coverage?.nodeGroup }} via
-                              {{ scoreClusteringResult.coverage?.tarId }}).
-                            </p>
-                          </div> -->
-                        </div>
-                      </template>
-                    </template>
-                    <p v-else class="text-medium-emphasis">
-                      Community detection is available once you've sent the whole network above ("Send Whole Network") -- it isn't supported for node-set-built subnetworks.
-                    </p>
-
-                    <NodeSetActionsPanel
+                    <AnalysisPanel
+                      :last-network-mode="lastNetworkMode"
+                      v-model:selected-algorithm="selectedAlgorithm"
+                      :community-algorithms="communityAlgorithms"
+                      :algorithm-description="algorithmDescription"
+                      :algorithm-uses-resolution="algorithmUsesResolution"
+                      :is-clustering-loading="isClusteringLoading"
+                      :clustering-active="clusteringActive"
+                      :leiden-resolution-min="leidenResolutionMin"
+                      :leiden-resolution-max="leidenResolutionMax"
+                      v-model:leiden-resolution="leidenResolution"
+                      :current-modularity="currentModularity"
+                      :current-conductance="currentConductance"
+                      :included-node-types-count="includedNodeTypes.size"
+                      :community-annotation-status="communityAnnotationStatus"
                       :selected-node-count="selectedNetworkNodes.length"
                       :has-selected-protein="hasSelectedProtein"
                       :has-selected-metabolite="hasSelectedMetabolite"
@@ -560,14 +425,16 @@
                       :selected-metabolite-mapped-count="selectedMetaboliteCount - reactomeUnmappedMetabolites.length"
                       :selected-metabolites-without-chebi-count="selectedMetabolitesWithoutChebi.length"
                       :reactome-unmapped-metabolite-names="reactomeUnmappedMetabolites.map((node) => node.display_name)"
-                      :reactome-run-disabled="selectedProteinAccessions.length + selectedMetaboliteChebiIds.length + selectedMetabolitesWithoutChebi.length === 0"
+                      :reactome-run-disabled="reactomeRunDisabled"
                       :reactome-enrichment-ran="reactomeEnrichmentRan"
                       :gemini-loading="geminiLoading"
                       :enrichment-loading="enrichmentLoading"
                       :reactome-enrichment-loading="reactomeEnrichmentLoading"
-                      @run-gemini-label="runGeminiLabel(); resultsPanelOpen = true; resultsPanelTab = 'gemini'; lastTriggeredSection = 'enrichment';"
-                      @run-protein-enrichment="runProteinEnrichment(); resultsPanelOpen = true; resultsPanelTab = 'enrichment'; lastTriggeredSection = 'enrichment';"
-                      @run-reactome-enrichment="runReactomeEnrichment(); resultsPanelOpen = true; resultsPanelTab = 'reactomeEnrichment'; lastTriggeredSection = 'enrichment';"
+                      @run-clustering="runLeidenClustering"
+                      @run-community-annotation="tablesActiveTab = 'communityAnnotation'; runCommunityAnnotation();"
+                      @run-gprofiler-enrichment="runProteinEnrichment(); tablesActiveTab = 'enrichment'; enrichmentTab = 'enrichment';"
+                      @run-reactome-enrichment="runReactomeEnrichment(); tablesActiveTab = 'enrichment'; enrichmentTab = 'reactomeEnrichment';"
+                      @run-gemini-label="runGeminiLabel(); tablesActiveTab = 'nodeSetAnnotation';"
                     />
                   </v-expansion-panel-text>
                 </v-expansion-panel>
@@ -578,19 +445,73 @@
             <v-col cols="8" >
               <v-card outlined class="network-container">
 
+              <v-window v-model="visualizationTab">
+                <v-window-item value="visualization">
+
+              <!-- Community detection can take a while -- surfaced here (not just the Analysis
+                   panel's own button spinner) so it's visible even while that accordion panel is
+                   collapsed or the user is looking at the graph. -->
+              <v-progress-linear v-if="isClusteringLoading" indeterminate color="primary" height="4" />
+
               <!-- Card Content -->
               <v-card-text ref="wholeNetwork">
                 <!-- Network Visualization -->
                 <v-row>
                     <v-col>
-                      <div ref="network" id="network" style="height: 550px;"></div>
-                      <!-- Legend -->
+                      <div ref="network" id="network" style="height: 550px;">
+                        <CosmographGraph
+                          ref="graph"
+                          :nodes="graphNodes"
+                          :edges="edgesForGraph"
+                          :physics-on="physics_on"
+                          :point-color-fn="computePointColor"
+                          :point-size-fn="computePointSize"
+                          :link-color-fn="computeLinkColor"
+                          :link-width-fn="computeLinkWidth"
+                          :background-color="labelColor('background')"
+                          :hovered-point-ring-color="labelColor('primary-darken-1')"
+                          :unknown-color="labelColor('text')"
+                          @point-click="handlePointClick"
+                          @link-click="handleLinkClick"
+                          @background-click="handleBackgroundClick"
+                          @rect-selected="handleAreaSelected"
+                          @polygon-selected="handleAreaSelected"
+                          @simulation-end="onSimulationEnd"
+                          @error="onGraphError"
+                        />
+                      </div>
+                      <!-- Legend: 'rank'/'degree' modes have no discrete groups to
+                           swatch -- a gradient bar instead, in the same bottom-left spot. -->
                       <NetworkLegend
+                        v-if="nodeColorMode === 'group' || nodeColorMode === 'community'"
                         class="legend"
                         :items="legendItems"
                         :title="legendTitle"
                         selectable
                         @select="selectNodesByGroup"
+                      />
+                      <GradientLegend
+                        v-else-if="nodeColorMode === 'rank'"
+                        class="legend"
+                        title="Node color: weighted degree"
+                        :gradient-css="nodeRankGradientCss"
+                        :labels="nodeRankLegendLabels"
+                      />
+                      <GradientLegend
+                        v-else-if="nodeColorMode === 'degree'"
+                        class="legend"
+                        title="Node color: degree"
+                        :gradient-css="nodeDegreeGradientCss"
+                        :labels="nodeDegreeLegendLabels"
+                      />
+                      <!-- Edge legend: bottom-right so it doesn't collide with the
+                           node legend above when both are showing at once. -->
+                      <GradientLegend
+                        v-if="edgeStyleMode !== 'unweighted'"
+                        class="edge-legend"
+                        :title="edgeStyleLegendTitle"
+                        :gradient-css="edgeStyleGradientCss"
+                        :labels="edgeStyleLegendLabels"
                       />
                   </v-col>
                 </v-row>
@@ -604,8 +525,10 @@
                 :hide-unconnected="hideUnconnected"
                 @update:hide-unconnected="onHideUnconnectedChange"
                 @save-image="saveNetworkImage"
+                @fit-view="resetView"
               >
                 <template #prepend>
+                    <v-spacer />
                     <v-btn-toggle
                       v-model="selectionMode"
                       class="mr-3"
@@ -656,14 +579,50 @@
                         </template>
                       </v-tooltip>
                     </v-btn-toggle>
+                    <v-select
+                      :model-value="nodeColorMode"
+                      @update:model-value="onNodeColorModeChange"
+                      :items="nodeColorModeItems"
+                      label="Node color"
+                      density="compact"
+                      variant="outlined"
+                      hide-details
+                      class="toolbar-select mr-3"
+                      style="max-width: 140px"
+                    >
+                      <template #item="{ item, props }">
+                        <v-tooltip v-if="item.raw.tooltip" :text="item.raw.tooltip" location="end">
+                          <template #activator="{ props: tooltipProps }">
+                            <v-list-item v-bind="{ ...props, ...tooltipProps }"></v-list-item>
+                          </template>
+                        </v-tooltip>
+                        <v-list-item v-else v-bind="props"></v-list-item>
+                      </template>
+                    </v-select>
+                    <v-select
+                      :model-value="edgeStyleMode"
+                      @update:model-value="onEdgeStyleModeChange"
+                      :items="edgeStyleModeItems"
+                      label="Edge color"
+                      density="compact"
+                      variant="outlined"
+                      hide-details
+                      class="toolbar-select mr-3"
+                      style="max-width: 140px"
+                    ></v-select>
                 </template>
                 <template #append>
-                  <v-btn
-                    icon
-                    @click="clearNetworkWarn=true;"
-                  >
-                    <v-icon class="m-3">mdi-trash-can-outline</v-icon>
-                  </v-btn>
+                  <v-tooltip text="Clear network" location="bottom">
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        icon
+                        v-bind="props"
+                        @click="clearNetworkWarn=true;"
+                      >
+                        <v-icon class="m-3">mdi-trash-can-outline</v-icon>
+                      </v-btn>
+                    </template>
+                  </v-tooltip>
                   <v-dialog width="auto" v-model="clearNetworkWarn">
                     <v-card color="primary" rounded="lg">
                       <v-card-title class="headline text-white" >
@@ -691,64 +650,52 @@
                   Save Network
                 </v-btn>
               </v-card-actions>-->
+
+                </v-window-item>
+
+                <v-window-item value="tables">
+                  <v-card-text>
+                    <NetworkTablesPanel
+                      v-model:active-tab="tablesActiveTab"
+                      v-model:enrichment-tab="enrichmentTab"
+                      v-model:node-set-annotation-tab="nodeSetAnnotationTab"
+                      v-model:neighbors-tab="neighborsSubTab"
+                      :graph-nodes="graphNodes"
+                      :graph-edges="graphEdges"
+                      :nodes-by-id="nodesById"
+                      :selected-node-ids="selectedNetworkNodes.map(n => n.id)"
+                      :clustering-active="clusteringActive"
+                      :community-label-for="communityLabelFor"
+                      :displayed-node-id="displayedElementType === 'node' ? displayedElement?.id : null"
+                      :neighbor-nodes="recentNeighborNodes"
+                      :edges-for-node="edgesForNode"
+                      :enrichment-ran="enrichmentRan"
+                      :enrichment-results="enrichmentResults"
+                      :enrichment-loading="enrichmentLoading"
+                      :gprofiler-sub-tab-dismissed="gprofilerSubTabDismissed"
+                      :reactome-enrichment-ran="reactomeEnrichmentRan"
+                      :reactome-enrichment-results="reactomeEnrichmentResults"
+                      :reactome-enrichment-loading="reactomeEnrichmentLoading"
+                      :reactome-sub-tab-dismissed="reactomeSubTabDismissed"
+                      :gemini-label="geminiLabel"
+                      :gemini-loading="geminiLoading"
+                      :gemini-sub-tab-dismissed="geminiSubTabDismissed"
+                      :community-annotation-status="communityAnnotationStatus"
+                      :community-annotation-progress="communityAnnotationProgress"
+                      :community-annotation-results="communityAnnotationResults"
+                      :tab-highlights="tableSubtabHighlights"
+                      @select-node="jumpToSearchedNode"
+                      @select-edge="jumpToEdgeSelection"
+                      @select-neighbor="jumpToSearchedNode"
+                      @toggle-select-node="toggleNodeSelectionById"
+                      @close-tab="closeTablesSubTab"
+                    />
+                  </v-card-text>
+                </v-window-item>
+              </v-window>
               </v-card>
             </v-col>
           </v-row>
-
-          <div style="display: flex; flex-direction: column;">
-            <v-row v-if="graphNodes.length > 0">
-              <v-col cols="12">
-                <NetworkRankingTabs
-                  title="Network Ranking"
-                  :edges="graphEdges"
-                  :nodes="graphNodes"
-                  :nodes-by-id="nodesById"
-                  :interactive="true"
-                  @select-node="jumpToSearchedNode"
-                  @select-edge="jumpToEdgeSelection"
-                />
-              </v-col>
-            </v-row>
-
-            <v-row
-              v-if="nodeEdgeTableVisible"
-              :style="{ order: lastTriggeredSection === 'enrichment' ? 1 : 0 }"
-            >
-              <v-col cols="12">
-                <NodeEdgeTable
-                  :node-label="displayedElement?.display_name"
-                  :items="nodeEdgeTableItems"
-                  @select-neighbor="jumpToSearchedNode"
-                />
-              </v-col>
-            </v-row>
-
-            <v-row
-              v-if="resultsPanelOpen || enrichmentRan || reactomeEnrichmentRan || geminiRan"
-              :style="{ order: lastTriggeredSection === 'enrichment' ? 0 : 1 }"
-            >
-              <v-col cols="12">
-                <EnrichmentResultsPanel
-                  v-model:open="resultsPanelOpen"
-                  v-model:tab="resultsPanelTab"
-                  :enrichment-ran="enrichmentRan"
-                  :enrichment-results="enrichmentResults"
-                  :enrichment-loading="enrichmentLoading"
-                  :reactome-enrichment-ran="reactomeEnrichmentRan"
-                  :reactome-enrichment-results="reactomeEnrichmentResults"
-                  :reactome-enrichment-loading="reactomeEnrichmentLoading"
-                  :gemini-ran="geminiRan"
-                  :gemini-label="geminiLabel"
-                  :gemini-loading="geminiLoading"
-                  :community-annotation-available="clusteringActive"
-                  :community-annotation-status="communityAnnotationStatus"
-                  :community-annotation-progress="communityAnnotationProgress"
-                  :community-annotation-results="communityAnnotationResults"
-                  @run-community-annotation="runCommunityAnnotation"
-                />
-              </v-col>
-            </v-row>
-          </div>
         </v-card>
         <v-row>
           <div class="ma-2">
@@ -757,7 +704,7 @@
                 :color="infoType"
             >
               <v-icon class="my-0 mr-2">
-                mdi-information-outline
+                {{ infoType === 'success' ? 'mdi-check-circle' : infoType === 'error' ? 'mdi-alert-circle' : 'mdi-information-outline' }}
               </v-icon>
               {{ infoText }}
 
@@ -779,21 +726,22 @@
 import AdvancedSettings from "@/components/AdvancedSettings.vue";
 import FilterToolbar from "@/components/FilterToolbar.vue";
 import {BASE_URL, isLoading, setIsLoading, setLoadingState, loadingStates} from "@/components/constants.js";
-import {darkenHexColor, assignGroupColors, getNodeIcon, loadNetworkState, saveNetworkState, capitalizeFirstLetter, drawLegendPanel} from "../components/network/networkData.js";
+import {darkenHexColor, interpolateHexColor, normalizeInRange, computeEdgeScore, computePercentileRanks, assignGroupColors, getNodeIcon, loadNetworkState, saveNetworkState, capitalizeFirstLetter, drawLegendPanel} from "../components/network/networkData.js";
 import {interpolateRainbow} from 'd3-scale-chromatic';
 import NodeDetails from '@/components/network/NodeDetails.vue';
 import EdgeDetails from '@/components/network/EdgeDetails.vue';
 import NetworkLegend from '@/components/network/NetworkLegend.vue';
-import {Cosmograph} from "@cosmograph/cosmograph";
+import GradientLegend from '@/components/network/GradientLegend.vue';
+import CosmographGraph from '@/components/network/CosmographGraph.vue';
 import {getCookie} from "@/components/authentication/auth.js";
 import StatisticalTestLine from "@/components/StatisticalTestLine.vue";
 import NetworkEdgeLine from "@/components/network/NetworkEdgeLine.vue";
 import WholeNetworkSettings from "@/components/network/WholeNetworkSettings.vue";
 import GraphToolbar from "@/components/network/GraphToolbar.vue";
-import EnrichmentResultsPanel from "@/components/network/EnrichmentResultsPanel.vue";
-import NodeSetActionsPanel from "@/components/network/NodeSetActionsPanel.vue";
-import NodeEdgeTable from "@/components/network/NodeEdgeTable.vue";
+import AnalysisPanel from "@/components/network/AnalysisPanel.vue";
+import ConnectNodesPanel from "@/components/network/ConnectNodesPanel.vue";
 import NetworkRankingTabs from "@/components/network/NetworkRankingTabs.vue";
+import NetworkTablesPanel from "@/components/network/NetworkTablesPanel.vue";
 import {useTheme} from 'vuetify';
 
 
@@ -801,8 +749,8 @@ import {useTheme} from 'vuetify';
 export default {
   components: {
     StatisticalTestLine, FilterToolbar, AdvancedSettings, NodeDetails, NetworkEdgeLine,
-    WholeNetworkSettings, EdgeDetails, GraphToolbar, NetworkLegend, EnrichmentResultsPanel, NodeSetActionsPanel,
-    NodeEdgeTable, NetworkRankingTabs},
+    WholeNetworkSettings, EdgeDetails, GraphToolbar, NetworkLegend, GradientLegend, AnalysisPanel, ConnectNodesPanel,
+    NetworkRankingTabs, NetworkTablesPanel, CosmographGraph},
   data() {
     return {
       // context filter
@@ -829,11 +777,6 @@ export default {
       showLoading: isLoading,
       networkNodes: [],//test_data["nodes"],
       networkEdges: [],//test_data["edges"],
-      cosmographInstance: null,
-      _cosmoConfig: null,
-      _configUpdateChain: null,
-      indexToNodeId: [],
-      indexToEdgeId: [],
       _clickTimer: null,
       _lastClickIndex: null,
       _lastClickTime: 0,
@@ -856,17 +799,83 @@ export default {
       includedNodeTypes: new Set(), // stores type currently present in network for Legend
       searchedNodeId: null, // Details-panel "search node in network" field
 
+      // Node coloring mode: 'group' (node_group/source_table), 'rank' (weighted
+      // degree gradient), 'degree' (plain degree gradient), or 'community'
+      // (requires clusteringActive). See colorKeyFor/computePointColor.
+      // pointColorByFn recomputes color live per point/per render (same as
+      // edge coloring), so switching modes is a light applyDesign() refresh,
+      // not a full initializeCosmograph() rebuild.
+      nodeColorMode: 'group',
+      // Cached once per refreshNodeColorState() call (initializeCosmograph(),
+      // or a node-color-mode switch) -- group/community's colorKey -> hex
+      // lookup, read by computePointColor. Rank/Degree modes don't use this
+      // (their colorKey is already the final hex color).
+      pointColorMapCache: {},
+      // Cached once per initializeCosmograph() rebuild while nodeColorMode is
+      // 'rank', so every node's color is normalized against the same min/max
+      // instead of recomputing it per node.
+      weightedDegreeRange: { min: 0, max: 0 },
+      // Same as weightedDegreeRange but for plain (unweighted) degree, while
+      // nodeColorMode is 'degree'. See degreeColorFor.
+      degreeRange: { min: 0, max: 0 },
+      // Cached once per render pass while edgeStyleMode isn't 'unweighted' --
+      // each edge's percentile rank (0-1) by |score| among currently-displayed
+      // edges, parallel to networkEdges (null where there's no score). Rank-based
+      // rather than min-max so a skewed distribution (e.g. most surviving edges'
+      // p-values underflowing to the same near-zero value) still spreads across
+      // the full width/color range. See refreshEdgeScoreRange/computeLinkColor.
+      edgeScorePercentiles: [],
+      // Edge styling mode: 'unweighted' (today's flat width/internal-external
+      // color), or sized+colored by a significance score -- 'combined'
+      // (-log10(p) * |effect size|), 'pvalue' (-log10(p) only), or 'effect'
+      // (|effect size| only, diverging cold/warm by sign). See
+      // computeEdgeScore/computeLinkWidth/computeLinkColor.
+      edgeStyleMode: 'unweighted',
+
+      // "Neighbors of" tab: the up-to-5 most-recently-clicked nodes, newest first, each its
+      // own closable sub-tab (see displayNode/addRecentNeighborNode/closeTablesSubTab). Not
+      // persisted across reloads, same as tablesActiveTab/displayedElement.
+      recentNeighborNodeIds: [],
+      neighborsSubTab: null,
+
       selectedNetworkNodes: [],
       selectAll: false,
       clearNetworkWarn: false,
 
-      // Results panel (below the network) shown once an Analysis-panel
-      // action -- Protein Enrichment, Reactome Enrichment, or Gemini Label -- has been run
-      resultsPanelOpen: false,
-      resultsPanelTab: 'enrichment',
-      // Which of the two below-graph panels (the per-node edge table vs the Analysis
-      // Results panel) was triggered most recently -- rendered first via CSS order.
-      lastTriggeredSection: null, // 'edgeTable' | 'enrichment'
+      // Left accordion (v-expansion-panels multiple, index-based since panels
+      // don't set an explicit `value`): which panels are currently expanded.
+      // displayNode()/displayEdge() push the Details panel's index (1) in here
+      // so clicking a node/edge -- on the graph canvas or in a ranking table,
+      // both of which funnel through those two methods -- unfolds it, without
+      // collapsing whatever else the user already had open.
+      openPanels: [],
+
+      // Visualization/Tables tab switch (graph card) and, within Tables, which sub-tab is
+      // showing -- an Analysis-panel action (node click, enrichment/community-annotation run)
+      // pre-selects the relevant Tables sub-tab without forcing the top-level tab away from
+      // Visualization.
+      visualizationTab: 'visualization',
+      tablesActiveTab: 'nodeRanking',
+      enrichmentTab: 'enrichment',
+      nodeSetAnnotationTab: 'gemini',
+
+      // Top-level Tables tabs (Node Ranking, Edge Ranking, Neighbors of, Enrichment, Node Set
+      // Annotation, Community Annotation) are all always present now -- only their sub-tabs
+      // (gProfiler/Reactome within Enrichment, Gemini within Node Set Annotation) are
+      // individually closable (see closeTablesSubTab), which flips the relevant dismissed flag
+      // below until that method is run again, at which point the run-method resets it.
+      gprofilerSubTabDismissed: false,
+      reactomeSubTabDismissed: false,
+      geminiSubTabDismissed: false,
+
+      // Lets the user know new results landed in a Tables sub-tab they aren't
+      // currently looking at: lights up the top-level "Tables" tab (header) if
+      // they're on the Visualization side, or the specific sub-tab if they're
+      // already in Tables but looking at a different one. Cleared by the
+      // visualizationTab/tablesActiveTab watchers once they actually navigate
+      // to what was highlighted -- see notifyTablesContentProduced().
+      tablesTabHighlighted: false,
+      tableSubtabHighlights: { edgesOfNode: false, enrichment: false, nodeSetAnnotation: false, communityAnnotation: false },
 
       // Protein Enrichment (g:Profiler)
       enrichmentLoading: false,
@@ -881,9 +890,11 @@ export default {
       // after a run, distinct from selectedMetabolitesWithoutChebi (known before running).
       reactomeUnmappedMetabolites: [],
 
-      // Gemini community labeling
+      // Gemini community labeling. No separate "ran" flag -- a successful call always
+      // returns a label, so geminiLabel != null is already "has a result" (see
+      // NodeSetAnnotationResultsPanel.vue), and a failed call surfaces via the page's own
+      // error snackbar rather than an empty tab.
       geminiLoading: false,
-      geminiRan: false,
       geminiLabel: null,
 
       // Community Annotation (g:Profiler + Reactome + Gemini for every community at the
@@ -939,6 +950,20 @@ export default {
       // fetches) -- only matters in no-context mode, since a selected context fixes its
       // own test type server-side regardless of this value (see buildSignificantEdgesUrl).
       fullNetworkStatsTestType: 'nonparametric',
+      // User-editable p-value threshold for this panel (see the threshold text field
+      // above) -- the backend (GetCosmographView's unbounded-significance branch) ranks
+      // and computes weighted degree over every edge at or below this, then truncates the
+      // response to fullNetworkStatsMaxResults of each; the fields below reflect the true
+      // (pre-truncation) totals it reports, for fullNetworkStatsSubtitle to surface.
+      fullNetworkStatsThreshold: 0.05,
+      fullNetworkStatsTotalEdges: 0,
+      fullNetworkStatsTotalNodes: 0,
+      fullNetworkStatsEdgesTruncated: false,
+      fullNetworkStatsNodesTruncated: false,
+      fullNetworkStatsMaxResults: 10000,
+      // Debounce handle for the threshold watcher below -- a free-typed number field
+      // shouldn't refetch (a full server-side significance scan) on every keystroke.
+      fullNetworkStatsThresholdDebounce: null,
       // Which flow last populated the displayed network -- 'nodes' (node-search
       // "Send to Network") or 'whole' ("Send Whole Network"). Lets addSettings()/
       // updateWholeNetworkSettings() know which fetch to re-run when their
@@ -951,8 +976,12 @@ export default {
       // network, not an arbitrary node-search-built subgraph.
       clusteringActive: false,
       isClusteringLoading: false,
-      leidenResolutions: [0.2, 0.5, 1.0, 1.5, 2.0, 3.0],
-      resolutionIndex: 2, // default 1.0
+      // Free-form resolution input (replaces the old preset-slider) -- 0.1-5.0 is a reasonable
+      // practical range for Leiden's resolution parameter: below ~0.1 most graphs collapse into
+      // one giant community, above ~5 you're mostly fragmenting into near-singletons.
+      leidenResolutionMin: 0.1,
+      leidenResolutionMax: 5.0,
+      leidenResolution: 1.0,
       leidenMeta: {},
       // Algorithm that actually produced the communities currently colored on
       // the graph -- set from the response once a run succeeds, so it stays
@@ -994,6 +1023,12 @@ export default {
       }
       return this.networkNodes.filter((node) => connectedIds.has(node.id));
     },
+    // CosmographGraph wants generic source/target, not this page's own from/to
+    // field names -- translated at the boundary rather than inside the shared
+    // component.
+    edgesForGraph() {
+      return this.networkEdges.map((edge) => ({ ...edge, source: edge.from, target: edge.to }));
+    },
     // id -> node lookup for the bottom (current view) EdgeRankingTable instance,
     // to resolve from/to ids to display names.
     nodesById() {
@@ -1005,6 +1040,18 @@ export default {
     fullNetworkStatsNodesById() {
       return new Map(this.fullNetworkStatsNodes.map((node) => [node.id, node]));
     },
+    // Surfaces the backend's true (pre-truncation) significant edge/node counts whenever
+    // the top max_edges/max_nodes cap actually kicked in -- see fetchFullNetworkStatistics.
+    fullNetworkStatsSubtitle() {
+      const parts = [`Significant edges only (p ≤ ${this.fullNetworkStatsThreshold}).`];
+      if (this.fullNetworkStatsEdgesTruncated) {
+        parts.push(`Showing the top ${this.fullNetworkStatsMaxResults.toLocaleString()} of ${this.fullNetworkStatsTotalEdges.toLocaleString()} significant edges, ranked by significance.`);
+      }
+      if (this.fullNetworkStatsNodesTruncated) {
+        parts.push(`Showing the top ${this.fullNetworkStatsMaxResults.toLocaleString()} of ${this.fullNetworkStatsTotalNodes.toLocaleString()} nodes, ranked by weighted degree.`);
+      }
+      return parts.join(' ');
+    },
     // Edges of networkEdges restricted to graphNodes -- the edge-side analog of
     // graphNodes, for the "current view" ranking tables below the graph.
     graphEdges() {
@@ -1012,33 +1059,13 @@ export default {
       const connectedIds = new Set(this.graphNodes.map((node) => node.id));
       return this.networkEdges.filter((edge) => connectedIds.has(edge.from) && connectedIds.has(edge.to));
     },
-    // Gating the per-node edge table purely on displayedElementType (rather than a
-    // separate open/close flag) means it disappears automatically whenever selection
-    // moves to an edge or is cleared -- see handleBackgroundClick/displayEdge/clearNetwork.
-    nodeEdgeTableVisible() {
-      return this.displayedElementType === 'node';
-    },
-    // Every edge incident to the currently displayed node, shaped for NodeEdgeTable.
-    // Neighbor labels aren't pre-populated on networkEdges entries (only the single
-    // currently-displayed edge gets that via displayEdge), so resolve them here the
-    // same way displayEdge does.
-    nodeEdgeTableItems() {
-      if (!this.nodeEdgeTableVisible || !this.displayedElement) return [];
-      const nodeId = this.displayedElement.id;
-      return this.networkEdges
-        .filter((edge) => edge.from === nodeId || edge.to === nodeId)
-        .map((edge) => {
-          const neighborId = edge.from === nodeId ? edge.to : edge.from;
-          const neighbor = this.networkNodes.find((n) => n.id === neighborId);
-          return {
-            edge,
-            neighborId,
-            neighborLabel: neighbor?.display_name ?? neighborId,
-            testType: edge.test_type,
-            pValue: edge.p_value,
-            effectSize: edge.effect_size,
-          };
-        });
+    // Resolves recentNeighborNodeIds against the current networkNodes for the "Neighbors of"
+    // sub-tabs -- filters out any id that no longer exists (e.g. after narrowing to a
+    // subnetwork) rather than rendering a tab for a node that's gone.
+    recentNeighborNodes() {
+      return this.recentNeighborNodeIds
+        .map((id) => this.networkNodes.find((n) => n.id === id))
+        .filter(Boolean);
     },
     // Legend entries: whatever groups are actually present in the current network --
     // node_group/source_table has no fixed set of values (see colorForGroup()).
@@ -1050,12 +1077,109 @@ export default {
     // Render-ready form of legendGroups for NetworkLegend (shared with
     // differential-network.vue) and for the exported-PNG legend panel.
     legendItems() {
+      // Rank/Degree modes have no discrete legend (see the on-screen NetworkLegend's
+      // own v-if) -- also skipped here so the exported-PNG legend panel stays empty.
+      if (this.nodeColorMode === 'rank' || this.nodeColorMode === 'degree') return [];
       return this.legendGroups.map((key) => ({
         key,
         label: this.legendLabel(key),
         color: this.colorForLegendKey(key),
         active: this.isGroupFullySelected(key),
       }));
+    },
+    // Rank/Degree coloring need degree/weighted_degree on the currently-displayed
+    // nodes -- backend always computes both together (see
+    // _compute_node_degree_stats), so one check covers both; only present on a
+    // 'whole' network fetch (see sendToNetwork/sendWholeNetwork), not a
+    // node-search-built one.
+    hasDegreeStats() {
+      return this.graphNodes.some((node) => node.weighted_degree != null);
+    },
+    nodeColorModeItems() {
+      const items = [
+        { title: 'Group', value: 'group' },
+        {
+          title: 'Rank',
+          value: 'rank',
+          disabled: !this.hasDegreeStats,
+          tooltip: 'Weighted degree: sum of -log10(p) × |effect size| over each node\'s edges',
+        },
+        {
+          title: 'Degree',
+          value: 'degree',
+          disabled: !this.hasDegreeStats,
+          tooltip: 'Number of edges connected to this node',
+        },
+      ];
+      // Not just disabled -- omitted entirely until community detection has
+      // actually been run on the current network (clusteringActive), rather
+      // than showing a mode the dropdown can't yet produce anything for.
+      if (this.clusteringActive) items.push({ title: 'Community', value: 'community' });
+      return items;
+    },
+    edgeStyleModeItems() {
+      return [
+        { title: 'Uniform', value: 'unweighted' },
+        { title: '-log(p) × |effect size|', value: 'combined' },
+        { title: '-log(p)', value: 'pvalue' },
+        { title: 'Effect size', value: 'effect' },
+        { title: '|Effect size|', value: 'effectAbs' },
+      ];
+    },
+    // Same grey-to-blue scale rankColorFor() itself paints nodes with (see
+    // there) -- kept as a CSS gradient string here rather than duplicating the
+    // interpolateHexColor calls, since the legend only needs the two endpoints.
+    nodeRankGradientCss() {
+      return `linear-gradient(to right, ${this.labelColor('chart-grid')}, ${this.labelColor('primary-darken-1')})`;
+    },
+    // min is always pinned to 0 (see weightedDegreeRange); only the endpoints
+    // are labeled -- the bar's own CSS gradient is a plain linear blend, not
+    // rankColorFor's log1p curve, so a labeled midpoint would misstate where a
+    // given weighted_degree actually falls.
+    nodeRankLegendLabels() {
+      const max = this.weightedDegreeRange.max;
+      return ['0', max > 0 ? max.toFixed(max < 10 ? 1 : 0) : '0'];
+    },
+    // Same grey-to-blue scale degreeColorFor() itself paints nodes with.
+    nodeDegreeGradientCss() {
+      return `linear-gradient(to right, ${this.labelColor('chart-grid')}, ${this.labelColor('primary-darken-1')})`;
+    },
+    // min is always pinned to 0 (see degreeRange); degree is an integer count,
+    // so no decimal places needed unlike weighted_degree's own legend.
+    nodeDegreeLegendLabels() {
+      return ['0', String(this.degreeRange.max)];
+    },
+    edgeStyleLegendTitle() {
+      if (this.edgeStyleMode === 'effect') return 'Edge color: effect size';
+      if (this.edgeStyleMode === 'effectAbs') return 'Edge color: |effect size|';
+      if (this.edgeStyleMode === 'combined') return 'Edge color: -log(p) × |effect size| (rank)';
+      if (this.edgeStyleMode === 'pvalue') return 'Edge color: -log(p) (rank)';
+      return '';
+    },
+    // Same colors computeLinkColor() itself paints edges with. 'effect'/'effectAbs'
+    // have a real, fixed domain (sign/magnitude directly meaningful) so their
+    // legends get real numeric endpoints; 'combined'/'pvalue' are percentile ranks
+    // among whatever's currently displayed, not a fixed value scale, so their
+    // legend only labels relative position -- numeric ticks there would imply
+    // a fixed scale that doesn't exist and would be actively misleading.
+    edgeStyleGradientCss() {
+      if (this.edgeStyleMode === 'effect') {
+        return `linear-gradient(to right, ${this.labelColor('primary-darken-1')}, ${this.labelColor('background')}, ${this.labelColor('warning')})`;
+      }
+      if (this.edgeStyleMode === 'effectAbs') {
+        return `linear-gradient(to right, ${this.labelColor('chart-grid')}, #000000)`;
+      }
+      return `linear-gradient(to right, ${this.labelColor('chart-grid')}, ${this.labelColor('chart')})`;
+    },
+    edgeStyleLegendLabels() {
+      if (this.edgeStyleMode === 'effect') return ['-1', '0', '+1'];
+      if (this.edgeStyleMode === 'effectAbs') return ['0', '1'];
+      // 'pvalue' is purely -log(p), so "significance" is exact; 'combined' folds
+      // in |effect size| too, so calling it "significance" would overstate what
+      // the rank actually reflects -- "Low"/"High" stays accurate for both.
+      if (this.edgeStyleMode === 'pvalue') return ['Least significant', 'Most significant'];
+      if (this.edgeStyleMode === 'combined') return ['Low', 'High'];
+      return [];
     },
     hasSelectedProtein() {
       return this.selectedNetworkNodes.some((node) => node.source_table === 'protein');
@@ -1100,15 +1224,17 @@ export default {
       return this.selectedNetworkNodes.filter((node) => node.source_table === 'metabolite' &&
         !(this.parseXrefs(node.x_refs).chebi || []).length);
     },
-    selectedAlgorithmLabel() {
-      return this.communityAlgorithms.find((algo) => algo.value === this.selectedAlgorithm)?.label ?? this.selectedAlgorithm;
+    // True only when literally nothing selected has any identifier Reactome could use --
+    // gates both the Reactome button itself and its disabled-tooltip reason in AnalysisPanel.
+    reactomeRunDisabled() {
+      return this.selectedProteinAccessions.length + this.selectedMetaboliteChebiIds.length + this.selectedMetabolitesWithoutChebi.length === 0;
     },
     // Legend heading while clustering is active -- names whichever algorithm
     // actually produced what's on screen (clusteringAlgorithm), not whatever's
     // currently selected in the dropdown. Persisted/restored via saveState()/
     // loadState() so it's still correct after a localStorage reload.
     legendTitle() {
-      if (!this.clusteringActive || !this.clusteringAlgorithm) return '';
+      if (this.nodeColorMode !== 'community' || !this.clusteringAlgorithm) return '';
       const label = this.communityAlgorithms.find((algo) => algo.value === this.clusteringAlgorithm)?.label ?? this.clusteringAlgorithm;
       return `Communities (${label})`;
     },
@@ -1124,7 +1250,7 @@ export default {
     // Matches the backend's resolution_to_key(): normalize to 6 decimals, strip
     // trailing zeros/dot, keep at least one decimal place.
     currentResolutionKey() {
-      const resolution = this.leidenResolutions[this.resolutionIndex] ?? 1.0;
+      const resolution = this.leidenResolution ?? 1.0;
       let text = parseFloat(resolution).toFixed(6).replace(/0+$/, '').replace(/\.$/, '');
       if (!text.includes('.')) text = text + '.0';
       return text;
@@ -1287,6 +1413,7 @@ export default {
             display_name: details.display_name,
             description: details.description,
             source_table: details.source_table,
+            data_type: details.data_type,
             x_refs: details.x_refs,
           }));
 
@@ -1464,7 +1591,7 @@ export default {
     // click-to-select, and point coloring all agree on what's currently
     // grouping the network, regardless of mode.
     legendKeyFor(node) {
-      if (this.clusteringActive) {
+      if (this.nodeColorMode === 'community') {
         const community = node[this.communityField];
         return community !== undefined && community !== null ? String(community) : 'Unassigned';
       }
@@ -1472,18 +1599,47 @@ export default {
     },
     // colorKey additionally darkens "external" nodes within their group -- a
     // distinction that only exists for node-search-built networks (whole-network
-    // nodes are never external), so it's skipped while clustering.
+    // nodes are never external), so it's skipped while clustering. Rank/Degree
+    // modes bypass legendKeyFor entirely -- there's no discrete legend/grouping
+    // key for a continuous gradient, only a per-node color.
     colorKeyFor(node) {
+      if (this.nodeColorMode === 'rank') return this.rankColorFor(node);
+      if (this.nodeColorMode === 'degree') return this.degreeColorFor(node);
       const key = this.legendKeyFor(node);
       if (!key) return undefined;
-      if (this.clusteringActive) return key;
+      if (this.nodeColorMode === 'community') return key;
       return node.set === 'external' ? `${key}_external` : key;
+    },
+    // Continuous gradient color for a node's weighted_degree, normalized against
+    // weightedDegreeRange (cached once per initializeCosmograph() call so every
+    // node in this render compares against the same min/max). Light grey
+    // (no/zero weighted_degree, e.g. an isolated node or a node-search-built
+    // network that doesn't carry the field at all) up to the theme's
+    // primary-darken-1 blue at the top of the range -- pure white blended into
+    // the light theme's near-white background too much to read as a color at
+    // all, so the low end uses the same visible-but-muted chart-grid grey the
+    // edge scale's low end uses (see computeLinkColor). Plain min-max on the raw
+    // value -- unlike the edge score, weighted_degree is finite and bounded (no
+    // p_value=0/-log10=Infinity case to guard against), so no log/percentile
+    // transform is needed to keep the scale well-behaved.
+    rankColorFor(node) {
+      const value = (node.weighted_degree != null && !Number.isNaN(node.weighted_degree)) ? node.weighted_degree : 0;
+      const { min, max } = this.weightedDegreeRange;
+      const normalized = normalizeInRange(value, min, max);
+      return interpolateHexColor(this.labelColor('chart-grid'), this.labelColor('primary-darken-1'), normalized);
+    },
+    // Same treatment as rankColorFor, but for plain (unweighted) degree.
+    degreeColorFor(node) {
+      const value = (node.degree != null && !Number.isNaN(node.degree)) ? node.degree : 0;
+      const { min, max } = this.degreeRange;
+      const normalized = normalizeInRange(value, min, max);
+      return interpolateHexColor(this.labelColor('chart-grid'), this.labelColor('primary-darken-1'), normalized);
     },
     // Community ids read as plain numbers/strings from the backend aren't
     // meaningful on their own -- label them explicitly instead of running them
     // through capitalizeFirstLetter (which is for node-type group names).
     legendLabel(key) {
-      return this.clusteringActive ? `Community ${key}` : capitalizeFirstLetter(key);
+      return this.nodeColorMode === 'community' ? `Community ${key}` : capitalizeFirstLetter(key);
     },
     labelColor(colorName) {
       // chartjs does not support theme colors so we just directly call the theme color
@@ -1554,9 +1710,10 @@ export default {
     },
     async sendToNetwork() {
       console.log("this.selectedNetworkNodes", this.selectedNetworkNodes)
-      // Community coloring only applies to a 'whole' network fetch -- a fresh
-      // node-search network has no community data on its nodes.
+      // Community/rank coloring only apply to a 'whole' network fetch -- a fresh
+      // node-search network has no community data or weighted_degree on its nodes.
       this.clusteringActive = false;
+      this.nodeColorMode = 'group';
       // Send selectedNodes to networkNodes and reset selectedNodes
       this.networkNodes= [];
       // filter selected Nodes for presence in searchText (if user deletes them)
@@ -1593,19 +1750,15 @@ export default {
       this.applyDesign();
     },
 
-    // Fetches the entire precomputed network (via the metagraph endpoint,
-    // filtered only by test type + density) as an alternative to searching for
-    // specific nodes above. Maps getCosmograph's leaner point/link shape onto
-    // the node/edge shape the rest of this page (initializeCosmograph,
-    // filterForNetworkEdges, NodeDetails/EdgeDetails, etc.) already expects.
+    // Fetches the entire precomputed network filtered only by test type + density
+    // as an alternative to searching for specific nodes above. 
     async sendWholeNetwork() {
       setIsLoading(true);
-      // A fresh whole-network fetch has no community data on its nodes yet --
-      // re-run "Run Leiden Clustering" afterward if you want it recolored.
       this.clusteringActive = false;
+      if (this.nodeColorMode === 'community') this.nodeColorMode = 'group';
       try {
         const csrfToken = getCookie('csrftoken');
-        const response = await fetch(this.buildWholeNetworkUrl(), {
+        const response = await fetch(this.buildWholeNetworkByDensityUrl(), {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -1628,8 +1781,11 @@ export default {
           description: point.description ?? "",
           source_table: point.source_table ?? point.type,
           subtype: point.subtype,
+          data_type: point.data_type,
           x_refs: point.xrefs,
           set: "CHRIS", //TODO change to internal/cohort or smth when backend became more modular
+          degree: point.degree,
+          weighted_degree: point.weighted_degree,
         }));
         this.allInternalEdges = (data.links || []).map((link) => ({
           id: link.id,
@@ -1658,37 +1814,42 @@ export default {
       }
       setIsLoading(false);
     },
-    buildWholeNetworkUrl() {
+    buildWholeNetworkByDensityUrl() {
       const params = new URLSearchParams();
       params.set('testType', this.wholeNetworkTests.testType);
       params.set('density', String(this.density));
-      // When a context is selected, the backend reads the context's own fixed
-      // testType (from Context.params) and ignores the testType param above --
-      // it's only kept for the no-context case.
       if (this.contextValue != null) params.set('c', this.contextValue);
       return `${BASE_URL}/metagraph/api/getCosmograph/?${params.toString()}`;
     },
 
     // "Full Network Statistics" panel: a getCosmograph fetch scoped by
-    // significance (threshold) rather than density -- deliberately separate
-    // from buildWholeNetworkUrl() so the panel's coverage doesn't depend on
-    // whatever density the graph visualization is currently configured with.
-    buildSignificantEdgesUrl() {
+    // significance (threshold) rather than density
+    buildWholeNetworkByPvalThreshUrl() {
       const params = new URLSearchParams();
       params.set('testType', this.fullNetworkStatsTestType);
-      params.set('threshold', String(0.05));
+      params.set('threshold', String(this.fullNetworkStatsThreshold));
+      // Explicit opt-in into GetCosmographView's ranking/truncation branch (see
+      // _rank_and_truncate_significant_network in metagraph.py) -- only this request
+      // should ever get the truncated top-N ranking, regardless of what other params
+      // it does or doesn't carry.
+      params.set('full_network_stats', 'true');
       if (this.contextValue != null) params.set('c', this.contextValue);
       return `${BASE_URL}/metagraph/api/getCosmograph/?${params.toString()}`;
     },
     // Fired by the contextValue watcher (immediate, so it also covers initial
     // load / state restored via loadState()) -- independent of sendWholeNetwork,
     // so switching context updates the stats panel even before the user sends
-    // anything to the graph.
+    // anything to the graph. full_network_stats=true is the explicit opt-in into
+    // GetCosmographView's ranking/truncation branch -- points/links come back
+    // already limited to the top fullNetworkStatsMaxResults of each, with
+    // degree/weighted_degree/rank attached, so NodeRankingTable/EdgeRankingTable
+    // are told to trust them as-is (see the `preranked` prop) rather than
+    // recomputing over just this truncated slice.
     async fetchFullNetworkStatistics() {
       setLoadingState("isLoadingfullNetworkStats", true)
       try {
         const csrfToken = getCookie('csrftoken');
-        const response = await fetch(this.buildSignificantEdgesUrl(), {
+        const response = await fetch(this.buildWholeNetworkByPvalThreshUrl(), {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -1705,6 +1866,9 @@ export default {
           source_table: point.source_table ?? point.type,
           subtype: point.subtype,
           x_refs: point.xrefs,
+          degree: point.degree,
+          weightedDegree: point.weighted_degree,
+          rank: point.rank,
         }));
         this.fullNetworkStatsEdges = (data.links || []).map((link) => ({
           id: link.id,
@@ -1714,26 +1878,42 @@ export default {
           p_value: link.p_value,
           effect_size: link.effect_size,
           test_type: link.test_type,
+          rank: link.rank,
         }));
+        const meta = data.meta || {};
+        this.fullNetworkStatsTotalEdges = meta.total_significant_edges ?? this.fullNetworkStatsEdges.length;
+        this.fullNetworkStatsTotalNodes = meta.total_significant_nodes ?? this.fullNetworkStatsNodes.length;
+        this.fullNetworkStatsEdgesTruncated = !!meta.edges_truncated;
+        this.fullNetworkStatsNodesTruncated = !!meta.nodes_truncated;
+        this.fullNetworkStatsMaxResults = meta.max_edges ?? this.fullNetworkStatsMaxResults;
       } catch (error) {
         console.error("Error fetching full network statistics:", error);
         this.fullNetworkStatsNodes = [];
         this.fullNetworkStatsEdges = [];
+        this.fullNetworkStatsTotalEdges = 0;
+        this.fullNetworkStatsTotalNodes = 0;
+        this.fullNetworkStatsEdgesTruncated = false;
+        this.fullNetworkStatsNodesTruncated = false;
       }
       setLoadingState("isLoadingfullNetworkStats", false)
     },
 
     // Community Detection (Leiden clustering). Only available in 'whole' mode
     // (see the Analysis panel gating) -- reruns the whole-network fetch through
-    // getLeidenMetagraph instead of getCosmograph, requesting every resolution
-    // in one call so the slider below can switch resolutions client-side
-    // (recolor via initializeCosmograph(), see resolutionIndex watcher) without
-    // refetching.
+    // getLeidenMetagraph instead of getCosmograph. Requests only the single
+    // resolution currently entered -- the backend computes one clustering per
+    // requested resolution (see the `for resolution in resolutions` loop in
+    // GetLeidenMetagraphView), so asking for just one instead of a whole preset
+    // list is a lot cheaper on larger networks. This also means changing the
+    // resolution input no longer recolors instantly (there's nothing to recolor
+    // with until it's actually fetched) -- the user has to click "Run"/"Re-run
+    // Clustering" again to fetch and apply a different resolution; see
+    // runLeidenClustering.
     buildLeidenUrl() {
       const params = new URLSearchParams();
       params.set('testType', this.wholeNetworkTests.testType);
       params.set('density', String(this.density));
-      params.set('resolutions', this.leidenResolutions.join(','));
+      params.set('resolutions', String(this.leidenResolution));
       params.set('algorithm', this.selectedAlgorithm);
       if (this.contextValue != null) params.set('c', this.contextValue);
       return `${BASE_URL}/metagraph/api/getLeidenMetagraph/?${params.toString()}`;
@@ -1774,11 +1954,15 @@ export default {
             description: point.description ?? "",
             source_table: point.source_table ?? point.type,
             subtype: point.subtype,
+            data_type: point.data_type,
             x_refs: point.xrefs,
             set: "CHRIS",
+            degree: point.degree,
+            weighted_degree: point.weighted_degree,
           };
-          // Carry every requested resolution's community_rX field onto the
-          // node so the slider can switch resolutions without refetching.
+          // Carry the requested resolution's community_rX field onto the node
+          // (just one now -- see buildLeidenUrl) so coloring/legend/community
+          // annotation can read it via communityField.
           for (const key of Object.keys(point)) {
             if (key.startsWith('community_r')) node[key] = point[key];
           }
@@ -1797,8 +1981,13 @@ export default {
         }));
         this.allExternalEdges = [];
         this.filterForNetworkEdges();
-        this.resolutionIndex = 2; // default 1.0
+        // leidenResolution is deliberately left as whatever was requested (see
+        // buildLeidenUrl) -- only that one resolution's data just came back,
+        // so resetting it here would point communityField at a resolution
+        // that was never fetched.
         this.clusteringActive = true;
+        this.nodeColorMode = 'community';
+        this.notifyTablesContentProduced('communityAnnotation');
         this.isReadOnly = true;
         this.closeDropdown();
 
@@ -1812,174 +2001,57 @@ export default {
       }
       this.isClusteringLoading = false;
     },
-    // Back to node-type-group coloring, keeping the same nodes/edges displayed.
-    async resetClusteringColors() {
-      this.clusteringActive = false;
-      this.clusteringAlgorithm = null;
-      await this.initializeCosmograph();
-      this.applyDesign();
-    },
 
-    //Network Visualization
-    async initializeCosmograph() {
-      const container = this.$refs.network;
-      if (!container) return;
-
-      await this.destroyCosmograph();
-
+    // Recomputes state computePointColor()/the legend need for the current
+    // nodeColorMode -- called both when the graph is freshly built
+    // (initializeCosmograph) and when just the coloring changes
+    // (onNodeColorModeChange), since colors are now computed live per point
+    // rather than baked into each point's row at upload time.
+    refreshNodeColorState() {
       this.includedNodeTypes = new Set(
         this.graphNodes.map((node) => this.legendKeyFor(node)).filter((key) => key !== undefined)
       );
 
-      // Explicit sequential index lets us reliably map Cosmograph's click/color
-      // callback indices back to our own node/edge objects (pointIndexBy pins it).
-      // colorKey drives Cosmograph's own 'map' point-color strategy (see
-      // buildPointColorMap) -- undefined for an unrecognized group falls back to
-      // `unknownColor` natively instead of us having to guard against it.
-      // graphNodes (not networkNodes) so hideUnconnected actually drops points --
-      // every networkEdge already connects two graphNodes members either way (see
-      // graphNodes' comment), so linksForCosmo below doesn't need the same filter.
-      const pointsForCosmo = this.graphNodes.map((node, i) => ({
-        ...node,
-        idx: i,
-        colorKey: this.colorKeyFor(node),
-      }));
-      const nodeIdToIdx = new Map(pointsForCosmo.map((p) => [p.id, p.idx]));
-      // linkSourceIndexBy/linkTargetIndexBy are validated as required alongside
-      // linkSourceBy/linkTargetBy in this Cosmograph version, so every link
-      // needs its endpoints' numeric point indices, not just their ids.
-      // renderWidth bakes in the external-vs-internal width so linkWidthByFn can
-      // be a trivial identity passthrough instead of a per-edge lookup.
-      const linksForCosmo = this.networkEdges.map((edge) => ({
-        ...edge,
-        source: edge.from,
-        target: edge.to,
-        sourceIndex: nodeIdToIdx.get(edge.from),
-        targetIndex: nodeIdToIdx.get(edge.to),
-        renderWidth: edge.set === "external" ? 6 : (edge.width ?? 2),
-      }));
-      this.indexToNodeId = pointsForCosmo.map((p) => p.id);
-      this.indexToEdgeId = linksForCosmo.map((l) => l.id);
+      // Cached once here (rather than per-node) so colorKeyFor/rankColorFor
+      // normalize every node in this render against the same min/max. min is
+      // always 0 (not the smallest *observed* value) so the gradient's white
+      // end consistently means "no weighted degree" -- matching how rankColorFor
+      // itself treats a node with no weighted_degree at all as 0.
+      if (this.nodeColorMode === 'rank') {
+        const weightedDegrees = this.graphNodes
+          .map((node) => node.weighted_degree)
+          .filter((value) => value != null && !Number.isNaN(value));
+        this.weightedDegreeRange = { min: 0, max: weightedDegrees.length ? Math.max(...weightedDegrees) : 0 };
+      }
+      // Same reasoning as weightedDegreeRange above, but for plain degree.
+      if (this.nodeColorMode === 'degree') {
+        const degrees = this.graphNodes
+          .map((node) => node.degree)
+          .filter((value) => value != null && !Number.isNaN(value));
+        this.degreeRange = { min: 0, max: degrees.length ? Math.max(...degrees) : 0 };
+      }
+      // Rank/Degree modes compute each node's final color directly (see
+      // colorKeyFor/computePointColor) -- no key -> color map needed, so skip
+      // building one.
+      this.pointColorMapCache = (this.nodeColorMode === 'rank' || this.nodeColorMode === 'degree')
+        ? {}
+        : this.buildPointColorMap();
+    },
 
-      // Cosmograph's setConfig() merges the object it's given onto its DEFAULT
-      // config, not onto the currently-active config -- so every setConfig call
-      // (including the ones applyDesign() makes later) must carry the full
-      // config, or fields like points/links/pointIdBy get silently reset.
-      // Keep the authoritative copy on the instance and always pass all of it.
-      this._cosmoConfig = {
-        points: pointsForCosmo,
-        links: linksForCosmo,
-        pointIdBy: 'id',
-        pointIndexBy: 'idx',
-        // Cosmograph's own 'map' color strategy: a static colorKey -> hex lookup it
-        // evaluates natively (falls back to unknownColor for unmapped colorKeys),
-        // instead of a per-point JS callback that has to guard against bad data itself.
-        pointColorBy: 'colorKey',
-        pointColorStrategy: 'map',
-        pointColorByMap: this.buildPointColorMap(),
-        unknownColor: this.labelColor("text"),
-        // Without an explicit pointDefaultSize, Cosmograph falls back to
-        // sizing points by degree whenever links are present -- pin a fixed
-        // size so all nodes render uniformly, matching the old vis-network look.
-        pointDefaultSize: 11,
-        // A single click now always puts the graph into "some selection active"
-        // mode (see reapplySelection/computePointSize), so this greyout kicks in
-        // on basically every click -- Cosmograph's own default for links (0.1) is
-        // near-invisible, and leaving points on their implicit default made them
-        // fade out hard too. Keep non-selected elements clearly present, just
-        // visually deprioritized, instead of the graph seeming to lose most of
-        // its nodes/edges every time something's clicked.
-        pointGreyoutOpacity: 0.55,
-        linkGreyoutOpacity: 0.35,
-        // pointSizeBy just needs to name an existing column so Cosmograph actually
-        // invokes pointSizeByFn per point -- the column's own value is unused,
-        // computePointSize looks the point up by index instead (see there for why:
-        // the currently-clicked node needs to render much bigger than the rest).
-        pointSizeBy: 'id',
-        pointSizeByFn: (value, index) => this.computePointSize(index),
-        linkSourceBy: 'source',
-        linkTargetBy: 'target',
-        linkSourceIndexBy: 'sourceIndex',
-        linkTargetIndexBy: 'targetIndex',
-        linkColorBy: 'set',
-        linkWidthBy: 'renderWidth',
-        pointLabelBy: 'display_name',
-        showLabels: true,
-        showDynamicLabels: true,
-        // Labels are colored like their point by default (no pointLabelColor set);
-        // the hovered label gets its own CSS class instead so it can be forced to
-        // plain white regardless of the node's group color -- see :deep() rule below.
-        showHoveredPointLabel: true,
-        hoveredPointLabelClassName: 'cosmo-hovered-label',
-        enableSimulation: this.physics_on,
-        // Cosmograph's own native click-to-select ('single') fires independently of
-        // our onPointClick callback and drives its own selection dimming + label
-        // highlight, competing with our own selectedNetworkNodes-driven selection
-        // below. We handle all click/selection semantics ourselves, so this stays off.
-        selectPointOnClick: false,
-        renderHoveredPointRing: true,
-        resetSelectionOnEmptyCanvasClick: false,
-        backgroundColor: this.labelColor("background"),
-        hoveredPointRingColor: this.labelColor("primary-darken-1"),
-        // linkColorBy/linkWidthBy have no built-in 'map' strategy, but `value` here
-        // is already the row's raw column value (edge.set / edge.renderWidth) --
-        // no per-edge lookup needed, these are O(1) and can't throw.
-        linkColorByFn: (value) => (value === "external" ? "black" : this.labelColor("text")),
-        linkWidthByFn: (value) => value,
-        onPointClick: (index) => this.handlePointClick(index),
-        onLinkClick: (linkIndex) => this.handleLinkClick(linkIndex),
-        onBackgroundClick: () => this.handleBackgroundClick(),
-        // Rectangular/polygonal selection (see the toolbar's mode toggle and
-        // applySelectionMode()) picks points natively; fold the result into
-        // selectedNetworkNodes so it's not just a visual flash that the next
-        // reapplySelection() call (from any subsequent click) would overwrite.
-        onRectSelected: (selection, pointIndices) => this.handleAreaSelected(pointIndices),
-        onPolygonSelected: () => this.handleAreaSelected(this.cosmographInstance?.getSelectedPointIndices()),
-        // Physics keeps spreading points across the simulation space; re-center
-        // the camera on the graph whenever the layout settles so nodes don't
-        // drift out of view with no way to find them again. But skip it while a
-        // node is focused (single/double-clicked) -- otherwise this can fire
-        // shortly after handlePointSingleClick's zoomToPoint() and immediately
-        // zoom back out to the full graph, undoing the "center on this node" the
-        // click just asked for.
-        onSimulationEnd: () => {
-          if (this.displayedElementType !== 'node' && this.displayedElementType !== 'edge') {
-            this.cosmographInstance?.fitView();
-          }
-        },
-      };
-      this.cosmographInstance = new Cosmograph(container, this._cosmoConfig);
-      // The constructor already fired its own setConfig()/data-upload cycle (every
-      // design/theme option above is already part of the config it was constructed
-      // with) -- wait for that to land before touching the instance again.
-      // Cosmograph's setConfig() never waits for a prior in-flight config update
-      // before starting a new one, so calling it again here (applyDesign() used to)
-      // before the first upload finished raced two concurrent uploads of the same
-      // points/links data into the shared, page-wide DuckDB-WASM worker (whose WASM
-      // heap only ever grows, never shrinks) -- that's what was driving
-      // "InternalError: out of memory" after just a couple of graph rebuilds.
-      await this.cosmographInstance.dataUploaded();
-      // Physics-off case: onSimulationEnd never fires (no simulation runs), so fit here too.
-      this.cosmographInstance?.fitView(0);
+    //Network Visualization
+    // Data changed (new network sent, hideUnconnected toggled, clustering run,
+    // ...) -- rebuild node/edge color state against the fresh set and hand it
+    // to CosmographGraph, which re-uploads (reusing the live instance via
+    // setConfig() where it can, per its own comments).
+    async initializeCosmograph() {
+      this.refreshNodeColorState();
+      this.refreshEdgeScoreRange();
+      await this.$refs.graph?.refreshData();
       this.reapplySelection();
       // The native dblclick.zoom interceptor is attached once, on the persistent
-      // container (see mounted()) -- not here on the canvas, which gets destroyed
-      // and recreated on every rebuild.
-    },
-    async destroyCosmograph() {
-      if (this._clickTimer) {
-        clearTimeout(this._clickTimer);
-        this._clickTimer = null;
-      }
-      const inst = this.cosmographInstance;
-      this.cosmographInstance = null;
-      if (inst && typeof inst.destroy === 'function') {
-        try {
-          await inst.destroy();
-        } catch (e) {
-          console.warn('Cosmograph destroy failed', e);
-        }
-      }
+      // #network wrapper (see mounted()), which CosmographGraph's own canvas
+      // sits inside -- not on the canvas itself, which CosmographGraph may
+      // reuse or recreate across data updates.
     },
     // Cosmograph has no native double-click callback: a second click on the
     // same point within 280ms cancels the pending single-click and is treated
@@ -2000,7 +2072,7 @@ export default {
       }, 280);
     },
     handlePointSingleClick(index) {
-      const node = this.networkNodes.find((n) => n.id === this.indexToNodeId[index]);
+      const node = this.networkNodes.find((n) => n.id === this.$refs.graph?.getPointId(index));
       if (node) this.displayNode(node);
       // displayNode() changed displayedElement -- applyDesign() reads it to decide
       // which point gets the big "currently clicked" treatment (see computePointSize
@@ -2014,7 +2086,7 @@ export default {
     // handlePointSingleClick() rather than duplicating its display/center logic.
     jumpToSearchedNode(nodeId) {
       if (!nodeId) return;
-      const index = this.indexToNodeId.indexOf(nodeId);
+      const index = this.$refs.graph?.getPointIndex(nodeId) ?? -1;
       if (index === -1) return;
       this.handlePointSingleClick(index);
       // Reset for the next search rather than leaving the picked name sitting in
@@ -2037,7 +2109,7 @@ export default {
       return haystack.includes(q);
     },
     handlePointDoubleClick(index) {
-      const node = this.networkNodes.find((n) => n.id === this.indexToNodeId[index]);
+      const node = this.networkNodes.find((n) => n.id === this.$refs.graph?.getPointId(index));
       if (!node) return;
       const existingIndex = this.selectedNetworkNodes.findIndex((n) => n.id === node.id);
       if (existingIndex !== -1) {
@@ -2059,30 +2131,20 @@ export default {
       this.applyDesign();
       this.centerOnPoint(index);
     },
-    // zoomToPoint() picks between two different transition strategies depending
-    // on how far the camera currently is from the target point, which made single-
-    // vs double-click centering behave inconsistently (whichever branch a given
-    // click happened to hit). Going straight to the position-based transform
-    // instead is a single deterministic code path, so it centers the same way
-    // regardless of where the camera already was.
+    // Pan-only (no zoom change) center on a single point -- CosmographGraph's
+    // panToIndices() also handles the multi-index (edge midpoint) case below,
+    // so both centerOnPoint/centerOnEdge just resolve indices and delegate.
     centerOnPoint(index) {
-      const position = this.cosmographInstance?.getPointPositionByIndex(index);
-      if (position) {
-        // Pass the CURRENT zoom level, not a fixed one -- otherwise this forces
-        // the view to whatever scale we hardcode here on every click (zooming out
-        // if you'd zoomed in further than that, or in if you'd zoomed out past
-        // it). Reusing the live zoom level makes this a pure pan/center, no
-        // zoom change at all.
-        const currentZoom = this.cosmographInstance.getZoomLevel();
-        this.cosmographInstance.setZoomTransformByPointPositions(new Float32Array(position), 700, currentZoom);
-      }
+      this.$refs.graph?.panToIndices([index]);
     },
     handleLinkClick(linkIndex) {
-      const edge = this.networkEdges.find((e) => e.id === this.indexToEdgeId[linkIndex]);
-      if (edge) this.displayEdge(edge);
+      const edge = this.networkEdges.find((e) => e.id === this.$refs.graph?.getLinkId(linkIndex));
+      if (!edge) return;
+      this.displayEdge(edge);
       // Clears the "currently clicked node" big/highlighted treatment, since the
       // details panel is now showing an edge instead of a node.
       this.applyDesign(false);
+      this.centerOnEdge(edge);
     },
     // NetworkRankingTable's Edge tab row click: behaves like clicking the edge
     // directly on the canvas (handleLinkClick) -- show it in the Details panel
@@ -2100,27 +2162,79 @@ export default {
     // its own, so center on the midpoint of its two endpoints instead, using
     // the same pan/center (no zoom change) approach as centerOnPoint.
     centerOnEdge(edge) {
-      const index0 = this.indexToNodeId.indexOf(edge.from);
-      const index1 = this.indexToNodeId.indexOf(edge.to);
+      const index0 = this.$refs.graph?.getPointIndex(edge.from) ?? -1;
+      const index1 = this.$refs.graph?.getPointIndex(edge.to) ?? -1;
       if (index0 === -1 || index1 === -1) return;
-      const pos0 = this.cosmographInstance?.getPointPositionByIndex(index0);
-      const pos1 = this.cosmographInstance?.getPointPositionByIndex(index1);
-      if (!pos0 || !pos1) return;
-      const midpoint = new Float32Array([(pos0[0] + pos1[0]) / 2, (pos0[1] + pos1[1]) / 2]);
-      const currentZoom = this.cosmographInstance.getZoomLevel();
-      this.cosmographInstance.setZoomTransformByPointPositions(midpoint, 700, currentZoom);
+      this.$refs.graph.panToIndices([index0, index1]);
+    },
+    // Re-centers and zooms to fit the whole graph -- the toolbar's manual "Reset view"
+    // button, same fitView() Cosmograph already calls on its own once the simulation
+    // settles with nothing selected.
+    resetView() {
+      this.$refs.graph?.resetView();
     },
     handleBackgroundClick() {
       this.displayedElement = null;
       this.displayedElementType = null;
       this.applyDesign(false);
     },
+    // CosmographGraph's simulation-end emit -- skip the auto re-fit while a
+    // node/edge is focused, otherwise this can fire shortly after a click's
+    // own centerOnPoint()/centerOnEdge() and immediately zoom back out to the
+    // full graph, undoing the "center on this" the click just asked for.
+    onSimulationEnd() {
+      if (this.displayedElementType !== 'node' && this.displayedElementType !== 'edge') {
+        this.$refs.graph?.resetView();
+      }
+    },
+    onGraphError(message) {
+      this.infoText = message;
+      this.infoType = 'error';
+      this.showInfo = true;
+    },
     displayNode(node) {
-      this.lastTriggeredSection = 'edgeTable';
       node.type = this.getPrettyType(node.source_table);
       this.displayedElement = node;
       this.displayedElementType = "node";
       this.isDetailsNodeSelected = this.isNodeInNetworkSelected(node);
+      this.openDetailsPanel();
+      this.addRecentNeighborNode(node.id);
+      this.notifyTablesContentProduced('edgesOfNode');
+    },
+    // Bumps a node to the front of the "Neighbors of" MRU list (moving it there if already
+    // present, rather than duplicating it), capped at 5 -- the 6th push evicts whichever node
+    // is now furthest right. Always switches the active sub-tab to the node just clicked.
+    addRecentNeighborNode(nodeId) {
+      this.recentNeighborNodeIds = [nodeId, ...this.recentNeighborNodeIds.filter((id) => id !== nodeId)].slice(0, 5);
+      // Deferred one tick: v-tabs/v-window select by matching `value`, but when an existing tab
+      // moves position (this same assignment just reordered the v-for list) and the active
+      // value changes in that very same render, Vuetify's tab-indicator/window-transition can
+      // resolve against the pre-reorder layout and land the visible content on the wrong pill --
+      // intermittently (whichever tab happened to be at the target's old or new index). Letting
+      // the reordered list actually render first, then selecting, avoids that.
+      this.$nextTick(() => {
+        this.neighborsSubTab = nodeId;
+      });
+    },
+    // Every edge incident to the given node, shaped for NodeEdgeTable. Neighbor labels aren't
+    // pre-populated on networkEdges entries (only the single currently-displayed edge gets
+    // that via displayEdge), so resolve them here the same way displayEdge does.
+    edgesForNode(nodeId) {
+      return this.networkEdges
+        .filter((edge) => edge.from === nodeId || edge.to === nodeId)
+        .map((edge) => {
+          const neighborId = edge.from === nodeId ? edge.to : edge.from;
+          const neighbor = this.networkNodes.find((n) => n.id === neighborId);
+          return {
+            edge,
+            neighborId,
+            neighborLabel: neighbor?.display_name ?? neighborId,
+            testType: edge.test_type,
+            pValue: edge.p_value,
+            effectSize: edge.effect_size,
+            absEffectSize: edge.effect_size != null ? Math.abs(edge.effect_size) : null,
+          };
+        });
     },
     displayEdge(edge) {
       const nodeID0 = edge.to;
@@ -2133,8 +2247,53 @@ export default {
       edge.node1_label = node1.display_name;
       edge.node0_type = this.getPrettyType(node0.source_table);
       edge.node1_type = this.getPrettyType(node1.source_table);
+      edge.node0_data_type = node0.data_type;
+      edge.node1_data_type = node1.data_type;
+      edge.node0_color = this.colorForNodeGroup(node0);
+      edge.node1_color = this.colorForNodeGroup(node1);
       this.displayedElement = edge;
       this.displayedElementType = "edge";
+      this.openDetailsPanel();
+    },
+    // Unfolds the Details panel (index 1 in the left accordion) without
+    // collapsing whichever other panels the user already had open.
+    openDetailsPanel() {
+      if (!this.openPanels.includes(1)) this.openPanels.push(1);
+    },
+    // Called whenever a Tables sub-tab gets fresh content (a node click, an
+    // enrichment run, a clustering run). If the user isn't on the Tables side
+    // at all, light up the top-level "Tables" tab; if they're already there
+    // but looking at a different sub-tab, light up that sub-tab instead --
+    // either way without yanking them away from whatever they're doing.
+    notifyTablesContentProduced(tabKey) {
+      if (this.visualizationTab !== 'tables') {
+        this.tablesTabHighlighted = true;
+      } else if (this.tablesActiveTab !== tabKey) {
+        this.tableSubtabHighlights[tabKey] = true;
+      }
+    },
+    // Closes (hides) one of the dismissible Enrichment/Node Set Annotation sub-tabs -- the
+    // top-level Tables tabs themselves (Node Ranking, Edge Ranking, Neighbors of, Enrichment,
+    // Node Set Annotation, Community Annotation) are always present and aren't closable. Falls
+    // back to the sibling sub-tab if the closed one was the active one within its own group.
+    closeTablesSubTab(tabKey) {
+      if (tabKey === 'gprofiler') {
+        this.gprofilerSubTabDismissed = true;
+        if (this.enrichmentTab === 'enrichment') this.enrichmentTab = 'reactomeEnrichment';
+      } else if (tabKey === 'reactome') {
+        this.reactomeSubTabDismissed = true;
+        if (this.enrichmentTab === 'reactomeEnrichment') this.enrichmentTab = 'enrichment';
+      } else if (tabKey === 'gemini') {
+        this.geminiSubTabDismissed = true;
+      } else if (tabKey.startsWith('neighbor:')) {
+        // Unlike gProfiler/Reactome/Gemini above, closing a neighbor tab has no separate
+        // results to keep around -- just drop that node from the MRU list entirely.
+        const nodeId = tabKey.slice('neighbor:'.length);
+        this.recentNeighborNodeIds = this.recentNeighborNodeIds.filter((id) => id !== nodeId);
+        if (this.neighborsSubTab === nodeId) {
+          this.neighborsSubTab = this.recentNeighborNodeIds[0] ?? null;
+        }
+      }
     },
     isNodeInNetworkSelected(node) {
       return this.selectedNetworkNodes.some(existingNode => existingNode.id === node.id);
@@ -2150,6 +2309,30 @@ export default {
         this.selectedNetworkNodes.splice(index, 1);
       }
       this.checkSelectAll();
+    },
+    // Selection checkbox in the Node Ranking table -- adds/removes a node from
+    // selectedNetworkNodes directly, without going through the Details panel's
+    // displayedElement/isDetailsNodeSelected pair.
+    toggleNodeSelectionById(nodeId) {
+      const node = this.graphNodes.find((n) => n.id === nodeId);
+      if (!node) return;
+      const index = this.selectedNetworkNodes.findIndex((n) => n.id === nodeId);
+      if (index === -1) {
+        this.selectedNetworkNodes.push(node);
+      } else {
+        this.selectedNetworkNodes.splice(index, 1);
+      }
+      if (this.displayedElement?.id === nodeId) {
+        this.isDetailsNodeSelected = index === -1;
+      }
+      this.applyDesign();
+      this.checkSelectAll();
+    },
+    // (node) => "Community 3" while clustering is active -- reuses the same key/label logic
+    // the legend and point coloring already agree on, so the Node Ranking table's Community
+    // column never disagrees with what's shown elsewhere.
+    communityLabelFor(node) {
+      return this.legendLabel(this.legendKeyFor(node));
     },
     toggleALLNetworkNodeSelection(){
       if(this.selectAll) {
@@ -2169,6 +2352,8 @@ export default {
       this.enrichmentLoading = true;
       this.enrichmentRan = false;
       this.enrichmentResults = [];
+      this.gprofilerSubTabDismissed = false;
+      this.notifyTablesContentProduced('enrichment');
       try {
         const response = await fetch('https://biit.cs.ut.ee/gprofiler/api/gost/profile/', {
           method: 'POST',
@@ -2187,6 +2372,9 @@ export default {
         this.enrichmentResults = (data.result || [])
           .sort((a, b) => a.p_value - b.p_value)
           .slice(0, 20);
+        this.infoText = "Protein enrichment (g:Profiler) finished.";
+        this.infoType = "success";
+        this.showInfo = true;
       } catch (error) {
         console.error("Error running protein enrichment:", error);
         this.infoText = "Could not fetch protein enrichment results from g:Profiler. Please try again.";
@@ -2260,6 +2448,8 @@ export default {
       this.reactomeEnrichmentRan = false;
       this.reactomeEnrichmentResults = [];
       this.reactomeUnmappedMetabolites = [];
+      this.reactomeSubTabDismissed = false;
+      this.notifyTablesContentProduced('enrichment');
       try {
         const chebiIds = [...this.selectedMetaboliteChebiIds];
         const lookups = await Promise.all(
@@ -2303,6 +2493,9 @@ export default {
             .sort((a, b) => a.entities.pValue - b.entities.pValue)
             .slice(0, 20);
         }
+        this.infoText = "Reactome enrichment finished.";
+        this.infoType = "success";
+        this.showInfo = true;
       } catch (error) {
         console.error("Error running Reactome enrichment:", error);
         this.infoText = "Could not fetch enrichment results from Reactome. Please try again.";
@@ -2318,8 +2511,9 @@ export default {
     async runGeminiLabel() {
       if (this.selectedNetworkNodes.length === 0) return;
       this.geminiLoading = true;
-      this.geminiRan = false;
       this.geminiLabel = null;
+      this.geminiSubTabDismissed = false;
+      this.notifyTablesContentProduced('nodeSetAnnotation');
       try {
         const csrfToken = getCookie('csrftoken');
         const response = await fetch(`${BASE_URL}/gemini/api/getGeminiLabel/`, {
@@ -2333,13 +2527,15 @@ export default {
         });
         if (!response.ok) throw new Error("Gemini labeling response was not ok");
         this.geminiLabel = await response.json();
+        this.infoText = "Node set annotation finished.";
+        this.infoType = "success";
+        this.showInfo = true;
       } catch (error) {
         console.error("Error running Gemini labeling:", error);
         this.infoText = "Could not fetch a label from Gemini. Please try again.";
         this.infoType = "error";
         this.showInfo = true;
       }
-      this.geminiRan = true;
       this.geminiLoading = false;
     },
     // Kicks off the Community Annotation batch job (g:Profiler + Reactome enrichment, then a
@@ -2410,6 +2606,23 @@ export default {
           this.communityAnnotationRunId = null;
           this.communityAnnotationStartedAt = null;
           this.saveState();
+          if (data.reactomeFailed && data.gprofilerFailed) {
+            this.infoText = "Community annotation finished. Reactome and g:Profiler were not reachable, so neither was used. Results below are based on node names only.";
+            this.infoType = "info";
+            this.showInfo = true;
+          } else if (data.reactomeFailed) {
+            this.infoText = "Community annotation finished. Reactome was not reachable, so it was not used. Results below are based on g:Profiler only.";
+            this.infoType = "info";
+            this.showInfo = true;
+          } else if (data.gprofilerFailed) {
+            this.infoText = "Community annotation finished. g:Profiler was not reachable, so it was not used. Results below are based on Reactome only.";
+            this.infoType = "info";
+            this.showInfo = true;
+          } else {
+            this.infoText = "Community annotation finished.";
+            this.infoType = "success";
+            this.showInfo = true;
+          }
           return;
         }
         if (data.status === 'FAILURE') {
@@ -2849,7 +3062,7 @@ export default {
     // treatment as a real multi-select, without actually joining
     // selectedNetworkNodes / the Selection panel.
     reapplySelection() {
-      if (!this.cosmographInstance) return;
+      if (!this.$refs.graph) return;
       // While a rect/polygon selection tool is active, don't reassert our own
       // point-selection constraint here. Cosmograph's crossfilter intersects a
       // new drag with whatever's already selected, so re-imposing selectedNetworkNodes
@@ -2859,98 +3072,141 @@ export default {
       // clears the constraint when entering rect/polygon mode and calls this again
       // to reassert it once back in zoom mode.
       if (this.selectionMode !== 'zoom') return;
-      // A displayed node (single- or double-clicked, shown in the Details panel)
-      // is an *exclusive* highlight -- just that node plus its direct neighbors
-      // (and, since selectPoints() also un-dims links between two selected
-      // points, the edges connecting them), standing in for whatever the real
-      // selectedNetworkNodes highlight would otherwise be. Clicking away from any
-      // node (background or an edge) clears displayedElement, which falls through
-      // to the real multi-select highlight again.
+      // A displayed node or edge (single- or double-clicked, shown in the Details panel)
+      // is an *exclusive* highlight -- the node plus its direct neighbors, or an edge's
+      // two endpoints (and, since selectPoints() also un-dims links between two selected
+      // points, the edge connecting them) -- standing in for whatever the real
+      // selectedNetworkNodes highlight would otherwise be. Clicking away from either
+      // (background) clears displayedElement, which falls through to the real
+      // multi-select highlight again.
       let selectedIndices;
       if (this.displayedElementType === 'node' && this.displayedElement) {
-        const clickedIndex = this.indexToNodeId.indexOf(this.displayedElement.id);
+        const clickedIndex = this.$refs.graph.getPointIndex(this.displayedElement.id);
         selectedIndices = clickedIndex === -1
           ? []
-          : [clickedIndex, ...(this.cosmographInstance.getConnectedPointIndices(clickedIndex) || [])];
+          : [clickedIndex, ...this.$refs.graph.getConnectedPointIndices(clickedIndex)];
+      } else if (this.displayedElementType === 'edge' && this.displayedElement) {
+        // Same exclusive-highlight treatment for a clicked edge: select its two endpoint
+        // nodes so selectPoints() un-dims them plus the link between them (the edge itself).
+        const edge = this.displayedElement;
+        selectedIndices = [this.$refs.graph.getPointIndex(edge.from), this.$refs.graph.getPointIndex(edge.to)]
+          .filter((i) => i !== -1);
       } else {
         const ids = new Set(this.selectedNetworkNodes.map((n) => n.id));
         selectedIndices = Array.from(ids)
-          .map((id) => this.indexToNodeId.indexOf(id))
+          .map((id) => this.$refs.graph.getPointIndex(id))
           .filter((i) => i !== -1);
       }
-      // selectPoints() replaces the current selection outright -- calling
-      // unselectAllPoints() first (unconditionally, on every click) inserted a
-      // visible intermediate "nothing selected" frame (no dimming = everything
-      // reads as highlighted) before the real selection landed a moment later.
-      // Only actually clearing when there's nothing to select avoids that flash.
-      if (selectedIndices.length) {
-        this.cosmographInstance.selectPoints(selectedIndices);
-      } else {
-        this.cosmographInstance.unselectAllPoints();
-      }
+      this.$refs.graph.selectIndices(selectedIndices);
     },
     // The currently-displayed node (see reapplySelection) also renders much larger
     // than the rest -- the previous ring-based "what's clicked" indicator was too
     // subtle to notice, size is not.
-    computePointSize(index) {
+    computePointSize(node) {
       const isDisplayed =
         this.displayedElementType === 'node' &&
         this.displayedElement &&
-        this.indexToNodeId[index] === this.displayedElement.id;
+        node?.id === this.displayedElement.id;
       return isDisplayed ? 26 : 11;
+    },
+    // Derives the node's color live -- colorKeyFor already returns the final hex
+    // color for Rank/Degree modes, or a key needing pointColorMapCache's lookup
+    // for Group/Community (mirroring the native 'map' strategy's own unmapped-key
+    // fallback, since a JS callback doesn't get that for free).
+    computePointColor(node) {
+      if (!node) return this.labelColor('text');
+      const key = this.colorKeyFor(node);
+      if (key === undefined) return this.labelColor('text');
+      if (this.nodeColorMode === 'rank' || this.nodeColorMode === 'degree') return key;
+      return this.pointColorMapCache[key] ?? this.labelColor('text');
+    },
+    // Cached once per render pass (initializeCosmograph()/applyDesign()).
+    // Percentile rank (not min-max) by |score| among currently-displayed edges:
+    // most surviving edges' p-values commonly underflow to (near) the same
+    // tiny value, which under a min-max scale bunches almost everyone at one
+    // end -- ranking spreads them across the full width/color range instead.
+    // Also sidesteps p_value === 0 producing -log10(0) === Infinity, which
+    // would otherwise poison a min-max range for every other edge.
+    refreshEdgeScoreRange() {
+      if (this.edgeStyleMode === 'unweighted') {
+        this.edgeScorePercentiles = [];
+        return;
+      }
+      this.edgeScorePercentiles = computePercentileRanks(
+        this.networkEdges.map((edge) => computeEdgeScore(edge, this.edgeStyleMode))
+      );
+    },
+    // Spans a fixed [1, 8]px by percentile rank regardless of mode, rather than
+    // clamping the raw score directly as pixels -- effect size (always in
+    // [-1, 1]) previously rendered as a near-invisible sliver even at its
+    // theoretical max. edgeScorePercentiles is keyed by position in
+    // edgesForGraph/networkEdges, which CosmographGraph's `index` matches.
+    computeLinkWidth(edge, index) {
+      if (!edge) return 2;
+      const percentile = this.edgeScorePercentiles[index];
+      if (percentile == null) return edge.set === 'external' ? 6 : (edge.width ?? 2);
+      return 1 + percentile * 7;
+    },
+    computeLinkColor(edge, index) {
+      if (!edge) return this.labelColor('text');
+      const percentile = this.edgeScorePercentiles[index];
+      if (percentile == null) return edge.set === 'external' ? 'black' : this.labelColor('text');
+      // Effect size is bounded and its sign is directly meaningful (unlike an
+      // unbounded p-value) -- a diverging scale on the actual signed value, not
+      // percentile rank, so 0 always lands exactly on "least visible" (blended
+      // into the background) regardless of what else is currently displayed.
+      // Cold (primary blue) for negative, warm (amber) for positive.
+      if (this.edgeStyleMode === 'effect') {
+        const magnitude = Math.min(Math.abs(edge.effect_size ?? 0), 1);
+        const endColor = (edge.effect_size ?? 0) < 0 ? this.labelColor('primary-darken-1') : this.labelColor('warning');
+        return interpolateHexColor(this.labelColor('background'), endColor, magnitude);
+      }
+      // Magnitude only (sign discarded) -- same fixed [0, 1] domain reasoning as
+      // 'effect' above, just sequential (light grey to black) instead of diverging,
+      // for when only "how strong" matters, not direction.
+      if (this.edgeStyleMode === 'effectAbs') {
+        const magnitude = Math.min(Math.abs(edge.effect_size ?? 0), 1);
+        return interpolateHexColor(this.labelColor('chart-grid'), '#000000', magnitude);
+      }
+      // Grey scale, same light-grey-to-black endpoints as 'effectAbs' (just driven
+      // by percentile rank instead of the raw score, since -log10(p) is unbounded --
+      // see computeEdgeScore) -- edges previously reused the node blue, which read
+      // as confusingly similar to node coloring.
+      return interpolateHexColor(this.labelColor('chart-grid'), '#000000', percentile);
     },
     // Recolors/reweights nodes+edges based on current selection/external/theme
     // state without rebuilding the whole graph (kept lightweight so pan/zoom/
     // camera state isn't reset on every click or theme toggle).
     async applyDesign(saveState = true) {
-      if (!this.cosmographInstance) return;
+      if (!this.$refs.graph) return;
+
+      // Refreshed here (not just initializeCosmograph()) so switching
+      // edgeStyleMode via the toolbar dropdown -- which only calls applyDesign(),
+      // not a full rebuild -- normalizes against the newly-selected mode's scores.
+      this.refreshEdgeScoreRange();
 
       // Instant, synchronous -- safe to run every time regardless of any
       // in-flight setConfig() below.
       this.reapplySelection();
 
-      // Merge onto the full stored config (not a bare partial) -- see the note
-      // in initializeCosmograph() about setConfig() resetting anything omitted.
-      this._cosmoConfig = {
-        ...this._cosmoConfig,
-        backgroundColor: this.labelColor("background"),
-        hoveredPointRingColor: this.labelColor("primary-darken-1"),
-        // The map's colors are static hex, so only the fallback needs refreshing on theme change.
-        unknownColor: this.labelColor("text"),
-        // New function reference each call so Cosmograph's config-change detection
-        // (reference equality) actually re-invokes it -- displayedElement (which it
-        // reads via computePointSize) can change without pointsForCosmo changing.
-        pointSizeByFn: (value, index) => this.computePointSize(index),
-        linkColorByFn: (value) => (value === "external" ? "black" : this.labelColor("text")),
-        linkWidthByFn: (value) => value,
-      };
-      // applyDesign() runs unawaited from every click handler, so rapid clicks
-      // (e.g. a node then immediately the background) can have two setConfig()
-      // calls in flight together. Cosmograph's setConfig() doesn't serialize
-      // against a prior in-flight call (the same race that caused the "out of
-      // memory" bug in initializeCosmograph() before it was serialized there) --
-      // here it instead let a slower, now-stale update finish *after* a faster,
-      // fresher one and briefly repaint the old sizes/selection, i.e. exactly the
-      // "everything flashes highlighted for a moment" symptom. Chain onto any
-      // in-flight call so they always apply in order, never overlapping.
-      this._configUpdateChain = (this._configUpdateChain || Promise.resolve())
-        .then(() => this.cosmographInstance?.setConfig(this._cosmoConfig))
-        .catch((e) => console.warn('Cosmograph setConfig failed', e));
-      await this._configUpdateChain;
+      await this.$refs.graph.refreshDesign();
 
       if (saveState) {
         this.saveState();
       }
     },
-    // Builds the colorKey -> color lookup consumed by Cosmograph's 'map'
-    // point-color strategy. Node-type mode: one entry per known group plus a
+    // Builds the colorKey -> color lookup computePointColor() consumes for
+    // Group/Community modes. Node-type mode: one entry per known group plus a
     // darkened '<group>_external' variant, so a single static object handles
-    // both dimensions instead of a per-point function. Clustering mode has no
+    // both dimensions instead of a per-point function. Community mode has no
     // external variant (whole-network nodes are never external) and delegates
     // to buildCommunityColorMap() instead -- see there for why it can't reuse
-    // colorForGroup's hash.
+    // colorForGroup's hash. Only called for those two modes (see
+    // refreshNodeColorState) -- Rank/Degree modes' colorKey is already the
+    // final hex color (see colorKeyFor/rankColorFor/degreeColorFor), no lookup
+    // map needed.
     buildPointColorMap() {
-      if (this.clusteringActive) return this.buildCommunityColorMap();
+      if (this.nodeColorMode === 'community') return this.buildCommunityColorMap();
       const colorMap = {};
       const groupColors = assignGroupColors(this.legendGroups);
       for (const key of this.includedNodeTypes) {
@@ -2967,6 +3223,20 @@ export default {
     // assignGroupColors.
     colorForGroup(key) {
       return assignGroupColors(this.legendGroups)[key];
+    },
+    // Node-type color for a single node -- used by the Details panel's Group chip.
+    // Unlike colorForGroup/legendGroups (which switch to community ids while
+    // clustering is active, since the legend itself switches to showing
+    // communities then), this always keys off source_table, so the Group chip
+    // keeps showing -- and coloring -- the node's actual type regardless of
+    // clustering mode, matching NodeRankingTable's own Group column.
+    colorForNodeGroup(node) {
+      const key = node?.source_table ? node.source_table.split('_').pop() : undefined;
+      if (!key) return undefined;
+      const keys = this.sortLegendKeys(
+        [...new Set(this.graphNodes.map((n) => (n.source_table ? n.source_table.split('_').pop() : undefined)).filter(Boolean))]
+      );
+      return assignGroupColors(keys)[key];
     },
     // Shared comparator for legend/community keys: numeric keys sort by value
     // (so "2" comes before "14"), non-numeric keys (e.g. 'Unassigned') sort last
@@ -3004,49 +3274,56 @@ export default {
     // Legend dot / exported-PNG legend color -- single-key lookup wrapper around
     // whichever map (node-type or community) is currently in play.
     colorForLegendKey(key) {
-      if (this.clusteringActive) return this.buildCommunityColorMap()[key] ?? this.labelColor('text');
+      if (this.nodeColorMode === 'community') return this.buildCommunityColorMap()[key] ?? this.labelColor('text');
       return this.colorForGroup(key);
-    },
-    updatePhysics() {
-      if (!this.cosmographInstance) return;
-      if (this.physics_on) {
-        this.cosmographInstance.unpause();
-      } else {
-        this.cosmographInstance.pause();
-      }
     },
     // GraphToolbar's switches are v-model'd through props/events rather than a
     // direct v-model on physics_on/hideUnconnected (the toolbar no longer owns
-    // that state).
+    // that state). CosmographGraph watches its own physicsOn prop, so no
+    // explicit pause()/unpause() call is needed here.
     onPhysicsChange(value) {
       this.physics_on = value;
-      this.updatePhysics();
     },
-    // graphNodes' membership changes, so the graph needs a full rebuild (which
-    // sets up indexToNodeId/includedNodeTypes fresh) rather than a targeted patch.
+    // graphNodes' membership changes, so the graph needs a full data refresh
+    // (which sets up includedNodeTypes fresh) rather than a targeted patch.
     async onHideUnconnectedChange(value) {
       this.hideUnconnected = value;
       await this.initializeCosmograph();
+      this.applyDesign();
+    },
+    // Unlike hideUnconnected (which changes which points are even uploaded),
+    // node color is now computed live per point (pointColorByFn), so switching
+    // modes just needs fresh state (refreshNodeColorState) and a lightweight
+    // applyDesign() refresh -- same reasoning as onEdgeStyleModeChange below.
+    onNodeColorModeChange(value) {
+      this.nodeColorMode = value;
+      this.refreshNodeColorState();
+      this.applyDesign();
+    },
+    // Unlike node coloring, linkWidthByFn/linkColorByFn already read live
+    // edgeStyleMode state per edge on every call, so no data rebuild is needed.
+    onEdgeStyleModeChange(value) {
+      this.edgeStyleMode = value;
       this.applyDesign();
     },
     // Toolbar mode toggle: only one of rect/polygon selection can be active at a
     // time (or neither, for plain zoom/pan) -- always deactivate both first so
     // switching modes (or back to "zoom") doesn't leave a stale one still armed.
     applySelectionMode() {
-      if (!this.cosmographInstance) return;
-      this.cosmographInstance.deactivateRectSelection?.();
-      this.cosmographInstance.deactivatePolygonalSelection?.();
+      if (!this.$refs.graph) return;
       if (this.selectionMode === 'rect' || this.selectionMode === 'polygon') {
-        // Clear any leftover point-selection constraint (from a prior click or
-        // drag) before handing off to the tool -- see reapplySelection() for why
-        // leaving one active would scope every subsequent drag down to it.
-        this.cosmographInstance.unselectAllPoints();
+        // activateRectSelection()/activatePolygonSelection() already deactivate
+        // whichever tool was previously active and clear any leftover
+        // point-selection constraint before arming themselves -- see
+        // reapplySelection() for why leaving one active would scope every
+        // subsequent drag down to it.
         if (this.selectionMode === 'rect') {
-          this.cosmographInstance.activateRectSelection?.();
+          this.$refs.graph.applyRectSelection();
         } else {
-          this.cosmographInstance.activatePolygonalSelection?.();
+          this.$refs.graph.applyPolygonSelection();
         }
       } else {
+        this.$refs.graph.deactivateSelectionTools();
         // Back to zoom/pan: reassert the real selectedNetworkNodes/displayed-node
         // highlight, which reapplySelection() skipped touching while a selection
         // tool was active.
@@ -3060,7 +3337,7 @@ export default {
     handleAreaSelected(pointIndices) {
       if (!pointIndices || !pointIndices.length) return;
       const newNodes = pointIndices
-        .map((index) => this.networkNodes.find((n) => n.id === this.indexToNodeId[index]))
+        .map((index) => this.networkNodes.find((n) => n.id === this.$refs.graph?.getPointId(index)))
         .filter((node) => node && !this.isNodeInNetworkSelected(node));
       if (!newNodes.length) return;
       this.selectedNetworkNodes.push(...newNodes);
@@ -3070,6 +3347,8 @@ export default {
     async clearNetwork(full = true, saveState=true){
       this.clearNetworkWarn = false;
       this.clusteringActive = false;
+      this.nodeColorMode = 'group';
+      this.edgeStyleMode = 'unweighted';
       this.lastNetworkMode = null;
       this.networkNodes = [];
       this.networkEdges = []; // do i also need allInternalEdges??
@@ -3081,6 +3360,8 @@ export default {
       this.displayedElementType = null;
       this.isDetailsNodeSelected = false;
       this.selectedNetworkNodes = [];
+      this.recentNeighborNodeIds = [];
+      this.neighborsSubTab = null;
       if(full){
         await this.initializeCosmograph();
         this.applyDesign(saveState);
@@ -3111,80 +3392,15 @@ export default {
         console.error("Image URL is not available yet");
       }
     },
-    // this.$refs.network also holds Cosmograph's polygonal/rectangular area-select overlay
-    // canvases, which sit before the real WebGL graph canvas in DOM order -- a plain
-    // querySelector('canvas') grabs one of those (empty except mid-lasso-select) instead of the
-    // graph. _cosmosElement is Cosmograph's own inner wrapper that holds only the graph canvas;
-    // it's what captureScreenshot() itself reads from internally, so this targets the same element.
     async captureImage() {
-      const canvas = this.cosmographInstance?._cosmosElement?.querySelector('canvas');
-
-      if (canvas) {
-
-        // Create a temporary offscreen canvas to avoid triggering redraw
-        const offscreenCanvas = document.createElement('canvas');
-        const offscreenCtx = offscreenCanvas.getContext('2d');
-        offscreenCanvas.width = canvas.width;
-        offscreenCanvas.height = canvas.height;
-
-        // Draw the current content of the network on the offscreen canvas
-        offscreenCtx.drawImage(canvas, 0, 0);
-
-        this.drawNodeLabels(offscreenCtx, canvas);
-
+      this.imageUrl = await this.$refs.graph?.captureImage((ctx, canvas) => {
         // Legend entries: whatever groups are actually present, same as the on-screen legend
-        drawLegendPanel(offscreenCtx, offscreenCanvas, this.legendItems, {
+        drawLegendPanel(ctx, canvas, this.legendItems, {
           textColor: this.labelColor('text'),
           panelColor: this.labelColor('surface-bright'),
           borderColor: this.labelColor('surface-variant'),
         }, this.legendTitle);
-
-        // Generate the image URL
-        this.imageUrl = offscreenCanvas.toDataURL();
-      } else {
-        console.error('Canvas or context is undefined');
-      }
-    },
-
-    // Node labels are rendered as absolutely-positioned DOM elements overlaid on the canvas (see
-    // Cosmograph's Labels module), not drawn into the WebGL buffer -- so they never show up in a
-    // canvas-only capture, even Cosmograph's own captureScreenshot(). Read each rendered label's
-    // text and screen position directly off the DOM and draw it onto the capture ourselves,
-    // instead of pulling in a whole-DOM screenshot library just for this.
-    drawNodeLabels(ctx, canvas) {
-      const labelsContainer = this.cosmographInstance?._labels?.labelsContainer;
-      if (!labelsContainer) return;
-
-      const canvasRect = canvas.getBoundingClientRect();
-      if (!canvasRect.width || !canvasRect.height) return;
-      const scaleX = canvas.width / canvasRect.width;
-      const scaleY = canvas.height / canvasRect.height;
-
-      const labelEls = Array.from(labelsContainer.querySelectorAll('*'))
-        .filter((el) => el.children.length === 0 && el.textContent?.trim());
-
-      // save/restore so textAlign/textBaseline/font/fillStyle don't leak into whatever the
-      // caller draws next (the legend panel assumes its own defaults, not these).
-      ctx.save();
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      labelEls.forEach((el) => {
-        const style = window.getComputedStyle(el);
-        const opacity = parseFloat(style.opacity);
-        // Cosmograph doesn't remove decluttered/off-screen labels from the DOM -- it fades them
-        // to opacity 0.1 via a "hidden" class (see cosmographLabelHidden in its CSS) while keeping
-        // shown labels at full opacity. Mirror that distinction instead of drawing every label
-        // Cosmograph has ever created, which would make the export far busier than the live view.
-        if (style.visibility === 'hidden' || style.display === 'none' || !(opacity > 0.5)) return;
-        const rect = el.getBoundingClientRect();
-        if (!rect.width || !rect.height) return;
-        const x = (rect.left - canvasRect.left + rect.width / 2) * scaleX;
-        const y = (rect.top - canvasRect.top + rect.height / 2) * scaleY;
-        ctx.font = `${parseFloat(style.fontSize) * scaleY}px ${style.fontFamily}`;
-        ctx.fillStyle = style.color;
-        ctx.fillText(el.textContent.trim(), x, y);
       });
-      ctx.restore();
     },
 
 
@@ -3245,11 +3461,16 @@ export default {
           testType: context.content.testType ?? 'parametric',
           correction: context.content.correction ?? 'bh',
         };
+        this.wholeNetworkTests = {
+          testType: context.content.testType ?? 'parametric',
+          correction: context.content.correction ?? 'bh',
+        };
         this.disableSelections = true;
         this.clearNetwork(true,false);
       }
       else{
         this.selectedTests = { testType: 'parametric', correction: this.staticCorrection };
+        this.wholeNetworkTests = { testType: 'parametric', correction: this.staticCorrection };
         this.disableSelections = false;
         this.clearNetwork(true, false);
       }
@@ -3322,6 +3543,8 @@ export default {
         wholeNetworkTests: this.wholeNetworkTests,
         density: this.density,
         lastNetworkMode: this.lastNetworkMode,
+        nodeColorMode: this.nodeColorMode,
+        edgeStyleMode: this.edgeStyleMode,
         // Community detection -- persisted so the legend still shows "Communities
         // (Infomap)" etc. (and the modularity/conductance readout still works)
         // after a localStorage reload, instead of silently reverting to node-type
@@ -3329,7 +3552,7 @@ export default {
         clusteringActive: this.clusteringActive,
         clusteringAlgorithm: this.clusteringAlgorithm,
         selectedAlgorithm: this.selectedAlgorithm,
-        resolutionIndex: this.resolutionIndex,
+        leidenResolution: this.leidenResolution,
         leidenMeta: this.leidenMeta,
         // Community Annotation -- only the runId/startedAt pointer is persisted, not the
         // (potentially large) result payload itself, so a reload can reconnect to a run
@@ -3386,8 +3609,14 @@ export default {
         // data that isn't actually there.
         this.clusteringActive = user_settings.clusteringActive ?? false;
         this.clusteringAlgorithm = user_settings.clusteringAlgorithm ?? null;
+        // Guard against a stale 'community' mode with no actual community data
+        // (older saved states won't have nodeColorMode at all either).
+        this.nodeColorMode = (user_settings.nodeColorMode === 'community' && !this.clusteringActive)
+          ? 'group'
+          : (user_settings.nodeColorMode ?? 'group');
+        this.edgeStyleMode = user_settings.edgeStyleMode ?? 'unweighted';
         this.selectedAlgorithm = user_settings.selectedAlgorithm ?? 'leiden';
-        this.resolutionIndex = user_settings.resolutionIndex ?? 2;
+        this.leidenResolution = user_settings.leidenResolution ?? 1.0;
         this.leidenMeta = user_settings.leidenMeta ?? {};
         this.communityAnnotationRunId = user_settings.communityAnnotationRunId ?? null;
         this.communityAnnotationStartedAt = user_settings.communityAnnotationStartedAt ?? null;
@@ -3401,6 +3630,17 @@ export default {
     },
   },
   watch: {
+    // Clears the header "Tables" highlight once the user actually switches
+    // over there -- see notifyTablesContentProduced().
+    visualizationTab(value) {
+      if (value === 'tables') this.tablesTabHighlighted = false;
+    },
+    // Same, but for a Tables sub-tab's own highlight once it becomes active.
+    tablesActiveTab(value) {
+      if (Object.prototype.hasOwnProperty.call(this.tableSubtabHighlights, value)) {
+        this.tableSubtabHighlights[value] = false;
+      }
+    },
     // Keeps "Full Network Statistics" in sync with whichever context is
     // selected, independent of whether/when a network is sent to the graph.
     // immediate: true covers the initial load, including a context restored
@@ -3412,11 +3652,20 @@ export default {
         this.fetchFullNetworkStatistics();
       },
     },
-    // Only matters in no-context mode -- when a context is selected the
-    // backend uses the context's own fixed testType regardless of this param
-    // (see buildSignificantEdgesUrl).
+    // Get the full network networks test type if it's not already fixed (in caase of a selected context) 
     fullNetworkStatsTestType() {
       if (this.contextValue == null) this.fetchFullNetworkStatistics();
+    },
+    // Unlike testType above, threshold isn't overridden by a selected context (it's always
+    // applied server-side, see GetCosmographView/get_whole_network_new), so this always
+    // refetches. Debounced -- see fullNetworkStatsThresholdDebounce -- since this is a
+    // free-typed number field and each fetch is a full significance scan server-side.
+    fullNetworkStatsThreshold() {
+      if (this.fullNetworkStatsThresholdDebounce) clearTimeout(this.fullNetworkStatsThresholdDebounce);
+      this.fullNetworkStatsThresholdDebounce = setTimeout(() => {
+        this.fullNetworkStatsThresholdDebounce = null;
+        this.fetchFullNetworkStatistics();
+      }, 600);
     },
     showDropdown(newVal) {
       // Add or remove the global click listener when dropdown visibility changes
@@ -3455,27 +3704,12 @@ export default {
         this.selectedTests = { ...this.selectedTests, correction: newVal };
       }
     },
-    // Resolutions are all already loaded on the nodes (see runLeidenClustering),
-    // so switching resolution just recolors -- no refetch needed. A full
-    // initializeCosmograph() rebuild (rather than a lighter recolor) matches how
-    // the old Metagraph page's own resolution slider already worked.
-    // isClusteringLoading guard: runLeidenClustering() sets resolutionIndex as
-    // part of its own setup and then calls initializeCosmograph() itself once
-    // the fetch lands -- this watcher fires on that same assignment too (on the
-    // next tick, by which point clusteringActive is already true), so without
-    // the guard it raced a second, redundant rebuild against the one already in
-    // flight (same "graph renders twice" bug already hit and fixed once before
-    // on the old Metagraph page's own resolution slider).
-    async resolutionIndex() {
-      // Switching resolution changes which communities exist, so any previously-fetched or
-      // in-progress Community Annotation / Score Clustering run no longer matches -- discard it.
-      this.resetCommunityAnnotation();
-      this.resetScoreClustering();
-      if (this.clusteringActive && !this.isClusteringLoading) {
-        await this.initializeCosmograph();
-        this.applyDesign();
-      }
-    },
+    // No watcher on leidenResolution anymore: since buildLeidenUrl now only requests the one
+    // entered resolution (see there), editing the input has nothing loaded yet to recolor
+    // with -- the user has to click "Run"/"Re-run Clustering" to actually fetch and apply a
+    // different resolution, same as changing the algorithm. runLeidenClustering() already
+    // resets Community Annotation/Score Clustering at the start of every run, so that's still
+    // covered.
     // The selection changed, so any previously-fetched enrichment/label results no longer
     // match -- clear all three node-set-scoped tabs (g:Profiler, Reactome, Gemini) rather than
     // showing stale results computed on a different node set next to freshly-run ones with no
@@ -3490,14 +3724,18 @@ export default {
         this.reactomeEnrichmentRan = false;
         this.reactomeUnmappedMetabolites = [];
         this.geminiLabel = null;
-        this.geminiRan = false;
       },
     },
     },
     beforeUnmount() {
       // Clean up event listener when component is destroyed
       document.removeEventListener('click', this.handleClickOutside);
-      this.destroyCosmograph();
+      if (this._clickTimer) {
+        clearTimeout(this._clickTimer);
+        this._clickTimer = null;
+      }
+      // CosmographGraph tears down its own Cosmograph instance in its own
+      // beforeUnmount hook -- no explicit destroy() call needed here.
       // Only stops this tab's local polling loop -- the Celery task/DIGEST job itself keeps
       // running server-side, and its runId (already persisted via saveState) is what lets a
       // later reload reconnect to it instead of losing track of it.
@@ -3531,13 +3769,27 @@ export default {
 
 <style scoped>
 
-/* Cosmograph mounts label elements into #network itself, outside Vue's own
-   render tree -- :deep() reaches them anyway since they're still inside this
-   component's DOM subtree. Overrides the label's own point-color inheritance
-   (no pointLabelColor is set, so labels default to their point's color) with
-   plain white specifically for whichever label is currently hovered. */
-:deep(.cosmo-hovered-label) {
-  color: #fff !important;
+/* GraphToolbar's content box is a fixed ~48px (density="compact") with
+   overflow:hidden -- the default compact v-select field height (40px) plus
+   its outlined-variant floating label leaves too little clearance and pokes
+   into the network view sitting directly above with no gap. Shrinking the
+   field via this CSS var (read by Vuetify's own field height calc), plus the
+   outlined variant's own reserved label-notch padding below it, keeps it
+   comfortably inside the toolbar instead. */
+.toolbar-select :deep(.v-field) {
+  --v-input-control-height: 26px;
+  --v-field-padding-bottom: 2px;
+  font-size: 0.72rem;
+}
+.toolbar-select :deep(.v-field__input) {
+  min-height: 26px;
+  padding-top: 0;
+}
+.toolbar-select :deep(.v-label) {
+  font-size: 0.72rem;
+}
+.toolbar-select :deep(.v-select__selection-text) {
+  font-size: 0.72rem;
 }
 
 .network-page {
@@ -3592,9 +3844,22 @@ export default {
   overflow-y: auto;   /* Scroll instead of overflowing the graph when there are many communities */
   padding-right: 8px; /* Keep the scrollbar clear of the legend text */
 }
+.edge-legend {
+  position: absolute;  /* Same convention as .legend, opposite corner so the two
+                           don't overlap when both a node and edge gradient show at once. */
+  bottom: 100px;  /* Cleared above Cosmograph's own bottom-right attribution link,
+                      which .legend's bottom-left corner never had to share with. */
+  right: 40px;
+  z-index: 10;
+}
 .scrollable-panels {
   max-height: 625px;  /* You can adjust the height as needed */
   overflow-y: auto;   /* This will make the content scrollable */
+}
+.selected-nodes-scroll {
+  max-height: 240px;  /* Keeps the Selection panel a fixed size regardless of how many
+                          nodes are selected, instead of growing unbounded. */
+  overflow-y: auto;
 }
 
 /* Style for the network container */

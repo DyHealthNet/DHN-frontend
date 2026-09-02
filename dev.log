@@ -1,0 +1,64 @@
+nohup: ignoring input
+
+> dyhealthnet@0.0.0 dev
+> vite
+
+
+  VITE v5.4.21  ready in 5271 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+11:04:18 PM [vite] .env changed, restarting server...
+11:04:18 PM [vite] server restarted.
+11:09:54 PM [vite] .env changed, restarting server...
+11:09:54 PM [vite] server restarted.
+11:49:40 PM [vite] .env changed, restarting server...
+11:49:40 PM [vite] server restarted.
+11:49:41 PM [vite] .env changed, restarting server...
+11:49:42 PM [vite] server restarted.
+12:13:17 AM [vite] hmr update /src/components/contexts/ContextSetup.vue
+3:37:59 AM [vite] page reload src/router.js
+3:37:59 AM [vite] hmr update /src/components/Navbar.vue
+3:38:00 AM [vite] Pre-transform error: At least one <template> or <script> is required in a single file component. /nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/src/pages/metagraph.vue
+3:38:00 AM [vite] Pre-transform error: At least one <template> or <script> is required in a single file component. /nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/src/pages/metagraph.vue
+5:15:26 AM [vite] hmr update /src/pages/metagraph.vue
+5:15:29 AM [vite] ✨ new dependencies optimized: @cosmograph/cosmograph
+5:15:29 AM [vite] ✨ optimized dependencies changed. reloading
+5:15:29 AM [vite] Internal server error: Failed to resolve import "/nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/src/cosmograph/style.module.css" from "node_modules/.vite/deps/@cosmograph_cosmograph.js?v=4a42f949". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/node_modules/.vite/deps/@cosmograph_cosmograph.js?v=4a42f949:76906:18
+  76904|  
+  76905|  // node_modules/@cosmograph/cosmograph/cosmograph/managers/licensing-manager.js
+  76906|  import e23 from "/nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/src/cosmograph/style.module.css";
+     |                   ^
+  76907|  var s21 = class {
+  76908|    constructor(i23, t30) {
+      at TransformPluginContext._formatError (file:///nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at async file:///nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 2)
+      at async TransformPluginContext.transform (file:///nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+5:15:29 AM [vite] Pre-transform error: Failed to resolve import "/nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/src/cosmograph/style.module.css" from "node_modules/.vite/deps/@cosmograph_cosmograph.js?v=4a42f949". Does the file exist?
+5:15:30 AM [vite] Pre-transform error: Failed to resolve import "/nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/src/cosmograph/style.module.css" from "node_modules/.vite/deps/@cosmograph_cosmograph.js?v=c35ce57d". Does the file exist?
+5:15:31 AM [vite] Internal server error: Failed to resolve import "/nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/src/cosmograph/style.module.css" from "node_modules/.vite/deps/@cosmograph_cosmograph.js?v=c35ce57d". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/node_modules/.vite/deps/@cosmograph_cosmograph.js?v=c35ce57d:76906:18
+  76904|  
+  76905|  // node_modules/@cosmograph/cosmograph/cosmograph/managers/licensing-manager.js
+  76906|  import e23 from "/nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/src/cosmograph/style.module.css";
+     |                   ^
+  76907|  var s21 = class {
+  76908|    constructor(i23, t30) {
+      at TransformPluginContext._formatError (file:///nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at async file:///nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 2)
+      at async TransformPluginContext.transform (file:///nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///nfs/home/students/b.rehor/masterthesis/fresh_dhn_setup/DHN-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+5:28:37 AM [vite] page reload src/cosmograph/style.module.css

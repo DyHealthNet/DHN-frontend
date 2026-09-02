@@ -26,6 +26,7 @@
       :custom-key-filter="{ edge: edgeSearchFilter }"
       filter-mode="union"
       :sort-by="[{ key: 'rank', order: 'asc' }]"
+      multi-sort
       :loading="loading"
       items-per-page="10"
       class="edge-rank-table"
@@ -35,17 +36,13 @@
       <template v-slot:item.edge="{ item }">
         <span :class="{ 'font-weight-bold': isSelected(item) }">{{ formatEdge(item) }}</span>
       </template>
-      <template v-slot:header.score="{ column, getSortIcon }">
-        <div class="v-data-table-header__content">
-          <span>{{ column.title }}</span>
-          <v-icon v-if="column.sortable" class="v-data-table-header__sort-icon" :icon="getSortIcon(column)"></v-icon>
-          <v-tooltip location="top" max-width="320">
-            <template v-slot:activator="{ props }">
-              <v-icon v-bind="props" size="14" class="ml-1">mdi-information-outline</v-icon>
-            </template>
-            <span>Edge metric: {{ edgeMetricLabel }} — {{ edgeMetricDescription }}</span>
-          </v-tooltip>
-        </div>
+      <template v-slot:header.score="{ column }">
+        <v-tooltip location="top" max-width="320">
+          <template v-slot:activator="{ props }">
+            <span v-bind="props">{{ column.title }}</span>
+          </template>
+          <span>Edge metric: {{ edgeMetricLabel }} — {{ edgeMetricDescription }}</span>
+        </v-tooltip>
       </template>
       <template v-slot:item.score="{ item }">
         {{ formatNumber(item.score) }}

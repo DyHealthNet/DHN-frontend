@@ -1,24 +1,11 @@
 <template>
   <div class="downloadable-data-table">
-    <div class="d-flex justify-end mb-1">
-      <v-menu location="bottom end">
-        <template v-slot:activator="{ props }">
-          <v-btn
-            v-bind="props"
-            size="small"
-            variant="text"
-            prepend-icon="mdi-download"
-            :disabled="!items.length"
-          >Download</v-btn>
-        </template>
-        <v-list density="compact">
-          <v-list-item title="Download CSV" @click="download('csv')"></v-list-item>
-          <v-list-item title="Download JSON" @click="download('json')"></v-list-item>
-          <v-list-item title="Download TXT" @click="download('txt')"></v-list-item>
-        </v-list>
-      </v-menu>
+    <div v-if="multiSort || $slots['toolbar-start']" class="d-flex align-center mb-1" style="gap: 8px; justify-content: space-between;">
+      <div><slot name="toolbar-start" /></div>
+      <span v-if="multiSort" class="text-caption text-medium-emphasis">Ctrl/Cmd+click a column to multi-sort by more than one column</span>
     </div>
     <DataTable
+      ref="tableRef"
       :value="sortedItems"
       :class="$attrs.class"
       custom-sort
@@ -28,35 +15,46 @@
       :multi-sort-meta="multiSort ? internalSortBy.map((s) => ({ field: s.key, order: s.order === 'desc' ? -1 : 1 })) : undefined"
       @sort="onSort"
       @row-click="handleRowClick"
+      :row-class="rowClass"
       :loading="loading"
       paginator
+      v-model:first="first"
       :rows="rows"
       :rows-per-page-options="rowsPerPageOptions"
+      paginatorTemplate="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink PaginatorEnd"
+      currentPageReportTemplate="{first} to {last} of {totalRecords}"
       density="compact"
       scrollable
+      :scroll-height="lockedScrollHeight"
     >
+      <template #paginatorend>
+        <div class="downloadable-data-table__download">
+          <Button
+            type="button"
+            icon="pi pi-download"
+            class="p-button-text p-button-secondary"
+            :disabled="!items.length"
+            @click="onMenuClick"
+            aria-haspopup="true"
+            aria-controls="download_menu"
+          />
+          <Menu id="download_menu" ref="menuRef" :model="downloadItems" :popup="true" />
+        </div>
+      </template>
+
       <Column
         v-for="header in headers"
         :key="header.key"
         :field="header.key"
+        :header="$slots['header.' + header.key] ? undefined : header.title"
         :sortable="header.sortable !== false"
         :style="header.width ? { width: header.width + 'px' } : undefined"
       >
-        <template #header>
+        <template v-if="$slots['header.' + header.key]" #header>
           <slot
-            v-if="$slots['header.' + header.key]"
             :name="'header.' + header.key"
             :column="{ title: header.title, key: header.key, sortable: header.sortable !== false }"
-            :get-sort-icon="getSortIcon"
           />
-          <div v-else class="v-data-table-header__content">
-            <span>{{ header.title }}</span>
-            <v-icon
-              v-if="header.sortable !== false"
-              class="v-data-table-header__sort-icon"
-              :icon="getSortIcon({ key: header.key })"
-            ></v-icon>
-          </div>
         </template>
         <template #body="{ data }">
           <slot v-if="$slots['item.' + header.key]" :name="'item.' + header.key" :item="data" />
@@ -83,10 +81,12 @@
 // custom-key-filter/filter-mode search semantics and per-header numeric sort comparators.
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
+import Menu from 'primevue/menu';
+import Button from 'primevue/button';
 
 export default {
   name: 'DownloadableDataTable',
-  components: { DataTable, Column },
+  components: { DataTable, Column, Menu, Button },
   // Extra attrs (only `class` is used) are forwarded explicitly to <DataTable> above rather
   // than via Vue's default fallthrough-to-root-element, since the root here is a wrapper div.
   inheritAttrs: false,
@@ -114,12 +114,53 @@ export default {
     // match (over non-custom header keys) must also match, if there are any. 'union': a row
     // passes if either the default match or any custom filter matches.
     filterMode: { type: String, default: 'intersection' },
+    // (item) => class name(s) -- forwarded straight to PrimeVue's DataTable row-class, e.g. to
+    // highlight whichever row matches the node currently shown in the Details panel.
+    rowClass: { type: Function, default: null },
   },
   emits: ['click:row'],
   data() {
     return {
       internalSortBy: this.sortBy.length ? [...this.sortBy] : [],
+      // PrimeVue's paginator keeps its own page position regardless of what data is passed
+      // in -- without resetting it here, swapping in a new/smaller `items` array (e.g. after
+      // switching context) or narrowing via search leaves the table stuck on whatever page it
+      // was last on, so the visible "Rank" column can start well past 1 even though rankEdges/
+      // computeWeightedDegree always number the underlying data starting at 1.
+      first: 0,
+      // Height (in px, as a CSS string) the table's body locks to the first time it renders
+      // with actual rows -- at that point it's showing the caller's default itemsPerPage, so
+      // that natural height becomes the cap. Bumping "rows per page" up after that scrolls
+      // the extra rows inside this same height instead of growing the table (and the page
+      // around it) taller. null until measured, which lets the table size itself naturally
+      // for that first real render.
+      lockedScrollHeight: null,
+      heightLocked: false,
     };
+  },
+  watch: {
+    items() {
+      this.first = 0;
+    },
+    search() {
+      this.first = 0;
+    },
+    // Fires on every render where rows are actually on screen; only the first one (per
+    // heightLocked) does anything -- see lockedScrollHeight above.
+    sortedItems: {
+      immediate: true,
+      handler(rows) {
+        if (this.heightLocked || !rows.length) return;
+        this.$nextTick(() => {
+          if (this.heightLocked) return;
+          const container = this.$refs.tableRef?.$el?.querySelector('.p-datatable-table-container');
+          const height = container?.getBoundingClientRect().height;
+          if (!height) return;
+          this.lockedScrollHeight = `${Math.ceil(height)}px`;
+          this.heightLocked = true;
+        });
+      },
+    },
   },
   computed: {
     // itemsPerPage arrives as a string when callers pass it as a bare HTML attribute
@@ -135,6 +176,15 @@ export default {
         return [...options, this.rows].sort((a, b) => a - b);
       }
       return options;
+    },
+    // Items for the paginator's download Menu -- reuses the same download() method/formats
+    // the previous Vuetify v-menu/v-list offered, just presented as a PrimeVue Menu popup.
+    downloadItems() {
+      return [
+        { label: 'Download CSV', icon: 'pi pi-file', command: () => this.download('csv') },
+        { label: 'Download JSON', icon: 'pi pi-file', command: () => this.download('json') },
+        { label: 'Download TXT', icon: 'pi pi-file', command: () => this.download('txt') },
+      ];
     },
     filteredItems() {
       const query = (this.search ?? '').toString().trim().toLowerCase();
@@ -190,11 +240,6 @@ export default {
     defaultCompare(a, b) {
       return String(a ?? '').localeCompare(String(b ?? ''));
     },
-    getSortIcon(column) {
-      const active = this.internalSortBy.find((s) => s.key === column.key);
-      if (!active) return '';
-      return active.order === 'desc' ? 'mdi-arrow-down' : 'mdi-arrow-up';
-    },
     onSort(event) {
       if (this.multiSort) {
         this.internalSortBy = (event.multiSortMeta ?? []).map((m) => ({
@@ -209,6 +254,9 @@ export default {
     },
     handleRowClick(event) {
       this.$emit('click:row', event.originalEvent, { item: event.data });
+    },
+    onMenuClick(event) {
+      this.$refs.menuRef.toggle(event);
     },
     csvEscape(value) {
       const str = value == null ? '' : String(value);
@@ -256,23 +304,36 @@ export default {
 </script>
 
 <style scoped>
-/* PrimeVue's Aura preset defaults to its own (light) surface colors, which otherwise stay
-   fixed regardless of the app's Vuetify theme -- darkModeSelector is disabled in main.js
-   specifically so this component drives all of PrimeVue's colors from Vuetify's own
-   reactive --v-theme-* vars instead. */
+.downloadable-data-table__download {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+/* PrimeVue's Aura preset (see main.js's MyPreset) already makes the table/paginator
+   backgrounds transparent so they inherit whatever Vuetify surface they're rendered
+   inside (the v-card each table sits in). darkModeSelector is still disabled there
+   though, so Aura's own text/foreground tokens stay fixed to its light scheme -- force
+   those (and the border color) from Vuetify's reactive --v-theme-* vars here instead. */
 .downloadable-data-table :deep(.p-datatable-table),
-.downloadable-data-table :deep(.p-datatable-header-cell),
 .downloadable-data-table :deep(.p-datatable-tbody > tr),
 .downloadable-data-table :deep(.p-paginator) {
-  background: rgb(var(--v-theme-surface));
+  background: transparent;
   color: rgb(var(--v-theme-on-surface));
 }
+/* The header row is `position: sticky` (PrimeVue inline style), so unlike the rest of the
+   table it needs an opaque background -- otherwise scrolled-past rows show through it as they
+   pass underneath. rgb(var(--v-theme-surface)) is Vuetify's own reactive theme variable, so
+   this already resolves to the right color in both light and dark theme, same as everywhere
+   else in this file. */
+.downloadable-data-table :deep(.p-datatable-thead),
 .downloadable-data-table :deep(.p-datatable-header-cell) {
-  border-color: rgb(var(--v-theme-surface-variant)) !important;
+  background: rgb(var(--v-theme-surface));
+  border-color: rgb(var(--v-theme-data-table-line)) !important;
   color: rgb(var(--v-theme-on-surface-variant));
 }
 .downloadable-data-table :deep(.p-datatable-tbody > tr > td) {
-  border-color: rgb(var(--v-theme-surface-variant)) !important;
+  border-color: rgb(var(--v-theme-data-table-line)) !important;
 }
 .downloadable-data-table :deep(.p-datatable-tbody > tr:hover) {
   background: rgba(var(--v-theme-primary), 0.08) !important;
@@ -287,12 +348,6 @@ export default {
 .downloadable-data-table :deep(.p-paginator .p-paginator-first),
 .downloadable-data-table :deep(.p-paginator .p-paginator-last) {
   color: rgb(var(--v-theme-on-surface));
-}
-/* Header content/sort icon are rendered by this component's own #header template (see
-   getSortIcon), not PrimeVue's -- hide PrimeVue's own auto-appended sort icon so there's
-   only one indicator per column. */
-.downloadable-data-table :deep(.p-datatable-sort-icon) {
-  display: none;
 }
 </style>
 

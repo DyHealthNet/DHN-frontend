@@ -8,6 +8,7 @@
         <v-expansion-panel-text>
           <StatisticalTestLine :selected-tests="selectedTests"
                                :density="density"
+                               :disable-selections="disableSelections"
                                :read-only-correction="true"
                                :show-mult-test="false"
                                :show-density="true"
@@ -32,6 +33,14 @@ export default {
     density: {
       type: Number,
       default: 0.01,
+    },
+    // True while a context is selected -- the context's own test type is what
+    // was actually used to precompute its network, so it isn't a free choice
+    // here any more (same reasoning as readOnlyCorrection below, and mirrors
+    // AdvancedSettings' own disableSelections for the node-search test type).
+    disableSelections: {
+      type: Boolean,
+      default: false,
     },
     expansionPanelVariant: {
       type: String,

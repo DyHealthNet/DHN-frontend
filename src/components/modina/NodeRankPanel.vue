@@ -26,6 +26,7 @@
       :custom-key-filter="{ id: nodeSearchFilter }"
       filter-mode="union"
       :sort-by="[{ key: 'rank', order: 'asc' }]"
+      multi-sort
       :loading="loading"
       items-per-page="10"
       class="node-rank-table"
@@ -36,46 +37,48 @@
         <span :class="{ 'font-weight-bold': isSelected(item) }">{{ item.display_name || item.id }}</span>
       </template>
       <template v-slot:item.group="{ item }">
-        {{ item.group || '-' }}
+        <v-chip v-if="item.group && groupColorMap[item.group]" size="small" :style="chipStyle(groupColorMap[item.group])">
+          {{ capitalizeFirstLetter(item.group) }}
+        </v-chip>
+        <span v-else>{{ item.group || '-' }}</span>
       </template>
-      <template v-slot:header.rank="{ column, getSortIcon }">
-        <div class="v-data-table-header__content">
-          <span>{{ column.title }}</span>
-          <v-icon v-if="column.sortable" class="v-data-table-header__sort-icon" :icon="getSortIcon(column)"></v-icon>
-          <v-tooltip location="top" max-width="320">
-            <template v-slot:activator="{ props }">
-              <v-icon v-bind="props" size="14" class="ml-1">mdi-information-outline</v-icon>
-            </template>
-            <span>{{ rankTooltip }}</span>
-          </v-tooltip>
-        </div>
+      <template v-slot:header.rank="{ column }">
+        <v-tooltip location="top" max-width="320">
+          <template v-slot:activator="{ props }">
+            <span v-bind="props">{{ column.title }}</span>
+          </template>
+          <span>{{ rankTooltip }}</span>
+        </v-tooltip>
       </template>
-      <template v-slot:header.score="{ column, getSortIcon }">
-        <div class="v-data-table-header__content">
-          <span>{{ column.title }}</span>
-          <v-icon v-if="column.sortable" class="v-data-table-header__sort-icon" :icon="getSortIcon(column)"></v-icon>
-          <v-tooltip location="top" max-width="320">
-            <template v-slot:activator="{ props }">
-              <v-icon v-bind="props" size="14" class="ml-1">mdi-information-outline</v-icon>
-            </template>
-            <span>{{ scoreTooltip }}</span>
-          </v-tooltip>
-        </div>
+      <template v-slot:header.score="{ column }">
+        <v-tooltip location="top" max-width="320">
+          <template v-slot:activator="{ props }">
+            <span v-bind="props">{{ column.title }}</span>
+          </template>
+          <span>{{ scoreTooltip }}</span>
+        </v-tooltip>
       </template>
       <template v-slot:item.score="{ item }">
         {{ formatNumber(item.score) }}
       </template>
-      <template v-slot:header.nodeMetricRank="{ column, getSortIcon }">
-        <div class="v-data-table-header__content">
-          <span>{{ column.title }}</span>
-          <v-icon v-if="column.sortable" class="v-data-table-header__sort-icon" :icon="getSortIcon(column)"></v-icon>
-          <v-tooltip location="top" max-width="320">
-            <template v-slot:activator="{ props }">
-              <v-icon v-bind="props" size="14" class="ml-1">mdi-information-outline</v-icon>
-            </template>
-            <span>{{ nodeMetricRankTooltip }}</span>
-          </v-tooltip>
-        </div>
+      <template v-slot:header.nodeMetricValue="{ column }">
+        <v-tooltip location="top" max-width="320">
+          <template v-slot:activator="{ props }">
+            <span v-bind="props">{{ column.title }}</span>
+          </template>
+          <span>{{ nodeMetric ? nodeMetricDescription : 'Node metric value. Run a comparison to see which metric produced it.' }}</span>
+        </v-tooltip>
+      </template>
+      <template v-slot:item.nodeMetricValue="{ item }">
+        {{ formatNumber(item.nodeMetricValue) }}
+      </template>
+      <template v-slot:header.nodeMetricRank="{ column }">
+        <v-tooltip location="top" max-width="320">
+          <template v-slot:activator="{ props }">
+            <span v-bind="props">{{ column.title }}</span>
+          </template>
+          <span>{{ nodeMetricRankTooltip }}</span>
+        </v-tooltip>
       </template>
       <template v-slot:item.nodeMetricRank="{ item }">
         {{ item.nodeMetricRank ?? '-' }}
@@ -90,6 +93,7 @@
 <script>
 import { NODE_METRIC_INFO, RANKING_ALGORITHM_INFO, metricLabel, metricDescription } from './metricInfo.js';
 import DownloadableDataTable from '@/components/DownloadableDataTable.vue';
+import { assignGroupColors, capitalizeFirstLetter, getReadableTextColor } from '@/components/network/networkData.js';
 
 // Rank columns: lower number = better, so a missing rank (no surviving edges for PageRank+) is
 // worse than every real rank -- sorts as if it were the largest number, regardless of which
@@ -146,6 +150,15 @@ export default {
     };
   },
   computed: {
+    // One color per group actually present among `items` (the full, untrimmed
+    // result.points), via the same assignGroupColors function the graph's own
+    // legend uses. Matches the legend's colors exactly whenever the two sets of
+    // groups agree -- true unless Top-N trimming drops every point of a group
+    // from the graph while it's still shown here.
+    groupColorMap() {
+      const keys = [...new Set(this.items.map((item) => item.group).filter(Boolean))].sort();
+      return assignGroupColors(keys);
+    },
     headers() {
       // Explicit numeric `sort` on every numeric column: v-data-table's default comparator
       // coerces values to strings before comparing, which breaks once a column mixes real
@@ -157,6 +170,7 @@ export default {
         { title: 'Group', key: 'group', width: 130 },
         { title: 'Type', key: 'type', width: 130 },
         { title: 'Score', key: 'score', sort: scoreSort },
+        { title: this.nodeMetricLabel, key: 'nodeMetricValue', width: 110, sort: scoreSort },
         { title: `${this.nodeMetricLabel} Rank`, key: 'nodeMetricRank', width: 130, sort: rankSort },
       ];
     },
@@ -193,6 +207,10 @@ export default {
     },
   },
   methods: {
+    capitalizeFirstLetter,
+    chipStyle(color) {
+      return { backgroundColor: color, color: getReadableTextColor(color) };
+    },
     isSelected(item) {
       return item.id === this.selectedNode;
     },

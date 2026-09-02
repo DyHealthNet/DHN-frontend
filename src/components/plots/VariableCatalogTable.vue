@@ -21,7 +21,7 @@
           variant="outlined"
           hide-details
           single-line
-          class="mr-2"
+          class="mr-1"
           style="max-width: 220px"
       ></v-text-field>
     </v-toolbar>
@@ -36,6 +36,8 @@
         :search="search"
         :custom-key-filter="{ identifier: variableSearchFilter }"
         filter-mode="union"
+        :sort-by="[{ key: 'identifier', order: 'asc' }]"
+        multi-sort
         :loading="loading"
         items-per-page="10"
         class="variable-catalog-table"
