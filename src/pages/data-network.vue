@@ -1752,21 +1752,15 @@ export default {
       this.applyDesign();
     },
 
-    // Fetches the entire precomputed network (via the metagraph endpoint,
-    // filtered only by test type + density) as an alternative to searching for
-    // specific nodes above. Maps getCosmograph's leaner point/link shape onto
-    // the node/edge shape the rest of this page (initializeCosmograph,
-    // filterForNetworkEdges, NodeDetails/EdgeDetails, etc.) already expects.
+    // Fetches the entire precomputed network filtered only by test type + density
+    // as an alternative to searching for specific nodes above. 
     async sendWholeNetwork() {
       setIsLoading(true);
-      // A fresh whole-network fetch has no community data on its nodes yet --
-      // re-run "Run Leiden Clustering" afterward if you want it recolored. Rank
-      // mode stays valid (weighted_degree comes back with the new fetch too).
       this.clusteringActive = false;
       if (this.nodeColorMode === 'community') this.nodeColorMode = 'group';
       try {
         const csrfToken = getCookie('csrftoken');
-        const response = await fetch(this.buildWholeNetworkUrl(), {
+        const response = await fetch(this.buildWholeNetworkByDensityUrl(), {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -1822,43 +1816,42 @@ export default {
       }
       setIsLoading(false);
     },
-    buildWholeNetworkUrl() {
+    buildWholeNetworkByDensityUrl() {
       const params = new URLSearchParams();
       params.set('testType', this.wholeNetworkTests.testType);
       params.set('density', String(this.density));
-      // When a context is selected, the backend reads the context's own fixed
-      // testType (from Context.params) and ignores the testType param above --
-      // it's only kept for the no-context case.
       if (this.contextValue != null) params.set('c', this.contextValue);
       return `${BASE_URL}/metagraph/api/getCosmograph/?${params.toString()}`;
     },
 
     // "Full Network Statistics" panel: a getCosmograph fetch scoped by
-    // significance (threshold) rather than density -- deliberately separate
-    // from buildWholeNetworkUrl() so the panel's coverage doesn't depend on
-    // whatever density the graph visualization is currently configured with.
-    buildSignificantEdgesUrl() {
+    // significance (threshold) rather than density
+    buildWholeNetworkByPvalThreshUrl() {
       const params = new URLSearchParams();
       params.set('testType', this.fullNetworkStatsTestType);
       params.set('threshold', String(this.fullNetworkStatsThreshold));
+      // Explicit opt-in into GetCosmographView's ranking/truncation branch (see
+      // _rank_and_truncate_significant_network in metagraph.py) -- only this request
+      // should ever get the truncated top-N ranking, regardless of what other params
+      // it does or doesn't carry.
+      params.set('full_network_stats', 'true');
       if (this.contextValue != null) params.set('c', this.contextValue);
       return `${BASE_URL}/metagraph/api/getCosmograph/?${params.toString()}`;
     },
     // Fired by the contextValue watcher (immediate, so it also covers initial
     // load / state restored via loadState()) -- independent of sendWholeNetwork,
     // so switching context updates the stats panel even before the user sends
-    // anything to the graph. Threshold-only + no limit/density is the one
-    // GetCosmographView branch that ranks and truncates server-side (see
-    // _rank_and_truncate_significant_network in metagraph.py) -- points/links
-    // come back already limited to the top fullNetworkStatsMaxResults of each,
-    // with degree/weighted_degree/rank attached, so NodeRankingTable/
-    // EdgeRankingTable are told to trust them as-is (see the `preranked` prop)
-    // rather than recomputing over just this truncated slice.
+    // anything to the graph. full_network_stats=true is the explicit opt-in into
+    // GetCosmographView's ranking/truncation branch -- points/links come back
+    // already limited to the top fullNetworkStatsMaxResults of each, with
+    // degree/weighted_degree/rank attached, so NodeRankingTable/EdgeRankingTable
+    // are told to trust them as-is (see the `preranked` prop) rather than
+    // recomputing over just this truncated slice.
     async fetchFullNetworkStatistics() {
       setLoadingState("isLoadingfullNetworkStats", true)
       try {
         const csrfToken = getCookie('csrftoken');
-        const response = await fetch(this.buildSignificantEdgesUrl(), {
+        const response = await fetch(this.buildWholeNetworkByPvalThreshUrl(), {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -3660,9 +3653,7 @@ export default {
         this.fetchFullNetworkStatistics();
       },
     },
-    // Only matters in no-context mode -- when a context is selected the
-    // backend uses the context's own fixed testType regardless of this param
-    // (see buildSignificantEdgesUrl).
+    // Get the full network networks test type if it's not already fixed (in caase of a selected context) 
     fullNetworkStatsTestType() {
       if (this.contextValue == null) this.fetchFullNetworkStatistics();
     },
