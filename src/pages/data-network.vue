@@ -1618,23 +1618,21 @@ export default {
     // primary-darken-1 blue at the top of the range -- pure white blended into
     // the light theme's near-white background too much to read as a color at
     // all, so the low end uses the same visible-but-muted chart-grid grey the
-    // edge scale's low end uses (see computeLinkColor). log1p'd before
-    // normalizing: weighted_degree is highly right-skewed (a handful of hub
-    // nodes vastly outweigh everyone else), so a plain linear scale crushed
-    // almost every node into near-identical colors at the low end.
+    // edge scale's low end uses (see computeLinkColor). Plain min-max on the raw
+    // value -- unlike the edge score, weighted_degree is finite and bounded (no
+    // p_value=0/-log10=Infinity case to guard against), so no log/percentile
+    // transform is needed to keep the scale well-behaved.
     rankColorFor(node) {
       const value = (node.weighted_degree != null && !Number.isNaN(node.weighted_degree)) ? node.weighted_degree : 0;
       const { min, max } = this.weightedDegreeRange;
-      const normalized = normalizeInRange(Math.log1p(value), Math.log1p(min), Math.log1p(max));
+      const normalized = normalizeInRange(value, min, max);
       return interpolateHexColor(this.labelColor('chart-grid'), this.labelColor('primary-darken-1'), normalized);
     },
-    // Same treatment as rankColorFor, but for plain (unweighted) degree -- an
-    // integer edge count, which can be just as right-skewed as weighted_degree
-    // (a handful of hub nodes vs. everyone else), hence the same log1p.
+    // Same treatment as rankColorFor, but for plain (unweighted) degree.
     degreeColorFor(node) {
       const value = (node.degree != null && !Number.isNaN(node.degree)) ? node.degree : 0;
       const { min, max } = this.degreeRange;
-      const normalized = normalizeInRange(Math.log1p(value), Math.log1p(min), Math.log1p(max));
+      const normalized = normalizeInRange(value, min, max);
       return interpolateHexColor(this.labelColor('chart-grid'), this.labelColor('primary-darken-1'), normalized);
     },
     // Community ids read as plain numbers/strings from the backend aren't
