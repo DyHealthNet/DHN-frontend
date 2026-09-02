@@ -1,8 +1,15 @@
 <template>
   <v-tab :value="value">
     <slot></slot>
-    <v-icon size="16" class="ml-2" @click.stop="$emit('close')">mdi-close</v-icon>
-  </v-tab>
+    <v-btn
+      icon="mdi-close"
+      size="x-small"
+      variant="text"
+      class="ml-2"
+      aria-label="Close tab"
+      @click.stop="$emit('close')"
+    />
+  </v-tab
 </template>
 
 <script>
