@@ -15,7 +15,7 @@
           aria-label="Close dialog"
           @click="$emit('update:modelValue', false)"
         />
-      </v-card-title
+      </v-card-title>
       <v-card-text>
         <slot></slot>
       </v-card-text>

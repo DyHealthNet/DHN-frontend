@@ -9,7 +9,7 @@
       aria-label="Close tab"
       @click.stop="$emit('close')"
     />
-  </v-tab
+  </v-tab>
 </template>
 
 <script>
