@@ -95,6 +95,7 @@
               >
                 <template #title>Differential Network</template>
                 <template #prepend>
+                  <v-spacer />
                   <v-select
                     :model-value="nodeColorMode"
                     @update:model-value="onNodeColorModeChange"
@@ -135,7 +136,6 @@
                       <v-list-item v-else v-bind="props"></v-list-item>
                     </template>
                   </v-select>
-                  <v-spacer />
                   <div class="topn-control mr-4" v-if="totalNodeCount > 1">
                     <span class="topn-caption">Top Nodes</span>
                     <v-slider
@@ -939,13 +939,15 @@ export default {
     },
 
     // 'uniform' also flattens width (not just color) to a fixed 2px, matching
-    // the main network page's own flat/default edge width. 'diffLP' keeps the
-    // original behavior: `value` (this row's raw 'weight', per linkWidthBy)
-    // used directly as the pixel width, unchanged from before edge styling was
-    // selectable at all.
+    // the main network page's own flat/default edge width. 'diffLP' maps
+    // `value` (this row's raw 'weight', per linkWidthBy) into a fixed [1, 8]px
+    // range via weightRange -- using the raw value directly as pixels (the
+    // original behavior) let a large diff-L-P render as an extremely thick
+    // line, unbounded by anything on screen.
     computeLinkWidth(value) {
       if (this.edgeStyleMode === 'uniform' || value == null) return 2;
-      return value;
+      const { min, max } = this.weightRange;
+      return 1 + normalizeInRange(value, min, max) * 7;
     },
 
     // Pans (not zooms) the camera to center on a point, at whatever zoom level is already

@@ -453,10 +453,10 @@
                 <v-row>
                     <v-col>
                       <div ref="network" id="network" style="height: 550px;"></div>
-                      <!-- Legend: 'rank' mode has no discrete groups to swatch --
-                           a gradient bar instead, in the same bottom-left spot. -->
+                      <!-- Legend: 'rank'/'degree' modes have no discrete groups to
+                           swatch -- a gradient bar instead, in the same bottom-left spot. -->
                       <NetworkLegend
-                        v-if="nodeColorMode !== 'rank'"
+                        v-if="nodeColorMode === 'group' || nodeColorMode === 'community'"
                         class="legend"
                         :items="legendItems"
                         :title="legendTitle"
@@ -464,11 +464,18 @@
                         @select="selectNodesByGroup"
                       />
                       <GradientLegend
-                        v-else
+                        v-else-if="nodeColorMode === 'rank'"
                         class="legend"
                         title="Node color: weighted degree"
                         :gradient-css="nodeRankGradientCss"
                         :labels="nodeRankLegendLabels"
+                      />
+                      <GradientLegend
+                        v-else-if="nodeColorMode === 'degree'"
+                        class="legend"
+                        title="Node color: degree"
+                        :gradient-css="nodeDegreeGradientCss"
+                        :labels="nodeDegreeLegendLabels"
                       />
                       <!-- Edge legend: bottom-right so it doesn't collide with the
                            node legend above when both are showing at once. -->
@@ -544,6 +551,7 @@
                         </template>
                       </v-tooltip>
                     </v-btn-toggle>
+                    <v-spacer />
                     <v-select
                       :model-value="nodeColorMode"
                       @update:model-value="onNodeColorModeChange"
@@ -779,6 +787,9 @@ export default {
       // 'rank', so every node's color is normalized against the same min/max
       // instead of recomputing it per node.
       weightedDegreeRange: { min: 0, max: 0 },
+      // Same as weightedDegreeRange but for plain (unweighted) degree, while
+      // nodeColorMode is 'degree'. See degreeColorFor.
+      degreeRange: { min: 0, max: 0 },
       // Cached once per render pass while edgeStyleMode isn't 'unweighted' --
       // each edge's percentile rank (0-1) by |score| among currently-displayed
       // edges, parallel to networkEdges (null where there's no score). Rank-based
@@ -1032,9 +1043,9 @@ export default {
     // Render-ready form of legendGroups for NetworkLegend (shared with
     // differential-network.vue) and for the exported-PNG legend panel.
     legendItems() {
-      // Rank mode has no discrete legend (see the on-screen NetworkLegend's own
-      // v-if) -- also skipped here so the exported-PNG legend panel stays empty.
-      if (this.nodeColorMode === 'rank') return [];
+      // Rank/Degree modes have no discrete legend (see the on-screen NetworkLegend's
+      // own v-if) -- also skipped here so the exported-PNG legend panel stays empty.
+      if (this.nodeColorMode === 'rank' || this.nodeColorMode === 'degree') return [];
       return this.legendGroups.map((key) => ({
         key,
         label: this.legendLabel(key),
@@ -1042,10 +1053,12 @@ export default {
         active: this.isGroupFullySelected(key),
       }));
     },
-    // Rank coloring needs weighted_degree on the currently-displayed nodes --
-    // only present on a 'whole' network fetch (see sendToNetwork/sendWholeNetwork),
-    // not a node-search-built one.
-    hasWeightedDegreeData() {
+    // Rank/Degree coloring need degree/weighted_degree on the currently-displayed
+    // nodes -- backend always computes both together (see
+    // _compute_node_degree_stats), so one check covers both; only present on a
+    // 'whole' network fetch (see sendToNetwork/sendWholeNetwork), not a
+    // node-search-built one.
+    hasDegreeStats() {
       return this.graphNodes.some((node) => node.weighted_degree != null);
     },
     nodeColorModeItems() {
@@ -1054,8 +1067,14 @@ export default {
         {
           title: 'Rank',
           value: 'rank',
-          disabled: !this.hasWeightedDegreeData,
+          disabled: !this.hasDegreeStats,
           tooltip: 'Weighted degree: sum of -log10(p) × |effect size| over each node\'s edges',
+        },
+        {
+          title: 'Degree',
+          value: 'degree',
+          disabled: !this.hasDegreeStats,
+          tooltip: 'Number of edges connected to this node',
         },
       ];
       // Not just disabled -- omitted entirely until community detection has
@@ -1086,6 +1105,15 @@ export default {
     nodeRankLegendLabels() {
       const max = this.weightedDegreeRange.max;
       return ['0', max > 0 ? max.toFixed(max < 10 ? 1 : 0) : '0'];
+    },
+    // Same grey-to-blue scale degreeColorFor() itself paints nodes with.
+    nodeDegreeGradientCss() {
+      return `linear-gradient(to right, ${this.labelColor('chart-grid')}, ${this.labelColor('primary-darken-1')})`;
+    },
+    // min is always pinned to 0 (see degreeRange); degree is an integer count,
+    // so no decimal places needed unlike weighted_degree's own legend.
+    nodeDegreeLegendLabels() {
+      return ['0', String(this.degreeRange.max)];
     },
     edgeStyleLegendTitle() {
       if (this.edgeStyleMode === 'effect') return 'Edge color: effect size';
@@ -1537,11 +1565,12 @@ export default {
     },
     // colorKey additionally darkens "external" nodes within their group -- a
     // distinction that only exists for node-search-built networks (whole-network
-    // nodes are never external), so it's skipped while clustering. Rank mode
-    // bypasses legendKeyFor entirely -- there's no discrete legend/grouping key
-    // for a continuous gradient, only a per-node color.
+    // nodes are never external), so it's skipped while clustering. Rank/Degree
+    // modes bypass legendKeyFor entirely -- there's no discrete legend/grouping
+    // key for a continuous gradient, only a per-node color.
     colorKeyFor(node) {
       if (this.nodeColorMode === 'rank') return this.rankColorFor(node);
+      if (this.nodeColorMode === 'degree') return this.degreeColorFor(node);
       const key = this.legendKeyFor(node);
       if (!key) return undefined;
       if (this.nodeColorMode === 'community') return key;
@@ -1562,6 +1591,15 @@ export default {
     rankColorFor(node) {
       const value = (node.weighted_degree != null && !Number.isNaN(node.weighted_degree)) ? node.weighted_degree : 0;
       const { min, max } = this.weightedDegreeRange;
+      const normalized = normalizeInRange(Math.log1p(value), Math.log1p(min), Math.log1p(max));
+      return interpolateHexColor(this.labelColor('chart-grid'), this.labelColor('primary-darken-1'), normalized);
+    },
+    // Same treatment as rankColorFor, but for plain (unweighted) degree -- an
+    // integer edge count, which can be just as right-skewed as weighted_degree
+    // (a handful of hub nodes vs. everyone else), hence the same log1p.
+    degreeColorFor(node) {
+      const value = (node.degree != null && !Number.isNaN(node.degree)) ? node.degree : 0;
+      const { min, max } = this.degreeRange;
       const normalized = normalizeInRange(Math.log1p(value), Math.log1p(min), Math.log1p(max));
       return interpolateHexColor(this.labelColor('chart-grid'), this.labelColor('primary-darken-1'), normalized);
     },
@@ -1958,6 +1996,13 @@ export default {
           .map((node) => node.weighted_degree)
           .filter((value) => value != null && !Number.isNaN(value));
         this.weightedDegreeRange = { min: 0, max: weightedDegrees.length ? Math.max(...weightedDegrees) : 0 };
+      }
+      // Same reasoning as weightedDegreeRange above, but for plain degree.
+      if (this.nodeColorMode === 'degree') {
+        const degrees = this.graphNodes
+          .map((node) => node.degree)
+          .filter((value) => value != null && !Number.isNaN(value));
+        this.degreeRange = { min: 0, max: degrees.length ? Math.max(...degrees) : 0 };
       }
       this.refreshEdgeScoreRange();
 
@@ -3346,16 +3391,16 @@ export default {
     // both dimensions instead of a per-point function. Community mode has no
     // external variant (whole-network nodes are never external) and delegates
     // to buildCommunityColorMap() instead -- see there for why it can't reuse
-    // colorForGroup's hash. Rank mode's colorKey is already the final hex color
-    // (see colorKeyFor/rankColorFor), so its map is just an identity lookup --
-    // still required since Cosmograph's 'map' strategy always looks the
-    // colorKey up rather than rendering it directly.
+    // colorForGroup's hash. Rank/Degree modes' colorKey is already the final
+    // hex color (see colorKeyFor/rankColorFor/degreeColorFor), so their map is
+    // just an identity lookup -- still required since Cosmograph's 'map'
+    // strategy always looks the colorKey up rather than rendering it directly.
     buildPointColorMap() {
       if (this.nodeColorMode === 'community') return this.buildCommunityColorMap();
-      if (this.nodeColorMode === 'rank') {
+      if (this.nodeColorMode === 'rank' || this.nodeColorMode === 'degree') {
         const colorMap = {};
         for (const node of this.graphNodes) {
-          const color = this.rankColorFor(node);
+          const color = this.nodeColorMode === 'rank' ? this.rankColorFor(node) : this.degreeColorFor(node);
           colorMap[color] = color;
         }
         return colorMap;

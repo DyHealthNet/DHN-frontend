@@ -14,7 +14,7 @@
           icon
           variant="text"
           v-bind="props"
-          class="mr-3"
+          class="mr-1"
           @click="$emit('update:hideUnconnected', !hideUnconnected)"
         >
           <v-icon>{{ hideUnconnected ? 'mdi-eye' : 'mdi-eye-off' }}</v-icon>
@@ -27,7 +27,7 @@
           icon
           variant="text"
           v-bind="props"
-          class="mr-3"
+          class="mr-1"
           @click="$emit('update:physicsOn', !physicsOn)"
         >
           <v-icon>{{ physicsOn ? 'mdi-pause' : 'mdi-play' }}</v-icon>
