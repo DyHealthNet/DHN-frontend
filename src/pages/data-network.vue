@@ -2070,6 +2070,14 @@ export default {
     async initializeCosmograph() {
       this.refreshNodeColorState();
       this.refreshEdgeScoreRange();
+      // Callers reassign networkEdges (via filterForNetworkEdges()) and call this
+      // synchronously right after, with no await in between -- edgesForGraph maps
+      // to a brand-new array every time, so CosmographGraph's `edges` prop hasn't
+      // been re-rendered from the new value yet when refreshData() would read it
+      // (unlike graphNodes, which usually returns the same networkNodes array
+      // reference, so that prop is already current). Wait a tick so refreshData()
+      // uploads the edges that were actually just computed, not the previous set.
+      await this.$nextTick();
       await this.$refs.graph?.refreshData();
       this.reapplySelection();
       // The native dblclick.zoom interceptor is attached once, on the persistent
