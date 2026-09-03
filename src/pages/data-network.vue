@@ -3674,13 +3674,19 @@ export default {
     // built up, at the cost of the clone itself -- capped at 3 entries to keep
     // that cost bounded even for large networks.
     pushUndoSnapshot() {
+      // structuredClone can't handle Vue's reactive Proxy-wrapped arrays/objects
+      // (this.networkNodes, this.allInternalEdges, buildUserSettings() are all
+      // reactive) -- it throws "Proxy object could not be cloned" regardless of
+      // what the proxy wraps. JSON round-tripping sidesteps that, and is safe
+      // here since this is the same plain-JSON-serializable data saveState()
+      // already round-trips through localStorage.
       this.undoStack.push({
-        nodes: structuredClone(this.networkNodes),
+        nodes: JSON.parse(JSON.stringify(this.networkNodes)),
         // allInternalEdges is the source networkEdges is filtered from
         // (see filterForNetworkEdges()); allExternalEdges is always empty
         // (the platform doesn't support external nodes), so it's not snapshotted.
-        internalEdges: structuredClone(this.allInternalEdges),
-        settings: structuredClone(this.buildUserSettings()),
+        internalEdges: JSON.parse(JSON.stringify(this.allInternalEdges)),
+        settings: JSON.parse(JSON.stringify(this.buildUserSettings())),
       });
       if (this.undoStack.length > 3) this.undoStack.shift();
     },
