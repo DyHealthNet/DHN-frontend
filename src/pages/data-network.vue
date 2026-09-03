@@ -754,6 +754,7 @@ import AnalysisPanel from "@/components/network/AnalysisPanel.vue";
 import ConnectNodesPanel from "@/components/network/ConnectNodesPanel.vue";
 import NetworkRankingTabs from "@/components/network/NetworkRankingTabs.vue";
 import NetworkTablesPanel from "@/components/network/NetworkTablesPanel.vue";
+import {computeWeightedDegree} from "@/components/network/networkRanking.js";
 import {useTheme} from 'vuetify';
 
 
@@ -835,6 +836,15 @@ export default {
       // Same as weightedDegreeRange but for plain (unweighted) degree, while
       // nodeColorMode is 'degree'. See degreeColorFor.
       degreeRange: { min: 0, max: 0 },
+      // id -> {degree, weightedDegree} for the currently-displayed graph, computed
+      // live via computeWeightedDegree() (same formula/helper NodeRankingTable's
+      // "current view" instance already uses) rather than read off each node's own
+      // degree/weighted_degree fields -- those only exist when the backend attached
+      // them (a 'whole' network fetch), so a node-search/Connect-Node-built network
+      // used to show a flat 0 for every node in Rank/Degree mode despite having real
+      // edges to compute from. Cached once per refreshNodeColorState() call, same as
+      // weightedDegreeRange/degreeRange above.
+      nodeDegreeStats: new Map(),
       // Cached once per render pass while edgeStyleMode isn't 'unweighted' --
       // each edge's percentile rank (0-1) by |score| among currently-displayed
       // edges, parallel to networkEdges (null where there's no score). Rank-based
@@ -1104,13 +1114,12 @@ export default {
         active: this.isGroupFullySelected(key),
       }));
     },
-    // Rank/Degree coloring need degree/weighted_degree on the currently-displayed
-    // nodes -- backend always computes both together (see
-    // _compute_node_degree_stats), so one check covers both; only present on a
-    // 'whole' network fetch (see sendToNetwork/sendWholeNetwork), not a
-    // node-search-built one.
+    // Rank/Degree coloring is computed live from graphEdges (see
+    // nodeDegreeStats/refreshNodeColorState) -- with no edges at all there's
+    // nothing to derive a degree from, so gate on that rather than requiring
+    // backend-attached degree/weighted_degree fields.
     hasDegreeStats() {
-      return this.graphNodes.some((node) => node.weighted_degree != null);
+      return this.graphEdges.length > 0;
     },
     nodeColorModeItems() {
       const items = [
@@ -1155,7 +1164,14 @@ export default {
     // given weighted_degree actually falls.
     nodeRankLegendLabels() {
       const max = this.weightedDegreeRange.max;
-      return ['0', max > 0 ? max.toFixed(max < 10 ? 1 : 0) : '0'];
+      if (max <= 0) return ['0', '0'];
+      if (max >= 10) return ['0', max.toFixed(0)];
+      // weighted_degree (-log10(p) * |effect size|) can be well under 1 for weak
+      // associations -- a flat one decimal place rounds a real max like 0.008 down
+      // to a misleading "0.0". Scale decimal places to the value's own magnitude
+      // (capped at 4) so a non-zero max never displays as zero.
+      const decimals = Math.min(4, Math.max(1, 1 - Math.floor(Math.log10(max))));
+      return ['0', max.toFixed(decimals)];
     },
     // Same grey-to-blue scale degreeColorFor() itself paints nodes with.
     nodeDegreeGradientCss() {
@@ -1640,14 +1656,14 @@ export default {
     // p_value=0/-log10=Infinity case to guard against), so no log/percentile
     // transform is needed to keep the scale well-behaved.
     rankColorFor(node) {
-      const value = (node.weighted_degree != null && !Number.isNaN(node.weighted_degree)) ? node.weighted_degree : 0;
+      const value = this.nodeDegreeStats.get(node.id)?.weightedDegree ?? 0;
       const { min, max } = this.weightedDegreeRange;
       const normalized = normalizeInRange(value, min, max);
       return interpolateHexColor(this.labelColor('chart-grid'), this.labelColor('primary-darken-1'), normalized);
     },
     // Same treatment as rankColorFor, but for plain (unweighted) degree.
     degreeColorFor(node) {
-      const value = (node.degree != null && !Number.isNaN(node.degree)) ? node.degree : 0;
+      const value = this.nodeDegreeStats.get(node.id)?.degree ?? 0;
       const { min, max } = this.degreeRange;
       const normalized = normalizeInRange(value, min, max);
       return interpolateHexColor(this.labelColor('chart-grid'), this.labelColor('primary-darken-1'), normalized);
@@ -2040,18 +2056,19 @@ export default {
       // normalize every node in this render against the same min/max. min is
       // always 0 (not the smallest *observed* value) so the gradient's white
       // end consistently means "no weighted degree" -- matching how rankColorFor
-      // itself treats a node with no weighted_degree at all as 0.
-      if (this.nodeColorMode === 'rank') {
-        const weightedDegrees = this.graphNodes
-          .map((node) => node.weighted_degree)
-          .filter((value) => value != null && !Number.isNaN(value));
+      // itself treats a node with no entry in nodeDegreeStats as 0.
+      if (this.nodeColorMode === 'rank' || this.nodeColorMode === 'degree') {
+        // Same computeWeightedDegree() helper (and edge-weight formula) NodeRankingTable's
+        // "current view" instance already uses for the ranking table below the graph --
+        // derived live from graphEdges rather than each node's own degree/weighted_degree
+        // fields, which only exist when the backend attached them (a 'whole' network
+        // fetch), so a node-search/Connect-Node-built network used to show flat 0 here.
+        this.nodeDegreeStats = new Map(
+          computeWeightedDegree(this.graphNodes, this.graphEdges).map((node) => [node.id, node])
+        );
+        const weightedDegrees = Array.from(this.nodeDegreeStats.values(), (node) => node.weightedDegree);
+        const degrees = Array.from(this.nodeDegreeStats.values(), (node) => node.degree);
         this.weightedDegreeRange = { min: 0, max: weightedDegrees.length ? Math.max(...weightedDegrees) : 0 };
-      }
-      // Same reasoning as weightedDegreeRange above, but for plain degree.
-      if (this.nodeColorMode === 'degree') {
-        const degrees = this.graphNodes
-          .map((node) => node.degree)
-          .filter((value) => value != null && !Number.isNaN(value));
         this.degreeRange = { min: 0, max: degrees.length ? Math.max(...degrees) : 0 };
       }
       // Rank/Degree modes compute each node's final color directly (see
