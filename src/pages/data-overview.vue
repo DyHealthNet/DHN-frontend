@@ -281,6 +281,7 @@
 </template>
 
 <script>
+import Plotly from "plotly.js-dist";
 import {BASE_URL} from "../components/constants.js";
 import PlotComponent from "@/components/plots/PlotComponent.vue";
 import VariableCatalogTable from "@/components/plots/VariableCatalogTable.vue";
