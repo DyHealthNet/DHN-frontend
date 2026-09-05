@@ -3519,15 +3519,30 @@ export default {
           correction: context.content.correction ?? 'bh',
         };
         this.disableSelections = true;
-        this.clearNetwork(true,false);
+        await this.clearNetwork(true,false);
       }
       else{
         this.selectedTests = { testType: 'parametric', correction: this.staticCorrection };
         this.wholeNetworkTests = { testType: 'parametric', correction: this.staticCorrection };
         this.disableSelections = false;
-        this.clearNetwork(true, false);
+        await this.clearNetwork(true, false);
       }
-      this.loadState();
+      // Awaited (both here and above) so clearNetwork()'s own initializeCosmograph()/
+      // applyDesign() -- which cache the color map off whatever networkNodes/
+      // nodeColorMode are set at that moment -- fully finish before loadState()
+      // starts overwriting those same fields with the new context's saved state.
+      // Previously both ran fire-and-forget and could interleave, so the color
+      // map ended up built against the just-cleared (empty) network while the
+      // nodes actually uploaded to Cosmograph came from the loaded state --
+      // nodes/edges would appear with no color.
+      await this.loadState();
+      // Undo snapshots hold node/edge data scoped to whatever context was active
+      // when they were pushed (clearNetwork() above just pushed one for the
+      // context/network being switched away from). Carrying them across a context
+      // switch would let undo restore a different context's -- or the static
+      // network's -- data into the one now selected, so the history doesn't
+      // carry over.
+      this.undoStack = [];
     },
     // Real multiple-testing correction used to precompute the static network's
     // edges (the UI can't meaningfully offer a different one -- see
