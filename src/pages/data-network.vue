@@ -3416,9 +3416,16 @@ export default {
       this.neighborsSubTab = null;
       if(full){
         await this.initializeCosmograph();
-        this.applyDesign(saveState);
+        // Awaited -- callers (updateData()'s context switch) await clearNetwork()
+        // as a whole and then immediately start loadState(), which overwrites
+        // networkNodes/nodeColorMode again; leaving this fire-and-forget let
+        // loadState() start mutating that same state while this call's own
+        // refreshDesign() was still applying colors for the just-cleared (empty)
+        // network, uploading it after loadState()'s data and leaving Cosmograph's
+        // "points data is empty or invalid" error on screen.
+        await this.applyDesign(saveState);
       } else{
-        this.sendToNetwork()
+        await this.sendToNetwork()
       }
     },
     async clearUnselectedNodes(){
