@@ -3675,6 +3675,11 @@ export default {
         // allInternalEdges/allExternalEdges, which aren't part of the persisted state.
         const nodeIds = new Set(nodes.map((node) => node.id));
         this.networkEdges = edges.filter((edge) => nodeIds.has(edge.from) && nodeIds.has(edge.to));
+        // allInternalEdges isn't itself persisted (see above), but it's the array
+        // filterForNetworkEdges() actually derives edges from -- leaving it at its
+        // default [] here means any later call to filterForNetworkEdges() (e.g. from
+        // undo(), or the Connect Nodes flow) would wipe every edge just restored above.
+        this.allInternalEdges = this.networkEdges;
         // vis_options.physics is the pre-Cosmograph-migration shape; fall back to it
         // so localStorage state saved before this change still loads correctly.
         this.physics_on = vis_options?.simulation?.enabled ?? vis_options?.physics?.enabled ?? true;
