@@ -123,10 +123,10 @@ export default {
     return {
       internalSortBy: this.sortBy.length ? [...this.sortBy] : [],
       // PrimeVue's paginator keeps its own page position regardless of what data is passed
-      // in -- without resetting it here, swapping in a new/smaller `items` array (e.g. after
-      // switching context) or narrowing via search leaves the table stuck on whatever page it
-      // was last on, so the visible "Rank" column can start well past 1 even though rankEdges/
-      // computeWeightedDegree always number the underlying data starting at 1.
+      // in -- without correcting it here, swapping in a smaller `items` array (e.g. after
+      // switching context) or narrowing via search can leave the table stuck on a page past
+      // the end of the new data, so the visible "Rank" column starts well past 1 even though
+      // rankEdges/computeWeightedDegree always number the underlying data starting at 1.
       first: 0,
       // Height (in px, as a CSS string) the table's body locks to the first time it renders
       // with actual rows -- at that point it's showing the caller's default itemsPerPage, so
@@ -139,8 +139,16 @@ export default {
     };
   },
   watch: {
+    // `items` is a new array reference on every render of callers whose rows are built by
+    // mapping/spreading (e.g. NodeRankingTable/EdgeRankingTable's ranking computeds) -- that
+    // includes renders where the actual rows/order/count are unchanged, such as a Details-panel
+    // selection mutating a field on the underlying node/edge object elsewhere on the page. Only
+    // correct `first` when the current page has actually fallen out of range for the new data,
+    // rather than unconditionally jumping back to page 1 on every incidental reference change.
     items() {
-      this.first = 0;
+      if (this.first >= this.sortedItems.length) {
+        this.first = 0;
+      }
     },
     search() {
       this.first = 0;

@@ -612,6 +612,18 @@
                     ></v-select>
                 </template>
                 <template #append>
+                  <v-tooltip :text="undoStack.length ? 'Undo last action' : 'Nothing to undo'" location="bottom">
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        icon
+                        v-bind="props"
+                        :disabled="!undoStack.length"
+                        @click="undo"
+                      >
+                        <v-icon class="m-3">mdi-undo</v-icon>
+                      </v-btn>
+                    </template>
+                  </v-tooltip>
                   <v-tooltip text="Clear network" location="bottom">
                     <template v-slot:activator="{ props }">
                       <v-btn
@@ -742,6 +754,7 @@ import AnalysisPanel from "@/components/network/AnalysisPanel.vue";
 import ConnectNodesPanel from "@/components/network/ConnectNodesPanel.vue";
 import NetworkRankingTabs from "@/components/network/NetworkRankingTabs.vue";
 import NetworkTablesPanel from "@/components/network/NetworkTablesPanel.vue";
+import {computeWeightedDegree} from "@/components/network/networkRanking.js";
 import {useTheme} from 'vuetify';
 
 
@@ -784,6 +797,11 @@ export default {
       displayedEdges:  null,
       allInternalEdges: [],
       allExternalEdges: [],
+      // Undo stack for network-changing actions -- full (nodes, allInternalEdges,
+      // settings) snapshots, capped at 3 entries (see pushUndoSnapshot()) rather
+      // than a diff/patch system, since a snapshot restore can't be corrupted by
+      // an edge case in some per-action inverse logic.
+      undoStack: [],
 
       physics_on: true,
       // Graph-only: hides nodes with no edges in the currently displayed
@@ -818,6 +836,15 @@ export default {
       // Same as weightedDegreeRange but for plain (unweighted) degree, while
       // nodeColorMode is 'degree'. See degreeColorFor.
       degreeRange: { min: 0, max: 0 },
+      // id -> {degree, weightedDegree} for the currently-displayed graph, computed
+      // live via computeWeightedDegree() (same formula/helper NodeRankingTable's
+      // "current view" instance already uses) rather than read off each node's own
+      // degree/weighted_degree fields -- those only exist when the backend attached
+      // them (a 'whole' network fetch), so a node-search/Connect-Node-built network
+      // used to show a flat 0 for every node in Rank/Degree mode despite having real
+      // edges to compute from. Cached once per refreshNodeColorState() call, same as
+      // weightedDegreeRange/degreeRange above.
+      nodeDegreeStats: new Map(),
       // Cached once per render pass while edgeStyleMode isn't 'unweighted' --
       // each edge's percentile rank (0-1) by |score| among currently-displayed
       // edges, parallel to networkEdges (null where there's no score). Rank-based
@@ -1087,13 +1114,12 @@ export default {
         active: this.isGroupFullySelected(key),
       }));
     },
-    // Rank/Degree coloring need degree/weighted_degree on the currently-displayed
-    // nodes -- backend always computes both together (see
-    // _compute_node_degree_stats), so one check covers both; only present on a
-    // 'whole' network fetch (see sendToNetwork/sendWholeNetwork), not a
-    // node-search-built one.
+    // Rank/Degree coloring is computed live from graphEdges (see
+    // nodeDegreeStats/refreshNodeColorState) -- with no edges at all there's
+    // nothing to derive a degree from, so gate on that rather than requiring
+    // backend-attached degree/weighted_degree fields.
     hasDegreeStats() {
-      return this.graphNodes.some((node) => node.weighted_degree != null);
+      return this.graphEdges.length > 0;
     },
     nodeColorModeItems() {
       const items = [
@@ -1138,7 +1164,14 @@ export default {
     // given weighted_degree actually falls.
     nodeRankLegendLabels() {
       const max = this.weightedDegreeRange.max;
-      return ['0', max > 0 ? max.toFixed(max < 10 ? 1 : 0) : '0'];
+      if (max <= 0) return ['0', '0'];
+      if (max >= 10) return ['0', max.toFixed(0)];
+      // weighted_degree (-log10(p) * |effect size|) can be well under 1 for weak
+      // associations -- a flat one decimal place rounds a real max like 0.008 down
+      // to a misleading "0.0". Scale decimal places to the value's own magnitude
+      // (capped at 4) so a non-zero max never displays as zero.
+      const decimals = Math.min(4, Math.max(1, 1 - Math.floor(Math.log10(max))));
+      return ['0', max.toFixed(decimals)];
     },
     // Same grey-to-blue scale degreeColorFor() itself paints nodes with.
     nodeDegreeGradientCss() {
@@ -1623,14 +1656,14 @@ export default {
     // p_value=0/-log10=Infinity case to guard against), so no log/percentile
     // transform is needed to keep the scale well-behaved.
     rankColorFor(node) {
-      const value = (node.weighted_degree != null && !Number.isNaN(node.weighted_degree)) ? node.weighted_degree : 0;
+      const value = this.nodeDegreeStats.get(node.id)?.weightedDegree ?? 0;
       const { min, max } = this.weightedDegreeRange;
       const normalized = normalizeInRange(value, min, max);
       return interpolateHexColor(this.labelColor('chart-grid'), this.labelColor('primary-darken-1'), normalized);
     },
     // Same treatment as rankColorFor, but for plain (unweighted) degree.
     degreeColorFor(node) {
-      const value = (node.degree != null && !Number.isNaN(node.degree)) ? node.degree : 0;
+      const value = this.nodeDegreeStats.get(node.id)?.degree ?? 0;
       const { min, max } = this.degreeRange;
       const normalized = normalizeInRange(value, min, max);
       return interpolateHexColor(this.labelColor('chart-grid'), this.labelColor('primary-darken-1'), normalized);
@@ -1709,6 +1742,7 @@ export default {
       this.activeIndex = -1;
     },
     async sendToNetwork() {
+      this.pushUndoSnapshot();
       console.log("this.selectedNetworkNodes", this.selectedNetworkNodes)
       // Community/rank coloring only apply to a 'whole' network fetch -- a fresh
       // node-search network has no community data or weighted_degree on its nodes.
@@ -1769,6 +1803,11 @@ export default {
 
         if (!response.ok) throw new Error("Network response was not ok");
         const data = await response.json();
+
+        // Snapshotted only once the fetch has actually succeeded, so a failed
+        // request (network error, backend error) doesn't waste one of the 3
+        // undo slots on an action that never changed anything.
+        this.pushUndoSnapshot();
 
         // Whole-network mode replaces the node-search selection entirely.
         this.searchText = "";
@@ -1941,6 +1980,7 @@ export default {
           throw new Error(errorText || "Network response was not ok");
         }
         const data = await response.json();
+        this.pushUndoSnapshot();
         this.leidenMeta = data.meta ?? {};
         // Backend is authoritative on what actually ran (data.meta.algorithm),
         // rather than trusting the request's own selectedAlgorithm.
@@ -2016,18 +2056,19 @@ export default {
       // normalize every node in this render against the same min/max. min is
       // always 0 (not the smallest *observed* value) so the gradient's white
       // end consistently means "no weighted degree" -- matching how rankColorFor
-      // itself treats a node with no weighted_degree at all as 0.
-      if (this.nodeColorMode === 'rank') {
-        const weightedDegrees = this.graphNodes
-          .map((node) => node.weighted_degree)
-          .filter((value) => value != null && !Number.isNaN(value));
+      // itself treats a node with no entry in nodeDegreeStats as 0.
+      if (this.nodeColorMode === 'rank' || this.nodeColorMode === 'degree') {
+        // Same computeWeightedDegree() helper (and edge-weight formula) NodeRankingTable's
+        // "current view" instance already uses for the ranking table below the graph --
+        // derived live from graphEdges rather than each node's own degree/weighted_degree
+        // fields, which only exist when the backend attached them (a 'whole' network
+        // fetch), so a node-search/Connect-Node-built network used to show flat 0 here.
+        this.nodeDegreeStats = new Map(
+          computeWeightedDegree(this.graphNodes, this.graphEdges).map((node) => [node.id, node])
+        );
+        const weightedDegrees = Array.from(this.nodeDegreeStats.values(), (node) => node.weightedDegree);
+        const degrees = Array.from(this.nodeDegreeStats.values(), (node) => node.degree);
         this.weightedDegreeRange = { min: 0, max: weightedDegrees.length ? Math.max(...weightedDegrees) : 0 };
-      }
-      // Same reasoning as weightedDegreeRange above, but for plain degree.
-      if (this.nodeColorMode === 'degree') {
-        const degrees = this.graphNodes
-          .map((node) => node.degree)
-          .filter((value) => value != null && !Number.isNaN(value));
         this.degreeRange = { min: 0, max: degrees.length ? Math.max(...degrees) : 0 };
       }
       // Rank/Degree modes compute each node's final color directly (see
@@ -2046,7 +2087,27 @@ export default {
     async initializeCosmograph() {
       this.refreshNodeColorState();
       this.refreshEdgeScoreRange();
-      await this.$refs.graph?.refreshData();
+      // Callers reassign networkEdges (via filterForNetworkEdges()) and call this
+      // synchronously right after, with no await in between -- edgesForGraph maps
+      // to a brand-new array every time, so CosmographGraph's `edges` prop hasn't
+      // been re-rendered from the new value yet when refreshData() would read it
+      // (unlike graphNodes, which usually returns the same networkNodes array
+      // reference, so that prop is already current). Wait a tick so refreshData()
+      // uploads the edges that were actually just computed, not the previous set.
+      await this.$nextTick();
+      if (this.networkNodes.length === 0) {
+        // Cosmograph's setConfig() rejects an empty points array internally
+        // (logs "Failed to upload points data: invalid or empty") but doesn't
+        // throw and doesn't clear whatever it had rendered before -- refreshData()
+        // can't blank the canvas this way, it just silently no-ops, leaving the
+        // previous network on screen. Tear the instance down instead so a
+        // genuinely empty network actually renders as empty; refreshData()
+        // recreates a fresh instance the next time there's real data to show
+        // (see CosmographGraph's _runConfigUpdate: no instance -> `new Cosmograph(...)`).
+        await this.$refs.graph?.destroy();
+      } else {
+        await this.$refs.graph?.refreshData();
+      }
       this.reapplySelection();
       // The native dblclick.zoom interceptor is attached once, on the persistent
       // #network wrapper (see mounted()), which CosmographGraph's own canvas
@@ -2893,6 +2954,7 @@ export default {
           this.showInfo = true;
         }
 
+        this.pushUndoSnapshot();
         this.setNetworkNodes(data);
       } catch (error) {
         console.error("Error fetching edges:", error);
@@ -2936,6 +2998,7 @@ export default {
           throw new Error("Network response was not ok");
         }
         const data = await response.json();
+        this.pushUndoSnapshot();
         const nodeSet = new Set(nodes);
         if (minSpanTree){
           const edgeIdsToRemove = new Set(
@@ -3344,14 +3407,18 @@ export default {
       this.checkSelectAll();
       this.applyDesign();
     },
-    async clearNetwork(full = true, saveState=true){
-      this.clearNetworkWarn = false;
+    // Field resets shared by clearNetwork() and updateData()'s context switch --
+    // split out so a caller that's about to immediately load a different, known
+    // network (updateData() when a saved state exists for the new context) can
+    // reset these without also driving a Cosmograph render of the empty state in
+    // between (see updateData()).
+    resetNetworkFields() {
       this.clusteringActive = false;
       this.nodeColorMode = 'group';
       this.edgeStyleMode = 'unweighted';
       this.lastNetworkMode = null;
       this.networkNodes = [];
-      this.networkEdges = []; // do i also need allInternalEdges??
+      this.networkEdges = [];
       this.displayedNodes = null;
       this.displayedEdges = null;
       this.allInternalEdges = [];
@@ -3362,14 +3429,27 @@ export default {
       this.selectedNetworkNodes = [];
       this.recentNeighborNodeIds = [];
       this.neighborsSubTab = null;
+    },
+    async clearNetwork(full = true, saveState=true){
+      this.pushUndoSnapshot();
+      this.clearNetworkWarn = false;
+      this.resetNetworkFields();
       if(full){
         await this.initializeCosmograph();
-        this.applyDesign(saveState);
+        // Awaited -- callers (updateData()'s context switch) await clearNetwork()
+        // as a whole and then immediately start loadState(), which overwrites
+        // networkNodes/nodeColorMode again; leaving this fire-and-forget let
+        // loadState() start mutating that same state while this call's own
+        // refreshDesign() was still applying colors for the just-cleared (empty)
+        // network, uploading it after loadState()'s data and leaving Cosmograph's
+        // "points data is empty or invalid" error on screen.
+        await this.applyDesign(saveState);
       } else{
-        this.sendToNetwork()
+        await this.sendToNetwork()
       }
     },
     async clearUnselectedNodes(){
+      this.pushUndoSnapshot();
       this.clearNetworkWarn = false;
       // Pruning down to the selection changes the graph out from under
       // lastNetworkMode -- see setNetworkNodes() for why this must be reset.
@@ -3466,15 +3546,34 @@ export default {
           correction: context.content.correction ?? 'bh',
         };
         this.disableSelections = true;
-        this.clearNetwork(true,false);
       }
       else{
         this.selectedTests = { testType: 'parametric', correction: this.staticCorrection };
         this.wholeNetworkTests = { testType: 'parametric', correction: this.staticCorrection };
         this.disableSelections = false;
-        this.clearNetwork(true, false);
       }
-      this.loadState();
+      // clearNetwork(true, ...) drives a full Cosmograph render of the emptied-out
+      // network -- necessary so the old context's graph doesn't linger on screen
+      // when the new context has nothing saved yet. But when a saved state DOES
+      // exist for the new context, loadState() below is about to immediately
+      // upload that instead, making clearNetwork()'s render a wasted upload of an
+      // empty points array -- which Cosmograph's data layer logs as "Failed to
+      // upload points data: The data is invalid or empty." Skip straight to the
+      // field resets (no Cosmograph render) in that case and let loadState() do
+      // the one real upload.
+      if (loadNetworkState(this.contextValue)) {
+        this.resetNetworkFields();
+      } else {
+        await this.clearNetwork(true, false);
+      }
+      await this.loadState();
+      // Undo snapshots hold node/edge data scoped to whatever context was active
+      // when they were pushed (clearNetwork() above just pushed one for the
+      // context/network being switched away from). Carrying them across a context
+      // switch would let undo restore a different context's -- or the static
+      // network's -- data into the one now selected, so the history doesn't
+      // carry over.
+      this.undoStack = [];
     },
     // Real multiple-testing correction used to precompute the static network's
     // edges (the UI can't meaningfully offer a different one -- see
@@ -3527,11 +3626,11 @@ export default {
     },
 
     // Page/ State Reload
-    saveState() {
-      //console.log("saveState")
-      const nodes = this.networkNodes;
-      const edges = this.networkEdges;
-      const user_settings = {
+    // Fields that describe "how the network is being viewed" as opposed to the
+    // network data itself -- shared by saveState() (localStorage persistence),
+    // pushUndoSnapshot() and undo() so the field list only lives in one place.
+    buildUserSettings() {
+      return {
         selectedNodes: this.selectedNodes,
         selectedNetworkNodes: this.selectedNetworkNodes,
         selectedTests: this.selectedTests,
@@ -3563,10 +3662,48 @@ export default {
         // Annotation above.
         scoreClusteringRunId: this.scoreClusteringRunId,
         scoreClusteringStartedAt: this.scoreClusteringStartedAt,
-      }
+      };
+    },
+    restoreUserSettings(user_settings) {
+      this.selectedNodes = user_settings.selectedNodes;
+      this.selectAll = user_settings.selectAll;
+      this.updateSearchText();
 
-      const exportData = { nodes: nodes, edges: edges ,
-        vis_options: {simulation: {enabled: this.physics_on}}, user_settings: { ...user_settings }};
+      this.selectedNetworkNodes = user_settings.selectedNetworkNodes;
+      const loaded = user_settings.selectedTests;
+      this.selectedTests = (loaded?.testType !== undefined)
+        ? loaded
+        : { testType: 'parametric', correction: loaded?.correction ?? 'bh' };
+      this.signThresh = parseFloat(user_settings.signThresh);
+      this.fixThreshold = user_settings.fixThreshold;
+      this.topNodesNumber = parseInt(user_settings.topNodesNumber);
+      this.topPerNodeCount = user_settings.topPerNodeCount;
+      this.wholeNetworkTests = user_settings.wholeNetworkTests ?? { testType: 'parametric', correction: 'bh' };
+      this.density = user_settings.density !== undefined ? parseFloat(user_settings.density) : 0.01;
+      this.lastNetworkMode = user_settings.lastNetworkMode ?? null;
+      // Community detection -- older saved states won't have these fields, so
+      // fall back to "no clustering" rather than showing a legend title for
+      // data that isn't actually there.
+      this.clusteringActive = user_settings.clusteringActive ?? false;
+      this.clusteringAlgorithm = user_settings.clusteringAlgorithm ?? null;
+      // Guard against a stale 'community' mode with no actual community data
+      // (older saved states won't have nodeColorMode at all either).
+      this.nodeColorMode = (user_settings.nodeColorMode === 'community' && !this.clusteringActive)
+        ? 'group'
+        : (user_settings.nodeColorMode ?? 'group');
+      this.edgeStyleMode = user_settings.edgeStyleMode ?? 'unweighted';
+      this.selectedAlgorithm = user_settings.selectedAlgorithm ?? 'leiden';
+      this.leidenResolution = user_settings.leidenResolution ?? 1.0;
+      this.leidenMeta = user_settings.leidenMeta ?? {};
+      this.communityAnnotationRunId = user_settings.communityAnnotationRunId ?? null;
+      this.communityAnnotationStartedAt = user_settings.communityAnnotationStartedAt ?? null;
+      this.scoreClusteringRunId = user_settings.scoreClusteringRunId ?? null;
+      this.scoreClusteringStartedAt = user_settings.scoreClusteringStartedAt ?? null;
+    },
+    saveState() {
+      //console.log("saveState")
+      const exportData = { nodes: this.networkNodes, edges: this.networkEdges,
+        vis_options: {simulation: {enabled: this.physics_on}}, user_settings: this.buildUserSettings() };
       console.log("Save State exportData", exportData)
       saveNetworkState(this.contextValue, exportData);
     },
@@ -3584,49 +3721,60 @@ export default {
         // allInternalEdges/allExternalEdges, which aren't part of the persisted state.
         const nodeIds = new Set(nodes.map((node) => node.id));
         this.networkEdges = edges.filter((edge) => nodeIds.has(edge.from) && nodeIds.has(edge.to));
+        // allInternalEdges isn't itself persisted (see above), but it's the array
+        // filterForNetworkEdges() actually derives edges from -- leaving it at its
+        // default [] here means any later call to filterForNetworkEdges() (e.g. from
+        // undo(), or the Connect Nodes flow) would wipe every edge just restored above.
+        this.allInternalEdges = this.networkEdges;
         // vis_options.physics is the pre-Cosmograph-migration shape; fall back to it
         // so localStorage state saved before this change still loads correctly.
         this.physics_on = vis_options?.simulation?.enabled ?? vis_options?.physics?.enabled ?? true;
 
-        this.selectedNodes = user_settings.selectedNodes;
-        this.selectAll = user_settings.selectAll;
-        this.updateSearchText();
-
-        this.selectedNetworkNodes = user_settings.selectedNetworkNodes;
-        const loaded = user_settings.selectedTests;
-        this.selectedTests = (loaded?.testType !== undefined)
-          ? loaded
-          : { testType: 'parametric', correction: loaded?.correction ?? 'bh' };
-        this.signThresh = parseFloat(user_settings.signThresh);
-        this.fixThreshold = user_settings.fixThreshold;
-        this.topNodesNumber = parseInt(user_settings.topNodesNumber);
-        this.topPerNodeCount = user_settings.topPerNodeCount;
-        this.wholeNetworkTests = user_settings.wholeNetworkTests ?? { testType: 'parametric', correction: 'bh' };
-        this.density = user_settings.density !== undefined ? parseFloat(user_settings.density) : 0.01;
-        this.lastNetworkMode = user_settings.lastNetworkMode ?? null;
-        // Community detection -- older saved states won't have these fields, so
-        // fall back to "no clustering" rather than showing a legend title for
-        // data that isn't actually there.
-        this.clusteringActive = user_settings.clusteringActive ?? false;
-        this.clusteringAlgorithm = user_settings.clusteringAlgorithm ?? null;
-        // Guard against a stale 'community' mode with no actual community data
-        // (older saved states won't have nodeColorMode at all either).
-        this.nodeColorMode = (user_settings.nodeColorMode === 'community' && !this.clusteringActive)
-          ? 'group'
-          : (user_settings.nodeColorMode ?? 'group');
-        this.edgeStyleMode = user_settings.edgeStyleMode ?? 'unweighted';
-        this.selectedAlgorithm = user_settings.selectedAlgorithm ?? 'leiden';
-        this.leidenResolution = user_settings.leidenResolution ?? 1.0;
-        this.leidenMeta = user_settings.leidenMeta ?? {};
-        this.communityAnnotationRunId = user_settings.communityAnnotationRunId ?? null;
-        this.communityAnnotationStartedAt = user_settings.communityAnnotationStartedAt ?? null;
-        this.scoreClusteringRunId = user_settings.scoreClusteringRunId ?? null;
-        this.scoreClusteringStartedAt = user_settings.scoreClusteringStartedAt ?? null;
+        this.restoreUserSettings(user_settings);
         await this.initializeCosmograph(); // Reapply the state to the new network
         this.applyDesign(false);
         this.resumeCommunityAnnotationIfNeeded();
         this.resumeScoreClusteringIfNeeded();
       }
+    },
+    // Undo: called at the start of every network-changing action (see the call
+    // sites in sendToNetwork/sendWholeNetwork/runLeidenClustering/clearNetwork/
+    // clearUnselectedNodes/fetchNodesAndEdges/fetchNodeGroupEdges), right before
+    // that action actually mutates networkNodes/allInternalEdges. Deliberately a
+    // full clone rather than a diff of what changed -- a diff can only express
+    // "what this one action changed", which falls apart once several actions
+    // have layered on top of each other (e.g. clearing a network built up via
+    // several individual "Connect Node" clicks: undoing just the last connect
+    // wouldn't bring back the nodes added by the connects before it). A full
+    // snapshot is always correct to restore regardless of how the state was
+    // built up, at the cost of the clone itself -- capped at 3 entries to keep
+    // that cost bounded even for large networks.
+    pushUndoSnapshot() {
+      // structuredClone can't handle Vue's reactive Proxy-wrapped arrays/objects
+      // (this.networkNodes, this.allInternalEdges, buildUserSettings() are all
+      // reactive) -- it throws "Proxy object could not be cloned" regardless of
+      // what the proxy wraps. JSON round-tripping sidesteps that, and is safe
+      // here since this is the same plain-JSON-serializable data saveState()
+      // already round-trips through localStorage.
+      this.undoStack.push({
+        nodes: JSON.parse(JSON.stringify(this.networkNodes)),
+        // allInternalEdges is the source networkEdges is filtered from
+        // (see filterForNetworkEdges()); allExternalEdges is always empty
+        // (the platform doesn't support external nodes), so it's not snapshotted.
+        internalEdges: JSON.parse(JSON.stringify(this.allInternalEdges)),
+        settings: JSON.parse(JSON.stringify(this.buildUserSettings())),
+      });
+      if (this.undoStack.length > 3) this.undoStack.shift();
+    },
+    async undo() {
+      const snapshot = this.undoStack.pop();
+      if (!snapshot) return;
+      this.networkNodes = snapshot.nodes;
+      this.allInternalEdges = snapshot.internalEdges;
+      this.filterForNetworkEdges();
+      this.restoreUserSettings(snapshot.settings);
+      await this.initializeCosmograph();
+      this.applyDesign();
     },
   },
   watch: {

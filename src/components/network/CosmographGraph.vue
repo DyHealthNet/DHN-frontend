@@ -248,6 +248,20 @@ export default {
       }
       // Physics-off case: onSimulationEnd never fires (no simulation runs), so fit here too.
       this.cosmographInstance?.fitView(0);
+      // Cosmograph's own setConfig()/_rebuildGraph() decides internally whether to
+      // kick the simulation (a fresh points upload with no established layout yet)
+      // or render a single static frame (points already have a layout -- which,
+      // with preservePointPositionsOnDataUpdate, is every update past the very
+      // first one) -- regardless of enableSimulation/physicsOn. So any data update
+      // after the first (e.g. Connect Node adding nodes/edges to an existing graph)
+      // silently renders statically: physics looks "stuck off" even though the
+      // toggle and enableSimulation config are both still on. start() is the
+      // public API for forcing a fresh kick -- call it explicitly here so an
+      // update actually resumes the simulation when physics is enabled, instead
+      // of relying on Cosmograph's own (layout-dependent) judgment call.
+      if (this.physicsOn) {
+        this.cosmographInstance?.start();
+      }
     },
     async destroy() {
       const inst = this.cosmographInstance;
