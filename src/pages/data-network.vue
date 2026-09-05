@@ -2095,7 +2095,19 @@ export default {
       // reference, so that prop is already current). Wait a tick so refreshData()
       // uploads the edges that were actually just computed, not the previous set.
       await this.$nextTick();
-      await this.$refs.graph?.refreshData();
+      if (this.networkNodes.length === 0) {
+        // Cosmograph's setConfig() rejects an empty points array internally
+        // (logs "Failed to upload points data: invalid or empty") but doesn't
+        // throw and doesn't clear whatever it had rendered before -- refreshData()
+        // can't blank the canvas this way, it just silently no-ops, leaving the
+        // previous network on screen. Tear the instance down instead so a
+        // genuinely empty network actually renders as empty; refreshData()
+        // recreates a fresh instance the next time there's real data to show
+        // (see CosmographGraph's _runConfigUpdate: no instance -> `new Cosmograph(...)`).
+        await this.$refs.graph?.destroy();
+      } else {
+        await this.$refs.graph?.refreshData();
+      }
       this.reapplySelection();
       // The native dblclick.zoom interceptor is attached once, on the persistent
       // #network wrapper (see mounted()), which CosmographGraph's own canvas
