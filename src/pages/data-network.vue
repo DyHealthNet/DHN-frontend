@@ -3395,15 +3395,18 @@ export default {
       this.checkSelectAll();
       this.applyDesign();
     },
-    async clearNetwork(full = true, saveState=true){
-      this.pushUndoSnapshot();
-      this.clearNetworkWarn = false;
+    // Field resets shared by clearNetwork() and updateData()'s context switch --
+    // split out so a caller that's about to immediately load a different, known
+    // network (updateData() when a saved state exists for the new context) can
+    // reset these without also driving a Cosmograph render of the empty state in
+    // between (see updateData()).
+    resetNetworkFields() {
       this.clusteringActive = false;
       this.nodeColorMode = 'group';
       this.edgeStyleMode = 'unweighted';
       this.lastNetworkMode = null;
       this.networkNodes = [];
-      this.networkEdges = []; // do i also need allInternalEdges??
+      this.networkEdges = [];
       this.displayedNodes = null;
       this.displayedEdges = null;
       this.allInternalEdges = [];
@@ -3414,6 +3417,11 @@ export default {
       this.selectedNetworkNodes = [];
       this.recentNeighborNodeIds = [];
       this.neighborsSubTab = null;
+    },
+    async clearNetwork(full = true, saveState=true){
+      this.pushUndoSnapshot();
+      this.clearNetworkWarn = false;
+      this.resetNetworkFields();
       if(full){
         await this.initializeCosmograph();
         // Awaited -- callers (updateData()'s context switch) await clearNetwork()
@@ -3526,22 +3534,26 @@ export default {
           correction: context.content.correction ?? 'bh',
         };
         this.disableSelections = true;
-        await this.clearNetwork(true,false);
       }
       else{
         this.selectedTests = { testType: 'parametric', correction: this.staticCorrection };
         this.wholeNetworkTests = { testType: 'parametric', correction: this.staticCorrection };
         this.disableSelections = false;
+      }
+      // clearNetwork(true, ...) drives a full Cosmograph render of the emptied-out
+      // network -- necessary so the old context's graph doesn't linger on screen
+      // when the new context has nothing saved yet. But when a saved state DOES
+      // exist for the new context, loadState() below is about to immediately
+      // upload that instead, making clearNetwork()'s render a wasted upload of an
+      // empty points array -- which Cosmograph's data layer logs as "Failed to
+      // upload points data: The data is invalid or empty." Skip straight to the
+      // field resets (no Cosmograph render) in that case and let loadState() do
+      // the one real upload.
+      if (loadNetworkState(this.contextValue)) {
+        this.resetNetworkFields();
+      } else {
         await this.clearNetwork(true, false);
       }
-      // Awaited (both here and above) so clearNetwork()'s own initializeCosmograph()/
-      // applyDesign() -- which cache the color map off whatever networkNodes/
-      // nodeColorMode are set at that moment -- fully finish before loadState()
-      // starts overwriting those same fields with the new context's saved state.
-      // Previously both ran fire-and-forget and could interleave, so the color
-      // map ended up built against the just-cleared (empty) network while the
-      // nodes actually uploaded to Cosmograph came from the loaded state --
-      // nodes/edges would appear with no color.
       await this.loadState();
       // Undo snapshots hold node/edge data scoped to whatever context was active
       // when they were pushed (clearNetwork() above just pushed one for the
