@@ -269,12 +269,8 @@ import GraphToolbar from '@/components/network/GraphToolbar.vue';
 import NetworkLegend from '@/components/network/NetworkLegend.vue';
 import GradientLegend from '@/components/network/GradientLegend.vue';
 import CosmographGraph from '@/components/network/CosmographGraph.vue';
-import { assignGroupColors, getNodeIcon, saveNetworkState, loadNetworkState, clearNetworkState, capitalizeFirstLetter, drawLegendPanel, interpolateHexColor, normalizeInRange } from '@/components/network/networkData.js';
+import { assignGroupColors, getNodeIcon, saveNetworkState, loadNetworkState, clearNetworkState, capitalizeFirstLetter, drawLegendPanel, interpolateHexColor, normalizeInRange, MODINA_STATE_KEY } from '@/components/network/networkData.js';
 import { NODE_METRIC_INFO, EDGE_METRIC_INFO, metricDescription } from '@/components/modina/metricInfo.js';
-
-// Distinct key (not a numeric contextValue) so this doesn't collide with data-network.vue's own
-// per-context / "staticNetwork" localStorage entries, which share the same helper functions.
-const MODINA_STATE_KEY = 'modina-comparison';
 
 export default {
   name: 'DifferentialNetworkPage',
@@ -926,19 +922,14 @@ export default {
     // the user navigates away and back -- same localStorage mechanism as the network page, just
     // keyed by a fixed string instead of a contextValue (see MODINA_STATE_KEY).
     saveState() {
-      // localStorage.setItem can throw (e.g. quota exceeded on a large differential network) --
-      // this must not blow up the SUCCESS branch of pollStatus() it's called from, which would
-      // otherwise stop the just-computed graph from ever rendering.
-      try {
-        console.log('[modina] saveState: saving, result present =', !!this.result);
-        saveNetworkState(MODINA_STATE_KEY, {
-          selectedContexts: this.selectedContexts,
-          settings: this.settings,
-          result: this.result,
-        });
-      } catch (error) {
-        console.error('Failed to save differential network state:', error);
-      }
+      // saveNetworkState() itself catches a quota-exceeded localStorage.setItem failure and
+      // logs it rather than throwing, so this no longer needs its own try/catch guard.
+      console.log('[modina] saveState: saving, result present =', !!this.result);
+      saveNetworkState(MODINA_STATE_KEY, {
+        selectedContexts: this.selectedContexts,
+        settings: this.settings,
+        result: this.result,
+      });
     },
 
     async loadState() {

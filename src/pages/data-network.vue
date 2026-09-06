@@ -738,7 +738,7 @@
 import AdvancedSettings from "@/components/AdvancedSettings.vue";
 import FilterToolbar from "@/components/FilterToolbar.vue";
 import {BASE_URL, isLoading, setIsLoading, setLoadingState, loadingStates} from "@/components/constants.js";
-import {darkenHexColor, interpolateHexColor, normalizeInRange, computeEdgeScore, computePercentileRanks, assignGroupColors, getNodeIcon, loadNetworkState, saveNetworkState, capitalizeFirstLetter, drawLegendPanel} from "../components/network/networkData.js";
+import {darkenHexColor, interpolateHexColor, normalizeInRange, computeEdgeScore, computePercentileRanks, assignGroupColors, getNodeIcon, loadNetworkState, saveNetworkState, capitalizeFirstLetter, drawLegendPanel, clearStaleNetworkContextState} from "../components/network/networkData.js";
 import {interpolateRainbow} from 'd3-scale-chromatic';
 import NodeDetails from '@/components/network/NodeDetails.vue';
 import EdgeDetails from '@/components/network/EdgeDetails.vue';
@@ -3701,10 +3701,17 @@ export default {
       this.scoreClusteringStartedAt = user_settings.scoreClusteringStartedAt ?? null;
     },
     saveState() {
-      //console.log("saveState")
+      // Named-context saves are disabled: several contexts' full nodes/edges accumulating
+      // under their own context_* keys routinely pushed total localStorage usage over the
+      // browser's per-origin quota, throwing out of unrelated actions (e.g. community
+      // annotation status updates). "Resume this context's network view on reload" is lost
+      // for now, until this moves to a store with real headroom (e.g. IndexedDB).
+      // staticNetwork (no context selected) is still saved -- if a static network large
+      // enough to exceed quota on its own is written, saveNetworkState() catches that
+      // failure rather than throwing, same safety net as before.
+      if (this.contextValue) return;
       const exportData = { nodes: this.networkNodes, edges: this.networkEdges,
         vis_options: {simulation: {enabled: this.physics_on}}, user_settings: this.buildUserSettings() };
-      console.log("Save State exportData", exportData)
       saveNetworkState(this.contextValue, exportData);
     },
     async loadState() {
@@ -3893,6 +3900,12 @@ export default {
 
   mounted() {
     const theme = useTheme();
+    // One-shot declutter: saveState() no longer writes named-context graph dumps (see
+    // saveState()), but browsers that already have old ones sitting in localStorage from
+    // before this change keep counting them against the shared per-origin quota -- this
+    // clears them out so they stop crowding out staticNetwork and the differential-network
+    // comparison state, both of which this leaves untouched.
+    clearStaleNetworkContextState();
     this.loadState(); // Load state when the component is mounted
     this.fetchNetworkConfig(); // Real correction used for the static network (see watch)
     this.selectedBorderColor = theme.current.value.colors['primary']; // Correct way to access the primary color
