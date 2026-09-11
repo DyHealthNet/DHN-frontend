@@ -341,17 +341,18 @@ export function drawLegendPanel(ctx, canvas, entries, colors, title = '') {
 //import {authState, checkLogin, getCookie} from '@/components/authentication/auth.js';
 
 
+// A full network's nodes/edges can be large enough to exceed the browser's per-origin
+// localStorage quota (~5-10MB, and shared across every key below, not just this one) --
+// wrapped in try/catch so a quota failure just skips persistence instead of throwing out
+// of whatever action triggered the save (e.g. community annotation status polling, which
+// has nothing to do with storage and shouldn't be broken by it).
 export function saveNetworkState(contextValue, networkState) {
-  if (contextValue) {
-    const key = `context_${contextValue}`;
-    // const csrfToken = getCookie('csrftoken');
-    // const hashedToken = crypto.createHash("sha256").update(csrfToken).digest("hex");
+  const key = contextValue ? `context_${contextValue}` : 'staticNetwork';
+  try {
     console.log("saveNetworkState key", key)
     localStorage.setItem(key, JSON.stringify(networkState));
-  } else {
-    const key = `staticNetwork`;
-    console.log("saveNetworkState key", key)
-    localStorage.setItem(key, JSON.stringify(networkState));
+  } catch (error) {
+    console.error("saveNetworkState failed for key", key, error);
   }
 }
 
@@ -382,12 +383,31 @@ export function clearNetworkState(contextValue) {
   }
 }
 
+// Fixed localStorage key differential-network.vue persists its last finished comparison
+// under (via saveNetworkState(MODINA_STATE_KEY, ...)) -- kept here, not there, so the
+// cleanup below can exclude it by name without the two pages importing from each other.
+export const MODINA_STATE_KEY = 'modina-comparison';
+
 // Clears all saved network/context state from localStorage, regardless of
 // slot index. Must run on logout so a different user logging in on the same
 // browser never sees the previous user's cached network state.
 export function clearAllNetworkState() {
   Object.keys(localStorage)
     .filter((key) => key === 'staticNetwork' || key.startsWith('context_'))
+    .forEach((key) => localStorage.removeItem(key));
+}
+
+// Purges stale per-context graph dumps left over from before named-context persistence
+// was disabled in data-network.vue's saveState() (several contexts' full nodes/edges
+// accumulating under their own keys routinely pushed total localStorage usage over the
+// per-origin quota). Leaves staticNetwork alone -- that one is still saved/loaded
+// normally -- and excludes the differential-network comparison state, which is unrelated
+// and also still persisted normally. Safe to call repeatedly -- it's a one-shot declutter,
+// not something that needs to run again once a browser's stale entries are gone.
+export function clearStaleNetworkContextState() {
+  const modinaKey = `context_${MODINA_STATE_KEY}`;
+  Object.keys(localStorage)
+    .filter((key) => key.startsWith('context_') && key !== modinaKey)
     .forEach((key) => localStorage.removeItem(key));
 }
 
