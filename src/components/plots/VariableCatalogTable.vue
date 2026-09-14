@@ -34,9 +34,7 @@
         :headers="headers"
         :items="items"
         :search="search"
-        :custom-key-filter="{ identifier: variableSearchFilter }"
-        filter-mode="union"
-        :sort-by="[{ key: 'identifier', order: 'asc' }]"
+        :sort-by="[{ key: 'id', order: 'asc' }]"
         multi-sort
         :loading="loading"
         items-per-page="10"
@@ -44,11 +42,20 @@
         filename="variable-catalog.csv"
         @click:row="onRowClick"
     >
-      <template v-slot:item.identifier="{ item }">
-        <span>{{ item.identifier }}</span>
+      <template v-slot:item.id="{ item }">
+        <span>{{ item.id }}</span>
+      </template>
+      <template v-slot:item.displayName="{ item }">
+        {{ item.displayName || '-' }}
+      </template>
+      <template v-slot:item.description="{ item }">
+        {{ item.description || '-' }}
       </template>
       <template v-slot:item.subgroup="{ item }">
         {{ item.subgroup || '-' }}
+      </template>
+      <template v-slot:item.missingCount="{ item }">
+        {{ item.missingCount }}
       </template>
       <template v-slot:no-data>
         <span class="text-medium-emphasis">No variables available for this group.</span>
@@ -89,9 +96,12 @@ export default {
   computed: {
     headers() {
       return [
-        {title: 'Variable', key: 'identifier'},
+        {title: 'ID', key: 'id'},
+        {title: 'Display Name', key: 'displayName'},
+        {title: 'Description', key: 'description'},
         {title: 'Subgroup', key: 'subgroup', width: 160},
         {title: 'Type', key: 'type', width: 140},
+        {title: 'Missing', key: 'missingCount', width: 110},
       ];
     },
     groups() {
@@ -102,10 +112,16 @@ export default {
         return [];
       }
       const {continuous = [], binaryCategorical = [], nonbinaryCategorical = [],
-             variableLayers = {}, variableSubLayers = {}} = this.allVariables;
+             variableLayers = {}, variableSubLayers = {}, variableIds = {},
+             variableDescriptions = {}, variableDisplayNames = {},
+             variableMissingCounts = {}} = this.allVariables;
 
       const buildItems = (identifiers, type, plotType) => identifiers.map((identifier) => ({
         identifier,
+        id: variableIds[identifier] ?? identifier,
+        description: variableDescriptions[identifier],
+        displayName: variableDisplayNames[identifier],
+        missingCount: variableMissingCounts[identifier] ?? 0,
         group: variableLayers[identifier],
         subgroup: variableSubLayers[identifier],
         type,
@@ -170,15 +186,6 @@ export default {
     },
     onRowClick(_, {item}) {
       this.$emit('add-variable', {identifier: item.identifier, plotType: item.plotType});
-    },
-    // Mirrors NodeRankPanel's nodeSearchFilter: v-data-table's built-in filter-keys only
-    // reaches header columns, so this reads the raw row directly instead.
-    variableSearchFilter(_value, query, item) {
-      const q = String(query ?? '').toLowerCase();
-      if (!q) return true;
-      const raw = item?.raw || {};
-      const haystack = `${raw.identifier ?? ''} ${raw.subgroup ?? ''}`.toLowerCase();
-      return haystack.includes(q);
     },
   },
 };
