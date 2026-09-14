@@ -91,15 +91,22 @@ export default {
       activeGroup: null,
       search: '',
       loading: false,
+      // Optional per-source columns (description/displayName/subgroup aren't configured
+      // for every data source - e.g. metabolites have no display name) - each is only
+      // shown while browsing a group where at least one variable actually has a value
+      // for it, rather than as a column full of '-' placeholders.
+      optionalColumns: [
+        {title: 'Display Name', key: 'displayName'},
+        {title: 'Description', key: 'description'},
+        {title: 'Subgroup', key: 'subgroup', width: 160},
+      ],
     };
   },
   computed: {
     headers() {
       return [
         {title: 'ID', key: 'id'},
-        {title: 'Display Name', key: 'displayName'},
-        {title: 'Description', key: 'description'},
-        {title: 'Subgroup', key: 'subgroup', width: 160},
+        ...this.optionalColumns.filter((column) => this.items.some((item) => item[column.key])),
         {title: 'Type', key: 'type', width: 140},
         {title: 'Missing', key: 'missingCount', width: 110},
       ];
