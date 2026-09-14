@@ -2423,7 +2423,7 @@ export default {
             organism: 'hsapiens',
             query: this.selectedProteinAccessions,
             sources: ['GO:BP', 'GO:CC', 'GO:MF', 'KEGG', 'REAC', 'WP'],
-            user_threshold: 0.05,
+            user_threshold: 1,  // no threshold
             significance_threshold_method: 'g_SCS',
             no_evidences: true,
           }),
