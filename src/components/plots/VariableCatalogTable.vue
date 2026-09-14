@@ -34,9 +34,7 @@
         :headers="headers"
         :items="items"
         :search="search"
-        :custom-key-filter="{ identifier: variableSearchFilter }"
-        filter-mode="union"
-        :sort-by="[{ key: 'identifier', order: 'asc' }]"
+        :sort-by="[{ key: 'id', order: 'asc' }]"
         multi-sort
         :loading="loading"
         items-per-page="10"
@@ -44,11 +42,20 @@
         filename="variable-catalog.csv"
         @click:row="onRowClick"
     >
-      <template v-slot:item.identifier="{ item }">
-        <span>{{ item.identifier }}</span>
+      <template v-slot:item.id="{ item }">
+        <span>{{ item.id }}</span>
+      </template>
+      <template v-slot:item.displayName="{ item }">
+        {{ item.displayName || '-' }}
+      </template>
+      <template v-slot:item.description="{ item }">
+        {{ item.description || '-' }}
       </template>
       <template v-slot:item.subgroup="{ item }">
         {{ item.subgroup || '-' }}
+      </template>
+      <template v-slot:item.missingCount="{ item }">
+        {{ item.missingCount }}
       </template>
       <template v-slot:no-data>
         <span class="text-medium-emphasis">No variables available for this group.</span>
@@ -80,46 +87,51 @@ export default {
   emits: ['add-variable'],
   data() {
     return {
-      allVariables: null,
+      catalog: null,
       activeGroup: null,
       search: '',
       loading: false,
+      // Optional per-source columns (description/displayName/subgroup aren't configured
+      // for every data source - e.g. metabolites have no display name) - each is only
+      // shown while browsing a group where at least one variable actually has a value
+      // for it, rather than as a column full of '-' placeholders.
+      optionalColumns: [
+        {title: 'Display Name', key: 'displayName'},
+        {title: 'Description', key: 'description'},
+        {title: 'Subgroup', key: 'subgroup', width: 160},
+      ],
     };
   },
   computed: {
     headers() {
       return [
-        {title: 'Variable', key: 'identifier'},
-        {title: 'Subgroup', key: 'subgroup', width: 160},
+        {title: 'ID', key: 'id'},
+        ...this.optionalColumns.filter((column) => this.items.some((item) => item[column.key])),
         {title: 'Type', key: 'type', width: 140},
+        {title: 'Missing', key: 'missingCount', width: 110},
       ];
     },
     groups() {
-      return this.allVariables?.availableLayers || [];
+      return this.catalog?.availableLayers || [];
     },
     allItems() {
-      if (!this.allVariables) {
-        return [];
-      }
-      const {continuous = [], binaryCategorical = [], nonbinaryCategorical = [],
-             variableLayers = {}, variableSubLayers = {}} = this.allVariables;
+      const TYPE_LABELS = {continuous: 'Continuous', binaryCategorical: 'Binary', nonbinaryCategorical: 'Categorical'};
+      const PLOT_TYPES = {continuous: 'Density', binaryCategorical: 'Bar', nonbinaryCategorical: 'Bar'};
 
-      const buildItems = (identifiers, type, plotType) => identifiers.map((identifier) => ({
-        identifier,
-        group: variableLayers[identifier],
-        subgroup: variableSubLayers[identifier],
-        type,
-        plotType,
+      return (this.catalog?.variables || []).map((variable) => ({
+        identifier: variable.identifier,
+        id: variable.id,
+        description: variable.description,
+        displayName: variable.displayName,
+        subgroup: variable.subgroup,
+        missingCount: variable.missingCount,
+        layer: variable.layer,
+        type: TYPE_LABELS[variable.group] || variable.group,
+        plotType: PLOT_TYPES[variable.group] || 'Bar',
       }));
-
-      return [
-        ...buildItems(continuous, 'Continuous', 'Density'),
-        ...buildItems(binaryCategorical, 'Binary', 'Bar'),
-        ...buildItems(nonbinaryCategorical, 'Categorical', 'Bar'),
-      ];
     },
     items() {
-      return this.allItems.filter((item) => item.group === this.activeGroup);
+      return this.allItems.filter((item) => item.layer === this.activeGroup);
     },
   },
   watch: {
@@ -135,7 +147,7 @@ export default {
       this.loading = true;
       try {
         const csrfToken = getCookie('csrftoken');
-        let url = `${BASE_URL}/general/api/variables/`;
+        let url = `${BASE_URL}/plotting/api/variableCatalog/`;
 
         if (this.contextValue) {
           url += `?contextValue=${encodeURIComponent(this.contextValue)}`;
@@ -154,7 +166,7 @@ export default {
           throw new Error("Network response was not ok");
         }
 
-        this.allVariables = await response.json();
+        this.catalog = await response.json();
 
         if (!this.activeGroup || !this.groups.includes(this.activeGroup)) {
           this.activeGroup = this.groups[0] || null;
@@ -170,15 +182,6 @@ export default {
     },
     onRowClick(_, {item}) {
       this.$emit('add-variable', {identifier: item.identifier, plotType: item.plotType});
-    },
-    // Mirrors NodeRankPanel's nodeSearchFilter: v-data-table's built-in filter-keys only
-    // reaches header columns, so this reads the raw row directly instead.
-    variableSearchFilter(_value, query, item) {
-      const q = String(query ?? '').toLowerCase();
-      if (!q) return true;
-      const raw = item?.raw || {};
-      const haystack = `${raw.identifier ?? ''} ${raw.subgroup ?? ''}`.toLowerCase();
-      return haystack.includes(q);
     },
   },
 };
