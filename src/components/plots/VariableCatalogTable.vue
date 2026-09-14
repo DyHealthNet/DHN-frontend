@@ -87,7 +87,7 @@ export default {
   emits: ['add-variable'],
   data() {
     return {
-      allVariables: null,
+      catalog: null,
       activeGroup: null,
       search: '',
       loading: false,
@@ -105,37 +105,26 @@ export default {
       ];
     },
     groups() {
-      return this.allVariables?.availableLayers || [];
+      return this.catalog?.availableLayers || [];
     },
     allItems() {
-      if (!this.allVariables) {
-        return [];
-      }
-      const {continuous = [], binaryCategorical = [], nonbinaryCategorical = [],
-             variableLayers = {}, variableSubLayers = {}, variableIds = {},
-             variableDescriptions = {}, variableDisplayNames = {},
-             variableMissingCounts = {}} = this.allVariables;
+      const TYPE_LABELS = {continuous: 'Continuous', binaryCategorical: 'Binary', nonbinaryCategorical: 'Categorical'};
+      const PLOT_TYPES = {continuous: 'Density', binaryCategorical: 'Bar', nonbinaryCategorical: 'Bar'};
 
-      const buildItems = (identifiers, type, plotType) => identifiers.map((identifier) => ({
-        identifier,
-        id: variableIds[identifier] ?? identifier,
-        description: variableDescriptions[identifier],
-        displayName: variableDisplayNames[identifier],
-        missingCount: variableMissingCounts[identifier] ?? 0,
-        group: variableLayers[identifier],
-        subgroup: variableSubLayers[identifier],
-        type,
-        plotType,
+      return (this.catalog?.variables || []).map((variable) => ({
+        identifier: variable.identifier,
+        id: variable.id,
+        description: variable.description,
+        displayName: variable.displayName,
+        subgroup: variable.subgroup,
+        missingCount: variable.missingCount,
+        layer: variable.layer,
+        type: TYPE_LABELS[variable.group] || variable.group,
+        plotType: PLOT_TYPES[variable.group] || 'Bar',
       }));
-
-      return [
-        ...buildItems(continuous, 'Continuous', 'Density'),
-        ...buildItems(binaryCategorical, 'Binary', 'Bar'),
-        ...buildItems(nonbinaryCategorical, 'Categorical', 'Bar'),
-      ];
     },
     items() {
-      return this.allItems.filter((item) => item.group === this.activeGroup);
+      return this.allItems.filter((item) => item.layer === this.activeGroup);
     },
   },
   watch: {
@@ -151,7 +140,7 @@ export default {
       this.loading = true;
       try {
         const csrfToken = getCookie('csrftoken');
-        let url = `${BASE_URL}/general/api/variables/`;
+        let url = `${BASE_URL}/plotting/api/variableCatalog/`;
 
         if (this.contextValue) {
           url += `?contextValue=${encodeURIComponent(this.contextValue)}`;
@@ -170,7 +159,7 @@ export default {
           throw new Error("Network response was not ok");
         }
 
-        this.allVariables = await response.json();
+        this.catalog = await response.json();
 
         if (!this.activeGroup || !this.groups.includes(this.activeGroup)) {
           this.activeGroup = this.groups[0] || null;
