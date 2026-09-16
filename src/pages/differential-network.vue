@@ -533,6 +533,26 @@ export default {
       };
     },
 
+    // POSTs createComparison once and returns the parsed body. Doesn't throw for the
+    // requiresContextSpecificFilter case (runComparison handles that one specially by retrying) --
+    // only for a genuine, unrecoverable error.
+    async startComparison() {
+      const response = await fetch(`${BASE_URL}/modina/api/createComparison`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken'),
+        },
+        credentials: 'include',
+        body: JSON.stringify(this.buildRequestBody()),
+      });
+      const data = await response.json();
+      if (data.status === 'error' && !data.requiresContextSpecificFilter) {
+        throw new Error(data.message || `Request failed with status ${response.status}`);
+      }
+      return data;
+    },
+
     async runComparison() {
       if (!this.canRun) return;
       this.isRunning = true;
@@ -543,18 +563,24 @@ export default {
       this.statusText = 'Starting differential network computation...';
 
       try {
-        const response = await fetch(`${BASE_URL}/modina/api/createComparison`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken'),
-          },
-          credentials: 'include',
-          body: JSON.stringify(this.buildRequestBody()),
-        });
-        const data = await response.json();
-        if (!response.ok || data.status === 'error') {
-          throw new Error(data.message || `Request failed with status ${response.status}`);
+        let data = await this.startComparison();
+        if (data.requiresContextSpecificFilter) {
+          // Too many shared variables (see network/views/modina.py's threshold) to compare
+          // without filtering first -- 'context-specific' filtering is the only option that
+          // reduces each context's own scores *before* the differential network is built
+          // ('differential' filtering only trims the result afterward, which wouldn't avoid the
+          // O(n^2) blow-up the backend is rejecting). Apply it (keeping the user's own values if
+          // they'd already set some) and retry once automatically rather than making them
+          // re-click Run.
+          this.settings.filterTarget = 'context-specific';
+          this.settings.filterMetric = this.settings.filterMetric || 'raw-P';
+          this.settings.filterRule = this.settings.filterRule || 'union';
+          this.settings.filterParam = this.settings.filterParam || 1;
+          this.statusText = `${data.message} Applying a context-specific filter and retrying...`;
+          data = await this.startComparison();
+        }
+        if (data.status === 'error') {
+          throw new Error(data.message || 'Failed to start comparison.');
         }
         this.runId = data.runId;
         this.statusText = 'Computing differential network...';

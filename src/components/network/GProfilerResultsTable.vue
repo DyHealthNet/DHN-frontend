@@ -1,7 +1,7 @@
 <template>
   <DownloadableDataTable
     :headers="headers"
-    :items="items"
+    :items="tableItems"
     :loading="loading"
     :sort-by="[{ key: 'p_value', order: 'asc' }]"
     multi-sort
@@ -14,6 +14,9 @@
     </template>
     <template #item.p_value="{ item }">{{ item.p_value.toExponential(2) }}</template>
     <template #item.intersection_size="{ item }">{{ item.intersection_size }}/{{ item.term_size }}</template>
+    <template #item.significant="{ item }">
+      <v-chip v-if="item.significant" size="x-small" color="success" variant="flat">Significant</v-chip>
+    </template>
   </DownloadableDataTable>
 </template>
 
@@ -22,6 +25,12 @@
 // EnrichmentResultsPanel.vue so it can be reused both for a single node-set's Protein
 // Enrichment tab and for each community's table in the Community Annotation tab.
 import DownloadableDataTable from '@/components/DownloadableDataTable.vue';
+
+// Fixed rather than user-configurable, matching the p<=0.05 convention used elsewhere in the
+// app (e.g. the network's edge-significance threshold). g:Profiler's own `significant` flag
+// isn't used here because callers may request results with a raised/disabled user_threshold
+// (to see the full top-20 regardless of significance), which would make that flag meaningless.
+const SIGNIFICANCE_P_VALUE_THRESHOLD = 0.05;
 
 export default {
   name: 'GProfilerResultsTable',
@@ -38,8 +47,25 @@ export default {
         { title: 'Term', key: 'name' },
         { title: 'p-value', key: 'p_value', width: 110 },
         { title: 'Genes', key: 'intersection_size', width: 100, csvValue: (item) => `${item.intersection_size}/${item.term_size}` },
+        {
+          title: 'Significant',
+          key: 'significant',
+          width: 130,
+          sort: (a, b) => (a === b ? 0 : a ? -1 : 1),
+          csvValue: (item) => (item.significant ? 'Yes' : 'No'),
+        },
       ],
     };
+  },
+  computed: {
+    // g:Profiler's own p_value already reflects the chosen correction method (g_SCS here), so
+    // no separate FDR field is needed -- just flag it against the fixed threshold above.
+    tableItems() {
+      return this.items.map((item) => ({
+        ...item,
+        significant: item.p_value <= SIGNIFICANCE_P_VALUE_THRESHOLD,
+      }));
+    },
   },
   methods: {
     // g:Profiler's API doesn't return a per-term link, so build one from the source
