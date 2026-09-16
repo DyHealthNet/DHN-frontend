@@ -2301,6 +2301,7 @@ export default {
             edge,
             neighborId,
             neighborLabel: neighbor?.display_name ?? neighborId,
+            description: neighbor?.description,
             testType: edge.test_type,
             pValue: edge.p_value,
             effectSize: edge.effect_size,

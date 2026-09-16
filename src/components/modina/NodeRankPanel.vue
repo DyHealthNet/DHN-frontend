@@ -42,6 +42,9 @@
         </v-chip>
         <span v-else>{{ item.group || '-' }}</span>
       </template>
+      <template v-slot:item.description="{ item }">
+        <span class="description-cell" :title="item.description">{{ item.description || '-' }}</span>
+      </template>
       <template v-slot:header.rank="{ column }">
         <v-tooltip location="top" max-width="320">
           <template v-slot:activator="{ props }">
@@ -167,6 +170,7 @@ export default {
       return [
         { title: 'Rank', key: 'rank', width: 90, sort: rankSort },
         { title: 'Node', key: 'id', csvValue: (item) => item.display_name || item.id },
+        { title: 'Description', key: 'description', hidden: true },
         { title: 'Group', key: 'group', width: 130 },
         { title: 'Type', key: 'type', width: 130 },
         { title: 'Score', key: 'score', sort: scoreSort },
@@ -239,5 +243,15 @@ export default {
 <style scoped>
 .node-rank-table :deep(tbody tr) {
   cursor: pointer;
+}
+
+/* Same truncate-with-tooltip treatment as NodeRankingTable's .description-cell. */
+.description-cell {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 320px;
 }
 </style>

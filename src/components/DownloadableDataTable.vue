@@ -28,7 +28,28 @@
       :scroll-height="lockedScrollHeight"
     >
       <template #paginatorend>
-        <div class="downloadable-data-table__download">
+        <div class="downloadable-data-table__actions">
+          <Button
+            type="button"
+            icon="pi pi-list-check"
+            class="p-button-text p-button-secondary"
+            @click="onColumnsClick"
+            aria-haspopup="true"
+            aria-controls="columns_panel"
+          />
+          <Popover id="columns_panel" ref="columnsPanelRef">
+            <div class="downloadable-data-table__columns-panel">
+              <div v-for="header in headers" :key="header.key" class="downloadable-data-table__column-option">
+                <Checkbox
+                  :input-id="'col-' + header.key"
+                  binary
+                  :model-value="isColumnVisible(header.key)"
+                  @update:model-value="toggleColumn(header.key)"
+                />
+                <label :for="'col-' + header.key">{{ header.title }}</label>
+              </div>
+            </div>
+          </Popover>
           <Button
             type="button"
             icon="pi pi-download"
@@ -43,7 +64,7 @@
       </template>
 
       <Column
-        v-for="header in headers"
+        v-for="header in visibleHeaders"
         :key="header.key"
         :field="header.key"
         :header="$slots['header.' + header.key] ? undefined : header.title"
@@ -82,19 +103,23 @@
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Menu from 'primevue/menu';
+import Popover from 'primevue/popover';
+import Checkbox from 'primevue/checkbox';
 import Button from 'primevue/button';
 
 export default {
   name: 'DownloadableDataTable',
-  components: { DataTable, Column, Menu, Button },
+  components: { DataTable, Column, Menu, Popover, Checkbox, Button },
   // Extra attrs (only `class` is used) are forwarded explicitly to <DataTable> above rather
   // than via Vue's default fallthrough-to-root-element, since the root here is a wrapper div.
   inheritAttrs: false,
   props: {
-    // Column descriptors: { title, key, width?, sortable?(default true), sort?(a,b), csvValue?(item) }.
+    // Column descriptors: { title, key, width?, sortable?(default true), sort?(a,b), csvValue?(item), hidden? }.
     // `sort` is an optional custom comparator (e.g. numeric, null-aware) used instead of the
     // default string compare. `csvValue` lets a column's exported cell differ from its
-    // rendered cell without adding an extra visible column.
+    // rendered cell without adding an extra visible column. `hidden: true` makes a column
+    // start out hidden (still toggleable from the columns selector, still exportable once
+    // shown) -- use it for optional/heavy columns that shouldn't clutter the default view.
     headers: { type: Array, required: true },
     items: { type: Array, default: () => [] },
     loading: { type: Boolean, default: false },
@@ -136,9 +161,29 @@ export default {
       // for that first real render.
       lockedScrollHeight: null,
       heightLocked: false,
+      // Per-header-key visibility, keyed by header.key -- true/absent means visible. Seeded
+      // from each header's `hidden` flag the first time its key is seen (see the `headers`
+      // watcher below), then left alone so a user's show/hide choice survives re-renders where
+      // the caller passes a new `headers`/`items` array reference (e.g. a Details-panel
+      // selection changing elsewhere on the page).
+      columnVisibility: {},
     };
   },
   watch: {
+    headers: {
+      immediate: true,
+      handler(headers) {
+        let changed = false;
+        const next = { ...this.columnVisibility };
+        for (const header of headers) {
+          if (!(header.key in next)) {
+            next[header.key] = header.hidden !== true;
+            changed = true;
+          }
+        }
+        if (changed) this.columnVisibility = next;
+      },
+    },
     // `items` is a new array reference on every render of callers whose rows are built by
     // mapping/spreading (e.g. NodeRankingTable/EdgeRankingTable's ranking computeds) -- that
     // includes renders where the actual rows/order/count are unchanged, such as a Details-panel
@@ -193,6 +238,9 @@ export default {
         { label: 'Download JSON', icon: 'pi pi-file', command: () => this.download('json') },
         { label: 'Download TXT', icon: 'pi pi-file', command: () => this.download('txt') },
       ];
+    },
+    visibleHeaders() {
+      return this.headers.filter((h) => this.columnVisibility[h.key] !== false);
     },
     filteredItems() {
       const query = (this.search ?? '').toString().trim().toLowerCase();
@@ -266,6 +314,15 @@ export default {
     onMenuClick(event) {
       this.$refs.menuRef.toggle(event);
     },
+    onColumnsClick(event) {
+      this.$refs.columnsPanelRef.toggle(event);
+    },
+    isColumnVisible(key) {
+      return this.columnVisibility[key] !== false;
+    },
+    toggleColumn(key) {
+      this.columnVisibility = { ...this.columnVisibility, [key]: !this.isColumnVisible(key) };
+    },
     csvEscape(value) {
       const str = value == null ? '' : String(value);
       return /[",\r\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
@@ -279,22 +336,24 @@ export default {
       let mimeType;
       let filename = this.filename;
 
+      // Export mirrors whatever columns are currently shown/hidden via the columns selector.
+      const headers = this.visibleHeaders;
       if (format === 'json') {
         const rows = this.items.map((item) => Object.fromEntries(
-          this.headers.map((h) => [h.key, this.resolveValue(h, item)]),
+          headers.map((h) => [h.key, this.resolveValue(h, item)]),
         ));
         content = JSON.stringify(rows, null, 2);
         mimeType = 'application/json';
         filename = filename.replace(/\.csv$/, '.json');
       } else if (format === 'txt') {
-        const headerLine = this.headers.map((h) => h.title).join('\t');
-        const lines = this.items.map((item) => this.headers.map((h) => this.resolveValue(h, item) ?? '').join('\t'));
+        const headerLine = headers.map((h) => h.title).join('\t');
+        const lines = this.items.map((item) => headers.map((h) => this.resolveValue(h, item) ?? '').join('\t'));
         content = [headerLine, ...lines].join('\n');
         mimeType = 'text/plain';
         filename = filename.replace(/\.csv$/, '.txt');
       } else {
-        const headerRow = this.headers.map((h) => this.csvEscape(h.title));
-        const rows = this.items.map((item) => this.headers.map((h) => this.csvEscape(this.resolveValue(h, item))));
+        const headerRow = headers.map((h) => this.csvEscape(h.title));
+        const rows = this.items.map((item) => headers.map((h) => this.csvEscape(this.resolveValue(h, item))));
         content = [headerRow, ...rows].map((row) => row.join(',')).join('\r\n');
         mimeType = 'text/csv;charset=utf-8;';
       }
@@ -312,10 +371,28 @@ export default {
 </script>
 
 <style scoped>
-.downloadable-data-table__download {
+.downloadable-data-table__actions {
   margin-left: auto;
   display: flex;
   align-items: center;
+}
+
+.downloadable-data-table__columns-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px;
+  min-width: 160px;
+}
+
+.downloadable-data-table__column-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.downloadable-data-table__column-option label {
+  cursor: pointer;
 }
 
 /* PrimeVue's Aura preset (see main.js's MyPreset) already makes the table/paginator
