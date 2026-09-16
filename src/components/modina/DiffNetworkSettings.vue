@@ -17,7 +17,8 @@
         <v-col cols="12" md="4">
           <v-select
             v-model="local.filterTarget"
-            :items="[{ value: null, title: 'No filtering' }, { value: 'context-specific', title: 'Context-specific (before differential network)' }, { value: 'differential', title: 'Differential network (after construction)' }]"
+            :items="filterTargetItems"
+            :disabled="restrictToContextSpecific"
             item-title="title"
             item-value="value"
             label="Edge filtering"
@@ -25,6 +26,10 @@
             variant="outlined"
             hide-details="auto"
           ></v-select>
+          <p v-if="restrictToContextSpecific" class="text-caption text-medium-emphasis mt-1 mb-0">
+            Locked to context-specific filtering for this comparison -- too many shared variables
+            for any other option.
+          </p>
         </v-col>
 
         <template v-if="local.filterTarget">
@@ -95,6 +100,14 @@ export default {
       type: String,
       default: null,
     },
+    // Set by differential-network.vue after the backend aborts a run for having too many shared
+    // variables (see network/views/modina.py's threshold) -- 'context-specific' is the only
+    // filter that reduces each context's own scores *before* the differential network is built,
+    // so it's the only one that actually avoids the O(n^2) blow-up the backend rejected.
+    restrictToContextSpecific: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['update:modelValue'],
   computed: {
@@ -105,6 +118,14 @@ export default {
       set(value) {
         this.$emit('update:modelValue', value);
       },
+    },
+    filterTargetItems() {
+      const items = [
+        { value: null, title: 'No filtering' },
+        { value: 'context-specific', title: 'Context-specific (before differential network)' },
+        { value: 'differential', title: 'Differential network (after construction)' },
+      ];
+      return this.restrictToContextSpecific ? items.filter((item) => item.value === 'context-specific') : items;
     },
     infoTooltip() {
       if (!this.nodeMetric || !this.edgeMetric) {
@@ -136,6 +157,13 @@ export default {
           this.local.filterRule = this.local.filterRule || 'union';
         }
       }
+    },
+    // Forces filterTarget to the one option filterTargetItems still offers -- keeps the
+    // component self-contained (it enforces its own restriction rather than trusting the parent
+    // to have set filterTarget correctly beforehand), and the filterTarget watcher above still
+    // fills in filterMetric/filterRule/filterParam defaults as usual.
+    restrictToContextSpecific(value) {
+      if (value) this.local.filterTarget = 'context-specific';
     },
   },
 };

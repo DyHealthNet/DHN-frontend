@@ -29,6 +29,7 @@
               :node-metric="result?.nodeMetric"
               :edge-metric="result?.edgeMetric"
               :ranking-algorithm="result?.rankingAlgorithm"
+              :restrict-to-context-specific="filterOptionsRestricted"
             />
           </v-col>
         </v-row>
@@ -304,6 +305,15 @@ export default {
       errorMessage: '',
       runId: null,
       pollTimer: null,
+      // Set when the backend aborts a run because the two contexts share too many variables to
+      // compare without filtering first (see network/views/modina.py's threshold). Restricts
+      // DiffNetworkSettings' edge-filtering dropdown to 'context-specific' -- the only filter that
+      // reduces each context's own scores *before* the differential network is built -- so the
+      // user reviews/confirms the filter (in particular the Integration rule) before re-running,
+      // rather than having it picked for them silently. Cleared again as soon as either context
+      // selection changes (see the selectedContexts watcher below), since a different context pair
+      // may not need it.
+      filterOptionsRestricted: false,
 
       result: null,
 
@@ -533,9 +543,10 @@ export default {
       };
     },
 
-    // POSTs createComparison once and returns the parsed body. Doesn't throw for the
-    // requiresContextSpecificFilter case (runComparison handles that one specially by retrying) --
-    // only for a genuine, unrecoverable error.
+    // POSTs createComparison once and returns the parsed body. Doesn't throw for
+    // requiresContextSpecificFilter or filterParamTooHigh (runComparison handles both specially
+    // by aborting and asking the user to confirm/adjust a filter) -- only for a genuine,
+    // unrecoverable error.
     async startComparison() {
       const response = await fetch(`${BASE_URL}/modina/api/createComparison`, {
         method: 'POST',
@@ -547,7 +558,7 @@ export default {
         body: JSON.stringify(this.buildRequestBody()),
       });
       const data = await response.json();
-      if (data.status === 'error' && !data.requiresContextSpecificFilter) {
+      if (data.status === 'error' && !data.requiresContextSpecificFilter && !data.filterParamTooHigh) {
         throw new Error(data.message || `Request failed with status ${response.status}`);
       }
       return data;
@@ -563,21 +574,23 @@ export default {
       this.statusText = 'Starting differential network computation...';
 
       try {
-        let data = await this.startComparison();
-        if (data.requiresContextSpecificFilter) {
-          // Too many shared variables (see network/views/modina.py's threshold) to compare
-          // without filtering first -- 'context-specific' filtering is the only option that
-          // reduces each context's own scores *before* the differential network is built
-          // ('differential' filtering only trims the result afterward, which wouldn't avoid the
-          // O(n^2) blow-up the backend is rejecting). Apply it (keeping the user's own values if
-          // they'd already set some) and retry once automatically rather than making them
-          // re-click Run.
-          this.settings.filterTarget = 'context-specific';
-          this.settings.filterMetric = this.settings.filterMetric || 'raw-P';
-          this.settings.filterRule = this.settings.filterRule || 'union';
-          this.settings.filterParam = this.settings.filterParam || 1;
-          this.statusText = `${data.message} Applying a context-specific filter and retrying...`;
-          data = await this.startComparison();
+        const data = await this.startComparison();
+        if (data.requiresContextSpecificFilter || data.filterParamTooHigh) {
+          // Two independent backend guards land here (see network/views/modina.py):
+          // requiresContextSpecificFilter -- too many shared variables to compare unfiltered at
+          // all; filterParamTooHigh -- 'context-specific' filtering was already selected, but the
+          // current Density would still keep more edges than the backend's hard cap allows
+          // ('density' scales quadratically with variable count, so no fixed default is safe).
+          // Both abort here rather than silently retrying with an adjusted value: restrict
+          // DiffNetworkSettings to 'context-specific' when required (it forces filterTarget
+          // itself -- see its restrictToContextSpecific watcher), prefill the backend's suggested
+          // Density, and let the user confirm/adjust before clicking Run again themselves.
+          if (data.requiresContextSpecificFilter) this.filterOptionsRestricted = true;
+          if (data.suggestedFilterParam != null) this.settings.filterParam = data.suggestedFilterParam;
+          this.errorMessage = `${data.message} Review the filter settings below and click "Run Comparison" again.`;
+          this.isRunning = false;
+          this.statusText = '';
+          return;
         }
         if (data.status === 'error') {
           throw new Error(data.message || 'Failed to start comparison.');
@@ -986,6 +999,13 @@ export default {
   watch: {
     '$vuetify.theme.global.name'() {
       this.applyDesign();
+    },
+    // Lifts the context-specific-only restriction as soon as the user picks a different context
+    // pair -- ContextComparisonPicker emits a whole new {context1, context2} object on every
+    // change, so a shallow watch already catches it. The new pair might not need the restriction
+    // at all; if it still does, the next Run attempt will hit the threshold again and reapply it.
+    selectedContexts() {
+      this.filterOptionsRestricted = false;
     },
   },
   mounted() {
