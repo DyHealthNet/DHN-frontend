@@ -776,6 +776,7 @@ export default {
       typeaheadresult: [],
       dropdownNodes: [],
       debounceTimeout: null,
+      typeaheadAbortController: null,
       showDropdown: false,
       isReadOnly: false,  // Boolean flag to track read-only state
 
@@ -979,15 +980,17 @@ export default {
       fullNetworkStatsTestType: 'nonparametric',
       // User-editable p-value threshold for this panel (see the threshold text field
       // above) -- the backend (GetCosmographView's unbounded-significance branch) ranks
-      // and computes weighted degree over every edge at or below this, then truncates the
-      // response to fullNetworkStatsMaxResults of each; the fields below reflect the true
-      // (pre-truncation) totals it reports, for fullNetworkStatsSubtitle to surface.
+      // and computes weighted degree over every edge at or below this, then truncates
+      // edges/nodes to their own separate caps (fullNetworkStatsMaxEdges/MaxNodes); the
+      // fields below reflect the true (pre-truncation) totals it reports, for
+      // fullNetworkStatsSubtitle to surface.
       fullNetworkStatsThreshold: 0.05,
       fullNetworkStatsTotalEdges: 0,
       fullNetworkStatsTotalNodes: 0,
       fullNetworkStatsEdgesTruncated: false,
       fullNetworkStatsNodesTruncated: false,
-      fullNetworkStatsMaxResults: 10000,
+      fullNetworkStatsMaxEdges: 1000,
+      fullNetworkStatsMaxNodes: 10000,
       // Debounce handle for the threshold watcher below -- a free-typed number field
       // shouldn't refetch (a full server-side significance scan) on every keystroke.
       fullNetworkStatsThresholdDebounce: null,
@@ -1072,10 +1075,10 @@ export default {
     fullNetworkStatsSubtitle() {
       const parts = [`Significant edges only (p ≤ ${this.fullNetworkStatsThreshold}).`];
       if (this.fullNetworkStatsEdgesTruncated) {
-        parts.push(`Showing the top ${this.fullNetworkStatsMaxResults.toLocaleString()} of ${this.fullNetworkStatsTotalEdges.toLocaleString()} significant edges, ranked by significance.`);
+        parts.push(`Showing the top ${this.fullNetworkStatsMaxEdges.toLocaleString()} of ${this.fullNetworkStatsTotalEdges.toLocaleString()} significant edges, ranked by significance.`);
       }
       if (this.fullNetworkStatsNodesTruncated) {
-        parts.push(`Showing the top ${this.fullNetworkStatsMaxResults.toLocaleString()} of ${this.fullNetworkStatsTotalNodes.toLocaleString()} nodes, ranked by weighted degree.`);
+        parts.push(`Showing the top ${this.fullNetworkStatsMaxNodes.toLocaleString()} of ${this.fullNetworkStatsTotalNodes.toLocaleString()} nodes, ranked by weighted degree.`);
       }
       return parts.join(' ');
     },
@@ -1417,6 +1420,11 @@ export default {
           return;
         }
 
+        // Cancel any still-in-flight typeahead request so a slow older response
+        // can't land after (and overwrite) a newer one's results.
+        if (this.typeaheadAbortController) this.typeaheadAbortController.abort();
+        this.typeaheadAbortController = new AbortController();
+
         try {
           const csrfToken = getCookie('csrftoken');
           const apiUrl =
@@ -1434,6 +1442,7 @@ export default {
               'X-CSRFToken': csrfToken,
             },
             credentials: 'include',
+            signal: this.typeaheadAbortController.signal,
           });
 
           if (!response.ok) throw new Error("Network response was not ok");
@@ -1454,6 +1463,7 @@ export default {
             !this.selectedNodes.some(selected => selected && selected.id === node.id)
           );
         } catch (error) {
+          if (error.name === "AbortError") return; // superseded by a newer keystroke, not a real failure
           console.error("Error fetching data:", error);
           this.typeaheadresult = [];
           this.dropdownNodes = [];
@@ -1880,7 +1890,7 @@ export default {
     // so switching context updates the stats panel even before the user sends
     // anything to the graph. full_network_stats=true is the explicit opt-in into
     // GetCosmographView's ranking/truncation branch -- points/links come back
-    // already limited to the top fullNetworkStatsMaxResults of each, with
+    // already limited to the top fullNetworkStatsMaxEdges/MaxNodes respectively, with
     // degree/weighted_degree/rank attached, so NodeRankingTable/EdgeRankingTable
     // are told to trust them as-is (see the `preranked` prop) rather than
     // recomputing over just this truncated slice.
@@ -1924,7 +1934,8 @@ export default {
         this.fullNetworkStatsTotalNodes = meta.total_significant_nodes ?? this.fullNetworkStatsNodes.length;
         this.fullNetworkStatsEdgesTruncated = !!meta.edges_truncated;
         this.fullNetworkStatsNodesTruncated = !!meta.nodes_truncated;
-        this.fullNetworkStatsMaxResults = meta.max_edges ?? this.fullNetworkStatsMaxResults;
+        this.fullNetworkStatsMaxEdges = meta.max_edges ?? this.fullNetworkStatsMaxEdges;
+        this.fullNetworkStatsMaxNodes = meta.max_nodes ?? this.fullNetworkStatsMaxNodes;
       } catch (error) {
         console.error("Error fetching full network statistics:", error);
         this.fullNetworkStatsNodes = [];
@@ -2423,7 +2434,7 @@ export default {
             organism: 'hsapiens',
             query: this.selectedProteinAccessions,
             sources: ['GO:BP', 'GO:CC', 'GO:MF', 'KEGG', 'REAC', 'WP'],
-            user_threshold: 0.05,
+            user_threshold: 1,  // no threshold
             significance_threshold_method: 'g_SCS',
             no_evidences: true,
           }),

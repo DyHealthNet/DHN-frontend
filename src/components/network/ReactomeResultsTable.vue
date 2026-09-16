@@ -14,6 +14,9 @@
     <template #item.pValue="{ item }">{{ item.pValue.toExponential(2) }}</template>
     <template #item.fdr="{ item }">{{ item.fdr.toExponential(2) }}</template>
     <template #item.found="{ item }">{{ item.found }}/{{ item.total }}</template>
+    <template #item.significant="{ item }">
+      <v-chip v-if="item.significant" size="x-small" color="success" variant="flat">Significant</v-chip>
+    </template>
   </DownloadableDataTable>
 </template>
 
@@ -22,6 +25,13 @@
 // EnrichmentResultsPanel.vue so it can be reused both for a single node-set's Reactome
 // Enrichment tab and for each community's table in the Community Annotation tab.
 import DownloadableDataTable from '@/components/DownloadableDataTable.vue';
+
+// Fixed rather than user-configurable, matching the p<=0.05 convention used elsewhere in the
+// app (e.g. GProfilerResultsTable's own significance badge, the network's edge-significance
+// threshold). Reactome's Analysis Service never filters by significance itself -- it always
+// returns the top pathways regardless -- so this is evaluated against `fdr` (its
+// multiple-testing-corrected value), not the raw `pValue`.
+const SIGNIFICANCE_FDR_THRESHOLD = 0.05;
 
 export default {
   name: 'ReactomeResultsTable',
@@ -40,6 +50,13 @@ export default {
         { title: 'p-value', key: 'pValue', width: 110 },
         { title: 'FDR', key: 'fdr', width: 110 },
         { title: 'Entities', key: 'found', width: 100, csvValue: (item) => `${item.found}/${item.total}` },
+        {
+          title: 'Significant',
+          key: 'significant',
+          width: 130,
+          sort: (a, b) => (a === b ? 0 : a ? -1 : 1),
+          csvValue: (item) => (item.significant ? 'Yes' : 'No'),
+        },
       ],
     };
   },
@@ -54,6 +71,7 @@ export default {
         fdr: pathway.entities.fdr,
         found: pathway.entities.found,
         total: pathway.entities.total,
+        significant: pathway.entities.fdr <= SIGNIFICANCE_FDR_THRESHOLD,
       }));
     },
   },
