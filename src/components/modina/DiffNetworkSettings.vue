@@ -26,10 +26,6 @@
             variant="outlined"
             hide-details="auto"
           ></v-select>
-          <p v-if="restrictToContextSpecific" class="text-caption text-medium-emphasis mt-1 mb-0">
-            Locked to context-specific filtering for this comparison -- too many shared variables
-            for any other option.
-          </p>
         </v-col>
 
         <template v-if="local.filterTarget">
@@ -71,6 +67,15 @@
             ></v-select>
           </v-col>
         </template>
+      </v-row>
+
+      <v-row v-if="restrictToContextSpecific" dense>
+        <v-col cols="12" class="pt-0">
+          <p class="text-caption text-medium-emphasis mb-0">
+            Locked to context-specific filtering for this comparison -- too many shared variables
+            for any other option.
+          </p>
+        </v-col>
       </v-row>
     </v-card-text>
   </v-card>
