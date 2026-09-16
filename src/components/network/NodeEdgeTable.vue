@@ -33,6 +33,9 @@
       <template v-slot:item.absEffectSize="{ item }">
         {{ formatNumber(item.absEffectSize) }}
       </template>
+      <template v-slot:item.description="{ item }">
+        <span class="description-cell" :title="item.description">{{ item.description || '-' }}</span>
+      </template>
     </DownloadableDataTable>
   </div>
 </template>
@@ -71,6 +74,9 @@ export default {
         { title: 'P-Value', key: 'pValue', sort: numericSort },
         { title: 'Effect Size', key: 'effectSize', sort: numericSort },
         { title: 'Abs. Effect Size', key: 'absEffectSize', sort: numericSort },
+        // Off by default -- descriptions can be long and aren't usually needed at a glance,
+        // but the columns selector lets it be added back in (and then exported) on demand.
+        { title: 'Description', key: 'description', hidden: true },
       ],
     };
   },
@@ -94,5 +100,17 @@ export default {
    dead, not just non-specific) -- see NodeRankingTable.vue's equivalent fix. */
 .node-edge-table tbody tr {
   cursor: pointer;
+}
+</style>
+
+<style scoped>
+/* Same truncate-with-tooltip treatment as NodeRankingTable's .description-cell. */
+.description-cell {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 320px;
 }
 </style>
