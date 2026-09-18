@@ -42,6 +42,9 @@
         </v-chip>
         <span v-else>{{ item.group || '-' }}</span>
       </template>
+      <template v-slot:item.description="{ item }">
+        <span class="description-cell" :title="item.description">{{ item.description || '-' }}</span>
+      </template>
       <template v-slot:header.rank="{ column }">
         <v-tooltip location="top" max-width="320">
           <template v-slot:activator="{ props }">
@@ -82,6 +85,24 @@
       </template>
       <template v-slot:item.nodeMetricRank="{ item }">
         {{ item.nodeMetricRank ?? '-' }}
+      </template>
+      <template v-slot:item.edgeMin="{ item }">
+        {{ formatNumber(item.edgeMin) }}
+      </template>
+      <template v-slot:item.edgeMax="{ item }">
+        {{ formatNumber(item.edgeMax) }}
+      </template>
+      <template v-slot:item.edgeMedian="{ item }">
+        {{ formatNumber(item.edgeMedian) }}
+      </template>
+      <template v-slot:item.edgeMean="{ item }">
+        {{ formatNumber(item.edgeMean) }}
+      </template>
+      <template v-slot:item.edgeSd="{ item }">
+        {{ formatNumber(item.edgeSd) }}
+      </template>
+      <template v-slot:item.edgePercentileMean="{ item }">
+        {{ formatNumber(item.edgePercentileMean) }}
       </template>
       <template v-slot:no-data>
         <span class="text-medium-emphasis">No node ranking available. Select a node metric to enable node ranking.</span>
@@ -167,11 +188,21 @@ export default {
       return [
         { title: 'Rank', key: 'rank', width: 90, sort: rankSort },
         { title: 'Node', key: 'id', csvValue: (item) => item.display_name || item.id },
+        { title: 'Description', key: 'description', hidden: true },
         { title: 'Group', key: 'group', width: 130 },
         { title: 'Type', key: 'type', width: 130 },
         { title: 'Score', key: 'score', sort: scoreSort },
         { title: this.nodeMetricLabel, key: 'nodeMetricValue', width: 110, sort: scoreSort },
-        { title: `${this.nodeMetricLabel} Rank`, key: 'nodeMetricRank', width: 130, sort: rankSort },
+        { title: `${this.nodeMetricLabel} Rank`, key: 'nodeMetricRank', width: 130, sort: rankSort, hidden: true },
+        // Same incident-edge stats DiffNodeDetails shows under "Incident edge statistics" --
+        // only Mean is on by default, the rest are available (and exportable) via the columns
+        // selector so the table doesn't get crowded with all six at once.
+        { title: 'Edge Mean', key: 'edgeMean', sort: scoreSort },
+        { title: 'Edge Min', key: 'edgeMin', sort: scoreSort, hidden: true },
+        { title: 'Edge Max', key: 'edgeMax', sort: scoreSort, hidden: true },
+        { title: 'Edge Median', key: 'edgeMedian', sort: scoreSort, hidden: true },
+        { title: 'Edge Std. Dev.', key: 'edgeSd', sort: scoreSort, hidden: true },
+        { title: 'Edge Mean Percentile', key: 'edgePercentileMean', sort: scoreSort, hidden: true },
       ];
     },
     nodeMetricLabel() {
@@ -239,5 +270,15 @@ export default {
 <style scoped>
 .node-rank-table :deep(tbody tr) {
   cursor: pointer;
+}
+
+/* Same truncate-with-tooltip treatment as NodeRankingTable's .description-cell. */
+.description-cell {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 320px;
 }
 </style>
