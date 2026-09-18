@@ -430,6 +430,7 @@
                       :gemini-loading="geminiLoading"
                       :enrichment-loading="enrichmentLoading"
                       :reactome-enrichment-loading="reactomeEnrichmentLoading"
+                      v-model:gprofiler-background-mode="gprofilerBackgroundMode"
                       @run-clustering="runLeidenClustering"
                       @run-community-annotation="tablesActiveTab = 'communityAnnotation'; runCommunityAnnotation();"
                       @run-gprofiler-enrichment="runProteinEnrichment(); tablesActiveTab = 'enrichment'; enrichmentTab = 'enrichment';"
@@ -909,6 +910,7 @@ export default {
       enrichmentLoading: false,
       enrichmentRan: false,
       enrichmentResults: [],
+      gprofilerBackgroundMode: 'context_subset', // 'context_subset' | 'whole_genome'
 
       // Reactome Enrichment (joint UniProt protein + ChEBI-mapped metabolite over-representation)
       reactomeEnrichmentLoading: false,
@@ -2419,6 +2421,29 @@ export default {
       }
       this.applyDesign();
     },
+    // The measurement panel (e.g. SomaLogic) isn't a random sample of the genome -- it's
+    // already enriched for certain pathways by design (secreted/immune-related proteins,
+    // say). Testing against g:Profiler's default whole-genome background would make those
+    // panel artifacts look like real enrichment in every selection. A custom background
+    // (every protein node in scope, via GetGprofilerBackgroundView) fixes that; falls back
+    // to null (g:Profiler's own default) if the background call fails, so a background-fetch
+    // hiccup degrades to the old (slightly biased but still working) behavior rather than
+    // blocking enrichment entirely.
+    async fetchGprofilerBackground() {
+      try {
+        const params = new URLSearchParams();
+        if (this.contextValue != null) params.set('c', this.contextValue);
+        const response = await fetch(`${BASE_URL}/network/api/getGprofilerBackground/?${params.toString()}`, {
+          credentials: 'include',
+        });
+        if (!response.ok) throw new Error("Background fetch was not ok");
+        const data = await response.json();
+        return data.background || null;
+      } catch (error) {
+        console.error("Error fetching g:Profiler background, falling back to its default:", error);
+        return null;
+      }
+    },
     async runProteinEnrichment() {
       if (this.selectedProteinAccessions.length === 0) return;
       this.enrichmentLoading = true;
@@ -2427,6 +2452,9 @@ export default {
       this.gprofilerSubTabDismissed = false;
       this.notifyTablesContentProduced('enrichment');
       try {
+        const background = this.gprofilerBackgroundMode === 'context_subset'
+          ? await this.fetchGprofilerBackground()
+          : null;
         const response = await fetch('https://biit.cs.ut.ee/gprofiler/api/gost/profile/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -2437,6 +2465,7 @@ export default {
             user_threshold: 1,  // no threshold
             significance_threshold_method: 'g_SCS',
             no_evidences: true,
+            ...(background && background.length ? { domain_scope: 'custom', background } : {}),
           }),
         });
         if (!response.ok) throw new Error("g:Profiler response was not ok");
@@ -2631,6 +2660,7 @@ export default {
           credentials: 'include',
           body: JSON.stringify({
             resolution: this.currentResolutionKey,
+            context: this.contextValue,
             communities: Object.fromEntries(
               communityKeys.map((key) => [key, this.groupNodesFor(key).map((node) => node.id)])
             ),

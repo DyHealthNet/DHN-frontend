@@ -187,6 +187,34 @@
       ></v-select>
       <p class="text-caption text-medium-emphasis mt-n2 mb-2">{{ enrichmentMethodDescription }}</p>
 
+      <template v-if="enrichmentMethod === 'gprofiler'">
+        <v-radio-group
+          :model-value="gprofilerBackgroundMode"
+          @update:model-value="$emit('update:gprofilerBackgroundMode', $event)"
+          density="compact"
+          class="mt-0"
+          hide-details
+        >
+          <template #label>
+            <span class="text-caption">Statistical background</span>
+          </template>
+          <v-radio value="context_subset" density="compact">
+            <template #label>
+              <span class="text-caption">This context's protein subset (recommended)</span>
+            </template>
+          </v-radio>
+          <v-radio value="whole_genome" density="compact">
+            <template #label>
+              <span class="text-caption">g:Profiler's default (whole genome)</span>
+            </template>
+          </v-radio>
+        </v-radio-group>
+        <p class="text-caption text-medium-emphasis mb-2">
+          The whole-genome background can overstate significance for pathways the measurement panel (e.g. SomaLogic)
+          is already enriched for by design, regardless of biology -- the context subset corrects for that.
+        </p>
+      </template>
+
       <template v-if="enrichmentMethod === 'reactome'">
         <p v-if="selectedMetabolitesWithoutChebiCount && !reactomeEnrichmentRan" class="text-caption text-medium-emphasis">
           {{ selectedMetabolitesWithoutChebiCount }} selected metabolite(s) have no stored ChEBI cross-reference yet -- they'll be
@@ -195,6 +223,11 @@
         <p v-if="reactomeUnmappedMetaboliteNames.length" class="text-caption text-medium-emphasis">
           {{ reactomeUnmappedMetaboliteNames.length }} selected metabolite(s) could not be mapped to a ChEBI id and were excluded:
           {{ reactomeUnmappedMetaboliteNames.join(', ') }}
+        </p>
+        <p class="text-caption text-medium-emphasis">
+          Reactome's Analysis Service always tests against its own whole-proteome background -- unlike g:Profiler above,
+          it has no option to restrict this to the measurement panel, so its p-values are more exposed to platform-enrichment
+          artifacts (e.g. a SomaLogic-favored pathway looking "significant" regardless of biology).
         </p>
       </template>
 
@@ -291,10 +324,12 @@ export default {
     geminiLoading: { type: Boolean, default: false },
     enrichmentLoading: { type: Boolean, default: false },
     reactomeEnrichmentLoading: { type: Boolean, default: false },
+    gprofilerBackgroundMode: { type: String, default: 'context_subset' }, // 'context_subset' | 'whole_genome'
   },
   emits: [
     'update:selectedAlgorithm',
     'update:leidenResolution',
+    'update:gprofilerBackgroundMode',
     'run-clustering',
     'run-community-annotation',
     'run-gprofiler-enrichment',
