@@ -350,7 +350,7 @@ export default {
           showEditInChartStudio: true,
           toImageButtonOptions: {
             filename: "lineplot",
-            format: "jpeg",
+            format: "png",
             scale: 5
 
           },

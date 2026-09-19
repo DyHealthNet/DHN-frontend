@@ -475,7 +475,7 @@ export default {
           showEditInChartStudio: true,
           toImageButtonOptions: {
             filename: "boxplot",
-            format: "jpeg",
+            format: "png",
             scale: 5
 
           },
