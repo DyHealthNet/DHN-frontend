@@ -251,7 +251,13 @@ export default {
       this.plotData = datasets.map((dataset) => {
         let y;
         if (this.cVar || this.compareMode) {
-          y = dataset.data.map(point => point.y)
+          // dataset.data is sparse: a group with no rows for a given x-category is simply
+          // omitted rather than sent as a 0-count entry (see GetDataBarCountView). Plotly
+          // pairs x/y arrays positionally, not by label, so dropping the x here and mapping
+          // straight to y would silently shift every value onto the wrong x-category as soon
+          // as one dataset is missing an entry the others have. Align by label instead.
+          const valueByLabel = new Map(dataset.data.map(point => [point.x, point.y]));
+          y = labels.map(label => valueByLabel.get(label) ?? 0);
         } else {
           y = dataset.data
         }
@@ -362,7 +368,7 @@ export default {
           showEditInChartStudio: true,
           toImageButtonOptions: {
             filename: "barplot",
-            format: "jpeg",
+            format: "png",
             scale: 5
 
           },

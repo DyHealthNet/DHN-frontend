@@ -443,7 +443,7 @@ export default {
           showEditInChartStudio: true,
           toImageButtonOptions: {
             filename: "heatmap",
-            format: "jpeg",
+            format: "png",
             scale: 5
 
           },

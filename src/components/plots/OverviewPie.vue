@@ -272,7 +272,7 @@ export default {
           showEditInChartStudio: true,
           toImageButtonOptions: {
             filename: "piechart",
-            format: "jpeg",
+            format: "png",
             scale: 5
 
           },
