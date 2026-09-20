@@ -234,24 +234,44 @@
         </v-row>
 
         <v-row class="mt-4" v-if="hasResult">
-          <v-col cols="12" md="6">
-            <NodeRankPanel
-              :items="result.points || []"
-              :selected-node="selectedPoint?.id"
-              :node-metric="result?.nodeMetric"
-              :ranking-algorithm="result?.rankingAlgorithm"
-              @select-node="selectNodeById"
-            />
-          </v-col>
-          <v-col cols="12" md="6">
-            <EdgeRankPanel
-              :items="result.edgeRanking || []"
-              :selected-edge="selectedLink ? `${selectedLink.source}_${selectedLink.target}` : null"
-              :points-by-id="pointsById"
-              :context-names="contextNames"
-              :edge-metric="result?.edgeMetric"
-              @select-edge="selectEdgeByLabels"
-            />
+          <!-- Node and edge rankings share one full-width card as tabs: both tables carry enough
+               columns (metric values, incident-edge stats) that a half-width column squeezes them. -->
+          <v-col cols="12">
+            <v-card outlined>
+              <v-tabs v-model="rankTab" bg-color="primary-darken-1" density="comfortable">
+                <v-tab value="nodes">
+                  Node Rank
+                  <v-chip size="small" color="white" variant="outlined" class="ml-2">{{ (result.points || []).length }}</v-chip>
+                </v-tab>
+                <v-tab value="edges">
+                  Edge Rank
+                  <v-chip size="small" color="white" variant="outlined" class="ml-2">{{ (result.edgeRanking || []).length }}</v-chip>
+                </v-tab>
+              </v-tabs>
+              <v-window v-model="rankTab">
+                <v-window-item value="nodes">
+                  <NodeRankPanel
+                    embedded
+                    :items="result.points || []"
+                    :selected-node="selectedPoint?.id"
+                    :node-metric="result?.nodeMetric"
+                    :ranking-algorithm="result?.rankingAlgorithm"
+                    @select-node="selectNodeById"
+                  />
+                </v-window-item>
+                <v-window-item value="edges">
+                  <EdgeRankPanel
+                    embedded
+                    :items="result.edgeRanking || []"
+                    :selected-edge="selectedLink ? `${selectedLink.source}_${selectedLink.target}` : null"
+                    :points-by-id="pointsById"
+                    :context-names="contextNames"
+                    :edge-metric="result?.edgeMetric"
+                    @select-edge="selectEdgeByLabels"
+                  />
+                </v-window-item>
+              </v-window>
+            </v-card>
           </v-col>
         </v-row>
   </v-container>
@@ -316,6 +336,9 @@ export default {
       filterOptionsRestricted: false,
 
       result: null,
+
+      // Which of the two ranking tables is showing ('nodes' | 'edges').
+      rankTab: 'nodes',
 
       // Selection is tracked by stable id (not a Cosmograph row index) -- ids
       // survive CosmographGraph's own data refreshes (Top-N changes, etc.)
