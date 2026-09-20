@@ -383,9 +383,13 @@ export default  {
   },
   async created() {
     if (this.rule) {
+      // A brand-new row is created as `rule: {}` (see ContextSetup.newInnerGroupRule), so
+      // these are all undefined there. FilterRuleValue declares selectedValue as a
+      // required String|Array|Number|Object prop, so passing undefined through trips a
+      // Vue prop type warning - keep the declared "" default instead.
       this.columnName = this.rule.column ?? "";
-      this.selectedOperator = this.rule.operator;
-      this.selectedValue = this.rule.value;
+      this.selectedOperator = this.rule.operator ?? "";
+      this.selectedValue = this.rule.value ?? "";
       // A restored rule (reopened or copied context) already has its column, but nothing
       // had ever fetched that column's real values here - updateData() is the only other
       // caller of getAvailableValues() and it doesn't run until the user edits the row.
