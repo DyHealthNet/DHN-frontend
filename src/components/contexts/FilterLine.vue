@@ -3,12 +3,41 @@
   <v-autocomplete
     v-model="columnName"
     :items="filteredColumnItems"
+    :item-title="identifier => meta(identifier).title"
     :readonly="disableSelections"
     density="compact"
     variant="outlined"
+    :menu-props="{maxWidth: 520, minWidth: 340}"
     @update:model-value="updateData"
     @update:search="onSearch"
-    ></v-autocomplete>
+    >
+    <!-- Same row layout as the network page's node dropdown and the Data Overview plot
+         selectors: type icon, "display name (id)", description underneath. Items stay
+         plain identifier strings, so the rule's saved `column` is unchanged. -->
+    <template v-slot:item="{ props: itemProps, item }">
+      <v-list-item
+          v-bind="itemProps"
+          :title="meta(item.value).title"
+          :subtitle="meta(item.value).description || undefined"
+      >
+        <template v-slot:prepend>
+          <v-img
+              v-if="meta(item.value).layer"
+              :src="getIcon(meta(item.value).layer)"
+              :alt="meta(item.value).layer"
+              width="28"
+              height="28"
+              max-width="28"
+              max-height="28"
+              class="me-3 rounded-circle flex-grow-0"
+          ></v-img>
+        </template>
+        <template v-slot:append>
+          <span class="text-caption text-medium-emphasis ms-4">{{ meta(item.value).type }}</span>
+        </template>
+      </v-list-item>
+    </template>
+    </v-autocomplete>
 </v-col>
   <v-col cols="2" class="filter-padding">
   <v-select
@@ -63,6 +92,7 @@ import {computed, toRefs} from "vue";
 import FilterRuleValue from "@/components/contexts/FilterRuleValue.vue";
 import VariableHistogram from "@/components/contexts/VariableHistogram.vue";
 import {BASE_URL} from "@/components/constants.js";
+import {getNodeIcon} from "@/components/network/networkData.js";
 
 export default  {
   name: 'FilterLine',
@@ -70,6 +100,13 @@ export default  {
   emits: ['button-clicked', 'data-changed', 'column-type'],
   props: {
     allVariables: {
+      type: Object,
+      required: false,
+      default: () => ({})
+    },
+    // identifier -> selector item, for display only (see ContextSetup's variableMeta).
+    // The rule's `column` stays the identifier string.
+    variableMeta: {
       type: Object,
       required: false,
       default: () => ({})
@@ -130,6 +167,16 @@ export default  {
     };
   },
   methods: {
+    // Display fields for one identifier; anything missing from the catalog still renders
+    // as its bare identifier rather than an empty row.
+    meta(identifier) {
+      return this.variableMeta[identifier] ?? {title: identifier};
+    },
+
+    getIcon(layer) {
+      return getNodeIcon(layer);
+    },
+
     handleClick(action) {
       if (action.action === 'delete' && this.onlyRule) {
         this.columnName = "";
@@ -156,9 +203,16 @@ export default  {
         this.prevColumnName = this.columnName;
       }
 
-      // first check if all fields are filled, if not return
+      // first check if all fields are filled, if not return.
+      // The empty multi-select ('in' with nothing picked) is its own case: it's an empty
+      // ARRAY, which is truthy and never equals "", so it slips past every other clause
+      // here. It used to be checked as `selectedValue === []`, which compares references
+      // and is therefore false for every input. Letting it through emitted a rule whose
+      // backend form is isin([]) - false for every row - so the context silently came
+      // back with zero participants instead of the row counting as unfinished.
       if (this.columnName === "" || this.selectedOperator === "" || this.selectedValue === ""
-          || !this.selectedValue || !this.columnName || !this.selectedOperator || this.selectedValue === []) {
+          || !this.selectedValue || !this.columnName || !this.selectedOperator
+          || (Array.isArray(this.selectedValue) && this.selectedValue.length === 0)) {
         return;
       }
 
@@ -175,27 +229,30 @@ export default  {
     },
 
     changeColumnType() {
-      // column Type needs to be one of value, range or category
+      // column Type needs to be one of value, range or category.
+      // possibleValues is left alone when it's empty: it's filled by getAvailableValues()
+      // with the column's real {value, label} entries, and an empty dropdown while that's
+      // in flight is far better than the placeholder lists that used to be seeded here
+      // ('a'..'k' / '0'..'10' / [0, 100]). Those were selectable and bare strings rather
+      // than {value, label} objects, so picking one wrote a value into the rule that
+      // matches nothing in the data (see OPERATORS in network/contexts/contexts.py).
       if (this.selectedOperator === 'in range') {
         this.columnType = "range";
         this.valueComponent = 'num-text';
-        if (this.possibleValues.length === 0) {
-          this.possibleValues = [0, 100] // min and max values
-        } else {
+        // Default the bounds to the column's full [min, max], but never over a value that
+        // is already a valid range - a restored rule's saved bounds have to survive
+        // getAvailableValues() having populated possibleValues before this runs.
+        const isRangePair = Array.isArray(this.selectedValue) && this.selectedValue.length === 2
+            && this.selectedValue.every(bound => bound !== null && bound !== '' && !isNaN(Number(bound)));
+        if (this.possibleValues.length > 0 && !isRangePair) {
           this.selectedValue = this.possibleValues;
         }
       } else if (this.selectedOperator === 'in') {
         this.columnType = "category";
         this.valueComponent = 'select';
-        if (this.possibleValues.length === 0) {
-        this.possibleValues = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k'];
-        }
       } else {
         this.columnType = "value";
         this.valueComponent = 'combobox';
-        if (this.possibleValues.length === 0) {
-          this.possibleValues = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
-        }
       }
       this.$emit('column-type', this.columnType);
     },
@@ -225,19 +282,31 @@ export default  {
       let url = new URL(`${BASE_URL}/context/api/singleVariableInfo`);
       url.search = new URLSearchParams({variableId: variableId}).toString();
 
-      await fetch(url, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            credentials: 'include',
-          })
-          .then(response => response.json())
-          .then(data => {
-            this.possibleValues = data.result;
-            console.log(data);
-            this.getHistogramData(data.distribution, data.type);
-          })
+      // Failures leave possibleValues empty (an empty dropdown) rather than throwing -
+      // created() awaits this now, and a failed lookup shouldn't take the whole rule row
+      // down with it.
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          throw new Error(`Variable info request failed with ${response.status}`);
+        }
+
+        const data = await response.json();
+        this.possibleValues = data.result ?? [];
+        if (data.distribution) {
+          this.getHistogramData(data.distribution, data.type);
+        }
+      } catch (error) {
+        console.error("Could not load values for", variableId, error);
+        this.possibleValues = [];
+      }
     }
   },
   computed:{
@@ -270,9 +339,16 @@ export default  {
       if (!this.searchQuery) {
         return this.columnItems.slice(0, 100);
       }
-      return this.columnItems.filter(item =>
-        item.toLowerCase().includes(this.searchQuery.toLowerCase())
-      );
+      const needle = this.searchQuery.toLowerCase();
+      // Matches the same three fields the network page's node typeahead searches
+      // server-side (id, display name, description), plus the raw identifier so a
+      // variable without catalog metadata is still findable.
+      return this.columnItems.filter(identifier => {
+        const variable = this.variableMeta[identifier];
+        return [identifier, variable?.id, variable?.displayName, variable?.description].some(
+          field => field && String(field).toLowerCase().includes(needle)
+        );
+      });
     },
   },
   setup(props) {
@@ -293,11 +369,20 @@ export default  {
 
   return { columnItems, reverseAllVariables };
   },
-  created() {
+  async created() {
     if (this.rule) {
-      this.columnName = this.rule.column;
+      this.columnName = this.rule.column ?? "";
       this.selectedOperator = this.rule.operator;
       this.selectedValue = this.rule.value;
+      // A restored rule (reopened or copied context) already has its column, but nothing
+      // had ever fetched that column's real values here - updateData() is the only other
+      // caller of getAvailableValues() and it doesn't run until the user edits the row.
+      // Without this the value dropdown opened on placeholder data. prevColumnName is set
+      // so the first updateData() doesn't refetch what we just loaded.
+      if (this.columnName) {
+        this.prevColumnName = this.columnName;
+        await this.getAvailableValues();
+      }
       this.changeColumnType();
     }
   }

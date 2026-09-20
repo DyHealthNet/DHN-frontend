@@ -186,6 +186,7 @@
             <v-row class="my-1">
               <FilterLine
                   :all-variables="allVariablesForRules"
+                  :variable-meta="variableMeta"
                   :connection="innerConnection"
                   :only-rule="(outerRows.length + innerRows.length) === 2"
                   :disable-selections="disableSelections"
