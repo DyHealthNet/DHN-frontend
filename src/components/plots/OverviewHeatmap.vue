@@ -444,8 +444,13 @@ export default {
           toImageButtonOptions: {
             filename: "heatmap",
             format: "png",
-            scale: 5
-
+            scale: 5,
+            // Without explicit dimensions here, Plotly falls back to its internal
+            // _fullLayout state at export time, which can drift from what's actually
+            // rendered (responsive resizing, automargin) and clip the colorbar out of
+            // the exported canvas even though it's visible on screen.
+            width: this.width,
+            height: this.height,
           },
           plotlyServerURL: "https://chart-studio.plotly.com"
         }).then((plot) => {
