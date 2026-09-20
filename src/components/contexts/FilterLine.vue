@@ -336,19 +336,31 @@ export default  {
     },
 
     filteredColumnItems() {
+      let items;
       if (!this.searchQuery) {
-        return this.columnItems.slice(0, 100);
+        items = this.columnItems.slice(0, 100);
+      } else {
+        const needle = this.searchQuery.toLowerCase();
+        // Matches the same three fields the network page's node typeahead searches
+        // server-side (id, display name, description), plus the raw identifier so a
+        // variable without catalog metadata is still findable.
+        items = this.columnItems.filter(identifier => {
+          const variable = this.variableMeta[identifier];
+          return [identifier, variable?.id, variable?.displayName, variable?.description].some(
+            field => field && String(field).toLowerCase().includes(needle)
+          );
+        });
       }
-      const needle = this.searchQuery.toLowerCase();
-      // Matches the same three fields the network page's node typeahead searches
-      // server-side (id, display name, description), plus the raw identifier so a
-      // variable without catalog metadata is still findable.
-      return this.columnItems.filter(identifier => {
-        const variable = this.variableMeta[identifier];
-        return [identifier, variable?.id, variable?.displayName, variable?.description].some(
-          field => field && String(field).toLowerCase().includes(needle)
-        );
-      });
+
+      // Whatever is currently selected has to stay in `items`, even when the 100-item cap
+      // or the active search would drop it. Vuetify only applies item-title (and the #item
+      // slot) to values it can find here - for anything else it renders the raw model
+      // value, which for a restored rule means the bare identifier, i.e. the old
+      // "description (id)" look with no icon or type.
+      if (this.columnName && !items.includes(this.columnName)) {
+        return [this.columnName, ...items];
+      }
+      return items;
     },
   },
   setup(props) {
