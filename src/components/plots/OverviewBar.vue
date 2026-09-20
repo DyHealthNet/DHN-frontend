@@ -56,6 +56,18 @@ export default {
       type: String,
       required: true,
     },
+    // Optional second categorical variable: each x tick then stands for one combination of
+    // xVar and xVar2 (e.g. "female" over a line break over "underweight"), see GetDataBarCountView.
+    xVar2: {
+      type: String,
+      default: null,
+    },
+    // Optional display label for the x axis title (xVar/xVar2 are raw variable ids used for the
+    // query) -- defaults to xVar, so callers that don't pass it see exactly what they did before.
+    xLabel: {
+      type: String,
+      default: null,
+    },
     cVar: {
       type: String,
       required: false,
@@ -120,6 +132,7 @@ export default {
 
   watch: {
     xVar: "fetchAndUpdateChart",
+    xVar2: "fetchAndUpdateChart",
     cVar: "fetchAndUpdateChart",
     contextValue: "fetchAndUpdateChart",
     "context1.contextValue": "fetchAndUpdateChart",
@@ -204,6 +217,9 @@ export default {
       try {
         const url = new URL("/plotting/api/plotDataBarCount/", BASE_URL);
         url.searchParams.append("x", this.xVar);
+        if (this.xVar2) {
+          url.searchParams.append("x2", this.xVar2);
+        }
         if (this.compareMode) {
           url.searchParams.append("contextValue1", String(this.context1.contextValue));
           url.searchParams.append("contextValue2", String(this.context2.contextValue));
@@ -298,7 +314,7 @@ export default {
           barmode: this.barType === "Stacked" ? "stack" : "group",
           xaxis: {
             title: {
-              text: this.xVar,
+              text: this.xLabel || this.xVar,
               font: {
                 size: this.textSize,
                 color: this.labelColor(),

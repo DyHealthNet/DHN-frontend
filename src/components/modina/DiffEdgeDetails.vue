@@ -51,19 +51,7 @@
     <template v-if="context1 && context2">
       <p class="label-subtitle mt-4">Relationship between contexts</p>
       <div v-if="relationshipPlot" class="relationship-plot">
-        <component
-          :is="relationshipPlot"
-          :xVar="relationshipXVar"
-          :yVar="relationshipYVar"
-          :xLabel="relationshipXLabel"
-          :yLabel="relationshipYLabel"
-          :context1="context1"
-          :context2="context2"
-          :textSize="13"
-          :width="plotWidth"
-          :height="280"
-          v-bind="relationshipPlotProps"
-        />
+        <component :is="relationshipPlot" v-bind="relationshipPlotBindings" />
       </div>
       <p v-else class="text-medium-emphasis text-body-2">
         Variable types for this edge's nodes aren't available, so a relationship plot can't be chosen.
@@ -76,7 +64,7 @@
 
 <script>
 import OverviewBox from '@/components/plots/OverviewBox.vue';
-import OverviewHeatmap from '@/components/plots/OverviewHeatmap.vue';
+import OverviewBar from '@/components/plots/OverviewBar.vue';
 import OverviewLine from '@/components/plots/OverviewLine.vue';
 import EdgeNodesTable from '@/components/network/EdgeNodesTable.vue';
 import { EDGE_METRIC_INFO, metricLabel } from './metricInfo.js';
@@ -84,7 +72,7 @@ import { capitalizeFirstLetter } from '@/components/network/networkData.js';
 
 export default {
   name: 'DiffEdgeDetails',
-  components: { OverviewBox, OverviewHeatmap, OverviewLine, EdgeNodesTable },
+  components: { OverviewBar, OverviewBox, OverviewLine, EdgeNodesTable },
   props: {
     edge: {
       type: Object,
@@ -196,16 +184,17 @@ export default {
     // Picks the plot whose backend endpoint actually matches both endpoints' data types --
     // continuous x continuous only exists as an overlaid aggregated trend line (no raw
     // scatter, to avoid exposing per-participant values), categorical x categorical as a
-    // proportion-difference heatmap, and continuous x categorical as a context-grouped box
-    // plot (which requires the categorical var as x). All three are the same components used
-    // elsewhere in the app (src/components/plots/), just with both context1 and context2 set,
-    // which switches them into their two-context comparison mode.
+    // context-grouped bar plot with one x tick per category combination (e.g. "female" over
+    // "underweight"), and continuous x categorical as a context-grouped box plot (which
+    // requires the categorical var as x). All three are the same components used elsewhere in
+    // the app (src/components/plots/), just with both context1 and context2 set, which
+    // switches them into their two-context comparison mode.
     relationshipPlot() {
       if (!this.sourceType || !this.targetType) return null;
       const sourceContinuous = this.sourceType === 'continuous';
       const targetContinuous = this.targetType === 'continuous';
       if (sourceContinuous && targetContinuous) return 'OverviewLine';
-      if (!sourceContinuous && !targetContinuous) return 'OverviewHeatmap';
+      if (!sourceContinuous && !targetContinuous) return 'OverviewBar';
       return 'OverviewBox';
     },
     // For the box plot, x must be the categorical variable and y the continuous one; for the
@@ -221,25 +210,43 @@ export default {
     },
     // Same swap as relationshipXVar/relationshipYVar, but the display labels (falls back to
     // the raw id itself if a point has no display_name) instead of the raw id used for the
-    // query -- OverviewBox/Heatmap/Line show these on the axis titles instead of the id.
+    // query -- OverviewBox/Bar/Line show these on the axis titles instead of the id.
     relationshipXLabel() {
       return this.relationshipSwapped ? this.targetLabel : this.sourceLabel;
     },
     relationshipYLabel() {
       return this.relationshipSwapped ? this.sourceLabel : this.targetLabel;
     },
-    // OverviewHeatmap requires showValues; OverviewBox/OverviewLine don't declare it (so
-    // passing it there would just fall through as a stray DOM attribute) -- keep it scoped
-    // to the plot that actually uses it instead of passing every prop to every plot type.
-    // palette matches data-overview.vue's own defaults (userSelectedPaletteCa/Co) for the
-    // same plot types, so these read consistently with the rest of the app -- 'coolwarm' for
-    // the heatmap is its own default fallback too, set explicitly here rather than relying on
-    // that, since it's the diverging variant a plain 'Viridis' match would defeat the point
-    // of (this data is a signed difference, not a count).
-    relationshipPlotProps() {
-      return this.relationshipPlot === 'OverviewHeatmap'
-        ? { showValues: 'No', palette: 'coolwarm' }
-        : { palette: 'muted' };
+    // Each plot type declares different props (the bar plot has xVar2/xLabel/barType instead of
+    // yVar/yLabel), so the bindings are spelled out per plot rather than passing every prop to
+    // every plot -- otherwise the undeclared ones would fall through as stray DOM attributes.
+    // palette 'muted' matches data-overview.vue's own defaults for these plot types.
+    relationshipPlotBindings() {
+      const common = {
+        context1: this.context1,
+        context2: this.context2,
+        palette: 'muted',
+        textSize: 13,
+        width: this.plotWidth,
+        height: 280,
+      };
+      if (this.relationshipPlot === 'OverviewBar') {
+        return {
+          ...common,
+          xVar: this.edge?.source,
+          xVar2: this.edge?.target,
+          xLabel: `${this.sourceLabel} / ${this.targetLabel}`,
+          barType: 'Grouped',
+          barOrientation: 'Vertical',
+        };
+      }
+      return {
+        ...common,
+        xVar: this.relationshipXVar,
+        yVar: this.relationshipYVar,
+        xLabel: this.relationshipXLabel,
+        yLabel: this.relationshipYLabel,
+      };
     },
   },
   methods: {

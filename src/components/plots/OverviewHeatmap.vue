@@ -46,19 +46,6 @@ import {getCookie} from "@/components/authentication/auth.js";
 import Plotly from "plotly.js-dist";
 import {BASE_URL, setLoadingState, loadingStates} from "@/components/constants.js";
 
-// Plotly's built-in named colorscales don't include matplotlib's "coolwarm" (a softer,
-// less saturated diverging map than the harsher built-in 'RdBu'), so it's supplied as an
-// explicit set of stops -- matplotlib's own well-known coolwarm control points.
-const COOLWARM_COLORSCALE = [
-  [0, '#3B4CC0'],
-  [0.167, '#6F92F3'],
-  [0.333, '#A8C6FC'],
-  [0.5, '#F2EBE9'],
-  [0.667, '#F5A889'],
-  [0.833, '#DB6151'],
-  [1, '#B40426'],
-];
-
 export default {
   name: "OverviewHeatmap",
   components: {},
@@ -83,20 +70,8 @@ export default {
       type: String,
       default: null,
     },
-    // Required unless context1+context2 (below) are both given instead.
     contextValue: {
       type: [Number, null],
-      default: null,
-    },
-    // Optional two-context comparison mode: when both are set, contextValue is ignored and
-    // the backend instead returns a proportion-difference grid between the two contexts
-    // (see GetDataHeatmapView) -- rendered here with a diverging, zero-centered colorscale.
-    context1: {
-      type: Object,
-      default: null,
-    },
-    context2: {
-      type: Object,
       default: null,
     },
     palette: {
@@ -161,15 +136,6 @@ export default {
     showLoadingHeatmap() {
       return loadingStates.value.isLoadingHeatmap; // Directly reactive to `loadingStates`
     },
-    diverging() {
-      return !!(this.context1 && this.context2);
-    },
-    differenceTitle() {
-      if (!this.diverging) return "";
-      const name1 = this.context1?.contextName || "Context 1";
-      const name2 = this.context2?.contextName || "Context 2";
-      return `Difference of values, calculated as ${name1} − ${name2}`;
-    },
     // Bundles every prop that should trigger a re-fetch into one reactive value, so the
     // watcher below fires once per batch of prop changes instead of once per individual prop.
     fetchDeps() {
@@ -177,8 +143,6 @@ export default {
         this.xVar,
         this.yVar,
         this.contextValue,
-        this.context1?.contextValue,
-        this.context2?.contextValue,
         this.palette,
         this.textSize,
         this.showValues,
@@ -249,10 +213,7 @@ export default {
         const url = new URL("/plotting/api/plotDataHeatmap/", BASE_URL);
         url.searchParams.append("x", this.xVar);
         url.searchParams.append("y", this.yVar);
-        if (this.diverging) {
-          url.searchParams.append("contextValue1", String(this.context1.contextValue));
-          url.searchParams.append("contextValue2", String(this.context2.contextValue));
-        } else if (this.contextValue) {
+        if (this.contextValue) {
           url.searchParams.append("contextValue", String(this.contextValue));
         }
         // TODO: remove palette function in backend
@@ -316,7 +277,7 @@ export default {
         type: "heatmap",
         colorbar: {
           title: {
-            text: this.diverging ? "Difference" : "Count",
+            text: "Count",
             font: {
               size: this.textSize,
               color: this.labelColor(),
@@ -329,22 +290,7 @@ export default {
         },
         hoverongaps: false
       };
-      if (this.diverging) {
-        // Zero-centered diverging scale so "no difference" reads as the neutral midpoint
-        // color rather than whatever a sequential palette's low end happens to be. Still
-        // goes through the same palette prop as every other plot (coolwarm here is just the
-        // fallback if the caller doesn't pass one), not a hardcoded choice -- 'coolwarm'
-        // resolves to the custom stops above since Plotly has no built-in by that name;
-        // any actual Plotly built-in name (e.g. 'RdBu') still passes through untouched.
-        const maxAbs = Math.max(0.01, ...z.flat().map((v) => Math.abs(v)));
-        const palette = this.palette || "coolwarm";
-        trace.colorscale = palette === "coolwarm" ? COOLWARM_COLORSCALE : palette;
-        trace.zmid = 0;
-        trace.zmin = -maxAbs;
-        trace.zmax = maxAbs;
-      } else {
-        trace.colorscale = this.palette;
-      }
+      trace.colorscale = this.palette;
       this.plotData = [trace];
 
       console.log("plotData: ", this.plotData);
@@ -361,7 +307,7 @@ export default {
         this.plotLayout = {
           annotations: this.showValues === "Yes" ? this.annotations : [],
           title: {
-            text: this.differenceTitle,
+            text: "",
             // Plotly centers titles by default (x: 0.5), which clips the start of a title
             // wider than the plot area since it then overflows equally on both sides --
             // left-anchoring it at the plot's left edge keeps the full text visible instead.
