@@ -1,7 +1,9 @@
 <template>
-  <v-card outlined>
-    <v-toolbar color="primary-darken-1" density="compact">
-      <v-toolbar-title>
+  <v-card :outlined="!embedded" :flat="embedded">
+    <!-- embedded: the parent already supplies the header (a tab label with the row count), so the
+         toolbar keeps only the search field and drops its own title/background. -->
+    <v-toolbar :color="embedded ? 'surface' : 'primary-darken-1'" density="compact">
+      <v-toolbar-title v-if="!embedded">
         Edge Rank
         <v-chip size="small" color="white" variant="outlined" class="ml-2">{{ items.length }}</v-chip>
       </v-toolbar-title>
@@ -96,6 +98,11 @@ export default {
       default: () => [],
     },
     loading: {
+      type: Boolean,
+      default: false,
+    },
+    // Rendered inside another card (the ranking tabs) rather than standing on its own.
+    embedded: {
       type: Boolean,
       default: false,
     },
