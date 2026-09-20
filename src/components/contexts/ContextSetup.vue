@@ -61,6 +61,7 @@
                   :items="allVariablesGlobalFlat"
                   :variable-layers="variableLayers"
                   :variable-sub-layers="variableSubLayers"
+                  :variable-meta="variableMeta"
                   :model-value="selectedVariables"
                   :disable-selections="disableSelections"
                   @update:model-value="updateSelectedVariables"
@@ -123,6 +124,7 @@
                 :items="selectedVariables"
                 :variable-layers="variableLayers"
                 :variable-sub-layers="variableSubLayers"
+                :variable-meta="variableMeta"
                 :model-value="missingnessVariables"
                 :disable-selections="disableSelections"
                 @update:model-value="updateMissingnessVariables"
@@ -358,6 +360,7 @@ import {v4 as uuidv4} from 'uuid';
 import { getCookie } from "@/components/authentication/auth.js";
 import { contextState } from '@/components/contexts/contextStatus.js';
 import {clearNetworkState} from "@/components/network/networkData.js";
+import {fetchVariableCatalog, toSelectorItem} from "@/components/plots/variableCatalog.js";
 
 
 export default {
@@ -582,6 +585,10 @@ export default {
       variableLayers: {},
       layerSubLayers: {},
       variableSubLayers: {},
+      // identifier -> selector item (display name, id, description, layer, stat type),
+      // used purely for rendering the variable dropdowns - the selection itself stays a
+      // list of identifiers.
+      variableMeta: {},
 
       allVariables: {},
       // Identifiers of the variables selected to be part of this context's calculation.
@@ -718,20 +725,34 @@ export default {
     },
 
     async fetchVariables() {
-      await fetch(`${BASE_URL}/general/api/variables`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': getCookie("csrftoken")
-        },
-        credentials: 'include',
-      })
-          .then(response => response.json())
+      // Same catalog the Data Overview page's table and plot selectors use, so a variable
+      // reads identically everywhere. It carries per-variable rows rather than the
+      // identifier->layer/subgroup maps the old /general/api/variables/ response provided,
+      // so those are rebuilt here - one pass, and the result is byte-identical to what
+      // that endpoint returned. The stat-type groups (and therefore everything downstream,
+      // including the saved context payload) stay flat identifier lists.
+      await fetchVariableCatalog()
           .then(data => {
-            const { variableLayers, availableLayers, variableSubLayers, layerSubLayers, ...statTypeGroups } = data;
+            const { variables, availableLayers, layerSubLayers } = data;
+
+            const statTypeGroups = {binaryCategorical: [], continuous: [], nonbinaryCategorical: []};
+            const variableLayers = {};
+            const variableSubLayers = {};
+            const variableMeta = {};
+
+            for (const variable of variables ?? []) {
+              (statTypeGroups[variable.group] ??= []).push(variable.identifier);
+              variableLayers[variable.identifier] = variable.layer;
+              if (variable.subgroup) {
+                variableSubLayers[variable.identifier] = variable.subgroup;
+              }
+              variableMeta[variable.identifier] = toSelectorItem(variable);
+            }
+
             this.allVariables = statTypeGroups;
-            this.variableLayers = variableLayers ?? {};
-            this.variableSubLayers = variableSubLayers ?? {};
+            this.variableLayers = variableLayers;
+            this.variableSubLayers = variableSubLayers;
+            this.variableMeta = variableMeta;
             this.layerSubLayers = layerSubLayers ?? {};
             this.layers = (availableLayers ?? []).map(
               layer => layer.charAt(0).toUpperCase() + layer.slice(1)

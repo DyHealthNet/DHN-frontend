@@ -40,6 +40,7 @@
         <v-card-text>
           <VariableSelector
               :items="modalPool"
+              :variable-meta="variableMeta"
               :model-value="modalWorking"
               @update:model-value="modalWorking = $event"
           ></VariableSelector>
@@ -73,6 +74,12 @@ export default {
       default: () => ({}),
     },
     variableSubLayers: {
+      type: Object,
+      default: () => ({}),
+    },
+    // identifier -> selector item, passed straight through to VariableSelector for
+    // display only (see ContextSetup's variableMeta).
+    variableMeta: {
       type: Object,
       default: () => ({}),
     },

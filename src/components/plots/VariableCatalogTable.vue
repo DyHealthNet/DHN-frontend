@@ -65,9 +65,8 @@
 </template>
 
 <script>
-import {getCookie} from "@/components/authentication/auth.js";
-import {BASE_URL} from "@/components/constants.js";
 import DownloadableDataTable from "@/components/DownloadableDataTable.vue";
+import {PLOT_TYPES, TYPE_LABELS, fetchVariableCatalog} from "@/components/plots/variableCatalog.js";
 
 export default {
   name: "VariableCatalogTable",
@@ -115,9 +114,6 @@ export default {
       return this.catalog?.availableLayers || [];
     },
     allItems() {
-      const TYPE_LABELS = {continuous: 'Continuous', binaryCategorical: 'Binary', nonbinaryCategorical: 'Categorical'};
-      const PLOT_TYPES = {continuous: 'Density', binaryCategorical: 'Bar', nonbinaryCategorical: 'Bar'};
-
       return (this.catalog?.variables || []).map((variable) => ({
         identifier: variable.identifier,
         id: variable.id,
@@ -146,27 +142,7 @@ export default {
     async fetchVariables() {
       this.loading = true;
       try {
-        const csrfToken = getCookie('csrftoken');
-        let url = `${BASE_URL}/plotting/api/variableCatalog/`;
-
-        if (this.contextValue) {
-          url += `?contextValue=${encodeURIComponent(this.contextValue)}`;
-        }
-
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken
-          },
-          credentials: 'include',
-        });
-
-        if (!response.ok) {
-          throw new Error("Network response was not ok");
-        }
-
-        this.catalog = await response.json();
+        this.catalog = await fetchVariableCatalog(this.contextValue);
 
         if (!this.activeGroup || !this.groups.includes(this.activeGroup)) {
           this.activeGroup = this.groups[0] || null;

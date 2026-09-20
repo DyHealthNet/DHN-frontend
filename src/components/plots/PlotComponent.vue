@@ -123,16 +123,13 @@
                 <!--Select X variable-->
                 <v-tooltip location="top" open-on-hover>
                   <template v-slot:activator="{ props }">
-                    <v-autocomplete
+                    <VariableAutocomplete
                         v-model="selectedXVariable"
-                        clearable
-                        variant="outlined"
-                        density="compact"
                         label="X Variable"
                         :items="xItems"
                         :class="getAutoCompleteStyleX"
                         v-bind="props"
-                    ></v-autocomplete>
+                    ></VariableAutocomplete>
                   </template>
                   <span>{{ selectedXVarType }} Variable </span>
                 </v-tooltip>
@@ -140,17 +137,14 @@
                 <!--Select Y variable-->
                 <v-tooltip location="top" open-on-hover>
                   <template v-slot:activator="{ props }">
-                    <v-autocomplete
+                    <VariableAutocomplete
                         v-if="showYVariable"
                         v-model="selectedYVariable"
-                        clearable
-                        variant="outlined"
-                        density="compact"
                         label="Y Variable"
                         :items="yItems"
                         :class="getAutoCompleteStyleY"
                         v-bind="props"
-                    ></v-autocomplete>
+                    ></VariableAutocomplete>
                   </template>
                   <span>{{ selectedYVarType }} Variable </span>
                 </v-tooltip>
@@ -158,17 +152,14 @@
                 <!--Select color variable-->
                 <v-tooltip location="top" open-on-hover>
                   <template v-slot:activator="{ props }">
-                    <v-autocomplete
+                    <VariableAutocomplete
                         v-if="showCVariable"
                         v-model="selectedCVariable"
-                        clearable
-                        variant="outlined"
-                        density="compact"
                         label="Color Variable"
                         :items="cItems"
                         class="variable-field"
                         v-bind="props"
-                    ></v-autocomplete>
+                    ></VariableAutocomplete>
                   </template>
                   <span>{{ selectedCVarType }} Variable </span>
                 </v-tooltip>
@@ -263,14 +254,14 @@
 
 <script>
 
-import {getCookie} from "@/components/authentication/auth.js";
-import {BASE_URL} from "@/components/constants.js";
 import OverviewBar from "@/components/plots/OverviewBar.vue";
 import OverviewBox from "@/components/plots/OverviewBox.vue";
 import OverviewLine from "@/components/plots/OverviewLine.vue";
 import OverviewHeatmap from "@/components/plots/OverviewHeatmap.vue";
 import OverviewPie from "@/components/plots/OverviewPie.vue";
 import OverviewDensity from "@/components/plots/OverviewDensity.vue";
+import VariableAutocomplete from "@/components/plots/VariableAutocomplete.vue";
+import {buildSelectorItems, fetchVariableCatalog} from "@/components/plots/variableCatalog.js";
 import Plotly from "plotly.js-dist";
 
 export default {
@@ -281,7 +272,8 @@ export default {
     OverviewLine,
     OverviewHeatmap,
     OverviewPie,
-    OverviewDensity
+    OverviewDensity,
+    VariableAutocomplete
   },
   emits: ['remove'],
   props: {
@@ -322,6 +314,7 @@ export default {
       },
       defaultChart: true,
 
+      catalog: null,
       xItems: [],
       yItems: [],
       cItems: [],
@@ -421,9 +414,9 @@ export default {
       await this.getAllVariables();
       this.loadVariablesToAutoComplete();
 
-      const validX = new Set(this.xItems);
-      const validY = new Set(this.yItems);
-      const validC = new Set(this.cItems);
+      const validX = new Set(this.xItems.map((item) => item.value));
+      const validY = new Set(this.yItems.map((item) => item.value));
+      const validC = new Set(this.cItems.map((item) => item.value));
       const xStillValid = !this.selectedXVariable || validX.has(this.selectedXVariable);
       const yStillValid = !this.selectedYVariable || validY.has(this.selectedYVariable);
       const cStillValid = !this.selectedCVariable || validC.has(this.selectedCVariable);
@@ -539,73 +532,23 @@ export default {
     },
 
     async getAllVariables() {
-      const csrfToken = getCookie('csrftoken');
-      const contextValue = this.contextValue;
-      let url = `${BASE_URL}/general/api/variables/`;
-
-      if (contextValue) {
-        url += `?contextValue=${encodeURIComponent(contextValue)}`;
+      try {
+        // Same catalog the Variable Overview table is built from, so a variable reads
+        // identically in both places; shared/deduplicated across every PlotComponent on
+        // the page (see variableCatalog.js).
+        this.catalog = await fetchVariableCatalog(this.contextValue);
+      } catch (error) {
+        console.error("Error fetching variable catalog:", error);
+        this.catalog = null;
       }
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken
-        },
-        credentials: 'include',
-      });
-
-      const data = await response.json();
-
-      this.allVariables = data;
-
-      console.log("Fetched all variables");
-      console.log("All variables: ", this.allVariables);
-      return data;
+      return this.catalog;
     },
 
     loadVariablesToAutoComplete() {
-      try {
-        // check which plotType selected, then take extract xVarType, yVarType, and cVarType
-        const xVarType = this.xVarTypes[this.selectedPlotType];
-        const yVarType = this.yVarTypes[this.selectedPlotType];
-        const cVarType = this.cVarTypes[this.selectedPlotType];
-
-        //console.log("xVarType: ", xVarType);
-        //console.log("yVarType: ", yVarType);
-        //console.log("cVarType: ", cVarType);
-
-        // Load x variables
-        if (xVarType === "Continuous") {
-          this.xItems = this.allVariables.continuous;
-        } else if (xVarType === "Categorical") {
-          this.xItems = this.allVariables.nonbinaryCategorical.concat(this.allVariables.binaryCategorical);
-        } else if (xVarType === "Categorical/Continuous") {
-          this.xItems = this.allVariables.nonbinaryCategorical.concat(this.allVariables.binaryCategorical).concat(this.allVariables.continuous);
-        }
-
-        // Load y variables
-        if (yVarType === "Continuous") {
-          this.yItems = this.allVariables.continuous;
-        } else if (yVarType === "Categorical") {
-          this.yItems = this.allVariables.nonbinaryCategorical.concat(this.allVariables.binaryCategorical);
-        }
-
-        // Load c variables
-        if (cVarType === "Continuous") {
-          this.cItems = this.allVariables.continuous;
-        } else if (cVarType === "Categorical") {
-          this.cItems = this.allVariables.nonbinaryCategorical.concat(this.allVariables.binaryCategorical);
-        }
-
-        console.log("X Items: ", this.xItems);
-        console.log("Y Items: ", this.yItems);
-        console.log("C Items: ", this.cItems);
-
-      } catch (error) {
-        console.log("Error in loadVariablesToAutoComplete: ", error);
-      }
+      // check which plotType selected, then extract xVarType, yVarType, and cVarType
+      this.xItems = buildSelectorItems(this.catalog, this.xVarTypes[this.selectedPlotType]);
+      this.yItems = buildSelectorItems(this.catalog, this.yVarTypes[this.selectedPlotType]);
+      this.cItems = buildSelectorItems(this.catalog, this.cVarTypes[this.selectedPlotType]);
     },
 
     // Clears this cell back to its empty "+" placeholder and lets the parent grid know, so
