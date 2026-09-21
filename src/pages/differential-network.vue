@@ -248,8 +248,15 @@
                   <v-chip size="small" color="white" variant="outlined" class="ml-2">{{ (result.edgeRanking || []).length }}</v-chip>
                 </v-tab>
               </v-tabs>
+              <!-- eager + no transition: v-window-item is lazy by default, so the edge table
+                   (up to millions of rows on big contexts) would otherwise mount inside the tab
+                   click -- v-data-table materializes and sorts every row synchronously, freezing
+                   the page for as long as that takes. Mounting both up front puts that cost back
+                   where the old side-by-side layout paid it: once, with the result. The slide
+                   transition is dropped for the same reason -- it measures the item's height
+                   mid-animation, so it interleaves forced layout with that work. -->
               <v-window v-model="rankTab">
-                <v-window-item value="nodes">
+                <v-window-item value="nodes" eager :transition="false" :reverse-transition="false">
                   <NodeRankPanel
                     embedded
                     :items="result.points || []"
@@ -259,7 +266,7 @@
                     @select-node="selectNodeById"
                   />
                 </v-window-item>
-                <v-window-item value="edges">
+                <v-window-item value="edges" eager :transition="false" :reverse-transition="false">
                   <EdgeRankPanel
                     embedded
                     :items="result.edgeRanking || []"
