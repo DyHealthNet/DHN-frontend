@@ -12,146 +12,173 @@
       :icon-url="getIcon ? getIcon(node.group) : ''"
     />
 
-    <p class="label-subtitle mt-4">Ranking</p>
-    <v-table density="compact">
-      <tbody>
-        <tr v-if="node.rank != null" class="font-weight-bold">
-          <td class="label font-weight-bold">Rank{{ rankingAlgorithmLabel ? ` (${rankingAlgorithmLabel})` : '' }}</td>
-          <td class="value font-weight-bold">{{ node.rank }}</td>
-        </tr>
-        <tr v-if="node.score != null" class="font-weight-bold">
-          <td class="label font-weight-bold">Ranking score</td>
-          <td class="value font-weight-bold">{{ formatNumber(node.score) }}</td>
-        </tr>
-        <tr v-if="node.nodeMetricRank != null">
-          <td class="label">{{ nodeMetricLabel }} Rank</td>
-          <td class="value">{{ node.nodeMetricRank }}</td>
-        </tr>
-        <tr v-if="node.nodeMetricValue != null">
-          <td class="label">{{ nodeMetricLabel }} value</td>
-          <td class="value">{{ formatNumber(node.nodeMetricValue) }}</td>
-        </tr>
-      </tbody>
-    </v-table>
+    <!-- The identity card stays above the tabs: whichever tab is open, it has to stay obvious
+         which node the numbers belong to. The tab itself is not reset when the selection
+         changes, so clicking through the neighbour table keeps walking from neighbour to
+         neighbour without having to reopen that tab each time. -->
+    <v-tabs v-model="tab" density="compact" color="primary-darken-1" class="mt-2">
+      <v-tab value="details">Details</v-tab>
+      <v-tab value="neighbours">Neighbours</v-tab>
+      <v-tab value="distribution">Distribution</v-tab>
+    </v-tabs>
+    <v-window v-model="tab" class="mt-2">
+      <v-window-item value="details" :transition="false" :reverse-transition="false">
+        <p class="label-subtitle">Ranking</p>
+        <v-table density="compact">
+          <tbody>
+            <tr v-if="node.rank != null" class="font-weight-bold">
+              <td class="label font-weight-bold">Rank{{ rankingAlgorithmLabel ? ` (${rankingAlgorithmLabel})` : '' }}</td>
+              <td class="value font-weight-bold">{{ node.rank }}</td>
+            </tr>
+            <tr v-if="node.score != null" class="font-weight-bold">
+              <td class="label font-weight-bold">Ranking score</td>
+              <td class="value font-weight-bold">{{ formatNumber(node.score) }}</td>
+            </tr>
+            <tr v-if="node.nodeMetricRank != null">
+              <td class="label">{{ nodeMetricLabel }} Rank</td>
+              <td class="value">{{ node.nodeMetricRank }}</td>
+            </tr>
+            <tr v-if="node.nodeMetricValue != null">
+              <td class="label">{{ nodeMetricLabel }} value</td>
+              <td class="value">{{ formatNumber(node.nodeMetricValue) }}</td>
+            </tr>
+          </tbody>
+        </v-table>
 
-    <p class="label-subtitle mt-4">Incident edge statistics</p>
-    <v-table density="compact" v-if="hasEdgeStats">
-      <tbody>
-        <tr v-if="node.edgeMin != null"><td class="label">Min</td><td class="value">{{ formatNumber(node.edgeMin) }}</td></tr>
-        <tr v-if="node.edgeMax != null"><td class="label">Max</td><td class="value">{{ formatNumber(node.edgeMax) }}</td></tr>
-        <tr v-if="node.edgeMedian != null"><td class="label">Median</td><td class="value">{{ formatNumber(node.edgeMedian) }}</td></tr>
-        <tr v-if="node.edgeMean != null"><td class="label">Mean</td><td class="value">{{ formatNumber(node.edgeMean) }}</td></tr>
-        <tr v-if="node.edgeSd != null"><td class="label">Std. dev.</td><td class="value">{{ formatNumber(node.edgeSd) }}</td></tr>
-        <tr v-if="node.edgePercentileMean != null"><td class="label">Mean percentile rank</td><td class="value">{{ formatNumber(node.edgePercentileMean) }}</td></tr>
-      </tbody>
-    </v-table>
-    <p v-else class="text-medium-emphasis text-body-2">No edge available.</p>
+        <p class="label-subtitle mt-4">Incident edge statistics</p>
+        <v-table density="compact" v-if="hasEdgeStats">
+          <tbody>
+            <tr v-if="node.edgeMin != null"><td class="label">Min</td><td class="value">{{ formatNumber(node.edgeMin) }}</td></tr>
+            <tr v-if="node.edgeMax != null"><td class="label">Max</td><td class="value">{{ formatNumber(node.edgeMax) }}</td></tr>
+            <tr v-if="node.edgeMedian != null"><td class="label">Median</td><td class="value">{{ formatNumber(node.edgeMedian) }}</td></tr>
+            <tr v-if="node.edgeMean != null"><td class="label">Mean</td><td class="value">{{ formatNumber(node.edgeMean) }}</td></tr>
+            <tr v-if="node.edgeSd != null"><td class="label">Std. dev.</td><td class="value">{{ formatNumber(node.edgeSd) }}</td></tr>
+            <tr v-if="node.edgePercentileMean != null"><td class="label">Mean percentile rank</td><td class="value">{{ formatNumber(node.edgePercentileMean) }}</td></tr>
+          </tbody>
+        </v-table>
+        <p v-else class="text-medium-emphasis text-body-2">No edge available.</p>
+      </v-window-item>
 
-    <!-- Where this node's PageRank+ mass comes from. The walker restarts in proportion to the
-         node metric (STC), so low-STC neighbours seed little of it; a neighbour then splits
-         whatever mass it holds across all its own edges by diff-L-P, so a high-degree neighbour
-         passes only a small cut to any one of them. `Share` is exactly that cut for this edge,
-         which is why it combines the other two columns. -->
-    <p class="label-subtitle mt-4">Neighbours{{ neighbors.length ? ` (${neighbors.length})` : '' }}</p>
-    <template v-if="neighbors.length">
-      <v-table density="compact">
-        <tbody>
-          <tr>
-            <td class="label">Mean {{ nodeMetricLabel }} of neighbours</td>
-            <td class="value">{{ formatNumber(neighborSummary.meanNodeMetric) }}</td>
-          </tr>
-          <tr>
-            <td class="label">Mean degree of neighbours</td>
-            <td class="value">{{ formatNumber(neighborSummary.meanDegree) }}</td>
-          </tr>
-          <tr>
-            <td class="label">Summed share to this node</td>
-            <td class="value">{{ formatNumber(neighborSummary.sumShare) }}</td>
-          </tr>
-        </tbody>
-      </v-table>
+      <!-- Where this node's PageRank+ mass comes from. The walker restarts in proportion to the
+           node metric (STC), so low-STC neighbours seed little of it; a neighbour then splits
+           whatever mass it holds across all its own edges by diff-L-P, so a high-degree
+           neighbour passes only a small cut to any one of them. `Share` is exactly that cut for
+           this edge, which is why it combines the other two columns. -->
+      <v-window-item value="neighbours" :transition="false" :reverse-transition="false">
+        <template v-if="neighbors.length">
+          <p class="label-subtitle">Neighbour statistics</p>
+          <v-table density="compact">
+            <tbody>
+              <tr>
+                <td class="label">Neighbours</td>
+                <td class="value">{{ neighbors.length }}</td>
+              </tr>
+              <tr>
+                <td class="label">Mean {{ nodeMetricLabel }} of neighbours</td>
+                <td class="value">{{ formatNumber(neighborSummary.meanNodeMetric) }}</td>
+              </tr>
+              <tr>
+                <td class="label">Mean degree of neighbours</td>
+                <td class="value">{{ formatNumber(neighborSummary.meanDegree) }}</td>
+              </tr>
+              <tr>
+                <td class="label">Summed share to this node</td>
+                <td class="value">{{ formatNumber(neighborSummary.sumShare) }}</td>
+              </tr>
+            </tbody>
+          </v-table>
 
-      <DownloadableDataTable
-        :headers="neighborHeaders"
-        :items="neighbors"
-        :sort-by="[{ key: 'share', order: 'desc' }]"
-        items-per-page="10"
-        class="neighbor-table mt-2"
-        filename="neighbours.csv"
-        @click:row="onNeighborClick"
-      >
-        <template v-slot:item.display_name="{ item }">
-          <span class="neighbor-name" :title="item.display_name">{{ item.display_name }}</span>
-        </template>
-        <template v-slot:header.nodeMetricValue="{ column }">
-          <v-tooltip location="top" max-width="320">
-            <template v-slot:activator="{ props }">
-              <span v-bind="props">{{ column.title }}</span>
+          <p class="label-subtitle mt-4">Per neighbour</p>
+          <DownloadableDataTable
+            :headers="neighborHeaders"
+            :items="neighbors"
+            :sort-by="[{ key: 'share', order: 'desc' }]"
+            items-per-page="10"
+            class="neighbor-table mt-2"
+            filename="neighbours.csv"
+            @click:row="onNeighborClick"
+          >
+            <template v-slot:item.display_name="{ item }">
+              <span class="neighbor-name" :title="item.display_name">{{ item.display_name }}</span>
             </template>
-            <span>{{ neighborMetricTooltip }}</span>
-          </v-tooltip>
-        </template>
-        <template v-slot:item.nodeMetricValue="{ item }">
-          {{ formatNumber(item.nodeMetricValue) }}
-        </template>
-        <template v-slot:header.degree="{ column }">
-          <v-tooltip location="top" max-width="320">
-            <template v-slot:activator="{ props }">
-              <span v-bind="props">{{ column.title }}</span>
+            <template v-slot:header.nodeMetricValue="{ column }">
+              <v-tooltip location="top" max-width="320">
+                <template v-slot:activator="{ props }">
+                  <span v-bind="props">{{ column.title }}</span>
+                </template>
+                <span>{{ neighborMetricTooltip }}</span>
+              </v-tooltip>
             </template>
-            <span>How many edges this neighbour has in the differential network. A neighbour with
-              many edges passes only a small share of its mass to any one of them.</span>
-          </v-tooltip>
-        </template>
-        <template v-slot:header.share="{ column }">
-          <v-tooltip location="top" max-width="320">
-            <template v-slot:activator="{ props }">
-              <span v-bind="props">{{ column.title }}</span>
+            <template v-slot:item.nodeMetricValue="{ item }">
+              {{ formatNumber(item.nodeMetricValue) }}
             </template>
-            <span>This edge's {{ edgeMetricLabel }} divided by the neighbour's total
-              {{ edgeMetricLabel }} across all its edges -- roughly the probability that a walker
-              sitting on that neighbour steps to this node.</span>
-          </v-tooltip>
+            <template v-slot:header.degree="{ column }">
+              <v-tooltip location="top" max-width="320">
+                <template v-slot:activator="{ props }">
+                  <span v-bind="props">{{ column.title }}</span>
+                </template>
+                <span>How many edges this neighbour has in the differential network. A neighbour
+                  with many edges passes only a small share of its mass to any one of them.</span>
+              </v-tooltip>
+            </template>
+            <template v-slot:header.share="{ column }">
+              <v-tooltip location="top" max-width="320">
+                <template v-slot:activator="{ props }">
+                  <span v-bind="props">{{ column.title }}</span>
+                </template>
+                <span>This edge's {{ edgeMetricLabel }} divided by the neighbour's total
+                  {{ edgeMetricLabel }} across all its edges -- roughly the probability that a
+                  walker sitting on that neighbour steps to this node.</span>
+              </v-tooltip>
+            </template>
+            <template v-slot:item.share="{ item }">
+              {{ formatNumber(item.share) }}
+            </template>
+            <template v-slot:item.weight="{ item }">
+              {{ formatNumber(item.weight) }}
+            </template>
+          </DownloadableDataTable>
         </template>
-        <template v-slot:item.share="{ item }">
-          {{ formatNumber(item.share) }}
-        </template>
-        <template v-slot:item.weight="{ item }">
-          {{ formatNumber(item.weight) }}
-        </template>
-      </DownloadableDataTable>
-    </template>
-    <p v-else class="text-medium-emphasis text-body-2">No neighbour available.</p>
+        <p v-else class="text-medium-emphasis text-body-2">No neighbour available.</p>
+      </v-window-item>
 
-    <template v-if="context1 && context2">
-      <p class="label-subtitle mt-4">Distribution per context</p>
-      <!-- Both variable types render the two contexts as one grouped plot: continuous
-           variables as a density plot (see GetDataDensityPlotView's contextValue1/contextValue2
-           mode), categorical variables as a bar chart grouped by context (GetDataBarCountView's
-           contextValue1/contextValue2 mode). -->
-      <OverviewDensity
-        v-if="node.type === 'continuous'"
-        :xVar="node.id"
-        :context1="context1"
-        :context2="context2"
-        palette="muted"
-        :textSize="13"
-        :width="plotWidth"
-        :height="260"
-      />
-      <OverviewBar
-        v-else
-        :xVar="node.id"
-        :context1="context1"
-        :context2="context2"
-        barType="Grouped"
-        barOrientation="Vertical"
-        palette="muted"
-        :textSize="13"
-        :width="plotWidth"
-        :height="260"
-      />
-    </template>
+      <!-- Lazy (no `eager`): both plots fetch their own data from the API, so leaving this tab
+           closed means a node selected only to read its ranking never issues that request. -->
+      <v-window-item value="distribution" :transition="false" :reverse-transition="false">
+        <template v-if="context1 && context2">
+          <p class="label-subtitle">Distribution per context</p>
+          <!-- Both variable types render the two contexts as one grouped plot: continuous
+               variables as a density plot (see GetDataDensityPlotView's contextValue1/
+               contextValue2 mode), categorical variables as a bar chart grouped by context
+               (GetDataBarCountView's contextValue1/contextValue2 mode). -->
+          <OverviewDensity
+            v-if="node.type === 'continuous'"
+            :xVar="node.id"
+            :context1="context1"
+            :context2="context2"
+            palette="muted"
+            :textSize="13"
+            :width="plotWidth"
+            :height="260"
+          />
+          <OverviewBar
+            v-else
+            :xVar="node.id"
+            :context1="context1"
+            :context2="context2"
+            barType="Grouped"
+            barOrientation="Vertical"
+            palette="muted"
+            :textSize="13"
+            :width="plotWidth"
+            :height="260"
+          />
+        </template>
+        <p v-else class="text-medium-emphasis text-body-2">
+          Select two contexts to see this variable's distribution in each of them.
+        </p>
+      </v-window-item>
+    </v-window>
   </div>
   <p v-else class="text-medium-emphasis text-body-2">Select a node in the graph or the node rank table to see its details.</p>
   </div>
@@ -231,6 +258,9 @@ export default {
   emits: ['select-node'],
   data() {
     return {
+      // Which section of the panel is open ('details' | 'neighbours' | 'distribution'). Kept
+      // across selection changes on purpose -- see the template.
+      tab: 'details',
       // Fallback until the ResizeObserver reports the panel's actual width on mount.
       plotWidth: 440,
     };
