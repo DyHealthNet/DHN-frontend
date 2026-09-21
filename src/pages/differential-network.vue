@@ -566,6 +566,7 @@ export default {
         rows.push({
           id: neighborId,
           display_name: point?.display_name || neighborId,
+          description: point?.description || null,
           group: point?.group || null,
           // STC of the neighbour (points carry the node metric as nodeMetricValue).
           nodeMetricValue: point?.nodeMetricValue ?? null,

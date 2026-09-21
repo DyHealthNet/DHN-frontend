@@ -12,9 +12,11 @@
   >
     <v-img :src="iconUrl" alt="icon" max-width="40" max-height="40" class="me-0 rounded-circle"></v-img>
   </v-icon>
-  <p><span class="label-title">Node</span></p>
-  <p><span class="label">Name:</span><br>
-    <span class="display-name">{{ displayName }}</span></p>
+  <template v-if="!hideHeader">
+    <p><span class="label-title">Node</span></p>
+    <p><span class="label">Name:</span><br>
+      <span class="display-name">{{ displayName }}</span></p>
+  </template>
   <p v-if="description"><span class="label">Description:</span><br>
     <span class="value">{{ description }}</span></p>
   <p v-if="groupLabel"><span class="label">Group:</span><br>
@@ -65,6 +67,12 @@ export default {
     // it off different fields (node.type vs. node.group), so that lookup stays
     // in the parent.
     iconUrl: { type: String, default: '' },
+    // Drops the "Node" title and the Name row, for callers that show those themselves above
+    // something else -- DiffNodeDetails.vue keeps them above its tabs, so the selected node
+    // stays named on every tab while the rest of its fields live in the General tab. The icon
+    // is kept either way: it's `position: absolute; right: 0`, so it lands top-right of the
+    // card no matter which of the two blocks it sits in.
+    hideHeader: { type: Boolean, default: false },
   },
   computed: {
     groupChipStyle() {

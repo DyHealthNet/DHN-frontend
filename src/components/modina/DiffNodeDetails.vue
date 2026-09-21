@@ -1,10 +1,14 @@
 <template>
   <div ref="rootEl">
   <div v-if="node">
-    <!-- The tab is not reset when the selection changes, so clicking through the neighbour
-         table keeps walking from neighbour to neighbour without having to reopen that tab
-         each time. -->
-    <v-tabs v-model="tab" density="compact" color="primary-darken-1">
+    <!-- Same header-above-tabs shape as DiffEdgeDetails: what is selected stays visible on
+         every tab, the rest of its fields live in General. The tab itself is not reset when the
+         selection changes, so clicking through the neighbour table keeps walking from neighbour
+         to neighbour without having to reopen that tab each time. -->
+    <p><span class="label-title">Node</span></p>
+    <p class="display-name text-center">{{ node.display_name || node.id }}</p>
+
+    <v-tabs v-model="tab" density="compact" color="primary-darken-1" class="mt-2">
       <v-tab value="general">General</v-tab>
       <v-tab value="neighbours">Neighbours</v-tab>
       <v-tab value="plot">Plot</v-tab>
@@ -12,6 +16,7 @@
     <v-window v-model="tab" class="mt-2">
       <v-window-item value="general" :transition="false" :reverse-transition="false">
         <NodeIdentityCard
+          hide-header
           :display-name="node.display_name || node.id"
           :node-id="node.id"
           :description="node.description"
@@ -99,6 +104,9 @@
           >
             <template v-slot:item.display_name="{ item }">
               <span class="neighbor-name" :title="item.display_name">{{ item.display_name }}</span>
+            </template>
+            <template v-slot:item.description="{ item }">
+              <span class="description-cell" :title="item.description">{{ item.description || '-' }}</span>
             </template>
             <template v-slot:header.nodeMetricValue="{ column }">
               <v-tooltip location="top" max-width="320">
@@ -305,8 +313,11 @@ export default {
         { title: this.nodeMetricLabel, key: 'nodeMetricValue', sort: numericSort },
         { title: 'Degree', key: 'degree', sort: numericSort },
         { title: 'Share', key: 'share', sort: numericSort },
-        // The raw edge weight behind Share's numerator -- off by default so the four columns
-        // above still fit the Details panel's width, available from the columns selector.
+        // Both off by default so the four columns above still fit the panel's width, and both
+        // available from the columns selector (and exported once shown): the neighbour's
+        // description, same optional column NodeRankPanel offers, and the raw edge weight
+        // behind Share's numerator.
+        { title: 'Description', key: 'description', hidden: true },
         { title: this.edgeMetricLabel, key: 'weight', sort: numericSort, hidden: true },
       ];
     },
@@ -363,6 +374,18 @@ export default {
   font-size: 16px;
   color: rgb(var(--v-theme-primary-darken-1));
 }
+/* Same header pair DiffEdgeDetails puts above its own tabs. */
+.label-title {
+  font-size: 24px;
+  color: rgb(var(--v-theme-primary-darken-1));
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.display-name {
+  font-size: 18px;
+  color: rgb(var(--v-theme-darken-1));
+}
 .value {
   padding-left: 0px;
 }
@@ -387,5 +410,15 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* Same truncate-with-tooltip treatment NodeRankPanel gives its own Description column, just
+   narrower -- this table lives in the side panel rather than a full-width card. */
+.description-cell {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 220px;
 }
 </style>
