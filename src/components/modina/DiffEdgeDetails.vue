@@ -7,11 +7,11 @@
     <!-- Same split as DiffNodeDetails: the edge's identity stays above the tabs, the numbers and
          the plot each get the panel to themselves. -->
     <v-tabs v-model="tab" density="compact" color="primary-darken-1" class="mt-2">
-      <v-tab value="details">Details</v-tab>
+      <v-tab value="general">General</v-tab>
       <v-tab value="plot">Plot</v-tab>
     </v-tabs>
     <v-window v-model="tab" class="mt-2">
-      <v-window-item value="details" :transition="false" :reverse-transition="false">
+      <v-window-item value="general" :transition="false" :reverse-transition="false">
         <p class="label-subtitle">Nodes</p>
         <EdgeNodesTable :nodes="edgeNodes" />
 
@@ -129,8 +129,8 @@ export default {
   },
   data() {
     return {
-      // Which section of the panel is open ('details' | 'plot').
-      tab: 'details',
+      // Which section of the panel is open ('general' | 'plot').
+      tab: 'general',
       // Fallback until the ResizeObserver reports the panel's actual width on mount.
       plotWidth: 440,
     };
