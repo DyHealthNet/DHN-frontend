@@ -1,29 +1,28 @@
 <template>
   <div ref="rootEl">
   <div v-if="node">
-    <NodeIdentityCard
-      :display-name="node.display_name || node.id"
-      :node-id="node.id"
-      :description="node.description"
-      :group-label="node.group ? capitalizeFirstLetter(node.group) : ''"
-      :group-color="groupColor"
-      :data-type="node.type"
-      :xrefs="validXrefs"
-      :icon-url="getIcon ? getIcon(node.group) : ''"
-    />
-
-    <!-- The identity card stays above the tabs: whichever tab is open, it has to stay obvious
-         which node the numbers belong to. The tab itself is not reset when the selection
-         changes, so clicking through the neighbour table keeps walking from neighbour to
-         neighbour without having to reopen that tab each time. -->
-    <v-tabs v-model="tab" density="compact" color="primary-darken-1" class="mt-2">
-      <v-tab value="details">Details</v-tab>
+    <!-- The tab is not reset when the selection changes, so clicking through the neighbour
+         table keeps walking from neighbour to neighbour without having to reopen that tab
+         each time. -->
+    <v-tabs v-model="tab" density="compact" color="primary-darken-1">
+      <v-tab value="general">General</v-tab>
       <v-tab value="neighbours">Neighbours</v-tab>
-      <v-tab value="distribution">Distribution</v-tab>
+      <v-tab value="plot">Plot</v-tab>
     </v-tabs>
     <v-window v-model="tab" class="mt-2">
-      <v-window-item value="details" :transition="false" :reverse-transition="false">
-        <p class="label-subtitle">Ranking</p>
+      <v-window-item value="general" :transition="false" :reverse-transition="false">
+        <NodeIdentityCard
+          :display-name="node.display_name || node.id"
+          :node-id="node.id"
+          :description="node.description"
+          :group-label="node.group ? capitalizeFirstLetter(node.group) : ''"
+          :group-color="groupColor"
+          :data-type="node.type"
+          :xrefs="validXrefs"
+          :icon-url="getIcon ? getIcon(node.group) : ''"
+        />
+
+        <p class="label-subtitle mt-4">Ranking</p>
         <v-table density="compact">
           <tbody>
             <tr v-if="node.rank != null" class="font-weight-bold">
@@ -144,7 +143,7 @@
 
       <!-- Lazy (no `eager`): both plots fetch their own data from the API, so leaving this tab
            closed means a node selected only to read its ranking never issues that request. -->
-      <v-window-item value="distribution" :transition="false" :reverse-transition="false">
+      <v-window-item value="plot" :transition="false" :reverse-transition="false">
         <template v-if="context1 && context2">
           <p class="label-subtitle">Distribution per context</p>
           <!-- Both variable types render the two contexts as one grouped plot: continuous
@@ -258,9 +257,9 @@ export default {
   emits: ['select-node'],
   data() {
     return {
-      // Which section of the panel is open ('details' | 'neighbours' | 'distribution'). Kept
+      // Which section of the panel is open ('general' | 'neighbours' | 'plot'). Kept
       // across selection changes on purpose -- see the template.
-      tab: 'details',
+      tab: 'general',
       // Fallback until the ResizeObserver reports the panel's actual width on mount.
       plotWidth: 440,
     };
@@ -370,6 +369,15 @@ export default {
 /* Clicking a row selects that neighbour, same as a node rank row. */
 .neighbor-table :deep(tbody tr) {
   cursor: pointer;
+}
+/* Column headers read as the same kind of caption as the .label cells in the tables above --
+   PrimeVue's own header style is bold and full size, which made this table shout next to the
+   plain label/value rows it sits under. */
+.neighbor-table :deep(.p-datatable-header-cell),
+.neighbor-table :deep(.p-datatable-column-title) {
+  font-size: 12px;
+  font-weight: 400;
+  color: rgb(var(--v-theme-primary-darken-1));
 }
 /* The Details panel is narrow, so a long variable name would push the three numeric columns
    off the edge -- truncate it and keep the full name in the title tooltip. */
