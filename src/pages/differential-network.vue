@@ -248,7 +248,7 @@
                 </v-tab>
                 <v-tab value="edges">
                   Edge Rank
-                  <v-chip size="small" color="white" variant="outlined" class="ml-2">{{ (result.edgeRanking || []).length }}</v-chip>
+                  <v-chip size="small" color="white" variant="outlined" class="ml-2">{{ (result.links || []).length }}</v-chip>
                 </v-tab>
               </v-tabs>
               <!-- eager + no transition: v-window-item is lazy by default, so the edge table
@@ -272,7 +272,7 @@
                 <v-window-item value="edges" eager :transition="false" :reverse-transition="false">
                   <EdgeRankPanel
                     embedded
-                    :items="result.edgeRanking || []"
+                    :items="result.links || []"
                     :selected-edge="selectedLink ? `${selectedLink.source}_${selectedLink.target}` : null"
                     :points-by-id="pointsById"
                     :context-names="contextNames"
@@ -302,6 +302,12 @@ import GradientLegend from '@/components/network/GradientLegend.vue';
 import CosmographGraph from '@/components/network/CosmographGraph.vue';
 import { assignGroupColors, getNodeIcon, saveNetworkState, loadNetworkState, clearNetworkState, capitalizeFirstLetter, drawLegendPanel, interpolateHexColor, normalizeInRange, MODINA_STATE_KEY } from '@/components/network/networkData.js';
 import { NODE_METRIC_INFO, EDGE_METRIC_INFO, metricDescription } from '@/components/modina/metricInfo.js';
+
+// Edge count above which a finished result is not written to localStorage at all -- see
+// saveState(). Only the restore-on-reload path is affected: the page keeps the full edge set in
+// memory either way, so the tables still rank, sort, search and export every edge. Results this
+// large could never be restored anyway, since they serialize far past the ~5MB quota.
+const MAX_PERSISTED_EDGES = 20000;
 
 export default {
   name: 'DifferentialNetworkPage',
@@ -402,7 +408,7 @@ export default {
     // rank -- see network/tasks.py's _shape_modina_result), so slicing the first N here keeps
     // exactly the N best-ranked nodes, same convention as moDiNA_interface's rankedNodesForTopN.
     // Only the graph is trimmed -- NodeRankPanel/EdgeRankPanel keep showing every row via
-    // result.points/result.edgeRanking directly.
+    // result.points/result.links directly.
     //
     // hideUnconnected then optionally drops points that have no surviving edge within this same
     // cutoff. Node rank/score is computed independently of edge membership (nodeRank ranks every
@@ -994,12 +1000,12 @@ export default {
 
     async selectEdgeByLabels(item) {
       if (!this.result?.links) return;
-      await this.ensureTopNIncludes(item.label1);
-      await this.ensureTopNIncludes(item.label2);
+      await this.ensureTopNIncludes(item.source);
+      await this.ensureTopNIncludes(item.target);
       const link = this.graphLinks.find(
         (l) =>
-          (l.source === item.label1 && l.target === item.label2) ||
-          (l.source === item.label2 && l.target === item.label1)
+          (l.source === item.source && l.target === item.target) ||
+          (l.source === item.target && l.target === item.source)
       );
       this.selectLink(link);
     },
@@ -1048,10 +1054,18 @@ export default {
       // saveNetworkState() itself catches a quota-exceeded localStorage.setItem failure and
       // logs it rather than throwing, so this no longer needs its own try/catch guard.
       console.log('[modina] saveState: saving, result present =', !!this.result);
+      // Persisting the result means JSON.stringify-ing it. A large comparison (millions of
+      // edges) serializes to a several-hundred-MB string that localStorage's ~5MB quota was
+      // never going to accept anyway -- setItem then throws QuotaExceeded and saveNetworkState
+      // swallows it, so nothing was ever restored from those runs. The allocation itself is the
+      // problem: building that string on top of an already-huge result is enough to take the tab
+      // out of memory. Skip it above the cutoff and persist only the (cheap) selection, which
+      // costs nothing and loses nothing that was previously being saved.
+      const edgeCount = this.result?.links?.length || 0;
       saveNetworkState(MODINA_STATE_KEY, {
         selectedContexts: this.selectedContexts,
         settings: this.settings,
-        result: this.result,
+        result: edgeCount <= MAX_PERSISTED_EDGES ? this.result : null,
       });
     },
 

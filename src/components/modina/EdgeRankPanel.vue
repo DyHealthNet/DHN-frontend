@@ -23,9 +23,9 @@
 
     <DownloadableDataTable
       :headers="headers"
-      :items="tableItems"
+      :items="items"
       :search="search"
-      :custom-key-filter="{ edge: edgeSearchFilter }"
+      :custom-key-filter="{ source: edgeSearchFilter }"
       filter-mode="union"
       :sort-by="[{ key: 'rank', order: 'asc' }]"
       multi-sort
@@ -35,10 +35,10 @@
       filename="edge-rank.csv"
       @click:row="onRowClick"
     >
-      <template v-slot:item.edge="{ item }">
+      <template v-slot:item.source="{ item }">
         <span :class="{ 'font-weight-bold': isSelected(item) }">{{ formatEdge(item) }}</span>
       </template>
-      <template v-slot:header.score="{ column }">
+      <template v-slot:header.weight="{ column }">
         <v-tooltip location="top" max-width="320">
           <template v-slot:activator="{ props }">
             <span v-bind="props">{{ column.title }}</span>
@@ -46,8 +46,8 @@
           <span>Edge metric: {{ edgeMetricLabel }} — {{ edgeMetricDescription }}</span>
         </v-tooltip>
       </template>
-      <template v-slot:item.score="{ item }">
-        {{ formatNumber(item.score) }}
+      <template v-slot:item.weight="{ item }">
+        {{ formatNumber(item.weight) }}
       </template>
       <template v-slot:item.signed="{ item }">
         <v-tooltip location="top">
@@ -110,8 +110,8 @@ export default {
       type: String,
       default: null,
     },
-    // id -> point lookup (from differential-network.vue's result.points), used to resolve
-    // label1/label2 (raw node ids) to display names -- edgeRanking rows don't carry them.
+    // id -> point lookup (from differential-network.vue's result.points), used to resolve each
+    // edge's source/target (raw node ids) to display names -- links don't carry them.
     pointsById: {
       type: Object,
       default: () => ({}),
@@ -131,12 +131,6 @@ export default {
   data() {
     return {
       search: '',
-      headers: [
-        { title: 'Rank', key: 'rank', width: 90, sort: rankSort },
-        { title: 'Edge', key: 'edge', csvValue: (item) => (item.label1Name && item.label2Name ? `${item.label1Name} <-> ${item.label2Name}` : item.edge) },
-        { title: 'Score', key: 'score', sort: scoreSort },
-        { title: 'Signed', key: 'signed', sort: scoreSort },
-      ],
     };
   },
   computed: {
@@ -148,23 +142,28 @@ export default {
         ? metricDescription(EDGE_METRIC_INFO, this.edgeMetric)
         : 'Run a comparison to see which metric produced this score.';
     },
-    // Adds resolved display names onto each row for rendering (formatEdge) and searching
-    // (edgeSearchFilter) -- edgeRanking rows only carry raw label1/label2 node ids.
-    tableItems() {
-      return this.items.map((item) => ({
-        ...item,
-        label1Name: this.pointsById[item.label1]?.display_name || item.label1,
-        label2Name: this.pointsById[item.label2]?.display_name || item.label2,
-      }));
+    // Display names are resolved per rendered/exported cell rather than mapped onto a copy of
+    // every row: `items` is result.links itself, up to ~1.6M rows on a large comparison, and
+    // spreading each one into a new object to attach two name fields duplicated the entire edge
+    // set in memory. A table page only ever renders 10-100 rows, so the lookups are cheap.
+    headers() {
+      return [
+        { title: 'Rank', key: 'rank', width: 90, sort: rankSort },
+        { title: 'Edge', key: 'source', csvValue: (item) => `${this.nodeName(item.source)} <-> ${this.nodeName(item.target)}` },
+        { title: 'Score', key: 'weight', sort: scoreSort },
+        { title: 'Signed', key: 'signed', sort: scoreSort },
+      ];
     },
   },
   methods: {
+    nodeName(id) {
+      return this.pointsById[id]?.display_name || id;
+    },
     isSelected(item) {
-      return item.edge === this.selectedEdge;
+      return `${item.source}_${item.target}` === this.selectedEdge;
     },
     formatEdge(item) {
-      if (item.label1Name && item.label2Name) return `${item.label1Name}  ↔  ${item.label2Name}`;
-      return item.edge;
+      return `${this.nodeName(item.source)}  ↔  ${this.nodeName(item.target)}`;
     },
     // signed = context1's metric minus context2's (see moDiNA's diff_net_construction.py,
     // _subtract_edges) -- positive means context 1 has the higher edge metric for this edge.
@@ -179,14 +178,14 @@ export default {
     onRowClick(_, { item }) {
       this.$emit('select-edge', item);
     },
-    // Same reasoning as NodeRankPanel's nodeSearchFilter: v-data-table's filter-keys can't see
-    // label1Name/label2Name since they aren't header columns, so match them here instead,
-    // against the raw row (item.raw), alongside the raw label1/label2 ids.
+    // Same reasoning as NodeRankPanel's nodeSearchFilter: the table's own filter only reaches a
+    // column's own value, so an edge typed by display name would never match a row that stores
+    // raw node ids. Both endpoints' ids and names are matched here instead, against the raw row.
     edgeSearchFilter(_value, query, item) {
       const q = String(query ?? '').toLowerCase();
       if (!q) return true;
       const raw = item?.raw || {};
-      const haystack = [raw.label1, raw.label2, raw.label1Name, raw.label2Name]
+      const haystack = [raw.source, raw.target, this.nodeName(raw.source), this.nodeName(raw.target)]
         .filter(Boolean)
         .join(' ')
         .toLowerCase();

@@ -330,35 +330,60 @@ export default {
     resolveValue(header, item) {
       return typeof header.csvValue === 'function' ? header.csvValue(item) : this.getPath(item, header.key);
     },
+    // Serializes `items` into an array of chunk strings rather than one string. A table fed the
+    // full edge set of a large comparison exports well over a million rows, and joining those
+    // into a single string needs the finished string and every intermediate row array alive at
+    // once -- hundreds of MB, on top of the data itself. Blob takes the parts array directly, so
+    // only one chunk is ever being built.
+    serializeRows(rowText, { prefix = '', separator, suffix = '' } = {}) {
+      const parts = [];
+      let chunk = prefix;
+      let index = 0;
+      for (const item of this.items) {
+        // The prefix already ends where the first row starts (a header line, or '[' for JSON),
+        // so the separator only goes *between* rows.
+        if (index > 0) chunk += separator;
+        chunk += rowText(item);
+        index += 1;
+        if (index % 5000 === 0) {
+          parts.push(chunk);
+          chunk = '';
+        }
+      }
+      parts.push(chunk + suffix);
+      return parts;
+    },
     download(format) {
       if (!this.items.length) return;
-      let content;
+      let parts;
       let mimeType;
       let filename = this.filename;
 
       // Export mirrors whatever columns are currently shown/hidden via the columns selector.
       const headers = this.visibleHeaders;
       if (format === 'json') {
-        const rows = this.items.map((item) => Object.fromEntries(
-          headers.map((h) => [h.key, this.resolveValue(h, item)]),
-        ));
-        content = JSON.stringify(rows, null, 2);
+        parts = this.serializeRows(
+          (item) => JSON.stringify(Object.fromEntries(headers.map((h) => [h.key, this.resolveValue(h, item)]))),
+          { prefix: '[', separator: ',', suffix: ']' },
+        );
         mimeType = 'application/json';
         filename = filename.replace(/\.csv$/, '.json');
       } else if (format === 'txt') {
-        const headerLine = headers.map((h) => h.title).join('\t');
-        const lines = this.items.map((item) => headers.map((h) => this.resolveValue(h, item) ?? '').join('\t'));
-        content = [headerLine, ...lines].join('\n');
+        parts = this.serializeRows(
+          (item) => headers.map((h) => this.resolveValue(h, item) ?? '').join('\t'),
+          { prefix: `${headers.map((h) => h.title).join('\t')}\n`, separator: '\n' },
+        );
         mimeType = 'text/plain';
         filename = filename.replace(/\.csv$/, '.txt');
       } else {
-        const headerRow = headers.map((h) => this.csvEscape(h.title));
-        const rows = this.items.map((item) => headers.map((h) => this.csvEscape(this.resolveValue(h, item))));
-        content = [headerRow, ...rows].map((row) => row.join(',')).join('\r\n');
+        parts = this.serializeRows(
+          (item) => headers.map((h) => this.csvEscape(this.resolveValue(h, item))).join(','),
+          { prefix: `${headers.map((h) => this.csvEscape(h.title)).join(',')}\r\n`, separator: '\r\n' },
+        );
         mimeType = 'text/csv;charset=utf-8;';
       }
 
-      const blob = new Blob([content], { type: mimeType });
+      const blob = new Blob(parts, { type: mimeType });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
