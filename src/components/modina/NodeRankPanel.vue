@@ -104,6 +104,17 @@
       <template v-slot:item.edgePercentileMean="{ item }">
         {{ formatNumber(item.edgePercentileMean) }}
       </template>
+      <!-- neighbourCount is a plain integer, so it renders as-is; the other three are means/
+           sums and get the same precision treatment as every other numeric column. -->
+      <template v-slot:item.neighbourMeanDegree="{ item }">
+        {{ formatNumber(item.neighbourMeanDegree) }}
+      </template>
+      <template v-slot:item.neighbourMeanNodeMetric="{ item }">
+        {{ formatNumber(item.neighbourMeanNodeMetric) }}
+      </template>
+      <template v-slot:item.neighbourSumShare="{ item }">
+        {{ formatNumber(item.neighbourSumShare) }}
+      </template>
       <template v-slot:no-data>
         <span class="text-medium-emphasis">No node ranking available. Select a node metric to enable node ranking.</span>
       </template>
@@ -203,6 +214,14 @@ export default {
         { title: 'Edge Median', key: 'edgeMedian', sort: scoreSort, hidden: true },
         { title: 'Edge Std. Dev.', key: 'edgeSd', sort: scoreSort, hidden: true },
         { title: 'Edge Mean Percentile', key: 'edgePercentileMean', sort: scoreSort, hidden: true },
+        // Same neighbourhood aggregates DiffNodeDetails shows under "Neighbourhood", computed
+        // backend-side over the full edge set (_neighbour_summary in network/tasks.py). All
+        // hidden by default -- they're for comparing nodes against each other, which is what
+        // the columns selector is for, rather than something every reader needs up front.
+        { title: 'Neighbours', key: 'neighbourCount', sort: scoreSort, hidden: true },
+        { title: 'Neighbour Mean Degree', key: 'neighbourMeanDegree', sort: scoreSort, hidden: true },
+        { title: `Neighbour Mean ${this.nodeMetricLabel}`, key: 'neighbourMeanNodeMetric', sort: scoreSort, hidden: true },
+        { title: 'Neighbour Summed Share', key: 'neighbourSumShare', sort: scoreSort, hidden: true },
       ];
     },
     nodeMetricLabel() {
