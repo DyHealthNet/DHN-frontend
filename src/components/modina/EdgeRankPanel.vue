@@ -3,7 +3,18 @@
     <v-toolbar color="primary-darken-1" density="compact">
       <v-toolbar-title>
         Edge Rank
-        <v-chip size="small" color="white" variant="outlined" class="ml-2">{{ items.length }}</v-chip>
+        <!-- When the backend capped the table (EDGE_RANKING_LIMIT in network/tasks.py), say so
+             instead of showing a count that looks like the whole differential network. -->
+        <v-tooltip location="bottom" :disabled="!truncated" max-width="320">
+          <template v-slot:activator="{ props }">
+            <v-chip v-bind="props" size="small" color="white" variant="outlined" class="ml-2">
+              {{ items.length }}<span v-if="truncated"> of {{ totalCount }}</span>
+            </v-chip>
+          </template>
+          <span>Showing the {{ items.length }} highest-ranked of {{ totalCount }} edges. Node
+            rankings, the graph and the neighbourhood statistics are still computed over every
+            edge — only this table is capped.</span>
+        </v-tooltip>
       </v-toolbar-title>
       <v-spacer></v-spacer>
       <v-text-field
@@ -112,6 +123,17 @@ export default {
     contextNames: {
       type: Object,
       default: () => ({ name1: 'Context 1', name2: 'Context 2' }),
+    },
+    // Whether the backend capped `items` to its top slice, and how many edges the full
+    // differential network has. Both absent on a result computed before that cap existed, in
+    // which case the chip just shows items.length as before.
+    truncated: {
+      type: Boolean,
+      default: false,
+    },
+    totalCount: {
+      type: Number,
+      default: null,
     },
     // Reported by the backend on the actual result (network/tasks.py's MODINA_EDGE_METRIC) --
     // null until a comparison has completed.

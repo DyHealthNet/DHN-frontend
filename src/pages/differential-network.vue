@@ -247,6 +247,8 @@
           <v-col cols="12" md="6">
             <EdgeRankPanel
               :items="result.edgeRanking || []"
+              :truncated="!!result.edgeRankingTruncated"
+              :total-count="result.edgeRankingTotal || null"
               :selected-edge="selectedLink ? `${selectedLink.source}_${selectedLink.target}` : null"
               :points-by-id="pointsById"
               :context-names="contextNames"
