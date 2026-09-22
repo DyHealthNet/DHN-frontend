@@ -215,8 +215,6 @@
                   :node-metric="result?.nodeMetric"
                   :edge-metric="result?.edgeMetric"
                   :ranking-algorithm="result?.rankingAlgorithm"
-                  :neighbors="selectedNodeNeighbors"
-                  @select-node="selectNodeById"
                 />
                 <DiffEdgeDetails
                   v-else-if="selectedLink"
@@ -525,57 +523,6 @@ export default {
     },
     selectedPoint() {
       return this.selectedPointId != null ? this.pointsById[this.selectedPointId] || null : null;
-    },
-    // Degree (number of incident edges) and strength (their summed diff-L-P) per node, over the
-    // FULL edge set -- result.links, not the Top-N trimmed graphLinks, so a neighbour's numbers
-    // don't change as the graph cutoff moves. One pass, cached until a new result loads, which
-    // keeps selectedNodeNeighbors below from rescanning every edge per row.
-    nodeEdgeTotals() {
-      const totals = new Map();
-      for (const link of this.result?.links || []) {
-        const weight = typeof link.weight === 'number' ? link.weight : 0;
-        for (const id of [link.source, link.target]) {
-          const entry = totals.get(id);
-          if (entry) {
-            entry.degree += 1;
-            entry.strength += weight;
-          } else {
-            totals.set(id, { degree: 1, strength: weight });
-          }
-        }
-      }
-      return totals;
-    },
-    // One row per neighbour of the selected node, for DiffNodeDetails' neighbour table. Together
-    // these explain where the selected node's PageRank+ mass comes from: the walker restarts in
-    // proportion to STC (so low-STC neighbours send little), and a neighbour splits whatever mass
-    // it holds across all its own edges by diff-L-P -- `share` is this edge's cut of that split,
-    // i.e. roughly the chance a walker sitting on that neighbour steps here next.
-    selectedNodeNeighbors() {
-      const node = this.selectedPoint;
-      if (!node) return [];
-      const rows = [];
-      for (const link of this.result?.links || []) {
-        let neighborId = null;
-        if (link.source === node.id) neighborId = link.target;
-        else if (link.target === node.id) neighborId = link.source;
-        else continue;
-        const point = this.pointsById[neighborId];
-        const totals = this.nodeEdgeTotals.get(neighborId);
-        const weight = typeof link.weight === 'number' ? link.weight : null;
-        rows.push({
-          id: neighborId,
-          display_name: point?.display_name || neighborId,
-          description: point?.description || null,
-          group: point?.group || null,
-          // STC of the neighbour (points carry the node metric as nodeMetricValue).
-          nodeMetricValue: point?.nodeMetricValue ?? null,
-          degree: totals?.degree ?? 0,
-          weight,
-          share: weight != null && totals?.strength ? weight / totals.strength : null,
-        });
-      }
-      return rows;
     },
     selectedLink() {
       return this.selectedLinkId != null ? this.linksById[this.selectedLinkId] || null : null;

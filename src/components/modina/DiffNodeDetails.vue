@@ -3,14 +3,12 @@
   <div v-if="node">
     <!-- Same header-above-tabs shape as DiffEdgeDetails: what is selected stays visible on
          every tab, the rest of its fields live in General. The tab itself is not reset when the
-         selection changes, so clicking through the neighbour table keeps walking from neighbour
-         to neighbour without having to reopen that tab each time. -->
+         selection changes. -->
     <p><span class="label-title">Node</span></p>
     <p class="display-name text-center">{{ node.display_name || node.id }}</p>
 
     <v-tabs v-model="tab" density="compact" color="primary-darken-1" class="mt-2">
       <v-tab value="general">General</v-tab>
-      <v-tab value="neighbours">Neighbours</v-tab>
       <v-tab value="plot">Plot</v-tab>
     </v-tabs>
     <v-window v-model="tab" class="mt-2">
@@ -61,91 +59,36 @@
           </tbody>
         </v-table>
         <p v-else class="text-medium-emphasis text-body-2">No edge available.</p>
-      </v-window-item>
 
-      <!-- Where this node's PageRank+ mass comes from. The walker restarts in proportion to the
-           node metric (STC), so low-STC neighbours seed little of it; a neighbour then splits
-           whatever mass it holds across all its own edges by diff-L-P, so a high-degree
-           neighbour passes only a small cut to any one of them. `Share` is exactly that cut for
-           this edge, which is why it combines the other two columns. -->
-      <v-window-item value="neighbours" :transition="false" :reverse-transition="false">
-        <template v-if="neighbors.length">
-          <p class="label-subtitle">Neighbour statistics</p>
-          <v-table density="compact">
-            <tbody>
-              <tr>
-                <td class="label">Neighbours</td>
-                <td class="value">{{ neighbors.length }}</td>
-              </tr>
-              <tr>
-                <td class="label">Mean {{ nodeMetricLabel }} of neighbours</td>
-                <td class="value">{{ formatNumber(neighborSummary.meanNodeMetric) }}</td>
-              </tr>
-              <tr>
-                <td class="label">Mean degree of neighbours</td>
-                <td class="value">{{ formatNumber(neighborSummary.meanDegree) }}</td>
-              </tr>
-              <tr>
-                <td class="label">Summed share to this node</td>
-                <td class="value">{{ formatNumber(neighborSummary.sumShare) }}</td>
-              </tr>
-            </tbody>
-          </v-table>
-
-          <p class="label-subtitle mt-4">Per neighbour</p>
-          <DownloadableDataTable
-            :headers="neighborHeaders"
-            :items="neighbors"
-            :sort-by="[{ key: 'share', order: 'desc' }]"
-            items-per-page="10"
-            class="neighbor-table mt-2"
-            filename="neighbours.csv"
-            @click:row="onNeighborClick"
-          >
-            <template v-slot:item.display_name="{ item }">
-              <span class="neighbor-name" :title="item.display_name">{{ item.display_name }}</span>
-            </template>
-            <template v-slot:item.description="{ item }">
-              <span class="description-cell" :title="item.description">{{ item.description || '-' }}</span>
-            </template>
-            <template v-slot:header.nodeMetricValue="{ column }">
-              <v-tooltip location="top" max-width="320">
-                <template v-slot:activator="{ props }">
-                  <span v-bind="props">{{ column.title }}</span>
-                </template>
-                <span>{{ neighborMetricTooltip }}</span>
-              </v-tooltip>
-            </template>
-            <template v-slot:item.nodeMetricValue="{ item }">
-              {{ formatNumber(item.nodeMetricValue) }}
-            </template>
-            <template v-slot:header.degree="{ column }">
-              <v-tooltip location="top" max-width="320">
-                <template v-slot:activator="{ props }">
-                  <span v-bind="props">{{ column.title }}</span>
-                </template>
-                <span>How many edges this neighbour has in the differential network. A neighbour
-                  with many edges passes only a small share of its mass to any one of them.</span>
-              </v-tooltip>
-            </template>
-            <template v-slot:header.share="{ column }">
-              <v-tooltip location="top" max-width="320">
-                <template v-slot:activator="{ props }">
-                  <span v-bind="props">{{ column.title }}</span>
-                </template>
-                <span>This edge's {{ edgeMetricLabel }} divided by the neighbour's total
-                  {{ edgeMetricLabel }} across all its edges -- roughly the probability that a
-                  walker sitting on that neighbour steps to this node.</span>
-              </v-tooltip>
-            </template>
-            <template v-slot:item.share="{ item }">
-              {{ formatNumber(item.share) }}
-            </template>
-            <template v-slot:item.weight="{ item }">
-              {{ formatNumber(item.weight) }}
-            </template>
-          </DownloadableDataTable>
-        </template>
+        <!-- Where this node's PageRank+ mass comes from, as aggregates: the walker restarts in
+             proportion to the node metric (STC), so low-STC neighbours seed little of it, and a
+             neighbour splits whatever mass it holds across all its own edges by the edge metric,
+             so a high-degree neighbour passes only a small cut to any one of them. "Summed
+             share" is those cuts added up over this node's edges.
+             Computed by the backend (_neighbour_summary in network/tasks.py) and carried on the
+             point. It used to be derived in the browser from the full edge set, which meant
+             rescanning up to ~1.6M links on every node click and froze the page. -->
+        <p class="label-subtitle mt-4">Neighbourhood</p>
+        <v-table density="compact" v-if="hasNeighbourSummary">
+          <tbody>
+            <tr v-if="node.neighbourCount != null">
+              <td class="label">Neighbours</td>
+              <td class="value">{{ node.neighbourCount }}</td>
+            </tr>
+            <tr v-if="node.neighbourMeanNodeMetric != null">
+              <td class="label">Mean {{ nodeMetricLabel }} of neighbours</td>
+              <td class="value">{{ formatNumber(node.neighbourMeanNodeMetric) }}</td>
+            </tr>
+            <tr v-if="node.neighbourMeanDegree != null">
+              <td class="label">Mean degree of neighbours</td>
+              <td class="value">{{ formatNumber(node.neighbourMeanDegree) }}</td>
+            </tr>
+            <tr v-if="node.neighbourSumShare != null">
+              <td class="label">Summed share to this node</td>
+              <td class="value">{{ formatNumber(node.neighbourSumShare) }}</td>
+            </tr>
+          </tbody>
+        </v-table>
         <p v-else class="text-medium-emphasis text-body-2">No neighbour available.</p>
       </v-window-item>
 
@@ -195,23 +138,13 @@
 import OverviewBar from '@/components/plots/OverviewBar.vue';
 import OverviewDensity from '@/components/plots/OverviewDensity.vue';
 import NodeIdentityCard from '@/components/network/NodeIdentityCard.vue';
-import DownloadableDataTable from '@/components/DownloadableDataTable.vue';
-import { NODE_METRIC_INFO, EDGE_METRIC_INFO, RANKING_ALGORITHM_INFO, metricLabel, metricDescription } from './metricInfo.js';
+import { NODE_METRIC_INFO, RANKING_ALGORITHM_INFO, metricLabel } from './metricInfo.js';
 import { capitalizeFirstLetter, resolveXrefs } from '@/components/network/networkData.js';
 
-// Same null-aware numeric comparator the rank panels use: a missing value is worse than every
-// real one (a neighbour with no STC sorts below the lowest real STC), and values are compared
-// numerically rather than via the default string coercion.
-function numericSort(a, b) {
-  if (a == null && b == null) return 0;
-  if (a == null) return -1;
-  if (b == null) return 1;
-  return a - b;
-}
 
 export default {
   name: 'DiffNodeDetails',
-  components: { OverviewBar, OverviewDensity, NodeIdentityCard, DownloadableDataTable },
+  components: { OverviewBar, OverviewDensity, NodeIdentityCard },
   props: {
     node: {
       type: Object,
@@ -229,12 +162,6 @@ export default {
     rankingAlgorithm: {
       type: String,
       default: null,
-    },
-    // One row per neighbour of this node, built by differential-network.vue over the full
-    // (untrimmed) edge set -- { id, display_name, nodeMetricValue, degree, weight, share }.
-    neighbors: {
-      type: Array,
-      default: () => [],
     },
     // The two compared contexts ({ contextValue, contextName }), so the distribution plots can
     // be scoped to each one -- reuses the same plotting components/API as the overview page
@@ -262,7 +189,6 @@ export default {
       default: null,
     },
   },
-  emits: ['select-node'],
   data() {
     return {
       // Which section of the panel is open ('general' | 'neighbours' | 'plot'). Kept
@@ -304,53 +230,17 @@ export default {
     rankingAlgorithmLabel() {
       return metricLabel(RANKING_ALGORITHM_INFO, this.rankingAlgorithm);
     },
-    edgeMetricLabel() {
-      return metricLabel(EDGE_METRIC_INFO, this.edgeMetric) || 'edge metric';
-    },
-    neighborHeaders() {
-      return [
-        { title: 'Neighbour', key: 'display_name' },
-        { title: this.nodeMetricLabel, key: 'nodeMetricValue', sort: numericSort },
-        { title: 'Degree', key: 'degree', sort: numericSort },
-        { title: 'Share', key: 'share', sort: numericSort },
-        // Both off by default so the four columns above still fit the panel's width, and both
-        // available from the columns selector (and exported once shown): the neighbour's
-        // description, same optional column NodeRankPanel offers, and the raw edge weight
-        // behind Share's numerator.
-        { title: 'Description', key: 'description', hidden: true },
-        { title: this.edgeMetricLabel, key: 'weight', sort: numericSort, hidden: true },
-      ];
-    },
-    // Summary over all neighbours. STC and degree are averaged -- they describe what a typical
-    // neighbour looks like. Share is summed instead: each neighbour's share is the chance a
-    // walker standing there steps here, so the total is this node's whole inflow per step, which
-    // an average would divide back out. Missing values are skipped rather than counted as zero,
-    // so a neighbour without a node metric doesn't drag the mean down on its own.
-    neighborSummary() {
-      const values = (key) => this.neighbors
-        .map((n) => n[key])
-        .filter((v) => typeof v === 'number' && !Number.isNaN(v));
-      const sum = (key) => values(key).reduce((total, v) => total + v, 0);
-      const mean = (key) => (values(key).length ? sum(key) / values(key).length : null);
-      return {
-        meanNodeMetric: mean('nodeMetricValue'),
-        meanDegree: mean('degree'),
-        sumShare: sum('share'),
-      };
-    },
-    // The node metric's own description explains what the value means; here it's read one hop
-    // out, so say whose value it is before repeating that explanation.
-    neighborMetricTooltip() {
-      const description = metricDescription(NODE_METRIC_INFO, this.nodeMetric);
-      const lead = `The neighbour's own ${this.nodeMetricLabel} value. PageRank+ restarts in proportion to it, so neighbours with a low value seed little mass near this node.`;
-      return description ? `${lead} ${description}` : lead;
+    // Mirrors hasEdgeStats: the aggregates are computed backend-side over the full edge set, so
+    // a node with no surviving edges simply arrives without them.
+    hasNeighbourSummary() {
+      if (!this.node) return false;
+      return ['neighbourCount', 'neighbourMeanDegree', 'neighbourSumShare', 'neighbourMeanNodeMetric'].some(
+        (key) => this.node[key] != null
+      );
     },
   },
   methods: {
     capitalizeFirstLetter,
-    onNeighborClick(_, { item }) {
-      this.$emit('select-node', item);
-    },
     // toPrecision(6) alone would round a value like 0.9999997 to a flat "1.00000", hiding just
     // how extreme it is -- pad significant digits instead once the value is close to 0 or 1.
     formatNumber(value) {
@@ -388,28 +278,6 @@ export default {
 }
 .value {
   padding-left: 0px;
-}
-/* Clicking a row selects that neighbour, same as a node rank row. */
-.neighbor-table :deep(tbody tr) {
-  cursor: pointer;
-}
-/* Column headers read as the same kind of caption as the .label cells in the tables above --
-   PrimeVue's own header style is bold and full size, which made this table shout next to the
-   plain label/value rows it sits under. */
-.neighbor-table :deep(.p-datatable-header-cell),
-.neighbor-table :deep(.p-datatable-column-title) {
-  font-size: 12px;
-  font-weight: 400;
-  color: rgb(var(--v-theme-primary-darken-1));
-}
-/* The Details panel is narrow, so a long variable name would push the three numeric columns
-   off the edge -- truncate it and keep the full name in the title tooltip. */
-.neighbor-name {
-  display: block;
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 /* Same truncate-with-tooltip treatment NodeRankPanel gives its own Description column, just
    narrower -- this table lives in the side panel rather than a full-width card. */
