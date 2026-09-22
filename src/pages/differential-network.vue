@@ -288,6 +288,15 @@
 </template>
 
 <script>
+// markRaw: the comparison result is read-only data that is always replaced wholesale, never
+// mutated in place, but it is huge -- up to ~1.6M links plus ~6k points. Left as a plain data
+// property, Vue deep-proxies it: the first computed that walks the edge list (graphLinks,
+// nodeEdgeTotals, selectedNodeNeighbors, ...) creates a Proxy per edge object and registers a
+// dependency per property it reads, so a single scan builds millions of proxies and dep sets.
+// That is what made every click -- each one re-running such a computed -- freeze the tab and
+// then run it out of memory. markRaw opts the object graph out of reactivity entirely;
+// `this.result` itself is still reactive, so assigning a new result still re-renders.
+import { markRaw } from 'vue';
 import { BASE_URL } from '@/components/constants.js';
 import { getCookie } from '@/components/authentication/auth.js';
 import ContextComparisonPicker from '@/components/modina/ContextComparisonPicker.vue';
@@ -568,17 +577,22 @@ export default {
     // keeps selectedNodeNeighbors below from rescanning every edge per row.
     nodeEdgeTotals() {
       const totals = new Map();
+      // Unrolled over the two endpoints rather than looping a [source, target] array: this runs
+      // once per result over every edge, and at ~1.6M edges that array would be 1.6M throwaway
+      // allocations for nothing.
+      const add = (id, weight) => {
+        const entry = totals.get(id);
+        if (entry) {
+          entry.degree += 1;
+          entry.strength += weight;
+        } else {
+          totals.set(id, { degree: 1, strength: weight });
+        }
+      };
       for (const link of this.result?.links || []) {
         const weight = typeof link.weight === 'number' ? link.weight : 0;
-        for (const id of [link.source, link.target]) {
-          const entry = totals.get(id);
-          if (entry) {
-            entry.degree += 1;
-            entry.strength += weight;
-          } else {
-            totals.set(id, { degree: 1, strength: weight });
-          }
-        }
+        add(link.source, weight);
+        add(link.target, weight);
       }
       return totals;
     },
@@ -712,7 +726,7 @@ export default {
           const data = await response.json();
 
           if (data.status === 'SUCCESS') {
-            this.result = data.result;
+            this.result = markRaw(data.result);
             // Default to the top 100 best-ranked nodes (same convention as moDiNA_interface's
             // Top-N slider) so a large comparison doesn't render an unreadable hairball by default.
             this.topN = this.result?.points ? Math.min(100, this.result.points.length) : null;
@@ -1079,7 +1093,7 @@ export default {
       try {
         this.selectedContexts = savedState.selectedContexts || this.selectedContexts;
         this.settings = savedState.settings || this.settings;
-        this.result = savedState.result;
+        this.result = markRaw(savedState.result);
         this.topN = this.result?.points ? Math.min(100, this.result.points.length) : null;
         await this.$nextTick();
         await this.initializeCosmograph();
