@@ -1,81 +1,92 @@
 <template>
   <div ref="rootEl">
   <div v-if="node">
-    <NodeIdentityCard
-      :display-name="node.display_name || node.id"
-      :node-id="node.id"
-      :description="node.description"
-      :group-label="node.group ? capitalizeFirstLetter(node.group) : ''"
-      :group-color="groupColor"
-      :data-type="node.type"
-      :xrefs="validXrefs"
-      :icon-url="getIcon ? getIcon(node.group) : ''"
-    />
+    <DetailsTabs title="Node" :subtitle="node.display_name || node.id">
+      <template #general>
+        <!-- hide-header: DetailsTabs already shows the "Node" title and the name above the tabs. -->
+        <NodeIdentityCard
+          hide-header
+          :display-name="node.display_name || node.id"
+          :node-id="node.id"
+          :description="node.description"
+          :group-label="node.group ? capitalizeFirstLetter(node.group) : ''"
+          :group-color="groupColor"
+          :data-type="node.type"
+          :xrefs="validXrefs"
+          :icon-url="getIcon ? getIcon(node.group) : ''"
+        />
 
-    <p class="label-subtitle mt-4">Ranking</p>
-    <v-table density="compact">
-      <tbody>
-        <tr v-if="node.rank != null" class="font-weight-bold">
-          <td class="label font-weight-bold">Rank{{ rankingAlgorithmLabel ? ` (${rankingAlgorithmLabel})` : '' }}</td>
-          <td class="value font-weight-bold">{{ node.rank }}</td>
-        </tr>
-        <tr v-if="node.score != null" class="font-weight-bold">
-          <td class="label font-weight-bold">Ranking score</td>
-          <td class="value font-weight-bold">{{ formatNumber(node.score) }}</td>
-        </tr>
-        <tr v-if="node.nodeMetricRank != null">
-          <td class="label">{{ nodeMetricLabel }} Rank</td>
-          <td class="value">{{ node.nodeMetricRank }}</td>
-        </tr>
-        <tr v-if="node.nodeMetricValue != null">
-          <td class="label">{{ nodeMetricLabel }} value</td>
-          <td class="value">{{ formatNumber(node.nodeMetricValue) }}</td>
-        </tr>
-      </tbody>
-    </v-table>
+        <p class="label-subtitle mt-4">Ranking</p>
+        <v-table density="compact">
+          <tbody>
+            <tr v-if="node.rank != null" class="font-weight-bold">
+              <td class="label font-weight-bold">Rank{{ rankingAlgorithmLabel ? ` (${rankingAlgorithmLabel})` : '' }}</td>
+              <td class="value font-weight-bold">{{ node.rank }}</td>
+            </tr>
+            <tr v-if="node.score != null" class="font-weight-bold">
+              <td class="label font-weight-bold">Ranking score</td>
+              <td class="value font-weight-bold">{{ formatNumber(node.score) }}</td>
+            </tr>
+            <tr v-if="node.nodeMetricRank != null">
+              <td class="label">{{ nodeMetricLabel }} Rank</td>
+              <td class="value">{{ node.nodeMetricRank }}</td>
+            </tr>
+            <tr v-if="node.nodeMetricValue != null">
+              <td class="label">{{ nodeMetricLabel }} value</td>
+              <td class="value">{{ formatNumber(node.nodeMetricValue) }}</td>
+            </tr>
+          </tbody>
+        </v-table>
 
-    <p class="label-subtitle mt-4">Incident edge statistics</p>
-    <v-table density="compact" v-if="hasEdgeStats">
-      <tbody>
-        <tr v-if="node.edgeMin != null"><td class="label">Min</td><td class="value">{{ formatNumber(node.edgeMin) }}</td></tr>
-        <tr v-if="node.edgeMax != null"><td class="label">Max</td><td class="value">{{ formatNumber(node.edgeMax) }}</td></tr>
-        <tr v-if="node.edgeMedian != null"><td class="label">Median</td><td class="value">{{ formatNumber(node.edgeMedian) }}</td></tr>
-        <tr v-if="node.edgeMean != null"><td class="label">Mean</td><td class="value">{{ formatNumber(node.edgeMean) }}</td></tr>
-        <tr v-if="node.edgeSd != null"><td class="label">Std. dev.</td><td class="value">{{ formatNumber(node.edgeSd) }}</td></tr>
-        <tr v-if="node.edgePercentileMean != null"><td class="label">Mean percentile rank</td><td class="value">{{ formatNumber(node.edgePercentileMean) }}</td></tr>
-      </tbody>
-    </v-table>
-    <p v-else class="text-medium-emphasis text-body-2">No edge available.</p>
+        <p class="label-subtitle mt-4">Incident edge statistics</p>
+        <v-table density="compact" v-if="hasEdgeStats">
+          <tbody>
+            <tr v-if="node.edgeMin != null"><td class="label">Min</td><td class="value">{{ formatNumber(node.edgeMin) }}</td></tr>
+            <tr v-if="node.edgeMax != null"><td class="label">Max</td><td class="value">{{ formatNumber(node.edgeMax) }}</td></tr>
+            <tr v-if="node.edgeMedian != null"><td class="label">Median</td><td class="value">{{ formatNumber(node.edgeMedian) }}</td></tr>
+            <tr v-if="node.edgeMean != null"><td class="label">Mean</td><td class="value">{{ formatNumber(node.edgeMean) }}</td></tr>
+            <tr v-if="node.edgeSd != null"><td class="label">Std. dev.</td><td class="value">{{ formatNumber(node.edgeSd) }}</td></tr>
+            <tr v-if="node.edgePercentileMean != null"><td class="label">Mean percentile rank</td><td class="value">{{ formatNumber(node.edgePercentileMean) }}</td></tr>
+          </tbody>
+        </v-table>
+        <p v-else class="text-medium-emphasis text-body-2">No edge available.</p>
+      </template>
 
-    <template v-if="context1 && context2">
-      <p class="label-subtitle mt-4">Distribution per context</p>
-      <!-- Both variable types render the two contexts as one grouped plot: continuous
-           variables as a density plot (see GetDataDensityPlotView's contextValue1/contextValue2
-           mode), categorical variables as a bar chart grouped by context (GetDataBarCountView's
-           contextValue1/contextValue2 mode). -->
-      <OverviewDensity
-        v-if="node.type === 'continuous'"
-        :xVar="node.id"
-        :context1="context1"
-        :context2="context2"
-        palette="muted"
-        :textSize="13"
-        :width="plotWidth"
-        :height="260"
-      />
-      <OverviewBar
-        v-else
-        :xVar="node.id"
-        :context1="context1"
-        :context2="context2"
-        barType="Grouped"
-        barOrientation="Vertical"
-        palette="muted"
-        :textSize="13"
-        :width="plotWidth"
-        :height="260"
-      />
-    </template>
+      <template #plot>
+        <template v-if="context1 && context2">
+          <p class="label-subtitle">Distribution per context</p>
+          <!-- Both variable types render the two contexts as one grouped plot: continuous
+               variables as a density plot (see GetDataDensityPlotView's contextValue1/contextValue2
+               mode), categorical variables as a bar chart grouped by context (GetDataBarCountView's
+               contextValue1/contextValue2 mode). -->
+          <OverviewDensity
+            v-if="node.type === 'continuous'"
+            :xVar="node.id"
+            :context1="context1"
+            :context2="context2"
+            palette="muted"
+            :textSize="13"
+            :width="plotWidth"
+            :height="260"
+          />
+          <OverviewBar
+            v-else
+            :xVar="node.id"
+            :context1="context1"
+            :context2="context2"
+            barType="Grouped"
+            barOrientation="Vertical"
+            palette="muted"
+            :textSize="13"
+            :width="plotWidth"
+            :height="260"
+          />
+        </template>
+        <p v-else class="text-medium-emphasis text-body-2">
+          Select two contexts to see this variable's distribution in each of them.
+        </p>
+      </template>
+    </DetailsTabs>
   </div>
   <p v-else class="text-medium-emphasis text-body-2">Select a node in the graph or the node rank table to see its details.</p>
   </div>
@@ -85,12 +96,13 @@
 import OverviewBar from '@/components/plots/OverviewBar.vue';
 import OverviewDensity from '@/components/plots/OverviewDensity.vue';
 import NodeIdentityCard from '@/components/network/NodeIdentityCard.vue';
+import DetailsTabs from './DetailsTabs.vue';
 import { NODE_METRIC_INFO, RANKING_ALGORITHM_INFO, metricLabel } from './metricInfo.js';
 import { capitalizeFirstLetter, resolveXrefs } from '@/components/network/networkData.js';
 
 export default {
   name: 'DiffNodeDetails',
-  components: { OverviewBar, OverviewDensity, NodeIdentityCard },
+  components: { OverviewBar, OverviewDensity, NodeIdentityCard, DetailsTabs },
   props: {
     node: {
       type: Object,

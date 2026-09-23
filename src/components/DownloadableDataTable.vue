@@ -67,18 +67,31 @@
         v-for="header in visibleHeaders"
         :key="header.key"
         :field="header.key"
-        :header="$slots['header.' + header.key] ? undefined : header.title"
+        :header="$slots['header.' + header.key] || header.tooltip ? undefined : header.title"
         :sortable="header.sortable !== false"
         :style="header.width ? { width: header.width + 'px' } : undefined"
       >
-        <template v-if="$slots['header.' + header.key]" #header>
+        <template v-if="$slots['header.' + header.key] || header.tooltip" #header>
           <slot
+            v-if="$slots['header.' + header.key]"
             :name="'header.' + header.key"
             :column="{ title: header.title, key: header.key, sortable: header.sortable !== false }"
           />
+          <!-- `tooltip` covers the common case a #header slot is otherwise written for: a title
+               with an explanation behind it. A slot still wins, for headers that need more. -->
+          <v-tooltip v-else location="top" max-width="320">
+            <template v-slot:activator="{ props }">
+              <span v-bind="props">{{ header.title }}</span>
+            </template>
+            <span>{{ header.tooltip }}</span>
+          </v-tooltip>
         </template>
         <template #body="{ data }">
           <slot v-if="$slots['item.' + header.key]" :name="'item.' + header.key" :item="data" />
+          <!-- `format` covers the other common case: a cell that only needs its value rounded or
+               a placeholder when it is missing. Exports deliberately ignore it and write the raw
+               value, so a download keeps full precision. -->
+          <template v-else-if="header.format">{{ header.format(getPath(data, header.key)) }}</template>
           <template v-else>{{ getPath(data, header.key) }}</template>
         </template>
       </Column>
@@ -114,12 +127,15 @@ export default {
   // than via Vue's default fallthrough-to-root-element, since the root here is a wrapper div.
   inheritAttrs: false,
   props: {
-    // Column descriptors: { title, key, width?, sortable?(default true), sort?(a,b), csvValue?(item), hidden? }.
+    // Column descriptors: { title, key, width?, sortable?(default true), sort?(a,b), csvValue?(item),
+    // hidden?, tooltip?, format?(value) }.
     // `sort` is an optional custom comparator (e.g. numeric, null-aware) used instead of the
     // default string compare. `csvValue` lets a column's exported cell differ from its
     // rendered cell without adding an extra visible column. `hidden: true` makes a column
     // start out hidden (still toggleable from the columns selector, still exportable once
     // shown) -- use it for optional/heavy columns that shouldn't clutter the default view.
+    // `tooltip` puts an explanation behind the column title and `format` renders a cell's value,
+    // both shorthands for the #header./#item. slots a caller would otherwise write for them.
     headers: { type: Array, required: true },
     items: { type: Array, default: () => [] },
     loading: { type: Boolean, default: false },
