@@ -1,62 +1,68 @@
 <template>
   <div ref="rootEl">
   <div v-if="edge">
-    <p><span class="label-title">Edge</span></p>
-    <p class="display-name text-center">{{ sourceLabel }} &nbsp;↔&nbsp; {{ targetLabel }}</p>
+    <DetailsTabs title="Edge" :subtitle="`${sourceLabel}  ↔  ${targetLabel}`">
+      <template #general>
+        <p class="label-subtitle">Nodes</p>
+        <EdgeNodesTable :nodes="edgeNodes" />
 
-    <p class="label-subtitle mt-4">Nodes</p>
-    <EdgeNodesTable :nodes="edgeNodes" />
+        <p class="label-subtitle mt-4">Ranking</p>
+        <v-table density="compact">
+          <tbody>
+            <tr v-if="edge.rank != null">
+              <td class="label">Rank</td>
+              <td class="value">{{ edge.rank }}</td>
+            </tr>
+            <tr v-if="edge.weight != null">
+              <td class="label">{{ edgeMetricLabel }} (absolute)</td>
+              <td class="value">{{ formatNumber(edge.weight) }}</td>
+            </tr>
+            <tr v-if="edge.signed != null">
+              <td class="label">{{ edgeMetricLabel }} (signed)</td>
+              <td class="value">{{ formatNumber(edge.signed) }}</td>
+            </tr>
+          </tbody>
+        </v-table>
 
-    <p class="label-subtitle mt-4">Ranking</p>
-    <v-table density="compact">
-      <tbody>
-        <tr v-if="edge.rank != null">
-          <td class="label">Rank</td>
-          <td class="value">{{ edge.rank }}</td>
-        </tr>
-        <tr v-if="edge.weight != null">
-          <td class="label">{{ edgeMetricLabel }} (absolute)</td>
-          <td class="value">{{ formatNumber(edge.weight) }}</td>
-        </tr>
-        <tr v-if="edge.signed != null">
-          <td class="label">{{ edgeMetricLabel }} (signed)</td>
-          <td class="value">{{ formatNumber(edge.signed) }}</td>
-        </tr>
-      </tbody>
-    </v-table>
+        <p class="label-subtitle mt-4">Per-context statistics</p>
+        <v-table density="compact">
+          <thead>
+            <tr>
+              <th></th>
+              <th>{{ contextNames.name1 || 'Context 1' }}</th>
+              <th>{{ contextNames.name2 || 'Context 2' }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="label">Adjusted p-value</td>
+              <td class="value">{{ formatNumber(edge.rawP1) }}</td>
+              <td class="value">{{ formatNumber(edge.rawP2) }}</td>
+            </tr>
+            <tr>
+              <td class="label">Raw effect size</td>
+              <td class="value">{{ formatNumber(edge.rawE1) }}</td>
+              <td class="value">{{ formatNumber(edge.rawE2) }}</td>
+            </tr>
+          </tbody>
+        </v-table>
+      </template>
 
-    <p class="label-subtitle mt-4">Per-context statistics</p>
-    <v-table density="compact">
-      <thead>
-        <tr>
-          <th></th>
-          <th>{{ contextNames.name1 || 'Context 1' }}</th>
-          <th>{{ contextNames.name2 || 'Context 2' }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td class="label">Adjusted p-value</td>
-          <td class="value">{{ formatNumber(edge.rawP1) }}</td>
-          <td class="value">{{ formatNumber(edge.rawP2) }}</td>
-        </tr>
-        <tr>
-          <td class="label">Raw effect size</td>
-          <td class="value">{{ formatNumber(edge.rawE1) }}</td>
-          <td class="value">{{ formatNumber(edge.rawE2) }}</td>
-        </tr>
-      </tbody>
-    </v-table>
-
-    <template v-if="context1 && context2">
-      <p class="label-subtitle mt-4">Relationship between contexts</p>
-      <div v-if="relationshipPlot" class="relationship-plot">
-        <component :is="relationshipPlot" v-bind="relationshipPlotBindings" />
-      </div>
-      <p v-else class="text-medium-emphasis text-body-2">
-        Variable types for this edge's nodes aren't available, so a relationship plot can't be chosen.
-      </p>
-    </template>
+      <template #plot>
+        <template v-if="context1 && context2">
+          <p class="label-subtitle">Relationship between contexts</p>
+          <div v-if="relationshipPlot" class="relationship-plot">
+            <component :is="relationshipPlot" v-bind="relationshipPlotBindings" />
+          </div>
+          <p v-else class="text-medium-emphasis text-body-2">
+            Variable types for this edge's nodes aren't available, so a relationship plot can't be chosen.
+          </p>
+        </template>
+        <p v-else class="text-medium-emphasis text-body-2">
+          Select two contexts to see how this edge's two variables relate in each of them.
+        </p>
+      </template>
+    </DetailsTabs>
   </div>
   <p v-else class="text-medium-emphasis text-body-2">Select an edge in the graph or the edge rank table to see its details.</p>
   </div>
@@ -67,12 +73,13 @@ import OverviewBox from '@/components/plots/OverviewBox.vue';
 import OverviewBar from '@/components/plots/OverviewBar.vue';
 import OverviewLine from '@/components/plots/OverviewLine.vue';
 import EdgeNodesTable from '@/components/network/EdgeNodesTable.vue';
+import DetailsTabs from './DetailsTabs.vue';
 import { EDGE_METRIC_INFO, metricLabel } from './metricInfo.js';
 import { capitalizeFirstLetter } from '@/components/network/networkData.js';
 
 export default {
   name: 'DiffEdgeDetails',
-  components: { OverviewBar, OverviewBox, OverviewLine, EdgeNodesTable },
+  components: { OverviewBar, OverviewBox, OverviewLine, EdgeNodesTable, DetailsTabs },
   props: {
     edge: {
       type: Object,
@@ -266,17 +273,6 @@ export default {
 .label-subtitle {
   font-size: 16px;
   color: rgb(var(--v-theme-primary-darken-1));
-}
-.label-title {
-  font-size: 24px;
-  color: rgb(var(--v-theme-primary-darken-1));
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-.display-name {
-  font-size: 18px;
-  color: rgb(var(--v-theme-darken-1));
 }
 .value {
   padding-left: 0px;

@@ -1,7 +1,9 @@
 <template>
-  <v-card outlined>
-    <v-toolbar color="primary-darken-1" density="compact">
-      <v-toolbar-title>
+  <v-card :outlined="!embedded" :flat="embedded">
+    <!-- embedded: the parent supplies the header (a tab label carrying the row count), so the
+         toolbar keeps only the search field and drops its own title and background. -->
+    <v-toolbar :color="embedded ? 'surface' : 'primary-darken-1'" density="compact">
+      <v-toolbar-title v-if="!embedded">
         Node Rank
         <v-chip size="small" color="white" variant="outlined" class="ml-2">{{ items.length }}</v-chip>
       </v-toolbar-title>
@@ -149,6 +151,11 @@ export default {
       type: Boolean,
       default: false,
     },
+    // Rendered inside another card (the ranking tabs) rather than standing on its own.
+    embedded: {
+      type: Boolean,
+      default: false,
+    },
     selectedNode: {
       type: String,
       default: null,
@@ -203,6 +210,59 @@ export default {
         { title: 'Edge Median', key: 'edgeMedian', sort: scoreSort, hidden: true },
         { title: 'Edge Std. Dev.', key: 'edgeSd', sort: scoreSort, hidden: true },
         { title: 'Edge Mean Percentile', key: 'edgePercentileMean', sort: scoreSort, hidden: true },
+        ...this.neighbourHeaders,
+      ];
+    },
+    // The backend only computes these when settings.MODINA_NEIGHBOUR_STATS is on, and a result
+    // cached from before they existed has no such fields either -- so the columns are offered
+    // only when the rows actually carry them, rather than sitting in the columns selector able
+    // to show nothing but '-'. `degree` is the cheapest marker: every node in a computed result
+    // has one, including edgeless nodes, whose degree is a real 0.
+    hasNeighbourStats() {
+      return this.items.some((item) => item.degree != null);
+    },
+    // All off by default: they explain where a node's ranking score comes from rather than what
+    // it is, so they are there when you go looking and out of the way otherwise.
+    neighbourHeaders() {
+      if (!this.hasNeighbourStats) return [];
+      return [
+        {
+          title: 'Degree',
+          key: 'degree',
+          width: 110,
+          sort: scoreSort,
+          hidden: true,
+          tooltip: 'How many edges this node has in the differential network.',
+        },
+        {
+          title: 'Neighbour Mean Degree',
+          key: 'neighborMeanDegree',
+          sort: scoreSort,
+          hidden: true,
+          format: this.formatNumber,
+          tooltip: 'Mean degree of this node\'s neighbours. A neighbour with many edges spreads '
+            + 'its mass over all of them, so it passes only a small share on to this node.',
+        },
+        {
+          title: `Neighbour Mean ${this.nodeMetricLabel}`,
+          key: 'neighborMeanNodeMetric',
+          sort: scoreSort,
+          hidden: true,
+          format: this.formatNumber,
+          tooltip: `Mean ${this.nodeMetricLabel} over this node's neighbours, skipping any whose `
+            + `value is missing. ${this.rankingAlgorithmLabel} restarts in proportion to `
+            + `${this.nodeMetricLabel}, so a low value here means the walker rarely restarts nearby.`,
+        },
+        {
+          title: 'Neighbour Share Sum',
+          key: 'neighborShareSum',
+          sort: scoreSort,
+          hidden: true,
+          format: this.formatNumber,
+          tooltip: 'For each neighbour, the edge to this node divided by that neighbour\'s total '
+            + 'edge weight -- the chance a walker sitting there steps here -- summed over all '
+            + 'neighbours, i.e. this node\'s whole inflow per step.',
+        },
       ];
     },
     nodeMetricLabel() {
