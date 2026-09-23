@@ -1253,6 +1253,7 @@ export default {
     },
 
     async clearContext(deleteTables=true) {
+      console.log("Delete Context called")
       this.deleteWarn = false;
       this.contextName = `Context ${this.value}`;
       this.selectedVariables = this.allVariablesGlobalFlat;
@@ -1277,7 +1278,7 @@ export default {
       this.$nextTick(() => this.fetchParticipants(this.createParams()));
 
       // Only call api if there was a context created for this tab otherwise merely the form was being cleared
-      if (this.status === "Finished" && deleteTables) {
+      if (this.status === "Finished" || this.status === "Failure" && deleteTables) {
 
         // Send a DELETE request to the backend deleting the context
         await fetch(`${BASE_URL}/context/api/deleteContext`, {
