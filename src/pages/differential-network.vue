@@ -234,11 +234,8 @@
         </v-row>
 
         <v-row class="mt-4" v-if="hasResult">
-          <!-- One full-width card with both rankings as tabs: each table carries enough columns
-               (metric values, incident-edge and neighbourhood statistics) that a half-width
-               column squeezes them. Both tabs render eagerly -- v-window-item is lazy by
-               default, which would move the cost of building a table into the click that opens
-               its tab, and these tables can hold every node and every edge of the comparison. -->
+          <!-- Node and edge rankings share one full-width card as tabs: both tables carry enough
+               columns (metric values, incident-edge stats) that a half-width column squeezes them. -->
           <v-col cols="12">
             <v-card outlined>
               <v-tabs v-model="rankTab" bg-color="primary-darken-1" density="comfortable">
@@ -252,7 +249,7 @@
                 </v-tab>
               </v-tabs>
               <v-window v-model="rankTab">
-                <v-window-item value="nodes" eager :transition="false" :reverse-transition="false">
+                <v-window-item value="nodes">
                   <NodeRankPanel
                     embedded
                     :items="result.points || []"
@@ -262,7 +259,7 @@
                     @select-node="selectNodeById"
                   />
                 </v-window-item>
-                <v-window-item value="edges" eager :transition="false" :reverse-transition="false">
+                <v-window-item value="edges">
                   <EdgeRankPanel
                     embedded
                     :items="result.edgeRanking || []"
@@ -340,7 +337,7 @@ export default {
 
       result: null,
 
-      // Which ranking table the tabs below the graph are showing ('nodes' | 'edges').
+      // Which of the two ranking tables is showing ('nodes' | 'edges').
       rankTab: 'nodes',
 
       // Selection is tracked by stable id (not a Cosmograph row index) -- ids
