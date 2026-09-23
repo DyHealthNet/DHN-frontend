@@ -1,7 +1,7 @@
 <template>
   <v-card :outlined="!embedded" :flat="embedded">
-    <!-- embedded: the parent supplies the header (a tab label carrying the row count), so the
-         toolbar keeps only the search field and drops its own title and background. -->
+    <!-- embedded: the parent already supplies the header (a tab label with the row count), so the
+         toolbar keeps only the search field and drops its own title/background. -->
     <v-toolbar :color="embedded ? 'surface' : 'primary-darken-1'" density="compact">
       <v-toolbar-title v-if="!embedded">
         Edge Rank
